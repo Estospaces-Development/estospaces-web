@@ -6,11 +6,23 @@ export const LAUNCH_LOCALE = "en-IN";
 export const LAUNCH_DEFAULT_CITY = "Chennai";
 export const UK_COUNTRY_CODE = "GB";
 export const UK_COUNTRY_NAME = "United Kingdom";
-
-const LEGACY_UK_POSTCODE_PATTERN = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
-const LEGACY_UK_LOCATION_PATTERN =
-  /\b(London|Westminster|Edinburgh|Preston|Manchester|Birmingham|Leeds|Liverpool|Oxford|Cambridge|Bristol|Belfast|Glasgow|Cardiff|England|Scotland|Wales|Northern Ireland|United Kingdom|UK)\b/gi;
-const LEGACY_POUND_PATTERN = /\u00c2\u00a3|\u00a3/g;
+const LAUNCH_CITY_BY_PIN_CODE: Record<string, string> = {
+  "600001": LAUNCH_DEFAULT_CITY,
+  "641001": "Coimbatore",
+  "625001": "Madurai",
+  "560001": "Bengaluru",
+  "570001": "Mysuru",
+  "575001": "Mangaluru",
+  "500001": "Hyderabad",
+  "506002": "Warangal",
+  "400001": "Mumbai",
+  "411001": "Pune",
+  "440001": "Nagpur",
+  "110001": "New Delhi",
+  "110075": "Dwarka",
+  "682001": "Kochi",
+  "695001": "Thiruvananthapuram",
+};
 
 export function formatLaunchCurrency(
   amount: number | null | undefined,
@@ -28,10 +40,43 @@ export function formatLaunchCurrency(
   return `${LAUNCH_CURRENCY_SYMBOL}${formatted}${code}${suffix}`;
 }
 
+export function formatLaunchCurrencyForCountry(
+  amount: number | null | undefined,
+  options: {
+    countryCode?: string | null;
+    countryName?: string | null;
+    currencyCode?: string | null;
+    monthly?: boolean;
+    showCode?: boolean;
+  } = {},
+): string {
+  if (typeof amount !== "number" || !Number.isFinite(amount)) {
+    return "";
+  }
+
+  const country = getSupportedLaunchCountry(options.countryCode, options.countryName);
+  const requestedCurrency = String(options.currencyCode || "").trim().toUpperCase();
+  const currency = requestedCurrency || (country === UK_COUNTRY_CODE ? "GBP" : LAUNCH_CURRENCY_CODE);
+  const locale = currency === "GBP" ? "en-GB" : LAUNCH_LOCALE;
+  const suffix = options.monthly ? "/mo" : "";
+  const code = options.showCode ? ` ${currency}` : "";
+
+  try {
+    return `${new Intl.NumberFormat(locale, {
+      currency,
+      maximumFractionDigits: 0,
+      style: "currency",
+    }).format(amount)}${code}${suffix}`;
+  } catch {
+    return formatLaunchCurrency(amount, {
+      monthly: options.monthly,
+      showCode: options.showCode,
+    });
+  }
+}
+
 export function normalizeLaunchCurrencyText(value: string): string {
-  return value
-    .replace(/\bGBP\b/g, LAUNCH_CURRENCY_CODE)
-    .replace(LEGACY_POUND_PATTERN, LAUNCH_CURRENCY_SYMBOL);
+  return value.replace(/\u00c2?\u00a3/g, "\u00a3");
 }
 
 export function formatLaunchPropertyLocation(
@@ -46,8 +91,6 @@ export function formatLaunchPropertyLocation(
   }
 
   const sanitized = raw
-    .replace(LEGACY_UK_POSTCODE_PATTERN, "")
-    .replace(LEGACY_UK_LOCATION_PATTERN, LAUNCH_DEFAULT_CITY)
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
@@ -66,8 +109,6 @@ export function formatLaunchPropertyText(value: string | null | undefined, fallb
   }
 
   const sanitized = raw
-    .replace(LEGACY_UK_POSTCODE_PATTERN, "")
-    .replace(LEGACY_UK_LOCATION_PATTERN, LAUNCH_DEFAULT_CITY)
     .replace(/\s{2,}/g, " ")
     .replace(/\s+,/g, ",")
     .trim();
@@ -122,7 +163,6 @@ export function isLaunchUKCountry(countryCode?: string | null, countryName?: str
     name === "northern ireland";
 }
 
-
 export function normalizeLaunchLocationCode(value?: string | null): string {
   const compact = String(value || "").trim().replace(/\s+/g, "").toUpperCase();
   if (!compact) {
@@ -162,6 +202,24 @@ export function getSupportedLaunchCountry(
     return LAUNCH_COUNTRY_CODE;
   }
   return getLaunchCountryFromLocationCode(locationCode);
+}
+
+export function getLaunchCityFromPinCode(
+  value?: string | null,
+  countryCode?: string | null,
+  countryName?: string | null,
+): string | null {
+  const normalized = normalizeLaunchPinCode(value);
+  if (!isValidLaunchPinCode(normalized)) {
+    return null;
+  }
+
+  const country = getSupportedLaunchCountry(countryCode, countryName, normalized);
+  if (country !== LAUNCH_COUNTRY_CODE) {
+    return null;
+  }
+
+  return LAUNCH_CITY_BY_PIN_CODE[normalized] || null;
 }
 
 export function getLaunchLocationCodeLabel(
@@ -221,14 +279,14 @@ export function getLaunchLocationCodeErrorMessage(
   if (country === LAUNCH_COUNTRY_CODE) {
     return "Please enter a valid 6-digit Indian PIN code";
   }
-  return "Please enter a valid Indian PIN code or UK postcode";
+  return "Please enter a valid PIN code or postcode";
 }
 
 export function normalizeLaunchLocationCodeErrorMessage(
   message?: string | null,
   locationCode?: string | null,
 ): string {
-  const fallback = "Please enter a valid Indian PIN code or UK postcode";
+  const fallback = "Please enter a valid PIN code or postcode";
   const rawMessage = String(message || "").trim();
   if (!rawMessage) {
     return fallback;

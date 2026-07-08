@@ -12,6 +12,7 @@ import {
     Plus
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
@@ -31,13 +32,16 @@ import {
     readSearchUrlFilters,
 } from '@/lib/propertySearchControls';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     isValidLaunchLocationCode,
-    LAUNCH_COUNTRY_CODE,
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -249,6 +253,7 @@ const buildSectionSuggestions = (properties: SearchResult[], query: string): Aut
 function DiscoverContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
     const { activeTab, setActiveTab } = usePropertyFilter();
 
     // Local state
@@ -276,9 +281,26 @@ function DiscoverContent() {
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(searchParams.get('page')));
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [globalFilterOptions, setGlobalFilterOptions] = useState<FilterOptions | null>(null);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
+    const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationQuery);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationQuery);
+    const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
+        countryCode: geoMarket,
+    });
+    const discoverPropertyTypeOptions = useMemo(() => {
+        const propertyTypes =
+            globalFilterOptions?.property_types?.length
+                ? globalFilterOptions.property_types
+                : filterOptions?.property_types;
+
+        return buildPropertyTypeOptions(propertyTypes).map((option) => (
+            option.value === '' ? { ...option, value: 'all' } : option
+        ));
+    }, [filterOptions?.property_types, globalFilterOptions?.property_types]);
 
     // Initialize filters from URL/Context
     useEffect(() => {
@@ -288,6 +310,22 @@ function DiscoverContent() {
         else if (nextTab === 'buy') setActiveTab('buy');
         else setActiveTab('all');
     }, [searchParams, setActiveTab]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadGlobalFilters = async () => {
+            const options = await searchService.getFilters();
+            if (isMounted && options) {
+                setGlobalFilterOptions(options);
+            }
+        };
+
+        void loadGlobalFilters();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
@@ -311,7 +349,7 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections(LAUNCH_COUNTRY_CODE);
+            const result = await searchService.getPropertySections(geoMarket);
 
             if (!result.success) {
                 setProperties([]);
@@ -364,7 +402,7 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, geoMarket]);
 
     // Autocomplete location suggestions
     useEffect(() => {
@@ -475,7 +513,7 @@ function DiscoverContent() {
                                 <input
                                     aria-label="Search properties"
                                     type="text"
-                                    placeholder="PIN code, postcode, street, or property name..."
+                                    placeholder={`${locationCodeLabel}, street, or property name (${locationCodePlaceholder})`}
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(normalizeSearchQueryInput(e.target.value));
@@ -530,7 +568,7 @@ function DiscoverContent() {
                                 <input
                                     id="discover-location"
                                     type="text"
-                                    placeholder="City or Town"
+                                    placeholder={`City, town, or ${locationCodeLabel.toLowerCase()}`}
                                     value={locationQuery}
                                     onChange={(e) => {
                                         setLocationQuery(e.target.value);
@@ -550,7 +588,7 @@ function DiscoverContent() {
                                     id="discover-min-price"
                                     type="number"
                                     aria-label="Min Price"
-                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : "Min"}
+                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatDiscoveryCurrency(filterOptions.price_range.min)}` : "Min"}
                                     value={priceRange.min}
                                     min={0}
                                     max={priceRange.max || filterOptions?.price_range?.max}
@@ -569,7 +607,7 @@ function DiscoverContent() {
                                     id="discover-max-price"
                                     type="number"
                                     aria-label="Max Price"
-                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : "Max"}
+                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatDiscoveryCurrency(filterOptions.price_range.max)}` : "Max"}
                                     value={priceRange.max}
                                     min={0}
                                     max={filterOptions?.price_range?.max}
@@ -595,9 +633,8 @@ function DiscoverContent() {
                                 }}
                                 className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
-                                <option value="all">Any Type</option>
-                                {(filterOptions?.property_types || []).map((t: string) => (
-                                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                                {discoverPropertyTypeOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
                         </div>

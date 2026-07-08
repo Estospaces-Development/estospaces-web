@@ -18,6 +18,7 @@ import {
   isAdminOverrideFastTrackCase,
   isFastTrackCaseVisibleForFilter,
 } from "./FastTrackWorkspace";
+import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
 import type { Message } from "@/services/messagesService";
 import type { FastTrackCase } from "@/services/fastTrackService";
 
@@ -88,7 +89,7 @@ test("fast-track user document upload copy makes uploaded and reupload states vi
     {
       chooserSummary: "No reupload selected",
       actionLabel: "Reupload file",
-      statusMessage: "Uploaded and visible to your manager. Preview is ready in this workspace.",
+      statusMessage: "Uploaded and visible to your manager. Use Preview or Open when you want to review the file.",
     },
   );
 
@@ -125,6 +126,22 @@ test("fast-track preview buttons open a modal with zoom controls", () => {
   assert.match(source, /aria-label="Zoom in document preview"/);
 });
 
+test("fast-track document open buttons stay inside the in-app preview modal", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /window\.open\('about:blank', '_blank'\)/);
+  assert.match(source, /externalWindow\.location\.href = url/);
+  assert.match(source, /const openedWindow = window\.open\(url, '_blank', 'noopener,noreferrer'\)/);
+  assert.match(source, /window\.location\.assign\(url\)/);
+  assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/);
+  assert.match(source, /onClick=\{\(\) => void handleRailOpen\(item\)\}/);
+  assert.match(source, /onClick=\{\(\) => void handleRailOpen\(activeDocument\)\}/);
+  assert.match(source, /Open PDF/);
+  assert.match(source, /ensureDocumentPreview\(previewItem, \{ openInNewTab: true, busyAction: 'download' \}\)/);
+  assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\)/);
+  assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/);
+});
+
 test("fast-track uploaded document preview uses signed access URL without blob fetching", () => {
   const source = workspaceSource();
 
@@ -143,11 +160,12 @@ test("fast-track PDFs avoid broken inline iframe previews", () => {
 
 test("fast-track identity upload copy names Indian identity documents", () => {
   const source = workspaceSource();
+  const indiaGuidance = getCountryDocumentGuidance("IN");
 
-  assert.match(source, /Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter/);
-  assert.match(source, /PAN card or Form 60 may be requested/);
-  assert.match(source, /prefer masked Aadhaar/);
-  assert.match(source, /clear PDF, JPG, PNG, or WebP/);
+  assert.match(indiaGuidance.identityDetail, /Aadhaar proof, PAN card or Form 60, passport, voter ID, driving licence, NREGA job card, or NPR letter/);
+  assert.match(indiaGuidance.identityDetail, /Prefer masked Aadhaar/);
+  assert.match(source, /application\/pdf,image\/jpeg,image\/png,image\/webp/);
+  assert.match(source, /documentGuidance\.identityDetail/);
 });
 
 test("case chat timeout recovery only accepts a recent matching sender message", () => {
@@ -378,4 +396,12 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
   assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
   assert.doesNotMatch(source, /bg-gray-950\/25|bg-gray-950\/55|bg-black\/30/);
+});
+test("fast-track viewing response actions are mutually exclusive", () => {
+  const source = workspaceSource();
+
+  assert.ok(source.includes("getFastTrackViewingResponseConflictMessage(selectedCase, 'confirm_viewing')"));
+  assert.ok(source.includes("getFastTrackViewingResponseConflictMessage(selectedCase, 'request_viewing_change')"));
+  assert.ok(source.includes("disabled={confirmViewingDisabled}"));
+  assert.ok(source.includes("disabled={requestViewingChangeDisabled}"));
 });

@@ -23,7 +23,10 @@ import {
     updateBrokerAvailability,
 } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
-import { sortBrokerRequestsByPriority } from '@/lib/brokerRequestSelection';
+import {
+    dedupeBrokerRequestsBySubmissionSignature,
+    sortBrokerRequestsByPriority,
+} from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useToast } from '@/contexts/ToastContext';
@@ -34,7 +37,7 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
@@ -72,12 +75,22 @@ const parsePropertyImage = (value?: string) => {
     return value;
 };
 
-const formatPropertyPrice = (price?: number) => {
+const formatPropertyPrice = (property?: {
+    price?: number | null;
+    country?: string | null;
+    currency?: string | null;
+    currency_code?: string | null;
+} | null) => {
+    const price = property?.price;
     if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
         return 'Price on request';
     }
 
-    return formatLaunchCurrency(price);
+    return formatLaunchCurrencyForCountry(price, {
+        countryCode: property?.country,
+        countryName: property?.country,
+        currencyCode: property?.currency || property?.currency_code,
+    });
 };
 
 const formatRequestArea = (location?: string | null, postcode?: string | null) => (
@@ -130,6 +143,8 @@ type ManagerPortfolioProperty = {
     title: string;
     city?: string;
     postcode?: string;
+    country?: string;
+    currency?: string;
     price?: number;
     listing_type?: string;
     image_urls?: string;
@@ -220,7 +235,9 @@ const BrokerResponseWidget: React.FC = () => {
                 };
             });
 
-            const mappedOffers = (offersResult.data || []).map((offer) => {
+            const dedupedOffers = dedupeBrokerRequestsBySubmissionSignature(offersResult.data || []);
+
+            const mappedOffers = dedupedOffers.map((offer) => {
                 const workspaceAction = getManagerWorkspaceAction(offer);
                 const workspaceReference = formatWorkspaceReference(offer.id);
                 const hasSelectedProperty = Boolean(offer.selected_property_id || offer.selected_fast_track_case_id);
@@ -271,7 +288,7 @@ const BrokerResponseWidget: React.FC = () => {
             });
 
             setRequests([...mappedOffers, ...mappedLeads] as TrackerRequest[]);
-            setMatchedRequests(sortBrokerRequestsByPriority((offersResult.data || []).filter((offer) => (
+            setMatchedRequests(sortBrokerRequestsByPriority(dedupedOffers.filter((offer) => (
                 (offer.dispatch_status === 'broker_matched' || offer.status === 'matched')
                 && Boolean(offer.matched_broker_id)
             ))));
@@ -280,6 +297,8 @@ const BrokerResponseWidget: React.FC = () => {
                 title: formatLaunchPropertyText(property.title, 'Property'),
                 city: formatLaunchPropertyLocation(property.city),
                 postcode: formatLaunchLocationCode(property.postcode),
+                country: property.country,
+                currency: property.currency,
                 price: property.price,
                 listing_type: property.listing_type,
                 image_urls: Array.isArray(property.images) && typeof property.images[0] === 'string'
@@ -843,7 +862,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                         {formatPortfolioPropertyLocation(selectedProperty)}
                                                     </p>
                                                     <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                        {formatPropertyPrice(selectedProperty.price)}
+                                                        {formatPropertyPrice(selectedProperty)}
                                                     </p>
                                                     <div className="mt-4 flex flex-wrap gap-3">
                                                         <button
@@ -942,7 +961,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                                                     </p>
                                                                                 </div>
                                                                                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                                                    {formatPropertyPrice(property.price)}
+                                                                                    {formatPropertyPrice(property)}
                                                                                 </p>
                                                                             </div>
                                                                             <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">

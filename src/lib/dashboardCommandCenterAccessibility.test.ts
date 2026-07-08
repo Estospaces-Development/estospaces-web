@@ -21,6 +21,24 @@ test('user dashboard broker request opt-in checkbox exposes an accessible name',
   assert.match(brokerRequestWidget, /aria-label=\{brokerCopy\.useDispatchTitle\}/);
 });
 
+
+test('matched broker requests lock replacement but keep a separate new-request path', () => {
+  const brokerRequestWidget = readSource('src/components/dashboard/BrokerRequestWidget.tsx');
+
+  assert.ok(brokerRequestWidget.includes('const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);'));
+  assert.ok(brokerRequestWidget.includes("Your agent match is locked. Continue with this property agent or start another request separately."));
+  assert.ok(brokerRequestWidget.includes("type={requestReplacementLocked ? 'button' : 'submit'}"));
+  assert.ok(brokerRequestWidget.includes('onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}'));
+  assert.ok(brokerRequestWidget.includes('Open matched agent request'));
+  assert.ok(brokerRequestWidget.includes('navigate(buildBrokerRequestWorkspacePath(activeRequest.id));'));
+  assert.ok(brokerRequestWidget.includes('const handleStartAnotherRequest = useCallback(() => {'));
+  assert.ok(brokerRequestWidget.includes('onClick={handleStartAnotherRequest}'));
+  assert.ok(brokerRequestWidget.includes('Agent match locked. This request keeps its confirmed property agent, and you can start another request separately.'));
+  assert.doesNotMatch(brokerRequestWidget, /disabled=\{loading \|\| requestReplacementLocked\}/);
+  assert.doesNotMatch(brokerRequestWidget, /\{!requestReplacementLocked && \(/);
+  assert.doesNotMatch(brokerRequestWidget, /New requests are paused/);
+});
+
 test('manager header global search routes into the lead desk search state', () => {
   const header = readSource('src/components/layout/Header.tsx');
   const managerLeads = readSource('src/pages/manager/leads/page.tsx');

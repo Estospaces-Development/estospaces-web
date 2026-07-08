@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
@@ -21,6 +21,7 @@ import {
     normalizeSearchQueryInput,
     getSearchQueryValidationMessage,
     readSearchUrlFilters,
+    serializeSearchMarketParam,
 } from '@/lib/propertySearchControls';
 import { buildPopularSearchTerms } from '@/lib/popularSearchChips';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
@@ -28,23 +29,59 @@ import { getLoginPath } from '@/lib/authUtils';
 import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSearchValidation';
 import { buildSearchHistoryLabel, buildSearchHistoryMeta, buildSearchHistoryUrlParams } from '@/lib/searchHistory';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
+    getLaunchLocationCodeLabel,
+    getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
+
+const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
+    const directLocationCountry = getSupportedLaunchCountry(undefined, undefined, location);
+    if (directLocationCountry) {
+        return directLocationCountry;
+    }
+
+    const normalizedLocation = location.trim().toLowerCase();
+    if (/\b(london|manchester|birmingham|bristol|leeds|liverpool|edinburgh|glasgow|cardiff|sheffield|nottingham|southampton|oxford|cambridge)\b/.test(normalizedLocation)) {
+        return 'GB';
+    }
+    if (/\b(chennai|mumbai|delhi|bengaluru|bangalore|hyderabad|pune|kolkata|ahmedabad|jaipur|kochi|coimbatore)\b/.test(normalizedLocation)) {
+        return 'IN';
+    }
+
+    for (const property of properties) {
+        const propertyCountry = getSupportedLaunchCountry(property.country, undefined, property.postcode);
+        if (propertyCountry) {
+            return propertyCountry;
+        }
+
+        const currency = String(property.currency || '').trim().toUpperCase();
+        if (currency === 'GBP') {
+            return 'GB';
+        }
+        if (currency === 'INR') {
+            return 'IN';
+        }
+    }
+
+    return null;
+};
 
 const PropertySearch = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const loginPath = getLoginPath();
     const { error: showToastError } = useToast();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
 
     // Initialize state directly from URL params
     const [query, setQuery] = useState(() => readSearchUrlFilters(searchParams).query);
+    const [market, setMarket] = useState(() => readSearchUrlFilters(searchParams).market);
     const [location, setLocation] = useState(() => readSearchUrlFilters(searchParams).location);
     const [propertyType, setPropertyType] = useState(() => readSearchUrlFilters(searchParams).propertyType);
     const [minPrice, setMinPrice] = useState(() => readSearchUrlFilters(searchParams).minPrice);
@@ -61,6 +98,7 @@ const PropertySearch = () => {
     const [properties, setProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [hasLoadedSearch, setHasLoadedSearch] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
@@ -73,12 +111,93 @@ const PropertySearch = () => {
     const [savingPropertyId, setSavingPropertyId] = useState<string | null>(null);
     const [searchSaveStatus, setSearchSaveStatus] = useState('');
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
+    const [fallbackNotice, setFallbackNotice] = useState('');
     const queryValidationMessage = getSearchQueryValidationMessage(query, searchParams.has('q') || searchParams.has('keyword'));
     const propertyTypeOptions = useMemo(
         () => buildPropertyTypeOptions(filterOptions?.property_types),
         [filterOptions?.property_types],
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
+    const fallbackGeoMarket = useUserGeoMarket(user, {
+        countryCode: market || undefined,
+        locationCode: location || user?.postcode,
+    });
+    const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
+    const geoMarket = market || inferredGeoMarket || fallbackGeoMarket;
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
+    const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
+    const formatSearchCurrency = useCallback((amount: number) => (
+        formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
+    ), [geoMarket]);
+
+    const activeFilterChips = useMemo(() => {
+        const chips: Array<{ label: string; value: string }> = [];
+
+        if (query) {
+            chips.push({ label: 'Keyword', value: query });
+        }
+        if (market) {
+            chips.push({ label: 'Market', value: market === 'GB' ? 'England' : 'India' });
+        }
+        if (location) {
+            chips.push({ label: 'Location', value: location });
+        }
+        if (propertyType) {
+            chips.push({ label: 'Type', value: selectedPropertyType.label || propertyType });
+        }
+        if (listingType) {
+            chips.push({ label: 'Listing', value: listingType === 'sale' ? 'For Sale' : 'For Rent' });
+        }
+        if (minPrice || maxPrice) {
+            const minLabel = minPrice ? formatSearchCurrency(Number(minPrice)) : 'Any min';
+            const maxLabel = maxPrice ? formatSearchCurrency(Number(maxPrice)) : 'Any max';
+            chips.push({ label: 'Budget', value: `${minLabel} - ${maxLabel}` });
+        }
+        if (bedrooms) {
+            chips.push({ label: 'Beds', value: `${bedrooms}+` });
+        }
+        if (baths) {
+            chips.push({ label: 'Baths', value: `${baths}+` });
+        }
+
+        return chips;
+    }, [baths, bedrooms, formatSearchCurrency, listingType, location, market, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
+
+    const buildBroaderSearchAttempts = useCallback(() => {
+        const baseFilters = {
+            country: market || undefined,
+            propertyType: propertyType || undefined,
+            listingType: listingType || undefined,
+            minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
+            minBathrooms: baths ? parseInt(baths) : undefined,
+            sortBy: sortBy !== 'relevance' ? sortBy : undefined,
+            page: 1,
+            limit: 12,
+        };
+        const attempts: Array<{ notice: string; filters: Record<string, any> }> = [];
+
+        if (location && (minPrice || maxPrice)) {
+            attempts.push({
+                notice: 'No exact matches for the selected budget. Showing matches in this location without the price range.',
+                filters: { ...baseFilters, location },
+            });
+        }
+        if (location) {
+            attempts.push({
+                notice: 'No exact matches for this location. Showing broader matches for the selected home criteria.',
+                filters: baseFilters,
+            });
+        }
+        if (!location && (minPrice || maxPrice)) {
+            attempts.push({
+                notice: 'No exact matches for the selected budget. Showing broader matches without the price range.',
+                filters: baseFilters,
+            });
+        }
+
+        return attempts;
+    }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -86,6 +205,7 @@ const PropertySearch = () => {
     const [searchNameError, setSearchNameError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const latestSearchRequestRef = useRef(0);
 
     const loadSearchHistory = useCallback(async () => {
         if (!isAuthenticated) {
@@ -136,6 +256,7 @@ const PropertySearch = () => {
     useEffect(() => {
         const urlFilters = readSearchUrlFilters(searchParams);
         setQuery(urlFilters.query);
+        setMarket(urlFilters.market);
         setLocation(urlFilters.location);
         setPropertyType(urlFilters.propertyType);
         setMinPrice(urlFilters.minPrice);
@@ -148,8 +269,11 @@ const PropertySearch = () => {
     }, [searchParams]);
 
     useEffect(() => {
+        setFallbackNotice('');
         const next = new URLSearchParams();
+        const serializedMarket = serializeSearchMarketParam(market);
         if (query) next.set('q', query);
+        if (serializedMarket) next.set('market', serializedMarket);
         if (location) next.set('location', location.trim());
         if (propertyType) next.set('propertyType', propertyType);
         if (minPrice) next.set('minPrice', minPrice);
@@ -168,6 +292,7 @@ const PropertySearch = () => {
         bedrooms,
         listingType,
         location,
+        market,
         maxPrice,
         minPrice,
         page,
@@ -179,21 +304,28 @@ const PropertySearch = () => {
     ]);
 
     const fetchProperties = useCallback(async () => {
+        const requestId = latestSearchRequestRef.current + 1;
+        latestSearchRequestRef.current = requestId;
+
         if (queryValidationMessage) {
             setLoading(false);
             setError(null);
             setProperties([]);
             setTotal(0);
+            setFallbackNotice('');
+            setHasLoadedSearch(true);
             return;
         }
 
         setLoading(true);
         setError(null);
         try {
+            setFallbackNotice('');
             const result = await searchService.search(
                 query,
                 {
                     location: location || undefined,
+                    country: market || undefined,
                     propertyType: propertyType || undefined,
                     minPrice: minPrice ? parseInt(minPrice) : undefined,
                     maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
@@ -206,22 +338,52 @@ const PropertySearch = () => {
                 }
             );
 
+            if (requestId !== latestSearchRequestRef.current) {
+                return;
+            }
+
             if (result.success) {
+                const exactResults = result.data || [];
+                if (exactResults.length === 0) {
+                    for (const attempt of buildBroaderSearchAttempts()) {
+                        const fallback = await searchService.search(query, attempt.filters);
+                        if (requestId !== latestSearchRequestRef.current) {
+                            return;
+                        }
+                        if (fallback.success && (fallback.data || []).length > 0) {
+                            setProperties(fallback.data || []);
+                            setTotal(fallback.pagination?.total || fallback.data?.length || 0);
+                            setFallbackNotice(attempt.notice);
+                            setPage(1);
+                            return;
+                        }
+                    }
+                }
+
                 setProperties(result.data || []);
                 setTotal(result.pagination?.total || 0);
             } else {
                 setError(result.error || 'Failed to fetch properties. Please try again.');
                 setProperties([]);
                 setTotal(0);
+                setFallbackNotice('');
             }
         } catch {
+            if (requestId !== latestSearchRequestRef.current) {
+                return;
+            }
+
             setError('An error occurred while fetching properties.');
             setProperties([]);
             setTotal(0);
+            setFallbackNotice('');
         } finally {
-            setLoading(false);
+            if (requestId === latestSearchRequestRef.current) {
+                setLoading(false);
+                setHasLoadedSearch(true);
+            }
         }
-    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage]);
+    }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Refetch when search dependencies change (debounced)
     useEffect(() => {
@@ -305,6 +467,7 @@ const PropertySearch = () => {
 
     const clearFilters = () => {
         setQuery('');
+        setMarket('');
         setLocation('');
         setPropertyType('');
         setMinPrice('');
@@ -314,10 +477,11 @@ const PropertySearch = () => {
         setBaths('');
         setSortBy('relevance');
         setFilterInputMessage('');
+        setFallbackNotice('');
         setPage(1);
     };
 
-    const hasFilters = query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths || sortBy !== 'relevance';
+    const hasFilters = market || query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths || sortBy !== 'relevance';
     const applyFilters = () => {
         setPage(1);
         setShowFilters(false);
@@ -373,11 +537,12 @@ const PropertySearch = () => {
     const friendlySearchError = error && /request header fields too large/i.test(error)
         ? 'Your browser session has stale search data. Refresh this page and try again.'
         : error;
+    const isInitialSearchLoading = loading && !hasLoadedSearch;
 
     return (
         <div className="mx-auto w-full max-w-7xl space-y-6 overflow-x-hidden px-4 pb-20 pt-5 sm:px-6 lg:px-8 animate-in fade-in duration-500">
             <p role="status" aria-live="polite" className="sr-only">
-                {searchSaveStatus || (loading ? 'Loading search results.' : `${properties.length} search results shown.`)}
+                {searchSaveStatus || (loading ? (isInitialSearchLoading ? 'Loading search results.' : 'Refreshing search results.') : `${properties.length} search results shown.`)}
             </p>
 
             {/* Search Header */}
@@ -414,7 +579,7 @@ const PropertySearch = () => {
                             if (locationSuggestions.length > 0) setShowSuggestions(true);
                         }}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        placeholder="Search by location, property name..."
+                        placeholder={`Search by ${lowerLocationCodeLabel}, city, property name...`}
                         className="w-full min-w-0 rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     />
                     {queryValidationMessage && (
@@ -532,6 +697,33 @@ const PropertySearch = () => {
                 </div>
             </section>
 
+            {activeFilterChips.length > 0 && (
+                <section aria-label="Active search filters" className="rounded-xl border border-orange-100 bg-orange-50/70 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Active filters</span>
+                            {activeFilterChips.map((chip) => (
+                                <span
+                                    key={`${chip.label}-${chip.value}`}
+                                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm dark:border-orange-900/50 dark:bg-zinc-900 dark:text-gray-100"
+                                >
+                                    <span className="shrink-0 text-primary">{chip.label}</span>
+                                    <span className="mobile-safe-text min-w-0 truncate">{chip.value}</span>
+                                </span>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 dark:hover:bg-zinc-900"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                            Clear filters
+                        </button>
+                    </div>
+                </section>
+            )}
+
             {filterValidationMessage && (
                 <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
                     {filterValidationMessage}
@@ -539,6 +731,12 @@ const PropertySearch = () => {
             )}
 
             {/* Filters Panel */}
+            {fallbackNotice && (
+                <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
+                    {fallbackNotice}
+                </div>
+            )}
+
             {showFilters && (
                 <div id="public-search-filters" className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-5 shadow-sm animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -608,12 +806,12 @@ const PropertySearch = () => {
                                 type="text"
                                 value={location}
                                 onChange={(e) => { setLocation(e.target.value); setPage(1); }}
-                                placeholder="City or postcode"
+                                placeholder={`City or ${lowerLocationCodeLabel}`}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <div>
-                            <label htmlFor="public-search-min-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Min Price ({LAUNCH_CURRENCY_SYMBOL})</label>
+                            <label htmlFor="public-search-min-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Min Price ({currencySymbol})</label>
                             <input
                                 id="public-search-min-price"
                                 type="number"
@@ -625,12 +823,12 @@ const PropertySearch = () => {
                                     setMinPrice(normalizePriceBoundInput(e.target.value));
                                     setPage(1);
                                 }}
-                                placeholder={filterOptions?.price_range?.min ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : "No min"}
+                                placeholder={filterOptions?.price_range?.min ? `Min: ${formatSearchCurrency(filterOptions.price_range.min)}` : "No min"}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <div>
-                            <label htmlFor="public-search-max-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Max Price ({LAUNCH_CURRENCY_SYMBOL})</label>
+                            <label htmlFor="public-search-max-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Max Price ({currencySymbol})</label>
                             <input
                                 id="public-search-max-price"
                                 type="number"
@@ -642,7 +840,7 @@ const PropertySearch = () => {
                                     setMaxPrice(normalizePriceBoundInput(e.target.value));
                                     setPage(1);
                                 }}
-                                placeholder={filterOptions?.price_range?.max ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : "No max"}
+                                placeholder={filterOptions?.price_range?.max ? `Max: ${formatSearchCurrency(filterOptions.price_range.max)}` : "No max"}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
@@ -698,7 +896,7 @@ const PropertySearch = () => {
             {/* Results Header */}
             <div className="flex flex-col items-start justify-between gap-3 min-[360px]:flex-row min-[360px]:items-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-white">{loading ? '...' : total}</span> properties found
+                    <span className="font-semibold text-gray-900 dark:text-white">{isInitialSearchLoading ? '...' : total}</span> properties found
                 </p>
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
                     <label htmlFor="public-search-inline-sort" className="sr-only">Sort</label>
@@ -740,7 +938,7 @@ const PropertySearch = () => {
             </div>
 
             {/* Results Grid */}
-            {loading ? (
+            {isInitialSearchLoading ? (
                 <div className="flex justify-center flex-col items-center py-20 text-primary">
                     <Loader2 className="w-10 h-10 animate-spin mb-4" />
                     <span className="text-sm font-medium text-gray-500">Searching properties...</span>
@@ -812,7 +1010,11 @@ const PropertySearch = () => {
                                 <p className="mobile-safe-text text-sm text-gray-500 dark:text-gray-400 mb-2">{formatLaunchPropertyLocation(p.location || [p.city, p.postcode])}</p>
                                 <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                                     <span className="text-lg font-bold text-primary">
-                                        {formatLaunchCurrency(p.price)}
+                                        {formatLaunchCurrencyForCountry(p.price, {
+                                            countryCode: p.country || geoMarket,
+                                            countryName: p.country,
+                                            currencyCode: p.currency,
+                                        })}
                                         {p.listing_type === 'rent' && <span className="text-sm font-normal text-gray-500">/mo</span>}
                                     </span>
                                     <span className="text-xs text-gray-500">{p.bedrooms} bed · {p.bathrooms} bath {p.square_feet ? `· ${p.square_feet} sqft` : ''}</span>

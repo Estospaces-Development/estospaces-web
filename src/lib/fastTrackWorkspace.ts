@@ -21,6 +21,36 @@ export const isFastTrackCaseComplete = (fastTrackCase: FastTrackCase | null | un
     )
 );
 
+export const isFastTrackManagerReviewEligible = (fastTrackCase: FastTrackCase | null | undefined) => {
+    if (!fastTrackCase?.managerId || fastTrackCase.workspaceFinalStatus === 'cancelled') {
+        return false;
+    }
+
+    if (isFastTrackCaseComplete(fastTrackCase)) {
+        return true;
+    }
+
+    if (['viewing', 'decision', 'agreement', 'handover'].includes(fastTrackCase.stage)) {
+        return true;
+    }
+
+    if (fastTrackCase.activity.some((item) => String(item.actorRole || '').trim().toLowerCase() === 'manager')) {
+        return true;
+    }
+
+    if (fastTrackCase.documents.items.some((item) => item.reviewedAt || item.reviewedBy)) {
+        return true;
+    }
+
+    return Boolean(
+        fastTrackCase.viewing.scheduledAt
+        || fastTrackCase.viewing.status !== 'pending'
+        || fastTrackCase.decision.status !== 'pending'
+        || fastTrackCase.agreement.status !== 'pending'
+        || fastTrackCase.handover.status !== 'pending'
+    );
+};
+
 export const canUserConfirmFastTrackHandover = (fastTrackCase: FastTrackCase | null | undefined) => {
     const handoverStatus = String(fastTrackCase?.handover.status || '').trim().toLowerCase();
     return Boolean(
@@ -130,6 +160,18 @@ export const buildFastTrackStageSearchParams = (
     next.set('section', stage);
     return next;
 };
+
+export const shouldStartDocumentsWhenSelectingStage = (
+    fastTrackCase: Pick<FastTrackCase, 'stage' | 'workspaceFinalStatus' | 'managerId'> | null | undefined,
+    role: FastTrackWorkspaceRole,
+    requestedStage: FastTrackStage,
+) => Boolean(
+    role === 'manager'
+    && requestedStage === 'documents'
+    && fastTrackCase?.stage === 'selected'
+    && fastTrackCase?.workspaceFinalStatus === 'active'
+    && fastTrackCase?.managerId
+);
 
 export const resolveFastTrackDocumentSearchParam = (
     params: URLSearchParams,
@@ -391,6 +433,8 @@ export const describeFastTrackWorkspaceStatus = (
                 ? fastTrackCase.journeyMode === 'sale'
                     ? 'Your purchase journey moves through offer review, memorandum, solicitor conveyancing, exchange, completion, and keys in one place.'
                     : 'The team will open the next step here. You stay in this journey from start to finish.'
-                : 'Claim the case if needed, then open documents here so the rest of the journey stays on one page.';
+                : fastTrackCase.managerId
+                    ? 'This case is assigned. Open documents here so the rest of the journey stays on one page.'
+                    : 'Claim the case, then open documents here so the rest of the journey stays on one page.';
     }
 };

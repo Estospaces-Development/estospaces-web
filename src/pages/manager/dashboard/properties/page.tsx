@@ -24,6 +24,8 @@ import {
     normalizeManagerPropertyStatusFilters,
 } from '@/lib/managerPropertyDashboard';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
@@ -35,16 +37,36 @@ import { motion, AnimatePresence } from 'framer-motion';
 type ViewMode = 'grid' | 'list' | 'map';
 type TabType = 'all' | 'favorited' | 'draft';
 
-// Price range presets
-const priceRanges = [
-    { label: 'Any', min: undefined, max: undefined },
-    { label: 'Under $100K', min: 0, max: 100000 },
-    { label: '$100K - $250K', min: 100000, max: 250000 },
-    { label: '$250K - $500K', min: 250000, max: 500000 },
-    { label: '$500K - $1M', min: 500000, max: 1000000 },
-    { label: '$1M - $2M', min: 1000000, max: 2000000 },
-    { label: '$2M+', min: 2000000, max: undefined },
+const priceRangeBounds = [
+    { min: undefined, max: undefined },
+    { min: 0, max: 100000 },
+    { min: 100000, max: 250000 },
+    { min: 250000, max: 500000 },
+    { min: 500000, max: 1000000 },
+    { min: 1000000, max: 2000000 },
+    { min: 2000000, max: undefined },
 ];
+
+const buildPriceRanges = (countryCode: string) => (
+    priceRangeBounds.map((range) => {
+        const format = (amount: number) => formatLaunchCurrencyForCountry(amount, {
+            countryCode,
+            showCode: false,
+        });
+
+        if (range.min === undefined && range.max === undefined) {
+            return { ...range, label: 'Any' };
+        }
+        if (range.min === 0 && range.max !== undefined) {
+            return { ...range, label: `Under ${format(range.max)}` };
+        }
+        if (range.min !== undefined && range.max === undefined) {
+            return { ...range, label: `${format(range.min)}+` };
+        }
+
+        return { ...range, label: `${format(range.min as number)} - ${format(range.max as number)}` };
+    })
+);
 
 // Bedroom options
 const bedroomOptions = [
@@ -101,6 +123,7 @@ function PropertiesContent() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
+    const geoMarket = useUserGeoMarket(user);
     const {
         filteredProperties,
         properties,
@@ -137,6 +160,7 @@ function PropertiesContent() {
     const [showShareModal, setShowShareModal] = useState(false);
     const [selectedPropertyForShare, setSelectedPropertyForShare] = useState<Property | null>(null);
     const [pendingDeleteProperty, setPendingDeleteProperty] = useState<Property | null>(null);
+    const priceRanges = useMemo(() => buildPriceRanges(geoMarket), [geoMarket]);
 
     // Stats
     const stats = useMemo(() => getPropertyStats(), [properties, getPropertyStats]);

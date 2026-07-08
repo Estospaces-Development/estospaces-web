@@ -1,3 +1,5 @@
+import { getLaunchCityFromPinCode } from './launchLocale';
+
 export const normalizeSavedPropertyId = (value: unknown) =>
   String(value ?? '').trim().toLowerCase();
 
@@ -6,21 +8,69 @@ export const isSameSavedPropertyId = (left: unknown, right: unknown) =>
 
 export type SavedPropertySortOption = 'newest' | 'price_asc' | 'price_desc' | 'title_asc';
 
+const firstText = (...values: unknown[]) =>
+  values
+    .map((value) => typeof value === 'string' ? value.trim() : '')
+    .find(Boolean) || '';
+
+const getLocationObject = (property: any) =>
+  property?.location && typeof property.location === 'object'
+    ? property.location
+    : {};
+
+export function getSavedPropertyLocationCode(property: any): string {
+  const location = getLocationObject(property);
+  return firstText(
+    property?.postcode,
+    property?.postalCode,
+    location?.postcode,
+    location?.postalCode,
+  );
+}
+
+export function getSavedPropertyLocationCity(property: any): string {
+  const location = getLocationObject(property);
+  const locationCode = getSavedPropertyLocationCode(property);
+  const country = firstText(
+    property?.country,
+    property?.countryCode,
+    property?.country_code,
+    location?.country,
+    location?.countryCode,
+    location?.country_code,
+  );
+
+  return getLaunchCityFromPinCode(locationCode, country, country)
+    || firstText(property?.city, location?.city);
+}
+
 export function getSavedPropertyLocationLabel(property: any): string {
   const location = property?.location;
-  if (typeof location === 'string' && location.trim()) {
+  const locationObject = getLocationObject(property);
+  const hasStructuredLocation = Boolean(firstText(
+    property?.address,
+    property?.address_line_1,
+    property?.city,
+    property?.postcode,
+    property?.postalCode,
+    locationObject?.addressLine1,
+    locationObject?.address_line_1,
+    locationObject?.city,
+    locationObject?.postcode,
+    locationObject?.postalCode,
+  ));
+
+  if (typeof location === 'string' && location.trim() && !hasStructuredLocation) {
     return location.trim();
   }
 
   const locationParts = [
     property?.address,
     property?.address_line_1,
-    location?.addressLine1,
-    location?.address_line_1,
-    property?.city,
-    location?.city,
-    property?.postcode,
-    location?.postcode,
+    locationObject?.addressLine1,
+    locationObject?.address_line_1,
+    getSavedPropertyLocationCity(property),
+    getSavedPropertyLocationCode(property),
   ]
     .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
     .map((part) => part.trim());

@@ -11,6 +11,7 @@ const resetPage = readFileSync(resolve(root, "src/pages/auth/reset-password/page
 const verifyEmailPage = readFileSync(resolve(root, "src/pages/auth/verify-email/page.tsx"), "utf8");
 const faqPage = readFileSync(resolve(root, "src/pages/public/faq/page.tsx"), "utf8");
 const contactPage = readFileSync(resolve(root, "src/pages/public/contact/page.tsx"), "utf8");
+const publicFooter = readFileSync(resolve(root, "src/components/layout/Footer.tsx"), "utf8");
 const globalsCss = readFileSync(resolve(root, "src/globals.css"), "utf8");
 
 test("register form exposes role selection and field labels", () => {
@@ -67,7 +68,9 @@ test("faq search, category tabs, and accordions expose state", () => {
 test("contact page buttons and card headings stay accessible", () => {
   assert.match(contactPage, /type="button"[\s\S]*?onClick=\{handleBack\}/);
   assert.match(contactPage, /<h2 className="font-semibold text-gray-900 dark:text-white mb-1">Email Us<\/h2>/);
-  assert.match(contactPage, /<h2 className="font-semibold text-gray-900 dark:text-white mb-1">Call Us<\/h2>/);
+  assert.match(contactPage, /<h2 className="font-semibold text-gray-900 dark:text-white mb-1">UK office phone<\/h2>/);
+  assert.match(contactPage, /<h2 className="font-semibold text-gray-900 dark:text-white mb-1">UK office address<\/h2>/);
+  assert.match(publicFooter, />\s*India office\s*<\/p>/);
   assert.match(contactPage, /<h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Email Draft Ready<\/h2>/);
   assert.match(contactPage, /type="button"[\s\S]*?onClick=\{\(\) => setIsSubmitted\(false\)\}/);
 });

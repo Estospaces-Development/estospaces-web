@@ -17,13 +17,17 @@ import PropertyCompliancePanel from '@/components/dashboard/PropertyCompliancePa
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { getPropertyCompliancePublishBlockerMessage } from '@/lib/propertyCompliance';
 import type { PropertyComplianceReadiness } from '@/services/propertyService';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 // Helper for currency formatting
-const formatPrice = (price: any) => {
+const formatPrice = (price: any, property?: any) => {
     if (!price) return 'Price on Request';
     const amount = typeof price === 'number' ? price : price?.amount || 0;
-    return formatLaunchCurrency(amount);
+    return formatLaunchCurrencyForCountry(amount, {
+        countryCode: property?.location?.countryCode || property?.location?.country || property?.countryCode || property?.country,
+        countryName: property?.location?.country || property?.country,
+        currencyCode: price?.currency || property?.currency,
+    });
 };
 
 const formatArea = (area: number, unit: string = 'sqft') => {
@@ -469,7 +473,7 @@ export default function PropertyDetailPage() {
                                 <div className="text-right">
                                     <p className="text-3xl font-bold text-orange-600">
                                         {property.price?.amount
-                                            ? formatPrice(property.price)
+                                            ? formatPrice(property.price, property)
                                             : property.priceString || 'Price on Request'}
                                     </p>
                                     {property.listingType === 'rent' && (

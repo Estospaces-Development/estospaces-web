@@ -22,9 +22,10 @@ const formatPropertyTypeLabel = (value: string) => value
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 export const buildPropertyTypeOptions = (apiPropertyTypes?: string[]) => {
-    const source = apiPropertyTypes?.length
+    const apiTypes = apiPropertyTypes?.length
         ? apiPropertyTypes.map((value) => ({ value: value.trim(), label: formatPropertyTypeLabel(value) }))
-        : propertyTypes.slice(1);
+        : [];
+    const source = [...propertyTypes.slice(1), ...apiTypes];
     const seenValues = new Set<string>();
     const filtered = source.filter((type) => {
         const value = type.value.trim();

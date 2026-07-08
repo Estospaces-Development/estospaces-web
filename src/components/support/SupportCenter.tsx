@@ -56,6 +56,11 @@ const ADMIN_QUEUE_TABS = [
     { label: 'Closed tickets', status: 'closed', assignee: '' },
 ];
 
+const SUPPORT_ASSIGNABLE_STATUSES = new Set<SupportTicketSummary['status']>(['open', 'in_progress']);
+const isSupportTicketAssignable = (ticket: SupportTicketSummary) => (
+    !ticket.assignee_id && SUPPORT_ASSIGNABLE_STATUSES.has(ticket.status)
+);
+
 const supportSearchText = (ticket: SupportTicketSummary) => [
     ticket.subject,
     getLaunchSafeSupportCategoryLabel(ticket.category),
@@ -135,6 +140,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const hasPrefilledComposerContext = !isAdmin && hasPrefilledSupportComposerContext(searchParams);
     const hasActiveFilters = hasActiveSupportFilters(filters);
     const canReply = Boolean(selectedTicket && selectedTicket.status !== 'closed' && (isAdmin || selectedTicket.status !== 'resolved'));
+    const currentAdminId = user?.id || '';
+    const unassignedTicketCount = useMemo(() => allTickets.filter((ticket) => !ticket.assignee_id).length, [allTickets]);
+    const claimableUnassignedTicket = useMemo(() => allTickets.find(isSupportTicketAssignable) || null, [allTickets]);
+    const canClaimSelectedTicket = Boolean(isAdmin && selectedTicket && currentAdminId && isSupportTicketAssignable(selectedTicket));
     const resumableTicket = useMemo(() => tickets.find((ticket) => ticket.status === 'open' || ticket.status === 'in_progress') || null, [tickets]);
     const clearSupportFilters = useCallback(() => {
         setFilters({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
@@ -450,6 +459,26 @@ export function SupportCenter({ role }: SupportCenterProps) {
             toast.error(error.message || 'Failed to update ticket');
         }
     };
+
+    const claimSupportTicket = async (ticket: SupportTicketSummary) => {
+        if (!currentAdminId) {
+            toast.error('Sign in as an admin to claim support tickets');
+            return;
+        }
+
+        try {
+            const updated = await supportService.updateTicket(ticket.id, {
+                assignee_id: currentAdminId,
+                status: ticket.status === 'open' ? 'in_progress' : ticket.status,
+            });
+            await fetchTickets(true);
+            setSelectedTicket(updated);
+            setSearchParams(new URLSearchParams({ ticket: updated.id, conversation: updated.conversation_id }), { replace: true });
+            toast.success('Ticket assigned to you');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to claim support ticket');
+        }
+    };
     const adminFilterUserKeyFor = createDuplicateSafeKeyResolver('support-filter-admin-user');
     const adminAssigneeUserKeyFor = createDuplicateSafeKeyResolver('support-assignee-admin-user');
 
@@ -501,6 +530,21 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             </button>
                         );
                     })}
+                </div>
+            )}
+
+            {isAdmin && unassignedTicketCount > 0 && (
+                <div className="flex flex-col gap-4 rounded-[2rem] border border-amber-200 bg-amber-50/90 p-5 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/10 lg:flex-row lg:items-center lg:justify-between" role="status" aria-live="polite">
+                    <div>
+                        <p className="text-sm font-black text-amber-900 dark:text-amber-100">{unassignedTicketCount} support tickets need an owner</p>
+                        <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">Claim a ticket to start triage, assign responsibility, and move open requests into active support.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {selectedTicket && !selectedTicket.assignee_id && (
+                            <button type="button" onClick={() => void claimSupportTicket(selectedTicket)} disabled={!canClaimSelectedTicket} className="rounded-full bg-amber-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50">Claim selected ticket</button>
+                        )}
+                        <button type="button" onClick={() => claimableUnassignedTicket && void claimSupportTicket(claimableUnassignedTicket)} disabled={!currentAdminId || !claimableUnassignedTicket} className="rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-gray-950 dark:text-amber-100 dark:hover:bg-amber-500/10">Claim next unassigned</button>
+                    </div>
                 </div>
             )}
 
@@ -574,7 +618,16 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                                 <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
-                                <SupportTranscript messages={messages} currentUserId={user?.id} otherLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Estospaces Support'} onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)} />
+                                <SupportTranscript
+                                    messages={messages}
+                                    currentUserId={user?.id}
+                                    requesterUserId={selectedTicket.user_id}
+                                    requesterLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Requester'}
+                                    supportLabel={isAdmin ? 'Admin' : 'Estospaces Support'}
+                                    staffUserIds={isAdmin ? adminUsers.map((adminUser) => adminUser.id) : undefined}
+                                    perspective={isAdmin ? 'staff' : 'requester'}
+                                    onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)}
+                                />
                                 {canReply && <div className="mt-6"><SupportComposer value={reply} onChange={setReply} onSubmit={() => void handleReply()} onFilesSelected={(files) => void handleFiles('reply', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('reply', localId)} attachments={replyAttachments} disabled={submitting} canSubmit={Boolean(reply.trim() || replyAttachments.length > 0)} placeholder={isAdmin ? 'Reply as the Estospaces Team' : 'Reply to support'} submitLabel={submitting ? 'Sending' : 'Send reply'} /></div>}
                             </div>
                         </>

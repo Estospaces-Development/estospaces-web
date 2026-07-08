@@ -52,14 +52,19 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
+    getLaunchLocationCodeErrorMessage,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
     isValidLaunchLocationCode,
+    isValidLaunchLocationCodeForCountry,
     LAUNCH_CURRENCY_CODE,
     normalizeLaunchLocationCode,
     normalizeLaunchLocationCodeErrorMessage,
 } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
 
@@ -127,12 +132,25 @@ const parsePropertyImage = (value?: string) => {
     return value;
 };
 
-const formatPropertyPrice = (price?: number) => {
+const formatPropertyPrice = (
+    property?: {
+        price?: number | null;
+        country?: string | null;
+        currency?: string | null;
+        currency_code?: string | null;
+    } | null,
+    fallbackCountry?: string | null,
+) => {
+    const price = property?.price;
     if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
         return 'Price on request';
     }
 
-    return formatLaunchCurrency(price);
+    return formatLaunchCurrencyForCountry(price, {
+        countryCode: property?.country || fallbackCountry,
+        countryName: property?.country,
+        currencyCode: property?.currency || property?.currency_code,
+    });
 };
 
 const formatPropertyAddress = (property?: {
@@ -276,6 +294,12 @@ const BrokerRequestWidget = () => {
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
     const brokerCopy = getBrokerRequestCopy(requestType);
+    const geoMarket = useUserGeoMarket(user, {
+        locationCode: activeRequest?.location_postcode || locationPostcode || user?.postcode,
+    });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationPostcode);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationPostcode);
+    const geoMarketCurrencyCode = geoMarket === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;
     const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
 
     useEffect(() => {
@@ -386,7 +410,7 @@ const BrokerRequestWidget = () => {
             return;
         }
 
-        if (!isValidLaunchLocationCode(trimmedPostcode)) {
+        if (!isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
             return;
@@ -427,7 +451,7 @@ const BrokerRequestWidget = () => {
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [fastTrackEnabled, locationPostcode]);
+    }, [fastTrackEnabled, geoMarket, locationPostcode]);
 
     const refreshActiveRequest = useCallback(async () => {
         if (!activeRequest?.id) {
@@ -453,6 +477,13 @@ const BrokerRequestWidget = () => {
 
     const handleRematch = async () => {
         if (!activeRequest?.id) {
+            return;
+        }
+
+        if (requestReplacementLocked) {
+            const message = 'Your agent match is locked. Continue with this property agent or start another request separately.';
+            setError(message);
+            toast.error(message);
             return;
         }
 
@@ -619,17 +650,48 @@ const BrokerRequestWidget = () => {
         }
     };
 
+    const handleStartAnotherRequest = useCallback(() => {
+        setActiveRequest(null);
+        setError(null);
+        setSelectionStatusMessage('');
+        publishBrokerRequestWorkspaceSelection(null);
+        navigate('/user/dashboard', { replace: true });
+    }, [navigate]);
+
+    const handleLockedMatchAction = () => {
+        if (!activeRequest?.id) {
+            const message = 'Your matched agent request could not be reopened. Please refresh and try again.';
+            setError(message);
+            toast.error(message);
+            return;
+        }
+
+        publishBrokerRequestWorkspaceSelection(activeRequest.id);
+
+        if (activeRequest.selected_fast_track_case_id) {
+            navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`);
+            return;
+        }
+
+        if (selectedProperty) {
+            navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}`);
+            return;
+        }
+
+        navigate(buildBrokerRequestWorkspacePath(activeRequest.id));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (!trimmedPostcode || !isValidLaunchLocationCode(trimmedPostcode)) {
-            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
+        if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
+            setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
             return;
         }
         const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
         if (!formattedPostcode) {
-            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
+            setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
             return;
         }
 
@@ -685,21 +747,35 @@ const BrokerRequestWidget = () => {
     const activeRequestSeconds = secondsUntilDeadline(activeRequest?.response_deadline_at, clockNow);
     const requestIsMatched = activeRequest?.dispatch_status === 'broker_matched' || activeRequest?.status === 'matched';
     const requestIsExpired = activeRequest?.dispatch_status === 'expired' || activeRequest?.status === 'expired';
+    const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
     const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
     const matchedExperienceSteps = requestIsMatched && activeRequest ? getMatchedExperienceSteps(activeRequest) : [];
     const sharedProperties = activeRequest?.property_shares || [];
+    const availableSharedProperties = useMemo(
+        () => sharedProperties.filter((share) => Boolean(share.property)),
+        [sharedProperties],
+    );
+    const staleSharedPropertiesCount = sharedProperties.length - availableSharedProperties.length;
     const selectedProperty = activeRequest?.selected_property
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
+    const lockedRequestActionLabel = activeRequest?.selected_fast_track_case_id
+        ? 'Continue in fast-track'
+        : selectedProperty
+            ? 'Start fast-track with selected home'
+            : 'Open matched agent request';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
-        const filtered = sharedProperties.filter((share) => {
+        const filtered = availableSharedProperties.filter((share) => {
+            const property = share.property;
+            if (!property) {
+                return false;
+            }
             if (!search) {
                 return true;
             }
-            const property = share.property;
             return [
                 property?.title,
                 property?.city,
@@ -725,7 +801,7 @@ const BrokerRequestWidget = () => {
         });
 
         return filtered.slice(0, SHARED_HOME_CHOICE_LIMIT);
-    }, [sharedHomeSearch, sharedHomeSort, sharedProperties]);
+    }, [availableSharedProperties, sharedHomeSearch, sharedHomeSort]);
     const handoffMinutesRemaining = formatMinutesUntil(activeRequest?.handoff_due_at, clockNow);
     const workspaceTone = requestIsMatched
         ? 'border-emerald-200 bg-white shadow-sm dark:border-emerald-900/40 dark:bg-gray-900'
@@ -1015,21 +1091,25 @@ const BrokerRequestWidget = () => {
                                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                                     {selectedProperty
                                                         ? 'Your chosen home is ready'
-                                                        : sharedProperties.length > 0
-                                                            ? `${sharedProperties.length} home choice${sharedProperties.length === 1 ? '' : 's'} ready to review`
-                                                            : 'Waiting for home choices'}
+                                                        : availableSharedProperties.length > 0
+                                                            ? `${availableSharedProperties.length} home choice${availableSharedProperties.length === 1 ? '' : 's'} ready to review`
+                                                            : staleSharedPropertiesCount > 0
+                                                                ? 'Home choices need refresh'
+                                                                : 'Waiting for home choices'}
                                                 </p>
                                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                                     {selectedProperty
                                                         ? 'Open your chosen home or continue your 24-hour journey.'
-                                                        : sharedProperties.length > 0
+                                                        : availableSharedProperties.length > 0
                                                             ? 'Choose one of the homes below to start your 24-hour journey.'
-                                                            : handoffMinutesRemaining !== null
-                                                                ? `Your property agent should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
-                                                                : 'Your property agent is preparing home choices for this request.'}
+                                                            : staleSharedPropertiesCount > 0
+                                                                ? 'The shared home is no longer available. Ask your property agent to refresh the shortlist before starting a 24-hour journey.'
+                                                                : handoffMinutesRemaining !== null
+                                                                    ? `Your property agent should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
+                                                                    : 'Your property agent is preparing home choices for this request.'}
                                                 </p>
                                             </div>
-                                            {handoffMinutesRemaining !== null && !selectedProperty && sharedProperties.length === 0 && (
+                                            {handoffMinutesRemaining !== null && !selectedProperty && availableSharedProperties.length === 0 && staleSharedPropertiesCount === 0 && (
                                                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-right dark:border-orange-900/30 dark:bg-orange-950/20">
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
                                                     <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
@@ -1071,7 +1151,7 @@ const BrokerRequestWidget = () => {
                                                         <div className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 text-left shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">Locked price</p>
                                                             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                                                                {formatPropertyPrice(selectedProperty.price)}
+                                                                {formatPropertyPrice(selectedProperty, geoMarket)}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1096,7 +1176,7 @@ const BrokerRequestWidget = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : sharedProperties.length > 0 ? (
+                                        ) : availableSharedProperties.length > 0 ? (
                                             <div className="mt-4 space-y-3">
                                                 <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
                                                     <label className="relative block">
@@ -1128,7 +1208,7 @@ const BrokerRequestWidget = () => {
                                                     </label>
                                                 </div>
                                                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                                                    Showing {visibleSharedProperties.length} of {sharedProperties.length} shared homes
+                                                    Showing {visibleSharedProperties.length} of {availableSharedProperties.length} shared homes
                                                 </p>
                                                 {visibleSharedProperties.map((share, shareIndex) => {
                                                         const property = share.property;
@@ -1174,7 +1254,7 @@ const BrokerRequestWidget = () => {
                                                                         <div className="rounded-2xl border border-orange-200/80 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20">
                                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">Guide price</p>
                                                                             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                                                                                {formatPropertyPrice(property.price)}
+                                                                                {formatPropertyPrice(property, geoMarket)}
                                                                             </p>
                                                                         </div>
                                                                     </div>
@@ -1211,13 +1291,21 @@ const BrokerRequestWidget = () => {
                                                         );
                                                     })}
                                             </div>
+                                        ) : staleSharedPropertiesCount > 0 ? (
+                                            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+                                                The shared home is no longer available. Ask your property agent to refresh the shortlist before starting a 24-hour journey.
+                                            </div>
                                         ) : (
                                             <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100">
                                                 Your property agent is connected, but home choices are not ready yet. Once they arrive, you can compare them here and start your 24-hour journey.
                                             </div>
                                         )}
 
-                                        {!selectedProperty && (
+                                        {!selectedProperty && requestReplacementLocked ? (
+                                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                                                Your property agent is locked for this request. Continue with this agent, review shared homes, or start another request without changing this match.
+                                            </div>
+                                        ) : !selectedProperty ? (
                                             <button
                                                 type="button"
                                                 onClick={() => void handleRematch()}
@@ -1227,18 +1315,13 @@ const BrokerRequestWidget = () => {
                                                 {rematching && <Loader2 size={15} className="animate-spin" />}
                                                 {rematching ? 'Finding another agent...' : 'Find another agent'}
                                             </button>
-                                        )}
+                                        ) : null}
                                     </div>
                                 )}
 
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setActiveRequest(null);
-                                        setError(null);
-                                        publishBrokerRequestWorkspaceSelection(null);
-                                        navigate('/user/dashboard', { replace: true });
-                                    }}
+                                    onClick={handleStartAnotherRequest}
                                     className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                 >
                                     <Radio size={14} />
@@ -1336,6 +1419,11 @@ const BrokerRequestWidget = () => {
                         An agent request is already running. You can still adjust the form below and start a new one if your needs change.
                     </div>
                 )}
+                {requestReplacementLocked && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                        Agent match locked. This request keeps its confirmed property agent, and you can start another request separately.
+                    </div>
+                )}
 
                 <div className="space-y-3">
                     <div>
@@ -1358,7 +1446,7 @@ const BrokerRequestWidget = () => {
 
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                            PIN code / postcode
+                            {locationCodeLabel}
                         </label>
                         <input
                             type="text"
@@ -1368,12 +1456,12 @@ const BrokerRequestWidget = () => {
                                 setLocationPostcode(nextValue);
                                 if (postcodeError) {
                                     const trimmedNextValue = normalizePostcode(nextValue);
-                                    if (!trimmedNextValue || isValidLaunchLocationCode(trimmedNextValue)) {
+                                    if (!trimmedNextValue || isValidLaunchLocationCodeForCountry(trimmedNextValue, geoMarket)) {
                                         setPostcodeError(null);
                                     }
                                 }
                             }}
-                            placeholder="e.g. 600001 or SW1A 1AA"
+                            placeholder={locationCodePlaceholder}
                             maxLength={8}
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
@@ -1385,10 +1473,10 @@ const BrokerRequestWidget = () => {
 
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                            Budget / Price Range
+                            Budget / Price Range ({geoMarketCurrencyCode})
                         </label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{LAUNCH_CURRENCY_CODE}</span>
+                            <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{geoMarketCurrencyCode}</span>
                             <input
                                 type="text"
                                 value={budget}
@@ -1465,7 +1553,8 @@ const BrokerRequestWidget = () => {
                 )}
 
                 <button
-                    type="submit"
+                    type={requestReplacementLocked ? 'button' : 'submit'}
+                    onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}
                     disabled={loading}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
@@ -1476,7 +1565,9 @@ const BrokerRequestWidget = () => {
                     )}
                     {loading
                         ? 'Sending request...'
-                        : requestIsActive
+                        : requestReplacementLocked
+                            ? lockedRequestActionLabel
+                            : requestIsActive
                             ? brokerCopy.requestFormActionAgain
                             : activeRequest
                                 ? brokerCopy.requestFormActionAgain

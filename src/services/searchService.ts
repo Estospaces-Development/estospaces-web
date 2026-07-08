@@ -1,7 +1,8 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '../lib/apiUtils';
 import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
-import { LAUNCH_COUNTRY_CODE } from '@/lib/launchLocale';
+import { LAUNCH_COUNTRY_CODE, UK_COUNTRY_CODE } from '@/lib/launchLocale';
+import { propertyTypes } from '@/lib/propertyTypeOptions';
 
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
@@ -34,12 +35,14 @@ type CoreProperty = {
     title?: string;
     description?: string;
     price?: number;
+    currency?: string;
     property_type?: string;
     listing_type?: string;
     status?: string;
     address_line_1?: string;
     city?: string;
     postcode?: string;
+    country?: string;
     bedrooms?: number;
     bathrooms?: number;
     property_size_sqft?: number;
@@ -102,6 +105,23 @@ const normalizeListingType = (value?: string) => {
 
 const hasFilterValue = (value: unknown) => value !== undefined && value !== null && value !== '';
 
+const normalizeCountryFilter = (...values: unknown[]) => {
+    for (const value of values) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) {
+            continue;
+        }
+        if (['india', 'in', 'ind'].includes(normalized)) {
+            return LAUNCH_COUNTRY_CODE;
+        }
+        if (['england', 'uk', 'gb', 'gbr', 'great britain', 'united kingdom'].includes(normalized)) {
+            return UK_COUNTRY_CODE;
+        }
+    }
+
+    return '';
+};
+
 const normalizePostcodeText = (value?: string) =>
     (value || '').trim().toLowerCase().replace(/\s+/g, '');
 
@@ -146,12 +166,14 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
         title: property.title || 'Property',
         description: property.description || '',
         price: toNumber(property.price),
+        currency: property.currency || '',
         property_type: property.property_type || '',
         listing_type: normalizeListingType(property.listing_type) || property.listing_type || '',
         status: property.status || '',
         location: address || property.city || property.postcode || '',
         city: property.city || '',
         postcode: property.postcode || '',
+        country: property.country || '',
         bedrooms: toNumber(property.bedrooms),
         bathrooms: toNumber(property.bathrooms),
         square_feet: toNumber(property.property_size_sqft),
@@ -181,10 +203,36 @@ const isFullLocationCodeSearch = (value: string) => {
     return /^[1-9]\d{5}$/.test(token) || /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(token);
 };
 
+const normalizeStructuredSearchToken = (value?: string) =>
+    normalizeSearchQueryInput((value || '').replace(/[_-]+/g, ' '));
+
+const isQueryCoveredByPropertyTypeFilter = (query: string, propertyType?: string) => {
+    const normalizedQuery = normalizeStructuredSearchToken(query);
+    const normalizedPropertyType = normalizeStructuredSearchToken(propertyType);
+
+    if (!normalizedQuery || !normalizedPropertyType || normalizedPropertyType === 'all') {
+        return false;
+    }
+
+    const typeOption = propertyTypes.find((option) => (
+        normalizeStructuredSearchToken(option.value) === normalizedPropertyType
+        || normalizeStructuredSearchToken(option.label) === normalizedPropertyType
+    ));
+    const typeTerms = [
+        normalizedPropertyType,
+        normalizeStructuredSearchToken(typeOption?.value),
+        normalizeStructuredSearchToken(typeOption?.label),
+    ].filter(Boolean);
+
+    return typeTerms.includes(normalizedQuery);
+};
+
 export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>) => {
     const params = new URLSearchParams();
 
-    const normalizedQuery = normalizeSearchQueryInput(query);
+    const normalizedQuery = isQueryCoveredByPropertyTypeFilter(query, filters.propertyType)
+        ? ''
+        : normalizeSearchQueryInput(query);
     const normalizedLocation = (filters.location || '').toString().trim();
     const normalizedPostcode = (filters.postcode || '').toString().trim();
     const locationIsPostcode = isFullLocationCodeSearch(normalizedLocation);
@@ -197,11 +245,10 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     }
     const combinedSearch = searchParts.join(' ').trim();
 
-    if (combinedSearch && normalizedLocation) {
-        params.append('search', locationIsPostcode ? combinedSearch : `${combinedSearch} ${normalizedLocation}`.trim());
-    } else if (combinedSearch) {
+    if (combinedSearch) {
         params.append('search', combinedSearch);
-    } else if (normalizedLocation) {
+    }
+    if (normalizedLocation && !locationIsPostcode) {
         params.append('city', normalizedLocation);
     }
 
@@ -209,6 +256,11 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     if (hasFilterValue(filters.maxPrice)) params.append('max_price', String(filters.maxPrice));
     if (filters.propertyType && filters.propertyType !== 'all') params.append('type', String(filters.propertyType));
     if (filters.status) params.append('status', String(filters.status));
+
+    const country = normalizeCountryFilter(filters.country, filters.countryCode, filters.market);
+    if (country) {
+        params.append('country', country);
+    }
 
     const listingType = normalizeListingType(filters.listingType);
     if (listingType) {
@@ -394,6 +446,9 @@ const looksLikePlaceholderSuggestions = (suggestions: AutocompleteSuggestion[]) 
 
 export interface SearchFilters {
     keyword?: string;
+    country?: string;
+    countryCode?: string;
+    market?: string;
     location?: string;
     listingType?: 'all' | 'rent' | 'sale';
     status?: string;
@@ -416,12 +471,14 @@ export interface SearchResult {
     title: string;
     description: string;
     price: number;
+    currency?: string;
     property_type: string;
     listing_type: string;
     status?: string;
     location: string;
     city: string;
     postcode: string;
+    country?: string;
     bedrooms: number;
     bathrooms: number;
     square_feet: number;
@@ -612,6 +669,8 @@ export const searchService = {
             const listingType = normalizeListingType(filters.listingType);
             if (listingType) params.append('listing_type', listingType);
             if (filters.status) params.append('status', filters.status);
+            const country = normalizeCountryFilter(filters.country, filters.countryCode, filters.market);
+            if (country) params.append('country', country);
             if (hasFilterValue(filters.minBedrooms)) params.append('bedrooms', filters.minBedrooms.toString());
             if (hasFilterValue(filters.minBathrooms)) params.append('bathrooms', filters.minBathrooms.toString());
             if (filters.verifiedOnly) params.append('verified_only', 'true');

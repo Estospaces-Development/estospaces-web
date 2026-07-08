@@ -121,3 +121,46 @@ test('fast-track service normalizes completed cases away from stale stage and SL
     globalThis.fetch = originalFetch;
   }
 });
+
+test('fast-track service derives fresh SLA state from timestamps when hours remaining is absent', async () => {
+  const originalFetch = globalThis.fetch;
+  const submittedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString();
+
+  globalThis.fetch = (async () => buildResponse([
+    {
+      id: 'case-fresh',
+      case_id: 'case-fresh',
+      header: {
+        property_id: 'property-1',
+        property_title: 'Fresh Home',
+        property_type: 'Flat',
+        client_id: 'user-1',
+        client_name: 'Test User',
+        submitted_at: submittedAt,
+        expires_at: expiresAt,
+        overdue: true,
+      },
+      stage: 'selected',
+      final_status: 'active',
+      documents: { items: [] },
+      viewing: {},
+      decision: {},
+      agreement: {},
+      handover: {},
+      activity: [],
+    },
+  ])) as typeof fetch;
+
+  try {
+    const result = await getFastTrackCases();
+    const fastTrackCase = result.data?.[0];
+
+    assert.equal(result.error, null);
+    assert.equal(fastTrackCase?.workspaceFinalStatus, 'active');
+    assert.equal(fastTrackCase?.overdue, false);
+    assert.ok((fastTrackCase?.hoursRemaining || 0) > 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -57,3 +57,17 @@ test('nginx health route returns explicit web health JSON before SPA fallback', 
     assert.match(source, /return 200 '\{"status":"ok","service":"estospaces-web"\}';/);
   }
 });
+test('nginx client geo route returns first-party country hints before SPA fallback', () => {
+  for (const source of [defaultNginxSource, gcpDevNginxSource, prodNginxSource]) {
+    const geoRouteIndex = source.indexOf('location = /client-geo.json {');
+    const spaFallbackIndex = source.indexOf('location / {');
+
+    assert.notEqual(geoRouteIndex, -1);
+    assert.notEqual(spaFallbackIndex, -1);
+    assert.ok(geoRouteIndex < spaFallbackIndex);
+    assert.match(source, /default_type application\/json;/);
+    assert.match(source, /\$http_cf_ipcountry/);
+    assert.match(source, /\$http_x_appengine_country/);
+    assert.match(source, /\$http_accept_language/);
+  }
+});

@@ -11,6 +11,7 @@ import {
     Loader2,
     Mail,
     MapPin,
+    MessageCircle,
     Phone,
     RefreshCw,
     X,
@@ -27,6 +28,7 @@ import {
     updateUserVerification,
 } from '@/services/userVerificationService';
 import { openDocumentAccessUrl } from '@/services/documentAccessService';
+import { messagesService, type Conversation } from '@/services/messagesService';
 import { useToast } from '@/contexts/ToastContext';
 import Avatar from '@/components/ui/Avatar';
 import {
@@ -53,6 +55,7 @@ export const VERIFICATION_REASON_MIN_WORDS = 4;
 type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
 type VerificationSortMode = 'newest' | 'oldest' | 'status';
 type VerificationRecentLead = UserVerificationDetails['recent_leads'][number];
+type VerificationDirectConversation = Pick<Conversation, 'id' | 'updated_at' | 'last_message' | 'counterpart_name' | 'counterpart_email' | 'counterpart_agency' | 'property_title' | 'property_address'>;
 
 export interface UserVerificationReviewMissingUserContext {
     name?: string | null;
@@ -265,6 +268,23 @@ export const formatVerificationLeadPropertyAddress = (
         .join(', ')
 );
 
+export const formatVerificationConversationTitle = (conversation: VerificationDirectConversation) => (
+    String(conversation.property_title || conversation.counterpart_name || conversation.counterpart_agency || '').trim()
+    || 'Direct agent conversation'
+);
+
+export const formatVerificationConversationSubtitle = (conversation: VerificationDirectConversation) => (
+    String(conversation.property_address || conversation.counterpart_agency || conversation.counterpart_email || '').trim()
+    || 'Property context pending'
+);
+
+export const formatVerificationConversationLastMessage = (conversation: VerificationDirectConversation) => (
+    String(conversation.last_message?.content || '').trim() || 'No message preview available'
+);
+
+export const formatVerificationConversationReference = (conversation: Pick<VerificationDirectConversation, 'id'>) => (
+    formatShortReference(conversation.id) || 'Conversation'
+);
 export const canCompleteUserVerification = (documents: UserDocument[]) => {
     const latestDocuments = latestDocumentByCategory(documents);
     return isVerificationDocumentApproved(latestDocuments.get('identity'))
@@ -292,6 +312,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const [documentSortMode, setDocumentSortMode] = useState<VerificationSortMode>('newest');
     const [leadStatusFilter, setLeadStatusFilter] = useState('all');
     const [leadSortMode, setLeadSortMode] = useState<VerificationSortMode>('newest');
+    const [directConversations, setDirectConversations] = useState<Conversation[]>([]);
+    const [directConversationsLoading, setDirectConversationsLoading] = useState(false);
+    const [directConversationsError, setDirectConversationsError] = useState<string | null>(null);
     const toast = useToast();
 
     const fetchDetails = useCallback(async () => {
@@ -312,6 +335,41 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         fetchDetails();
     }, [fetchDetails]);
 
+    useEffect(() => {
+        if (!isAdmin) {
+            setDirectConversations([]);
+            setDirectConversationsError(null);
+            return undefined;
+        }
+
+        let cancelled = false;
+        setDirectConversationsLoading(true);
+        setDirectConversationsError(null);
+
+        void messagesService.getAdminUserDirectConversations(userId, 5)
+            .then((conversations) => {
+                if (cancelled) {
+                    return;
+                }
+                setDirectConversations(conversations);
+            })
+            .catch((loadError: any) => {
+                if (cancelled) {
+                    return;
+                }
+                setDirectConversations([]);
+                setDirectConversationsError(loadError?.message || 'Direct agent messages unavailable');
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setDirectConversationsLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isAdmin, userId]);
     const reviewDocuments = useMemo(
         () => isFastTrackReview
             ? getLatestFastTrackReviewDocuments(details?.documents || [])
@@ -676,6 +734,62 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     )}
                 </div>
 
+                {isAdmin && (
+                    <div>
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Direct agent messages</h3>
+                            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700 dark:bg-orange-500/10 dark:text-orange-200">
+                                {directConversationsLoading ? 'Loading' : `${directConversations.length} threads`}
+                            </span>
+                        </div>
+                        {directConversationsLoading ? (
+                            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Loading direct agent messages
+                            </div>
+                        ) : directConversationsError ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                                {directConversationsError}
+                            </div>
+                        ) : directConversations.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
+                                No direct Contact Agent messages for this user.
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {directConversations.map((conversation) => (
+                                    <div
+                                        key={conversation.id}
+                                        className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800"
+                                    >
+                                        <div className="flex min-w-0 items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <MessageCircle className="h-4 w-4 shrink-0 text-orange-500" />
+                                                    <p className="font-semibold text-gray-900 break-words [overflow-wrap:anywhere] dark:text-white">
+                                                        {formatVerificationConversationTitle(conversation)}
+                                                    </p>
+                                                </div>
+                                                <p className="mt-1 text-xs text-gray-500 break-words [overflow-wrap:anywhere] dark:text-gray-400">
+                                                    {formatVerificationConversationSubtitle(conversation)}
+                                                </p>
+                                                <p className="mt-2 line-clamp-2 text-xs text-gray-700 break-words [overflow-wrap:anywhere] dark:text-gray-300">
+                                                    {formatVerificationConversationLastMessage(conversation)}
+                                                </p>
+                                            </div>
+                                            <div className="shrink-0 text-right">
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                    Conversation {formatVerificationConversationReference(conversation)}
+                                                </p>
+                                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(conversation.updated_at).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div>
                     <label htmlFor="verification-review-notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Verification Notes

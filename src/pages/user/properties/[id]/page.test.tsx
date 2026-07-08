@@ -1,10 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   buildPropertyFastTrackStartRequest,
+  buildPropertyHeroSummary,
+  formatPropertyDetailCurrency,
+  getPropertyDetailLocationLabel,
   getPropertyBrokerRequestQuery,
   getImmersiveGalleryDialogLabel,
   getPropertyDetailFallbackBackTarget,
@@ -13,6 +18,8 @@ import {
   shouldUseBrowserHistoryForPropertyDetailBack,
 } from "./page";
 import * as propertyPage from "./page";
+
+const propertyDetailSource = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
 test("sale property page exposes a submit-offer entry card", () => {
   const markup = renderToStaticMarkup(
@@ -33,6 +40,67 @@ test("sale property page exposes a submit-offer entry card", () => {
   assert.match(markup, /GBP 425,000/);
   assert.match(markup, /bg-emerald-700/);
   assert.doesNotMatch(markup, /bg-emerald-600/);
+});
+
+test("property detail formats guide price from property country and currency", () => {
+  assert.equal(
+    formatPropertyDetailCurrency(2400, { country: "GB", currency: "GBP" } as any),
+    "\u00a32,400",
+  );
+  assert.equal(
+    formatPropertyDetailCurrency(125000, { country: "India", currency: "INR" } as any),
+    "\u20b91,25,000",
+  );
+});
+
+test("property detail location summary uses country and PIN corrected city", () => {
+  const location = getPropertyDetailLocationLabel({
+    id: "property-address-2",
+    title: "Launch rental",
+    status: "published",
+    listing_type: "rent",
+    property_type: "apartment",
+    price: 650000,
+    currency: "INR",
+    bedrooms: 2,
+    bathrooms: 2,
+    address_line_1: "Attur",
+    city: "Edinburgh",
+    postcode: "600001",
+    country: "IN",
+  } as any);
+
+  assert.equal(location, "Chennai, IN");
+  assert.doesNotMatch(location, /Edinburgh/i);
+  assert.doesNotMatch(propertyDetailSource, /formatLaunchPropertyLocation\(\[property\.city, property\.country\]\)/);
+});
+
+test("property detail hero summary uses real listing data instead of gallery guide copy", () => {
+  const summary = buildPropertyHeroSummary({
+    property_type: "apartment",
+    bedrooms: 2,
+    bathrooms: 1,
+    property_size_sqft: 750,
+    features: ["balcony", "near metro"],
+  } as any, "Guwahati, India");
+
+  assert.match(summary, /apartment in Guwahati, India/);
+  assert.match(summary, /2 bedrooms and 1 bathroom/);
+  assert.match(summary, /750 sq ft/);
+  assert.match(summary, /Highlights include Balcony, Near Metro\./);
+  assert.doesNotMatch(propertyDetailSource, /Start with the lead image here/);
+  assert.doesNotMatch(summary, /full-screen gallery|curated photo set|distraction-free look/i);
+
+  const describedSummary = buildPropertyHeroSummary({
+    property_type: "house",
+    bedrooms: 3,
+    bathrooms: 2,
+    description: "  Bright home near the riverside.  ",
+  } as any, "Guwahati, India");
+
+  assert.match(describedSummary, /house in Guwahati, India/);
+  assert.match(describedSummary, /3 bedrooms and 2 bathrooms/);
+  assert.match(describedSummary, /Bright home near the riverside\./);
 });
 
 test("property detail accepts broker request ids from dashboard and property links", () => {
@@ -88,7 +156,7 @@ test("direct rental property fast-track start keeps lead and manager context", (
   });
 });
 
-test("broker-selected rental fast-track start lets backend resolve selected lead and manager", () => {
+test("broker-selected rental fast-track start sends the resolved manager while backend resolves the selected lead", () => {
   const request = buildPropertyFastTrackStartRequest({
     property: {
       id: "property-rent-2",
@@ -111,7 +179,7 @@ test("broker-selected rental fast-track start lets backend resolve selected lead
   assert.equal(request?.property_type, "rent");
   assert.equal(request?.listing_type, "rent");
   assert.equal(request?.lead_id, undefined);
-  assert.equal(request?.manager_id, undefined);
+  assert.equal(request?.manager_id, "manager-stale-lead");
 });
 
 test("sale offer amount input accepts ordinary round-pound offers", () => {
@@ -238,4 +306,23 @@ test("viewing calendar out-of-month days keep contrast-safe text", () => {
   assert.doesNotMatch(tone, /text-gray-300/);
   assert.doesNotMatch(tone, /bg-transparent/);
   assert.doesNotMatch(tone, /border-transparent/);
+});
+
+test("viewing concierge highlight rows are actionable buttons", () => {
+  assert.match(propertyDetailSource, /10-minute live broker response/);
+  assert.match(propertyDetailSource, /Message the broker directly/);
+  assert.match(propertyDetailSource, /Reserve a slot in minutes/);
+  assert.match(propertyDetailSource, /focusViewingRequestForm/);
+  assert.match(propertyDetailSource, /void handleStartFastTrack\(\)/);
+  assert.match(propertyDetailSource, /void handleOpenConversation\(\)/);
+  assert.match(propertyDetailSource, /<button\s+key=\{item\.label\}/);
+  assert.match(propertyDetailSource, /ref=\{viewingFormRef\}/);
+});
+
+test("property detail fast-track CTA resumes active broker-request journeys instead of advertising a new start", () => {
+  assert.match(propertyDetailSource, /const hasActiveFastTrackJourney = isActiveFastTrackCase\(activeFastTrackCase\);/);
+  assert.match(propertyDetailSource, /Continue 24-hour journey/);
+  assert.match(propertyDetailSource, /Continue 24-Hour Fast Track/);
+  assert.match(propertyDetailSource, /fastTrackConciergeActionLabel/);
+  assert.doesNotMatch(propertyDetailSource, /activeFastTrackCase\?\.workspaceFinalStatus === 'active' \|\| activeFastTrackCase\?\.finalStatus === 'in_progress'/);
 });

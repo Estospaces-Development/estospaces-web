@@ -72,7 +72,10 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
             id: property.id,
             title: property.title || 'Property',
             location: locationParts.length > 0 ? locationParts.join(', ') : 'Location on request',
-            price: { amount: parseFloat(property.price), currency: property.currency || 'USD' },
+            price: { amount: parseFloat(property.price), currency: property.currency },
+            country: property.country,
+            countryCode: property.countryCode || property.country_code,
+            country_code: property.country_code,
             specs: [
                 { icon: 'bed', label: `${property.bedrooms || 0} Beds` },
                 { icon: 'bath', label: `${property.bathrooms || 0} Baths` },

@@ -1,31 +1,16 @@
-import { useEffect, useState, Suspense, lazy } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Filter, Home, X } from 'lucide-react';
+import { getUserProperties } from '@/services/userPropertiesService';
 import {
-    Home,
-    Building2,
-    Wrench,
-    ShoppingCart,
-    UtensilsCrossed,
-    Zap,
-    Car,
-    Sofa,
-    Filter,
-    X
-} from 'lucide-react';
-import { useProperties } from '@/contexts/PropertyContext';
+    getManagerPropertyMapCenter,
+    resolveManagerPropertyMapLocation,
+    type ManagerPropertyMapLocation,
+} from '@/lib/managerPropertyMap';
 import { useMap, MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-
-// We need to import leaflet CSS
 import 'leaflet/dist/leaflet.css';
-
-// Fix for default marker icons in React-Leaflet
-// Since we are in Next.js, we might need to handle icons differently or just rely on CSS
-// However, creating custom icons is safer.
-
 import L from 'leaflet';
 
-// Custom marker icons
 const createCustomIcon = (color: string, symbol: string) => {
-    // Check if window is defined (client-side)
     if (typeof window === 'undefined') return null;
 
     return L.divIcon({
@@ -45,8 +30,8 @@ const createCustomIcon = (color: string, symbol: string) => {
       <div style="
         transform: rotate(45deg);
         color: white;
-        font-size: 16px;
-        font-weight: bold;
+        font-size: 14px;
+        font-weight: 800;
         line-height: 1;
       ">${symbol}</div>
     </div>`,
@@ -56,109 +41,95 @@ const createCustomIcon = (color: string, symbol: string) => {
     });
 };
 
-interface Location {
-    id: string;
-    name: string;
-    type: string;
-    lat: number;
-    lng: number;
-    address?: string;
-    phone?: string;
-}
+interface Location extends ManagerPropertyMapLocation {}
 
 const filterOptions = [
     { id: 'property', label: 'Properties', icon: Home, color: '#3b82f6' },
-    /* Non-functional filters commented out
-    { id: 'estate_agent', label: 'Estate Agents', icon: Building2, color: '#10b981' },
-    { id: 'locksmith', label: 'Locksmiths', icon: Wrench, color: '#f59e0b' },
-    { id: 'supermarket', label: 'Supermarkets', icon: ShoppingCart, color: '#ef4444' },
-    { id: 'restaurant', label: 'Restaurants', icon: UtensilsCrossed, color: '#8b5cf6' },
-    { id: 'electrical', label: 'Electrical Shops', icon: Zap, color: '#ec4899' },
-    { id: 'mechanic', label: 'Mechanic Shops', icon: Car, color: '#06b6d4' },
-    { id: 'furniture', label: 'Furniture Shops', icon: Sofa, color: '#84cc16' },
-    { id: 'household', label: 'Household Shops', icon: ShoppingCart, color: '#f97316' },
-    */
 ];
 
-function MapController({ center }: { center: [number, number] }) {
-    // We need to access useMap inside MapContainer
-    // Since we dynamic import components, we might face issues accessing useMap directly if not careful
-    // But useMap is a hook from react-leaflet, which we installed.
-    // Ideally we should import useMap from react-leaflet directly, but we need to handle SSR.
-
-    // Actually, useMap is a hook, so it must be used inside a component.
-    // We need to import useMap dynamically or just import normally?
-    // Hooks can be imported normally.
-
+function MapController({
+    center,
+    locations,
+}: {
+    center: [number, number];
+    locations: Location[];
+}) {
     const map = useMap();
 
     useEffect(() => {
         try {
             map.closePopup();
-            map.setView(center, map.getZoom());
+            if (locations.length > 1) {
+                map.fitBounds(
+                    locations.map((location) => [location.lat, location.lng] as [number, number]),
+                    { padding: [36, 36], maxZoom: 13 },
+                );
+                return;
+            }
+            map.setView(center, locations.length === 1 ? 13 : 5);
         } catch {
             // Ignore transient Leaflet teardown errors during view resets.
         }
-    }, [center, map]);
+    }, [center, locations, map]);
 
     return null;
 }
 
 const SatelliteMap = () => {
-    const { properties } = useProperties();
     const [activeFilters, setActiveFilters] = useState<string[]>(['property']);
     const [showFilters, setShowFilters] = useState(true);
-    const [mapCenter] = useState<[number, number]>([51.5074, -0.1278]); // London
     const [isMounted, setIsMounted] = useState(false);
+    const [mapProperties, setMapProperties] = useState<any[]>([]);
+    const [loadingProperties, setLoadingProperties] = useState(true);
+    const [propertyError, setPropertyError] = useState<string | null>(null);
+
+    const loadMapProperties = useCallback(async () => {
+        setLoadingProperties(true);
+        setPropertyError(null);
+
+        try {
+            const response = await getUserProperties({ limit: 100 });
+            if (response.error) {
+                setPropertyError(response.error.message);
+                setMapProperties([]);
+                return;
+            }
+            setMapProperties(response.data || []);
+        } finally {
+            setLoadingProperties(false);
+        }
+    }, []);
 
     useEffect(() => {
         setIsMounted(true);
-    }, []);
+        void loadMapProperties();
+    }, [loadMapProperties]);
 
-    const toggleFilter = (filterId: string) => {
-        setActiveFilters(prev =>
-            prev.includes(filterId)
-                ? prev.filter(id => id !== filterId)
-                : [...prev, filterId]
-        );
+    const activateFilter = (filterId: string) => {
+        setActiveFilters((previous) => (
+            previous.includes(filterId) ? previous : [...previous, filterId]
+        ));
     };
 
-    // Map properties to Location interface
-    const propertyLocations: Location[] = properties
-        .filter(p => p.location?.latitude && p.location?.longitude)
-        .map(p => ({
-            id: p.id,
-            name: p.title,
-            type: 'property',
-            lat: p.location!.latitude!,
-            lng: p.location!.longitude!,
-            address: p.address || p.location?.addressLine1,
-            phone: p.phoneNumber || p.contact?.phone
-        }));
+    const propertyLocations: Location[] = useMemo(() => (
+        mapProperties
+            .map((property) => resolveManagerPropertyMapLocation(property))
+            .filter((location): location is Location => Boolean(location))
+    ), [mapProperties]);
 
-    // Currently we only have real data for properties
-    const allLocations = [...propertyLocations];
-
-    const filteredLocations = allLocations.filter(loc => activeFilters.includes(loc.type));
-    const mapKey = [mapCenter.join(':'), ...filteredLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`)].join('|');
+    const allLocations = propertyLocations;
+    const filteredLocations = allLocations.filter((location) => activeFilters.includes(location.type));
+    const mapCenter = getManagerPropertyMapCenter(filteredLocations.length > 0 ? filteredLocations : allLocations);
+    const mapKey = [
+        mapCenter.join(':'),
+        activeFilters.join(':'),
+        ...filteredLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`),
+    ].join('|');
 
     const getIconForType = (type: string) => {
-        const filter = filterOptions.find(f => f.id === type);
+        const filter = filterOptions.find((option) => option.id === type);
         if (!filter) return null;
-
-        const symbols: Record<string, string> = {
-            property: '🏠',
-            estate_agent: '🏢',
-            locksmith: '🔒',
-            supermarket: '🛒',
-            restaurant: '🍽️',
-            electrical: '⚡',
-            mechanic: '🔧',
-            furniture: '🛋️',
-            household: '🏪'
-        };
-
-        return createCustomIcon(filter.color, symbols[type] || '📍');
+        return createCustomIcon(filter.color, 'P');
     };
 
     if (!isMounted) {
@@ -168,8 +139,12 @@ const SatelliteMap = () => {
     }
 
     return (
-        <div className="relative w-full h-full min-h-[500px]">
-            {/* Filter Panel */}
+        <div
+            className="relative w-full h-full min-h-[500px]"
+            data-manager-dashboard-map="properties"
+            data-manager-map-property-count={propertyLocations.length}
+            data-manager-map-marker-count={filteredLocations.length}
+        >
             {showFilters && (
                 <div className="absolute top-4 left-4 z-[500] bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 p-4 max-w-xs max-h-[80vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-4">
@@ -190,12 +165,14 @@ const SatelliteMap = () => {
                         {filterOptions.map((filter) => {
                             const Icon = filter.icon;
                             const isActive = activeFilters.includes(filter.id);
-                            const count = allLocations.filter(loc => loc.type === filter.id).length;
+                            const count = allLocations.filter((location) => location.type === filter.id).length;
 
                             return (
                                 <button
                                     key={filter.id}
-                                    onClick={() => toggleFilter(filter.id)}
+                                    onClick={() => activateFilter(filter.id)}
+                                    aria-pressed={isActive}
+                                    data-manager-map-filter={filter.id}
                                     className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${isActive
                                         ? 'bg-gray-100 dark:bg-gray-700 border-2 border-primary'
                                         : 'bg-transparent border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -214,11 +191,9 @@ const SatelliteMap = () => {
                                         <div className="text-sm font-medium text-gray-800 dark:text-white">
                                             {filter.label}
                                         </div>
-                                        {count > 0 && (
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                {count} locations
-                                            </div>
-                                        )}
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                            {count} {count === 1 ? 'location' : 'locations'}
+                                        </div>
                                     </div>
                                     {isActive && (
                                         <div
@@ -230,10 +205,13 @@ const SatelliteMap = () => {
                             );
                         })}
                     </div>
+
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400" data-manager-map-location-summary>
+                        Showing {filteredLocations.length} of {propertyLocations.length} property locations
+                    </p>
                 </div>
             )}
 
-            {/* Toggle Filters Button */}
             {!showFilters && (
                 <button
                     onClick={() => setShowFilters(true)}
@@ -244,11 +222,20 @@ const SatelliteMap = () => {
                 </button>
             )}
 
-            {/* Map Container */}
+            {(loadingProperties || propertyError || propertyLocations.length === 0) && (
+                <div className="absolute bottom-4 left-4 right-4 z-[500] rounded-lg border border-gray-100 bg-white/95 px-4 py-3 text-sm text-gray-700 shadow-lg dark:border-gray-700 dark:bg-gray-800/95 dark:text-gray-200" data-manager-map-state>
+                    {loadingProperties
+                        ? 'Loading manager property locations...'
+                        : propertyError
+                            ? propertyError
+                            : 'No mappable property locations yet. Add a city, Indian PIN code, UK postcode, or coordinates to show markers here.'}
+                </div>
+            )}
+
             <MapContainer
                 key={mapKey}
                 center={mapCenter}
-                zoom={13}
+                zoom={filteredLocations.length === 1 ? 13 : 5}
                 style={{ height: '100%', width: '100%', zIndex: 0, borderRadius: '0.75rem' }}
                 zoomControl={true}
                 scrollWheelZoom={true}
@@ -256,15 +243,13 @@ const SatelliteMap = () => {
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
-                <MapController center={mapCenter} />
+                <MapController center={mapCenter} locations={filteredLocations} />
 
-                {/* Satellite Tile Layer (Esri World Imagery) */}
                 <TileLayer
                     attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; <a href="https://www.mapbox.com/">Mapbox</a>'
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 />
 
-                {/* Markers */}
                 {filteredLocations.map((location) => {
                     const icon = getIconForType(location.type);
                     if (!icon) return null;
@@ -280,13 +265,16 @@ const SatelliteMap = () => {
                                     {location.address && (
                                         <p className="text-sm text-gray-600 mb-1">{location.address}</p>
                                     )}
+                                    {location.status && (
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">{location.status}</p>
+                                    )}
                                     {location.phone && (
                                         <p className="text-sm text-gray-600">{location.phone}</p>
                                     )}
                                 </div>
                             </Popup>
                         </Marker>
-                    )
+                    );
                 })}
             </MapContainer>
         </div>

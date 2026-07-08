@@ -52,7 +52,7 @@ test('buildUserFastTrackDocumentItems exposes requested document names and statu
                 fileName: 'passport.pdf',
                 reason: null,
                 reviewedAt: null,
-                hint: 'Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN/Form 60 may be requested separately.',
+                hint: 'Aadhaar, PAN/Form 60, passport, voter ID, or driving licence',
                 uploadType: 'identity',
                 actionLabel: 'Replace file',
             },
@@ -64,7 +64,7 @@ test('buildUserFastTrackDocumentItems exposes requested document names and statu
                 fileName: 'utility-bill.pdf',
                 reason: null,
                 reviewedAt: null,
-                hint: 'Bank statement, utility bill, or tenancy proof',
+                hint: 'Utility bill, bank statement, rent agreement, property tax receipt, or government address proof',
                 uploadType: 'address',
                 actionLabel: 'Upload replacement',
             },
@@ -97,7 +97,7 @@ test('buildUserFastTrackDocumentItems keeps missing files inactive until documen
                 fileName: null,
                 reason: null,
                 reviewedAt: null,
-                hint: 'Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN/Form 60 may be requested separately.',
+                hint: 'Aadhaar, PAN/Form 60, passport, voter ID, or driving licence',
                 uploadType: 'identity',
                 actionLabel: 'Waiting for request',
             },
@@ -109,7 +109,7 @@ test('buildUserFastTrackDocumentItems keeps missing files inactive until documen
                 fileName: null,
                 reason: null,
                 reviewedAt: null,
-                hint: 'Bank statement, utility bill, or tenancy proof',
+                hint: 'Utility bill, bank statement, rent agreement, property tax receipt, or government address proof',
                 uploadType: 'address',
                 actionLabel: 'Waiting for request',
             },
@@ -117,4 +117,21 @@ test('buildUserFastTrackDocumentItems keeps missing files inactive until documen
     );
 
     assert.deepEqual(getOutstandingDocumentNames(items), []);
+});
+
+
+test('buildUserFastTrackDocumentItems uses UK document guidance when requested', () => {
+    const items = buildUserFastTrackDocumentItems(
+        {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        },
+        [],
+        {
+            market: 'GB',
+        },
+    );
+
+    assert.equal(items[0].hint, 'British or Irish passport, driving licence, BRP/BRC, or right-to-rent share code');
+    assert.equal(items[1].hint, 'Council tax bill, utility bill, bank statement, tenancy agreement, or HMRC/NHS/government letter');
 });

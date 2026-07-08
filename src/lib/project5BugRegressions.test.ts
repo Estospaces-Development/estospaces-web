@@ -18,6 +18,8 @@ const managerAppointmentsPage = readFileSync(resolve(root, 'src/pages/manager/ap
 const managerContractsPage = readFileSync(resolve(root, 'src/pages/manager/contracts/page.tsx'), 'utf8');
 const userApplicationFilters = readFileSync(resolve(root, 'src/components/dashboard/applications/ApplicationFilters.tsx'), 'utf8');
 const managerApplicationFilters = readFileSync(resolve(root, 'src/components/manager/applications/ApplicationFilters.tsx'), 'utf8');
+const managerApplicationStatusTracker = readFileSync(resolve(root, 'src/components/manager/applications/StatusTracker.tsx'), 'utf8');
+const userApplicationStatusTracker = readFileSync(resolve(root, 'src/components/dashboard/applications/StatusTracker.tsx'), 'utf8');
 const adminHeader = readFileSync(resolve(root, 'src/components/layout/AdminHeader.tsx'), 'utf8');
 const adminDashboardPage = readFileSync(resolve(root, 'src/pages/admin/dashboard/page.tsx'), 'utf8');
 const adminVerificationsPage = readFileSync(resolve(root, 'src/pages/admin/verifications/page.tsx'), 'utf8');
@@ -25,6 +27,9 @@ const adminReviewsPage = readFileSync(resolve(root, 'src/pages/admin/reviews/pag
 const conversationList = readFileSync(resolve(root, 'src/components/dashboard/messaging/ConversationList.tsx'), 'utf8');
 const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspaceLayout.tsx'), 'utf8');
 const userPropertyDetailPage = readFileSync(resolve(root, 'src/pages/user/properties/[id]/page.tsx'), 'utf8');
+const applicationsContext = readFileSync(resolve(root, 'src/contexts/ApplicationsContext.tsx'), 'utf8');
+const managerApplicationsPage = readFileSync(resolve(root, 'src/pages/manager/applications/page.tsx'), 'utf8');
+const managerDashboardPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'src/globals.css'), 'utf8');
@@ -151,6 +156,14 @@ test('direct property fast-track start refreshes manager live queue surfaces', (
     assert.match(userPropertyDetailPage, /User started fast-track from property detail/);
 });
 
+test('rental application submission opens the real applications workspace and keeps applications fetching active', () => {
+    assert.match(userPropertyDetailPage, /buildWorkspacePath\('\/user\/applications'/);
+    assert.doesNotMatch(userPropertyDetailPage, /navigate\('\/user\/dashboard\/applications'\)/);
+    assert.doesNotMatch(managerApplicationsPage, /<ApplicationsProvider>/);
+    assert.doesNotMatch(applicationsContext, /hasActiveConsumers/);
+    assert.match(applicationsContext, /enabled:\s*Boolean\(user\)/);
+});
+
 test('transaction workspaces give search controls and contract actions clear accessible names', () => {
     assert.match(userApplicationFilters, /aria-label="Search applications"/);
     assert.match(managerApplicationFilters, /aria-label="Search applications"/);
@@ -159,6 +172,14 @@ test('transaction workspaces give search controls and contract actions clear acc
     assert.match(managerAppointmentsPage, /aria-label="Search appointments"/);
     assert.match(managerContractsPage, /aria-label="Search contracts"/);
     assert.match(userContractsPage, /aria-label=\{`Open property workspace for \$\{item\.propertyTitle\}`\}/);
+});
+
+test('manager appointments keep records visible during background refreshes', () => {
+    assert.match(managerAppointmentsPage, /const \[isRefreshing, setIsRefreshing\] = useState\(false\)/);
+    assert.match(managerAppointmentsPage, /const shouldBlockForLoad = !options\.background && !hasLoadedAppointmentsRef\.current/);
+    assert.match(managerAppointmentsPage, /refresh: \(\) => fetchAppointments\(\{ background: true \}\)/);
+    assert.match(managerAppointmentsPage, /onRefresh=\{\(\) => fetchAppointments\(\{ background: true \}\)\}/);
+    assert.doesNotMatch(managerAppointmentsPage, /refresh: fetchAppointments/);
 });
 
 test('admin dashboard recent notifications expose a search control', () => {
@@ -203,6 +224,7 @@ test('manager workspace search inputs keep typed text and caret visible in dark 
         assert.match(source, /dark:caret-white/);
         assert.match(source, /placeholder:text-gray-500/);
         assert.match(source, /dark:placeholder:text-gray-500/);
+        assert.match(source, /dark:focus:bg-gray-900/);
     }
     assert.match(conversationList, /placeholder="Search messages\.\.\."/);
     assert.match(fastTrackWorkspaceLayout, /placeholder=\{copy\.searchPlaceholder\}/);
@@ -257,4 +279,31 @@ test('register page validates identity fields and persists safe draft data', asy
     );
     assert.match(registerPage, /onBlur=\{\(\) => setNameError/);
     assert.match(registerPage, /onBlur=\{\(\) => setEmailError/);
+});
+
+test('application progress tracker places documents before review', () => {
+    for (const source of [managerApplicationStatusTracker, userApplicationStatusTracker]) {
+        const documentsIndex = source.indexOf("label: 'Documents & Compliance'");
+        const reviewIndex = source.indexOf("label: 'Application Review'");
+
+        assert.ok(documentsIndex > -1);
+        assert.ok(reviewIndex > -1);
+        assert.ok(documentsIndex < reviewIndex);
+    }
+});
+
+
+test('application progress tracker keeps pending linked viewings current', () => {
+    for (const source of [managerApplicationStatusTracker, userApplicationStatusTracker]) {
+        assert.match(source, /linkedViewingStatus/);
+        assert.match(source, /String\(linkedViewingStatus\)\.trim\(\)\.toLowerCase\(\) !== 'completed'/);
+        assert.match(source, /viewingStillPending && nextIndex > viewingIndex \? viewingIndex : nextIndex/);
+    }
+});
+test('manager dashboard property empty state does not show duplicate summary messages', () => {
+    assert.match(managerDashboardPage, /const propertySummaryText = propertyTotal > 0/);
+    assert.match(managerDashboardPage, /: '';/);
+    assert.match(managerDashboardPage, /\{propertySummaryText && <p>\{propertySummaryText\}<\/p>\}/);
+    assert.doesNotMatch(managerDashboardPage, /No properties matched the current search/);
+    assert.doesNotMatch(managerDashboardPage, /No properties yet\. Add your first property to see it here/);
 });

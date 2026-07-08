@@ -58,9 +58,10 @@ test("getPropertyMapState falls back to address search when coordinates are unav
 
   assert.equal(state.hasCoordinates, false);
   assert.equal(state.hasAddress, true);
-  assert.equal(state.embedUrl, null);
+  assert.match(state.embedUrl ?? "", /221B%20Baker%20Street/);
   assert.match(state.externalUrl ?? "", /221B%20Baker%20Street/);
-  assert.equal(state.statusTitle, "Exact pin unavailable");
+  assert.equal(state.statusTitle, "Address map preview available");
+  assert.match(state.statusDescription, /property address/);
 });
 
 test("getPropertyMapState returns an unavailable state when location data is missing", () => {
@@ -155,7 +156,9 @@ test("getPropertyMapState falls back to service-address search without coordinat
 
   assert.equal(state.hasCoordinates, false);
   assert.equal(state.hasAddress, true);
-  assert.equal(state.embedUrl, null);
+  assert.match(state.embedUrl ?? "", /221B%20Smoke%20Test%20Lane/);
+  assert.equal(state.statusTitle, "Address map preview available");
+  assert.doesNotMatch(state.statusTitle, /pin/i);
   assert.equal(
     state.displayAddress,
     "221B Smoke Test Lane, London, SW1A 1AA, UK",
@@ -179,5 +182,7 @@ test("getPropertyMapState uses a sanitized display address override for address 
   assert.equal(state.displayAddress, "Attur, Chennai, 600001");
   assert.doesNotMatch(state.displayAddress, /Edinburgh|SW1A/i);
   assert.doesNotMatch(decodeURIComponent(state.externalUrl ?? ""), /Edinburgh|SW1A/i);
+  assert.doesNotMatch(decodeURIComponent(state.embedUrl ?? ""), /Edinburgh|SW1A/i);
   assert.match(decodeURIComponent(state.externalUrl ?? ""), /Attur, Chennai, 600001/);
+  assert.match(decodeURIComponent(state.embedUrl ?? ""), /Attur, Chennai, 600001/);
 });

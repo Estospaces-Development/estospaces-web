@@ -4,6 +4,8 @@ import {
     buildHostedRedirectLocation,
     buildHostedWorkspaceUrl,
     getHostConfig,
+    getPublicHomeHref,
+    isExternalHref,
     isSameHostedWorkspaceUrl,
     isSingleOriginHostedHost,
     resolveCurrentAppFromHostname,
@@ -145,4 +147,17 @@ test('localhost resolves as the app host so root boot skips the landing experien
             });
         }
     }
+});
+
+test('public home href sends app-hosted public pages to the marketing home', () => {
+    assert.equal(getPublicHomeHref('app.estospaces.com'), 'https://estospaces.com/');
+    assert.equal(getPublicHomeHref('admin.estospaces.com'), 'https://estospaces.com/');
+    assert.equal(isExternalHref(getPublicHomeHref('app.estospaces.com')), true);
+});
+
+test('public home href stays local for landing and single-origin QA hosts', () => {
+    assert.equal(getPublicHomeHref('estospaces.com'), '/home');
+    assert.equal(getPublicHomeHref('localhost'), '/home');
+    assert.equal(getPublicHomeHref('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/home');
+    assert.equal(isExternalHref(getPublicHomeHref('localhost')), false);
 });

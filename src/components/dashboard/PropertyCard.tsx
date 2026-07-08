@@ -27,7 +27,7 @@ import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     normalizeLaunchCurrencyText,
@@ -134,10 +134,22 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
     };
 
+    const formatPropertyAmount = (amount: number, currencyCode?: string | null) => (
+        formatLaunchCurrencyForCountry(amount, {
+            countryCode: property.countryCode
+                || property.country_code
+                || property.country
+                || property.location?.countryCode
+                || property.location?.country,
+            countryName: property.country || property.location?.country,
+            currencyCode: currencyCode || property.currency || property.price?.currency,
+        })
+    );
+
     const formatPrice = (price: number | string | any) => {
         if (typeof price === 'object' && price !== null && 'amount' in price) {
-            const { amount } = price;
-            const formatted = formatLaunchCurrency(Number(amount));
+            const { amount, currency } = price;
+            const formatted = formatPropertyAmount(Number(amount), currency);
 
             if (property.property_type === 'rent' || property.listingType === 'rent' || property.type?.toLowerCase() === 'rent') {
                 return `${formatted}/month`;
@@ -146,7 +158,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         }
 
         if (typeof price === 'number') {
-            const formatted = formatLaunchCurrency(price);
+            const formatted = formatPropertyAmount(price);
             if (property.property_type === 'rent' || property.type?.toLowerCase() === 'rent') {
                 return `${formatted}/month`;
             }
@@ -335,9 +347,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         <MapPin size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
                         <span className="line-clamp-1">
                             {formatLaunchPropertyLocation(
-                                typeof property.location === 'string'
-                                    ? property.location
-                                    : getSavedPropertyLocationLabel(property),
+                                getSavedPropertyLocationLabel(property),
                             )}
                         </span>
                     </p>

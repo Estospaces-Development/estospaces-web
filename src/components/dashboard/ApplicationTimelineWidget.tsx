@@ -8,11 +8,21 @@ import {
     ExternalLink, Send, Radio, UserCheck, Search, SlidersHorizontal
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
+import {
+    getApplicationTimelineTimestamp,
+    getBrokerRequestTrackingSummary,
+    getStableActivityTimestamp,
+    getMissingTimelinePropertyCopy,
+    hasStableActivityTimestamp,
+    hasTimelinePropertyDetails,
+    isLiveBrokerRequest,
+    resolveTimelinePropertyContext,
+    type TimelinePropertyContext,
+} from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 // --- Types & Interfaces ---
 
@@ -51,6 +61,8 @@ interface ApplicationItem {
         city: string | null;
         price: number | null;
         priceLabel?: string;
+        country?: string | null;
+        currency?: string | null;
         image_urls: string[];
     };
     broker?: {
@@ -112,6 +124,18 @@ const getRentStageSummary = (application: any) => {
     }
 };
 
+const INTERNAL_TIMELINE_CARD_TITLE_PATTERN = /\b(codex|project\s*5|fast\s*track|manual\s*ft|e2e|mobile\s+live\s+approval)\b/i;
+const INTERNAL_TIMELINE_CARD_ID_PATTERN = /(\d{4}-\d{2}-\d{2}T\d{2}[-:]\d{2}[-:]\d{2}|\bmobile-live-\d+\b|\b\d{10,}\b|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4})/i;
+const getTimelineCardTitle = (item: ApplicationItem) => {
+    const title = String(item.property.title || '').trim();
+
+    if (title && !(INTERNAL_TIMELINE_CARD_TITLE_PATTERN.test(title) && INTERNAL_TIMELINE_CARD_ID_PATTERN.test(title))) {
+        return title;
+    }
+
+    return item.property.city || 'Property application';
+};
+
 const getSaleStageSummary = (currentStage?: string, status?: string) => {
     if (currentStage === 'completion' || status === 'completed') {
         return { currentStage: 'Ready to complete', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Review the latest update' };
@@ -158,13 +182,26 @@ const StageIcon: React.FC<{ stage: Stage; size?: number }> = ({ stage, size = 20
     return <IconComponent size={size} />;
 };
 
-const formatPropertyPrice = (price: number | null | undefined) => {
+const formatPropertyPrice = (
+    price: number | null | undefined,
+    property?: { country?: string | null; currency?: string | null },
+) => {
     if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
         return 'Price unavailable';
     }
 
-    return formatLaunchCurrency(price);
+    return formatLaunchCurrencyForCountry(price, {
+        countryCode: property?.country,
+        countryName: property?.country,
+        currencyCode: property?.currency,
+    });
 };
+
+const formatLastUpdatedLabel = (date: Date) => (
+    hasStableActivityTimestamp(date)
+        ? `Updated ${formatDistanceToNow(date, { addSuffix: true })}`
+        : 'Updated date unavailable'
+);
 
 const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
     const typeStyles = {
@@ -177,7 +214,9 @@ const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
     return (
         <div className="flex items-start gap-3 text-sm">
             <div className="flex-shrink-0 w-20 text-right text-xs text-gray-400 pt-0.5">
-                {formatDistanceToNow(event.date, { addSuffix: true })}
+                {hasStableActivityTimestamp(event.date)
+                    ? formatDistanceToNow(event.date, { addSuffix: true })
+                    : 'Date unavailable'}
             </div>
             <div className={`flex-1 px-3 py-2 rounded-lg border ${typeStyles[event.type] || typeStyles.info}`}>
                 {event.event}
@@ -209,6 +248,7 @@ import { getContracts, getViewings } from '../../services/bookingsService';
 import { getSaleProgressions } from '../../services/salesService';
 import { getUserProperties } from '../../services/userPropertiesService';
 import { getUserBrokerRequests } from '../../services/leadsService';
+import { getPropertyById } from '../../services/propertyService';
 
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
@@ -243,51 +283,66 @@ const ApplicationTimelineWidget = () => {
 
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
                 const contracts = Array.isArray(contractsRes) ? contractsRes : [];
-                const propertyContextById = new Map<string, {
-                    title?: string;
-                    address?: string;
-                    price?: number;
-                    image?: unknown;
-                }>();
-
-                (appsRes.data || []).forEach((app: any) => {
-                    if (!app.property_id || propertyContextById.has(app.property_id)) {
+                const propertyContextById = new Map<string, TimelinePropertyContext>();
+                const unavailablePropertyIds = new Set<string>();
+                const setPropertyContext = (
+                    propertyId: string | null | undefined,
+                    candidate: TimelinePropertyContext,
+                    preferCandidate = false,
+                ) => {
+                    if (!propertyId || !hasTimelinePropertyDetails(candidate)) {
                         return;
                     }
 
-                    propertyContextById.set(app.property_id, {
+                    const existing = propertyContextById.get(propertyId);
+                    propertyContextById.set(
+                        propertyId,
+                        preferCandidate
+                            ? resolveTimelinePropertyContext(candidate, existing)
+                            : resolveTimelinePropertyContext(existing, candidate),
+                    );
+                };
+
+                (appsRes.data || []).forEach((app: any) => {
+                    setPropertyContext(app.property_id, {
                         title: app.property_title,
                         address: app.property_address,
                         price: app.property_price,
+                        country: app.property_country,
+                        currency: app.property_currency,
                         image: app.property_image,
                     });
                 });
 
                 viewings.forEach((viewing: any) => {
-                    if (!viewing.property_id || propertyContextById.has(viewing.property_id)) {
-                        return;
-                    }
-
-                    propertyContextById.set(viewing.property_id, {
+                    setPropertyContext(viewing.property_id, {
                         title: viewing.property_title,
                         address: viewing.property_address,
                         price: viewing.property_price,
+                        country: viewing.property_country,
+                        currency: viewing.property_currency,
                         image: viewing.property_image,
                     });
                 });
 
                 (propsRes.data || []).forEach((property: any) => {
-                    if (!property.id || propertyContextById.has(property.id)) {
-                        return;
-                    }
-
-                    propertyContextById.set(property.id, {
-                        title: property.title,
-                        address: buildLocationLabel(property.address_line_1, property.city, property.postcode) || property.location,
-                        price: parseMoney(property.price) || undefined,
-                        image: property.image_urls || property.images,
-                    });
+                    setPropertyContext(property.id, buildPropertyContextFromProperty(property), true);
                 });
+
+                const propertyIdsNeedingHydration = Array.from(new Set([
+                    ...(appsRes.data || []).map((app: any) => app.property_id),
+                    ...viewings.map((viewing: any) => viewing.property_id),
+                    ...contracts.map((contract: any) => contract.property_id),
+                    ...(saleProgressionsRes.data || []).map((progression) => progression.property_id),
+                ].filter(Boolean))).filter((propertyId) => !hasTimelinePropertyDetails(propertyContextById.get(propertyId)));
+
+                await Promise.all(propertyIdsNeedingHydration.map(async (propertyId) => {
+                    const { data: property, error } = await getPropertyById(propertyId);
+                    if (!property && error) {
+                        unavailablePropertyIds.add(propertyId);
+                    }
+                    setPropertyContext(propertyId, buildPropertyContextFromProperty(property), true);
+                }));
 
                 const saleProgressionKeys = new Set(
                     (saleProgressionsRes.data || []).map((progression) =>
@@ -321,6 +376,19 @@ const ApplicationTimelineWidget = () => {
                         : getRentStageSummary(app);
                     const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                     const stageList = app.listing_type === 'sale' ? SALE_STAGES : RENT_STAGES;
+                    const propertyContext = propertyContextById.get(app.property_id);
+                    const property = resolveTimelinePropertyContext(propertyContext, {
+                        title: app.property_title,
+                        address: app.property_address,
+                        price: app.property_price,
+                        country: app.property_country,
+                        currency: app.property_currency,
+                        image: app.property_image,
+                    });
+                    const missingPropertyCopy = getMissingTimelinePropertyCopy(
+                        property,
+                        Boolean(app.property_id && unavailablePropertyIds.has(app.property_id)),
+                    );
 
                     return {
                         id: app.id,
@@ -330,15 +398,18 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: summary.currentStageNumber,
                         totalStages: summary.totalStages,
                         progress: summary.progress,
-                        lastUpdated: new Date(app.updated_at),
+                        lastUpdated: getApplicationTimelineTimestamp(app),
                         nextAction: summary.nextAction,
                         estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
                         property: {
                             id: app.property_id,
-                            title: app.property_title || 'Property application',
-                            city: app.property_address || null,
-                            price: typeof app.property_price === 'number' ? app.property_price : null,
-                            image_urls: toPropertyImages(app.property_image),
+                            title: String(property.title || property.address || missingPropertyCopy.title || 'Property application'),
+                            city: String(property.address || missingPropertyCopy.address || '') || null,
+                            price: typeof property.price === 'number' ? property.price : null,
+                            priceLabel: missingPropertyCopy.priceLabel,
+                            country: typeof property.country === 'string' ? property.country : null,
+                            currency: typeof property.currency === 'string' ? property.currency : null,
+                            image_urls: toPropertyImages(property.image),
                         },
                         stages: stageList.map((stage, index) => ({
                             ...stage,
@@ -354,7 +425,7 @@ const ApplicationTimelineWidget = () => {
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                         const requestTimeline: TimelineEventType[] = [
                             {
-                                date: new Date(request.created_at || request.updated_at || Date.now()),
+                                date: getStableActivityTimestamp(request.created_at, request.updated_at),
                                 event: 'Property agent help requested',
                                 type: 'milestone',
                             },
@@ -362,13 +433,13 @@ const ApplicationTimelineWidget = () => {
 
                         if (request.matched_broker?.name) {
                             requestTimeline.push({
-                                date: new Date(request.matched_at || request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.matched_at, request.updated_at, request.created_at),
                                 event: `${request.matched_broker.name} accepted your request`,
                                 type: 'success',
                             });
                         } else {
                             requestTimeline.push({
-                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.updated_at, request.created_at),
                                 event: 'We are checking nearby property agents for you',
                                 type: 'info',
                             });
@@ -376,7 +447,7 @@ const ApplicationTimelineWidget = () => {
 
                         if ((request.property_shares?.length || 0) > 0) {
                             requestTimeline.push({
-                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.updated_at, request.created_at),
                                 event: `${request.property_shares?.length || 0} home choice${request.property_shares?.length === 1 ? '' : 's'} ready to review`,
                                 type: 'action',
                             });
@@ -384,7 +455,7 @@ const ApplicationTimelineWidget = () => {
 
                         if (request.selected_property?.title || request.selected_property_id) {
                             requestTimeline.push({
-                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.updated_at, request.created_at),
                                 event: request.selected_property?.title
                                     ? `${request.selected_property.title} selected for the 24-hour journey`
                                     : 'A home has been selected for the 24-hour journey',
@@ -400,7 +471,7 @@ const ApplicationTimelineWidget = () => {
                             currentStageNumber: summary.currentStageNumber,
                             totalStages: summary.totalStages,
                             progress: summary.progress,
-                            lastUpdated: new Date(request.updated_at || request.created_at || Date.now()),
+                            lastUpdated: getStableActivityTimestamp(request.updated_at, request.created_at),
                             nextAction: summary.nextAction,
                             estimatedCompletion: 'Property agent search is live',
                             property: {
@@ -408,6 +479,8 @@ const ApplicationTimelineWidget = () => {
                                 title: request.selected_property?.title || (request.location ? `Property agent request for ${request.location}` : 'Property agent request'),
                                 city: request.selected_property?.city || request.location_postcode || request.location || null,
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
+                                country: request.selected_property?.country,
+                                currency: (request.selected_property as any)?.currency || (request.selected_property as any)?.currency_code,
                                 priceLabel: request.budget ? `Budget ${request.budget}` : 'Property agent request',
                                 image_urls: toPropertyImages(request.selected_property?.image_urls),
                             },
@@ -453,7 +526,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: Math.min(stageIndex + 1, 3),
                         totalStages: 3,
                         progress,
-                        lastUpdated: new Date(viewing.scheduled_at || viewing.created_at || Date.now()),
+                        lastUpdated: getStableActivityTimestamp(viewing.scheduled_at, viewing.created_at),
                         viewingDate: viewing.scheduled_at ? new Date(viewing.scheduled_at) : undefined,
                         nextAction: status === 'confirmed' ? 'Attend the viewing' : status === 'completed' ? 'Review the next step' : 'Confirm viewing time',
                         estimatedCompletion: viewing.scheduled_at ? `Scheduled ${new Date(viewing.scheduled_at).toLocaleString('en-GB')}` : 'Viewing request is live',
@@ -462,6 +535,8 @@ const ApplicationTimelineWidget = () => {
                             title: firstText(viewing.property_title, propertyContext?.title, 'Property viewing'),
                             city: buildLocationLabel(viewing.property_address) || propertyContext?.address || null,
                             price: parseMoney(viewing.property_price) || parseMoney(propertyContext?.price),
+                            country: viewing.property_country || propertyContext?.country,
+                            currency: viewing.property_currency || propertyContext?.currency,
                             image_urls: toPropertyImages(viewing.property_image || propertyContext?.image),
                         },
                         stages: [
@@ -474,12 +549,12 @@ const ApplicationTimelineWidget = () => {
                         })),
                         timeline: [
                             {
-                                date: new Date(viewing.created_at || viewing.scheduled_at || Date.now()),
+                                date: getStableActivityTimestamp(viewing.created_at, viewing.scheduled_at),
                                 event: 'Viewing request created',
                                 type: 'milestone',
                             },
                             {
-                                date: new Date(viewing.scheduled_at || viewing.created_at || Date.now()),
+                                date: getStableActivityTimestamp(viewing.scheduled_at, viewing.created_at),
                                 event: currentStage,
                                 type: status === 'completed' ? 'success' : 'info',
                             },
@@ -504,6 +579,8 @@ const ApplicationTimelineWidget = () => {
                     const stageIndex = status === 'completed' ? 3 : signed ? 2 : status === 'sent' || status === 'active' ? 1 : 0;
                     const monthlyRent = parseMoney(contract.monthly_rent);
                     const depositAmount = parseMoney(contract.deposit_amount);
+                    const contractCountry = contract.property_country || contract.country || propertyContext?.country;
+                    const contractCurrency = contract.currency || contract.property_currency || propertyContext?.currency;
 
                     return {
                         id: `contract-${contract.id}`,
@@ -513,7 +590,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: Math.min(stageIndex + 1, 4),
                         totalStages: 4,
                         progress,
-                        lastUpdated: new Date(contract.updated_at || contract.created_at || Date.now()),
+                        lastUpdated: getStableActivityTimestamp(contract.updated_at, contract.created_at),
                         nextAction: signed ? 'Keep contract for records' : 'Review and sign contract',
                         estimatedCompletion: contract.expires_at ? `Expires ${new Date(contract.expires_at).toLocaleDateString('en-GB')}` : 'Contract workflow is live',
                         property: {
@@ -522,10 +599,12 @@ const ApplicationTimelineWidget = () => {
                             city: propertyContext?.address || null,
                             price: monthlyRent || depositAmount || parseMoney(propertyContext?.price),
                             priceLabel: monthlyRent
-                                ? `${formatPropertyPrice(monthlyRent)}/mo`
+                                ? `${formatPropertyPrice(monthlyRent, { country: contractCountry, currency: contractCurrency })}/mo`
                                 : depositAmount
-                                    ? `${formatPropertyPrice(depositAmount)} deposit`
+                                    ? `${formatPropertyPrice(depositAmount, { country: contractCountry, currency: contractCurrency })} deposit`
                                     : undefined,
+                            country: contractCountry,
+                            currency: contractCurrency,
                             image_urls: toPropertyImages(propertyContext?.image),
                         },
                         stages: [
@@ -539,12 +618,12 @@ const ApplicationTimelineWidget = () => {
                         })),
                         timeline: [
                             {
-                                date: new Date(contract.created_at || Date.now()),
+                                date: getStableActivityTimestamp(contract.created_at, contract.updated_at),
                                 event: 'Contract record created',
                                 type: 'milestone',
                             },
                             {
-                                date: new Date(contract.updated_at || contract.signed_at || contract.created_at || Date.now()),
+                                date: getStableActivityTimestamp(contract.updated_at, contract.signed_at, contract.created_at),
                                 event: currentStage,
                                 type: signed ? 'success' : 'info',
                             },
@@ -567,7 +646,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: summary.currentStageNumber,
                         totalStages: summary.totalStages,
                         progress: summary.progress,
-                        lastUpdated: new Date(progression.updated_at),
+                        lastUpdated: getStableActivityTimestamp(progression.updated_at, progression.created_at),
                         nextAction: summary.nextAction,
                         estimatedCompletion: 'Purchase progression is live',
                         property: {
@@ -575,6 +654,8 @@ const ApplicationTimelineWidget = () => {
                             title: propertyContext?.title || 'Purchase progression',
                             city: propertyContext?.address || null,
                             price: typeof propertyContext?.price === 'number' ? propertyContext.price : null,
+                            country: progression.property_country || propertyContext?.country,
+                            currency: (progression as any).property_currency || propertyContext?.currency,
                             image_urls: toPropertyImages(propertyContext?.image),
                         },
                         stages: SALE_STAGES.map((stage, index) => ({
@@ -583,12 +664,12 @@ const ApplicationTimelineWidget = () => {
                         })),
                         timeline: [
                             {
-                                date: new Date(progression.created_at),
+                                date: getStableActivityTimestamp(progression.created_at, progression.updated_at),
                                 event: 'Sale progression started',
                                 type: 'milestone',
                             },
                             {
-                                date: new Date(progression.updated_at),
+                                date: getStableActivityTimestamp(progression.updated_at, progression.created_at),
                                 event: `Current sale stage: ${summary.currentStage}`,
                                 type: progression.status === 'completed' ? 'success' : 'info',
                             },
@@ -618,13 +699,15 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: ['published', 'active', 'online'].includes(prop.status) ? 3 : prop.status === 'sold' ? 5 : 1,
                         totalStages: 5,
                         progress: ['published', 'active', 'online'].includes(prop.status) ? 60 : prop.status === 'sold' ? 100 : 20,
-                        lastUpdated: new Date(prop.updated_at),
+                        lastUpdated: getStableActivityTimestamp(prop.updated_at, prop.created_at),
                         nextAction: 'Manage listing',
                         property: {
                             id: prop.id,
                             title: prop.title,
                             city: prop.city || null,
                             price: typeof prop.price === 'number' ? prop.price : null,
+                            country: prop.country,
+                            currency: prop.currency,
                             image_urls: getPropertyImages(prop),
                         },
                         stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
@@ -870,7 +953,7 @@ const ApplicationTimelineWidget = () => {
                                             {item.property.image_urls[0] && !failedImages[item.id] ? (
                                                 <img
                                                     src={item.property.image_urls[0]}
-                                                    alt={item.property.title}
+                                                    alt={getTimelineCardTitle(item)}
                                                     className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700"
                                                     onError={() => {
                                                         setFailedImages((previous) => ({ ...previous, [item.id]: true }));
@@ -888,14 +971,14 @@ const ApplicationTimelineWidget = () => {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between mb-2">
                                                 <div>
-                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{item.property.title}</h3>
+                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{getTimelineCardTitle(item)}</h3>
                                                     <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="font-bold text-xl text-gray-900 dark:text-white">
-                                                        {item.property.priceLabel || formatPropertyPrice(item.property.price)}
+                                                        {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
-                                                    <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
+                                                    <p className="text-xs text-gray-400 mt-1">{formatLastUpdatedLabel(item.lastUpdated)}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 mt-3">
@@ -1013,6 +1096,21 @@ const buildLocationLabel = (...values: unknown[]) => {
         .filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : null;
 };
+
+const buildPropertyContextFromProperty = (property: any): TimelinePropertyContext => ({
+    title: property?.title,
+    address: buildLocationLabel(
+        property?.address_line_1,
+        property?.address_line_2,
+        property?.city,
+        property?.postcode,
+        property?.country,
+    ) || property?.location,
+    price: property?.price,
+    country: property?.country,
+    currency: property?.currency,
+    image: property?.image_urls || property?.images || property?.image_url,
+});
 
 const filterTimelineItems = (items: ApplicationItem[], filterText: string, sortBy: TimelineSort) => {
     const normalizedFilter = filterText.trim().toLowerCase();

@@ -164,6 +164,28 @@ export const describeFastTrackCompanionSummary = (fastTrackCase: FastTrackCase) 
   fastTrackCase.nextAction ||
   `This linked case is currently in ${describeFastTrackStageLabel(fastTrackCase).toLowerCase()}.`;
 
+export const getFastTrackViewingResponseConflictMessage = (
+  fastTrackCase: Pick<FastTrackCase, "viewing">,
+  action: string,
+) => {
+  const hasPendingChange = Boolean(fastTrackCase.viewing.requestedChange?.trim());
+  const isConfirmed = Boolean(fastTrackCase.viewing.confirmedByUser);
+
+  if (action === "confirm_viewing" && hasPendingChange) {
+    return "A change request is already pending. Wait for the manager to reschedule before confirming this slot.";
+  }
+
+  if (action === "request_viewing_change" && hasPendingChange) {
+    return "A change request is already pending. Wait for the manager to reschedule before sending another request.";
+  }
+
+  if (action === "request_viewing_change" && isConfirmed) {
+    return "This viewing is already confirmed. Ask the manager to reschedule before requesting another change.";
+  }
+
+  return null;
+};
+
 export const attachLinkedFastTrackCase = <T extends FastTrackLinkableRecord>(
   record: T,
   cases: FastTrackCase[],
@@ -211,6 +233,11 @@ export const syncFastTrackCompanionAction = async ({
   reason: string;
   tags?: string[];
 }) => {
+  const viewingConflict = getFastTrackViewingResponseConflictMessage(fastTrackCase, request.action);
+  if (viewingConflict) {
+    return { data: null, error: viewingConflict };
+  }
+
   const result = await performFastTrackAction(
     fastTrackCase.id,
     request,

@@ -19,6 +19,8 @@ import {
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import { useAuth, type User } from "@/contexts/AuthContext";
 import { getLoginPath, getRedirectPath } from "@/lib/authUtils";
+import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
+import { useUserGeoMarket } from "@/lib/useGeoMarket";
 import {
   describeFastTrackWorkspaceFocus,
   describeFastTrackWorkspaceStatus,
@@ -137,6 +139,8 @@ export function UserVirtualStoragePageContent({
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const geoMarket = useUserGeoMarket(currentUser);
+  const documentGuidance = getCountryDocumentGuidance(geoMarket);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId) || categories[0],
@@ -363,7 +367,7 @@ export function UserVirtualStoragePageContent({
               Virtual Storage
             </h1>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-gray-500 dark:text-gray-400">
-              Your private document vault for verification files, reusable uploads, and case-linked documents.
+              Your private document vault for verification files, reusable uploads, and case-linked documents. Guidance is tailored to your saved country context.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">
@@ -478,7 +482,7 @@ export function UserVirtualStoragePageContent({
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {customUnlocked
                   ? "Identity and Address are submitted, so custom categories are unlocked."
-                  : `Submit Identity and Address first. Identity: ${requiredSubmitted.identity ? "done" : "needed"}, Address: ${requiredSubmitted.address ? "done" : "needed"}.`}
+                  : `Submit Identity and Address first. Identity: ${requiredSubmitted.identity ? "done" : "needed"} (${documentGuidance.identityShort}), Address: ${requiredSubmitted.address ? "done" : "needed"} (${documentGuidance.addressShort}).`}
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <input
@@ -508,6 +512,13 @@ export function UserVirtualStoragePageContent({
               <h2 className="text-lg font-semibold">Upload to Virtual Storage</h2>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+              <p className="md:col-span-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+                {selectedCategory?.slug === "identity"
+                  ? documentGuidance.identityDetail
+                  : selectedCategory?.slug === "address"
+                    ? documentGuidance.addressDetail
+                    : `Country guidance: ${documentGuidance.identityShort}; ${documentGuidance.addressShort}.`}
+              </p>
               <label htmlFor="virtual-storage-category" className="space-y-2 text-sm">
                 <span className="font-medium text-gray-700 dark:text-gray-300">Category</span>
                 <select

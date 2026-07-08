@@ -87,6 +87,9 @@ const joinAddressParts = (parts: Array<string | null | undefined>) => {
 const buildGoogleEmbedUrl = (latitude: number, longitude: number) =>
   `https://maps.google.com/maps?q=${encodeURIComponent(`${latitude},${longitude}`)}&z=15&output=embed`;
 
+const buildGoogleAddressEmbedUrl = (query: string) =>
+  `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=15&output=embed`;
+
 const buildGoogleMapsUrl = (query: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
@@ -189,7 +192,7 @@ export const getPropertyMapState = (
               coordinates.longitude,
             )
           : buildGoogleMapsUrl(pinQuery),
-      statusTitle: "Saved pin available",
+      statusTitle: "Saved map location available",
       statusDescription:
         "Click the map to open the saved property pin in Maps.",
     };
@@ -202,14 +205,14 @@ export const getPropertyMapState = (
       hasAddress: true,
       displayAddress,
       coordinates: null,
-      embedUrl: null,
+      embedUrl: buildGoogleAddressEmbedUrl(displayAddress),
       externalUrl:
         provider === "apple"
           ? buildAppleMapsUrl(displayAddress)
           : buildGoogleMapsUrl(displayAddress),
-      statusTitle: "Exact pin unavailable",
+      statusTitle: "Address map preview available",
       statusDescription:
-        "This property does not have saved coordinates yet. Open the address in Maps to continue.",
+        "Map preview is based on the property address. Open it in Maps for full neighbourhood context and directions.",
     };
   }
 

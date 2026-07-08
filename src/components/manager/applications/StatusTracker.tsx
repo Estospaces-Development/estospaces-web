@@ -21,6 +21,7 @@ interface StatusTrackerProps {
     listingType?: string;
     liveStage?: string;
     source?: string;
+    linkedViewingStatus?: string | null;
 }
 
 interface Stage {
@@ -31,7 +32,7 @@ interface Stage {
     statuses: string[];
 }
 
-const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source }) => {
+const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source, linkedViewingStatus }) => {
     const isSaleJourney = listingType !== 'rent';
     const saleDisplayStage = isSaleJourney
         ? resolveSaleJourneyDisplayStage({ source, status, liveStage })
@@ -113,20 +114,20 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                 description: 'A real viewing appointment is booked for this property.',
                 icon: Calendar,
                 statuses: [APPLICATION_STATUS.APPOINTMENT_BOOKED, APPLICATION_STATUS.VIEWING_SCHEDULED],
+            },            {
+                id: 'documents',
+                label: 'Documents & Compliance',
+                description: 'Referencing and legal compliance follow-up are active now.',
+                icon: FileCheck,
+                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
             },
+
             {
                 id: 'review',
                 label: 'Application Review',
                 description: 'The viewing is done and the application is being reviewed.',
                 icon: Search,
                 statuses: [APPLICATION_STATUS.VIEWING_COMPLETED, APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.VERIFICATION_IN_PROGRESS],
-            },
-            {
-                id: 'documents',
-                label: 'Documents & Compliance',
-                description: 'Referencing and legal compliance follow-up are active now.',
-                icon: FileCheck,
-                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
             },
             {
                 id: 'contract',
@@ -175,7 +176,14 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
         }
 
         const matchedIndex = stages.findIndex((stage) => stage.statuses.includes(status));
-        return matchedIndex >= 0 ? matchedIndex : 0;
+        const nextIndex = matchedIndex >= 0 ? matchedIndex : 0;
+        const viewingIndex = stages.findIndex((stage) => stage.id === 'viewing');
+        const viewingStillPending = !isSaleJourney
+            && viewingIndex >= 0
+            && Boolean(linkedViewingStatus)
+            && String(linkedViewingStatus).trim().toLowerCase() !== 'completed';
+
+        return viewingStillPending && nextIndex > viewingIndex ? viewingIndex : nextIndex;
     };
 
     const currentStageIndex = getCurrentStageIndex();

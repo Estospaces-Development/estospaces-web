@@ -159,12 +159,10 @@ test('manager property form uses in-app dialogs for unsaved navigation and media
   assert.match(managerPropertyFormPage, /aria-label="Remove property media confirmation"/);
 });
 
-test('manager property create form defaults launch currency to Indian rupees', () => {
-  assert.match(managerPropertyFormPage, /code:\s*"IN",\s*name:\s*"India",\s*currency:\s*"INR"/);
-  assert.doesNotMatch(
-    managerPropertyFormPage,
-    /code:\s*"GB",\s*name:\s*"United Kingdom",\s*currency:\s*"GBP"/,
-  );
+test('manager property create form supports India and UK from user country context', () => {
+  assert.match(managerPropertyFormPage, /code:\s*LAUNCH_COUNTRY_CODE,\s*name:\s*"India",\s*currency:\s*"INR"/);
+  assert.match(managerPropertyFormPage, /code:\s*UK_COUNTRY_CODE,\s*name:\s*"United Kingdom",\s*currency:\s*"GBP"/);
+  assert.match(managerPropertyFormPage, /resolveDefaultCountryForUser\(user\)/);
 });
 
 test('manager property submit button is disabled until required fields are complete', () => {

@@ -48,6 +48,75 @@ test('core property search keeps city location as city filter', () => {
     assert.equal(params.get('city'), 'Preston');
 });
 
+test('core property search keeps non-type keyword and city as separate filters', () => {
+    const params = mapSearchFiltersToCoreQuery('Garden', {
+        location: 'Chennai',
+        propertyType: 'apartment',
+        listingType: 'rent',
+        limit: 12,
+    });
+
+    assert.equal(params.get('search'), 'garden');
+    assert.equal(params.get('city'), 'Chennai');
+    assert.equal(params.get('type'), 'apartment');
+    assert.equal(params.get('listing_type'), 'rent');
+    assert.equal(params.get('limit'), '12');
+});
+
+test('core property search does not send a keyword already covered by selected property type', () => {
+    const params = mapSearchFiltersToCoreQuery('Apartment', {
+        location: 'Chennai',
+        propertyType: 'apartment',
+        listingType: 'rent',
+        limit: 12,
+    });
+
+    assert.equal(params.get('search'), null);
+    assert.equal(params.get('city'), 'Chennai');
+    assert.equal(params.get('type'), 'apartment');
+    assert.equal(params.get('listing_type'), 'rent');
+    assert.equal(params.get('limit'), '12');
+});
+
+test('core property search keeps city type and price filters without duplicating type keyword', () => {
+    const params = mapSearchFiltersToCoreQuery('apartment', {
+        location: 'Guwahati',
+        propertyType: 'apartment',
+        minPrice: 300000,
+        maxPrice: 400000,
+        limit: 12,
+    });
+
+    assert.equal(params.get('search'), null);
+    assert.equal(params.get('city'), 'Guwahati');
+    assert.equal(params.get('type'), 'apartment');
+    assert.equal(params.get('min_price'), '300000');
+    assert.equal(params.get('max_price'), '400000');
+});
+
+test('core property search preserves market country filters', () => {
+    const gbParams = mapSearchFiltersToCoreQuery('duplex', {
+        country: 'England',
+        location: 'London',
+        propertyType: 'duplex',
+        limit: 12,
+    });
+
+    assert.equal(gbParams.get('country'), 'GB');
+    assert.equal(gbParams.get('city'), 'London');
+    assert.equal(gbParams.get('type'), 'duplex');
+
+    const inParams = mapSearchFiltersToCoreQuery('apartment', {
+        market: 'india',
+        location: 'Guwahati',
+        propertyType: 'apartment',
+        limit: 12,
+    });
+
+    assert.equal(inParams.get('country'), 'IN');
+    assert.equal(inParams.get('city'), 'Guwahati');
+});
+
 test('core property search normalizes route-loaded query text', () => {
     const params = mapSearchFiltersToCoreQuery('  ATTUR   ATTUR  ', {
         listingType: 'sale',
@@ -80,11 +149,13 @@ test('core property sections map to discovery search results', () => {
             title: 'Section House',
             description: 'A section-backed property',
             price: 2400,
+            currency: 'GBP',
             property_type: 'house',
             listing_type: 'rent',
             status: 'published',
             city: 'Attur',
             postcode: 'SW1A 1AA',
+            country: 'GB',
             bedrooms: 3,
             bathrooms: 2,
             views: 9,
@@ -98,6 +169,8 @@ test('core property sections map to discovery search results', () => {
     assert.equal(section.type, 'featured');
     assert.equal(section.properties[0].title, 'Section House');
     assert.equal(section.properties[0].location, 'Attur, SW1A 1AA');
+    assert.equal(section.properties[0].currency, 'GBP');
+    assert.equal(section.properties[0].country, 'GB');
     assert.equal(section.properties[0].status, 'published');
     assert.deepEqual(section.properties[0].images, ['https://example.com/house.jpg']);
 });

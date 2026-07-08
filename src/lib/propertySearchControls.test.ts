@@ -11,7 +11,9 @@ import {
   normalizePropertySearchSort,
   normalizeRoomBoundInput,
   normalizeSearchQueryInput,
+  normalizeSearchMarketParam,
   readSearchUrlFilters,
+  serializeSearchMarketParam,
 } from './propertySearchControls';
 
 test('property search sort helpers expose stable visible options', () => {
@@ -68,6 +70,7 @@ test('search URL filters normalize direct-link query and numeric filter values',
 
   assert.deepEqual(filters, {
     query: 'attur',
+    market: '',
     location: '',
     propertyType: '',
     minPrice: '0',
@@ -78,6 +81,32 @@ test('search URL filters normalize direct-link query and numeric filter values',
     sortBy: 'price_desc',
     page: 1,
   });
+});
+
+test('search URL filters preserve India and England market context', () => {
+  assert.equal(normalizeSearchMarketParam('england'), 'GB');
+  assert.equal(normalizeSearchMarketParam('country=bad'), '');
+  assert.equal(serializeSearchMarketParam('GB'), 'england');
+  assert.equal(serializeSearchMarketParam('IN'), 'india');
+
+  assert.deepEqual(readSearchUrlFilters(new URLSearchParams('market=england&location=London')), {
+    query: '',
+    market: 'GB',
+    location: 'London',
+    propertyType: '',
+    minPrice: '',
+    maxPrice: '',
+    bedrooms: '',
+    baths: '',
+    listingType: '',
+    sortBy: 'relevance',
+    page: 1,
+  });
+
+  assert.equal(
+    getSearchFilterValidationMessage(new URLSearchParams('market=Atlantis')),
+    'Some search filters were adjusted: market must be India or England.',
+  );
 });
 
 test('search URL validation reports invalid price and room filters', () => {

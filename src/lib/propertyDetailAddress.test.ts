@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 
 import { getPropertyDetailDisplayAddress } from "../pages/user/properties/[id]/page";
 
-test("property detail address matches dashboard card launch formatting", () => {
+test("property detail address preserves UK city and postcode formatting", () => {
   const address = getPropertyDetailDisplayAddress({
     id: "property-address-1",
     title: "Launch rental",
@@ -19,11 +19,32 @@ test("property detail address matches dashboard card launch formatting", () => {
     address_line_1: "Attur",
     city: "Edinburgh",
     postcode: "SW1A 1AA",
+    country: "GB",
+  } as any);
+
+  assert.equal(address, "Attur, Edinburgh, SW1A 1AA");
+  assert.doesNotMatch(address, /Chennai/i);
+});
+
+test("property detail address corrects stale UK city for Indian PIN code listings", () => {
+  const address = getPropertyDetailDisplayAddress({
+    id: "property-address-2",
+    title: "Launch rental",
+    status: "published",
+    listing_type: "rent",
+    property_type: "apartment",
+    price: 650000,
+    currency: "INR",
+    bedrooms: 2,
+    bathrooms: 2,
+    address_line_1: "Attur",
+    city: "Edinburgh",
+    postcode: "600001",
     country: "IN",
   } as any);
 
-  assert.equal(address, "Attur, Chennai");
-  assert.doesNotMatch(address, /SW1A|Edinburgh|United Kingdom|UK/i);
+  assert.equal(address, "Attur, Chennai, 600001");
+  assert.doesNotMatch(address, /Edinburgh|SW1A/i);
 });
 
 test("property detail wires the sanitized address into maps and contact sections", () => {

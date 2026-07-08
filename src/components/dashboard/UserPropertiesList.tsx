@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Loader2, AlertCircle, Filter, Map, Square } from 'lucide-react';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -20,6 +20,10 @@ interface Property {
     bathrooms?: number;
     city?: string;
     postcode?: string;
+    country?: string | null;
+    countryCode?: string | null;
+    country_code?: string | null;
+    currency?: string | null;
     latitude?: number;
     longitude?: number;
 }
@@ -105,6 +109,14 @@ const UserPropertiesList = () => {
         setPage(newPage);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    const formatPropertyPrice = (property: Property) => (
+        formatLaunchCurrencyForCountry(property.price || 0, {
+            countryCode: property.countryCode || property.country_code || property.country,
+            countryName: property.country,
+            currencyCode: property.currency,
+        })
+    );
 
     if (loading && !properties.length) {
         return (
@@ -238,7 +250,7 @@ const UserPropertiesList = () => {
                                                 {property.description || 'No description'}
                                             </p>
                                             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                                <span>{formatLaunchCurrency(property.price || 0)}</span>
+                                                <span>{formatPropertyPrice(property)}</span>
                                                 <span>{property.bedrooms} beds</span>
                                                 <span>{property.bathrooms} baths</span>
                                                 <span>{property.city}, {property.postcode}</span>

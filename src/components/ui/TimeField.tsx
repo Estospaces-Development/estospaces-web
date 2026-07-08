@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useId, useRef } from 'react';
 import { Clock3 } from 'lucide-react';
 
 type TimeFieldSize = 'sm' | 'md';
@@ -37,6 +37,7 @@ export default function TimeField({
     ariaDescribedBy,
 }: TimeFieldProps) {
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const formatHintId = `${useId()}-format`;
 
     const openPicker = useCallback(() => {
         if (disabled) {
@@ -64,6 +65,7 @@ export default function TimeField({
     const displayTextClass = value
         ? 'font-medium text-gray-900 dark:text-white'
         : 'text-gray-400 dark:text-gray-500';
+    const describedBy = [ariaDescribedBy, formatHintId].filter(Boolean).join(' ') || undefined;
 
     return (
         <div className={`relative ${className}`.trim()} data-time-field="true">
@@ -84,6 +86,13 @@ export default function TimeField({
                 <span className={`pointer-events-none select-none [font-variant-numeric:tabular-nums] ${displayTextClass}`.trim()}>
                     {displayValue}
                 </span>
+                <span
+                    id={formatHintId}
+                    data-time-field-format-hint="true"
+                    className="pointer-events-none ml-auto inline-flex shrink-0 items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                >
+                    24-hour
+                </span>
             </div>
             <input
                 ref={inputRef}
@@ -94,7 +103,7 @@ export default function TimeField({
                 step={step}
                 disabled={disabled}
                 aria-label={ariaLabel}
-                aria-describedby={ariaDescribedBy}
+                aria-describedby={describedBy}
                 onClick={openPicker}
                 onInput={commitTimeValue}
                 onChange={commitTimeValue}

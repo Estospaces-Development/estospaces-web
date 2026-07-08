@@ -43,10 +43,12 @@ import {
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
     isFastTrackCaseCompleteForRole,
+    isFastTrackManagerReviewEligible,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
+    shouldStartDocumentsWhenSelectingStage,
 } from '@/lib/fastTrackWorkspace';
 import {
     WORKSPACE_SYNC_INTERVALS,
@@ -80,6 +82,7 @@ import {
     managerReviewsService,
     type ManagerReview,
 } from '@/services/managerReviewsService';
+import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -114,7 +117,9 @@ import {
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -159,11 +164,6 @@ const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     admin: '/admin/dashboard',
 };
 const FAST_TRACK_DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
-const FAST_TRACK_DOCUMENT_GUIDANCE: Record<FastTrackDocumentItem['id'], string> = {
-    identity: 'Accepted identity proof: Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN card or Form 60 may be requested for tax/KYC details. Upload a clear PDF, JPG, PNG, or WebP; prefer masked Aadhaar unless full-number verification is required.',
-    address: 'Upload a recent utility bill, bank statement, rent agreement, property tax receipt, or government address document as a clear PDF, JPG, PNG, or WebP.',
-};
-
 const STAGES: FastTrackStage[] = [
     'selected',
     'documents',
@@ -321,7 +321,7 @@ export const getFastTrackDocumentUploadCopy = ({
         return {
             chooserSummary: 'No reupload selected',
             actionLabel: 'Reupload file',
-            statusMessage: 'Uploaded and visible to your manager. Preview is ready in this workspace.',
+            statusMessage: 'Uploaded and visible to your manager. Use Preview or Open when you want to review the file.',
         };
     }
 
@@ -928,6 +928,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
         [filteredCases, selectedCaseId],
     );
+    const geoMarket = useUserGeoMarket(user, { countryName: selectedCase?.propertyCountry });
+    const documentGuidance = getCountryDocumentGuidance(geoMarket);
 
     useEffect(() => {
         setPendingAdminOverrideAction(null);
@@ -947,8 +949,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [role, selectedCase?.caseId],
     );
     const isManagerReviewEligible = role === 'user'
-        && Boolean(selectedCase?.managerId)
-        && selectedCase?.workspaceFinalStatus !== 'cancelled';
+        && isFastTrackManagerReviewEligible(selectedCase);
+    const shouldHoldUserDocumentsUntilManagerResponse = role === 'user'
+        && selectedCase?.stage === 'documents'
+        && !isFastTrackManagerReviewEligible(selectedCase);
+    const effectiveVisibleStage = shouldHoldUserDocumentsUntilManagerResponse ? 'selected' : visibleStage;
 
     useEffect(() => {
         if (!documentDraftStorageKey) {
@@ -1065,13 +1070,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [toast]);
 
     const workspaceFocus = useMemo(
-        () => (selectedCase ? describeFastTrackWorkspaceFocus(selectedCase, role) : ''),
-        [role, selectedCase],
+        () => {
+            if (!selectedCase) {
+                return '';
+            }
+            if (shouldHoldUserDocumentsUntilManagerResponse) {
+                return 'Waiting for manager response';
+            }
+            return describeFastTrackWorkspaceFocus(selectedCase, role);
+        },
+        [role, selectedCase, shouldHoldUserDocumentsUntilManagerResponse],
     );
 
     const workspaceStatus = useMemo(
-        () => (selectedCase ? describeFastTrackWorkspaceStatus(selectedCase, role) : ''),
-        [role, selectedCase],
+        () => {
+            if (!selectedCase) {
+                return '';
+            }
+            if (shouldHoldUserDocumentsUntilManagerResponse) {
+                return 'Your manager will request documents here after they respond. You do not need to upload files yet.';
+            }
+            return describeFastTrackWorkspaceStatus(selectedCase, role);
+        },
+        [role, selectedCase, shouldHoldUserDocumentsUntilManagerResponse],
     );
 
     const updateLocalCase = useCallback((nextCase: FastTrackCase) => {
@@ -1200,13 +1221,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const viewingConflict = getFastTrackViewingResponseConflictMessage(selectedCase, action);
+        if (viewingConflict) {
+            toast.error(viewingConflict);
+            return;
+        }
+
         if (isAdminOverrideFastTrackCase(role, selectedCase)) {
             setPendingAdminOverrideAction({ action, payload, successMessage });
             return;
         }
 
         void executeFastTrackAction(action, payload, successMessage);
-    }, [executeFastTrackAction, role, selectedCase]);
+    }, [executeFastTrackAction, role, selectedCase, toast]);
 
     const handleConfirmAdminOverrideAction = useCallback(() => {
         if (!pendingAdminOverrideAction) {
@@ -1294,8 +1321,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
         if (uploadedItem) {
             handleDocumentFocus(uploadedItem.id);
-            setPreviewItemId(uploadedItem.id);
-            setPreviewModalOpen(true);
         }
         publishWorkspaceSync({
             source: 'mutation',
@@ -1307,8 +1332,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 propertyId: data.propertyId,
             },
         });
-        toast.success(`${item.label} uploaded.`);
-    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, revealPreviewSection, role, selectedCase, selectedFiles, toast, updateLocalCase]);
+        toast.success(`${item.label} uploaded and visible to your manager.`);
+    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
@@ -1555,17 +1580,41 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         item: FastTrackDocumentItem,
         options?: {
             openInNewTab?: boolean;
+            openInSameTab?: boolean;
             revealInViewport?: boolean;
             openInModal?: boolean;
             busyAction?: FastTrackDocumentPreviewAction;
         },
     ) => {
         const openInNewTab = options?.openInNewTab === true;
+        const openInSameTab = options?.openInSameTab === true;
+        const openExternally = openInNewTab || openInSameTab;
         const revealInViewport = options?.revealInViewport === true;
         const openInModal = options?.openInModal === true;
-        const busyAction = options?.busyAction || (openInNewTab ? 'download' : openInModal ? 'preview' : 'auto');
+        const busyAction = options?.busyAction || (openExternally ? 'download' : openInModal ? 'preview' : 'auto');
         const busyKey = documentPreviewBusyKey(item.id, busyAction);
         const selectedFile = selectedFiles[item.id] || null;
+        const externalWindow = openInNewTab ? window.open('about:blank', '_blank') : null;
+        if (externalWindow) {
+            externalWindow.opener = null;
+        }
+        const openExternalDocumentUrl = (url: string) => {
+            if (openInSameTab) {
+                window.location.assign(url);
+                return;
+            }
+            if (externalWindow) {
+                externalWindow.location.href = url;
+                return;
+            }
+            const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!openedWindow) {
+                window.location.assign(url);
+            }
+        };
+        const closeExternalDocumentWindow = () => {
+            externalWindow?.close();
+        };
         if (openInModal) {
             setPreviewModalOpen(true);
         }
@@ -1577,8 +1626,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewBusyKey(null);
             setPreviewError(null);
             setPreviewUrl(nextUrl);
-            if (openInNewTab) {
-                window.open(nextUrl, '_blank', 'noopener,noreferrer');
+            if (openExternally) {
+                openExternalDocumentUrl(nextUrl);
             }
             if (revealInViewport) {
                 if (role === 'user') {
@@ -1593,6 +1642,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
             setPreviewBusyKey(null);
+            closeExternalDocumentWindow();
             if (revealInViewport) {
                 if (role === 'user') {
                     setUserDetailsOpen(true);
@@ -1614,6 +1664,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 if (access.error || !access.url) {
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    closeExternalDocumentWindow();
                     if (revealInViewport) {
                         if (role === 'user') {
                             setUserDetailsOpen(true);
@@ -1632,6 +1683,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             if (!nextUrl) {
                 setPreviewUrl(null);
                 setPreviewError('Preview is unavailable for this document.');
+                closeExternalDocumentWindow();
                 if (revealInViewport) {
                     if (role === 'user') {
                         setUserDetailsOpen(true);
@@ -1650,13 +1702,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 revealPreviewSection();
             }
 
-            if (openInNewTab && nextAccessUrl) {
-                window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
+            if (openExternally && nextAccessUrl) {
+                openExternalDocumentUrl(nextAccessUrl);
             }
             return nextUrl;
         } catch (error: any) {
             setPreviewUrl(null);
             setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            closeExternalDocumentWindow();
             return null;
         } finally {
             setPreviewBusyKey((current) => current === busyKey ? null : current);
@@ -2310,7 +2363,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Participants</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.clientName}</p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            Manager: {selectedCase.managerId ? 'Assigned' : 'Waiting for claim'}
+                            Manager: {selectedCase.managerId ? 'Assigned to this workspace' : 'Waiting for claim'}
                         </p>
                     </div>
                 </div>
@@ -2480,7 +2533,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {canUpload ? (
                                         <>
                                             <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
-                                                {FAST_TRACK_DOCUMENT_GUIDANCE[item.id]}
+                                                {item.id === 'identity' ? documentGuidance.identityDetail : documentGuidance.addressDetail}
                                             </p>
                                         <div
                                             data-fast-track-document-upload-state={item.id}
@@ -2516,7 +2569,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' })}
+                                            onClick={() => void handleRailOpen(item)}
                                             busy={isPreviewActionBusy(item.id, 'open')}
                                             disabled={!canPreview}
                                             ariaLabel={`Open ${item.label}`}
@@ -2626,6 +2679,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         if (role === 'user') {
+            const confirmViewingConflict = getFastTrackViewingResponseConflictMessage(selectedCase, 'confirm_viewing');
+            const requestViewingChangeConflict = getFastTrackViewingResponseConflictMessage(selectedCase, 'request_viewing_change');
+            const confirmViewingDisabled = activeAction === 'confirm_viewing' || selectedCase.viewing.confirmedByUser || Boolean(confirmViewingConflict);
+            const requestViewingChangeDisabled = activeAction === 'request_viewing_change' || !requestChangeNote.trim() || Boolean(requestViewingChangeConflict);
+
             return (
                 <SectionShell
                     title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
@@ -2668,6 +2726,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <ActionButton
                             onClick={() => void runAction('confirm_viewing', {}, 'Viewing confirmed.')}
                             busy={activeAction === 'confirm_viewing'}
+                            disabled={confirmViewingDisabled}
+                            title={confirmViewingConflict || (selectedCase.viewing.confirmedByUser ? 'Viewing is already confirmed.' : undefined)}
                         >
                             Confirm viewing
                         </ActionButton>
@@ -2679,7 +2739,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 'Viewing change request saved.',
                             )}
                             busy={activeAction === 'request_viewing_change'}
-                            disabled={!requestChangeNote.trim()}
+                            disabled={requestViewingChangeDisabled}
+                            title={requestViewingChangeConflict || (!requestChangeNote.trim() ? 'Add a short note before requesting a change.' : undefined)}
                         >
                             Request change
                         </ActionButton>
@@ -2964,7 +3025,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         {PAYMENTS_ENABLED && (selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid') ? (
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Payment: {selectedCase.agreement.paymentStatus.replace(/_/g, ' ')}
-                                {selectedCase.agreement.amountDue ? ` / ${formatLaunchCurrency(selectedCase.agreement.amountDue, { showCode: true })}` : ''}
+                                {selectedCase.agreement.amountDue ? ` / ${formatLaunchCurrencyForCountry(selectedCase.agreement.amountDue, { countryCode: geoMarket, countryName: selectedCase.propertyCountry, showCode: true })}` : ''}
                             </p>
                         ) : null}
                     </div>
@@ -3342,7 +3403,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
-        switch (visibleStage) {
+        switch (effectiveVisibleStage) {
             case 'documents':
                 return renderDocumentsStage();
             case 'viewing':
@@ -3407,9 +3468,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         const nextStage = stage as FastTrackStage;
+        if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
+            setActiveStageOverride(nextStage);
+            setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
+            void runAction('start_documents', {}, 'Documents stage started.');
+            return;
+        }
+
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
-    }, [selectedCase, setSearchParams]);
+    }, [role, runAction, selectedCase, setSearchParams]);
 
     const handleSelectCase = useCallback((caseId: string) => {
         pendingSelectedCaseIdRef.current = caseId;
@@ -3435,12 +3503,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     ? formatStageLabel(stage, selectedCase.journeyMode, role)
                     : formatStageLabel(stage, 'rent', role),
                 icon: <Icon size={16} />,
-                active: visibleStage === stage,
+                active: effectiveVisibleStage === stage,
                 complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
                 current: selectedCase?.stage === stage,
             };
         }),
-        [role, selectedCase, stageIndex, visibleStage],
+        [role, selectedCase, stageIndex, effectiveVisibleStage],
     );
 
     const selectedCaseSubtitle = selectedCase

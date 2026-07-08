@@ -16,3 +16,12 @@ test("time field commits native input and change events", () => {
   assert.match(source, /onInput=\{commitTimeValue\}/);
   assert.match(source, /onChange=\{commitTimeValue\}/);
 });
+
+test("time field exposes an explicit 24-hour format hint", () => {
+  const source = timeFieldSource();
+
+  assert.match(source, /data-time-field-format-hint="true"/);
+  assert.match(source, />\s*24-hour\s*</);
+  assert.match(source, /const describedBy = \[ariaDescribedBy, formatHintId\]/);
+  assert.match(source, /aria-describedby=\{describedBy\}/);
+});

@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+    getApplicationTimelineTimestamp,
     getBrokerRequestTrackingSummary,
+    getMissingTimelinePropertyCopy,
+    getStableActivityTimestamp,
+    hasStableActivityTimestamp,
+    hasTimelinePropertyDetails,
     isLiveBrokerRequest,
+    parseActivityTimestamp,
+    resolveTimelinePropertyContext,
 } from './applicationTracking';
 
 test('live broker requests stay visible until they expire', () => {
@@ -120,4 +127,149 @@ test('broker request tracking summary reflects matching progress', () => {
             nextAction: 'Open live fast-track',
         },
     );
+});
+
+test('activity timestamps use record timestamps instead of the current clock', () => {
+    const first = getStableActivityTimestamp('2026-03-25T09:05:00.000Z');
+    const second = getStableActivityTimestamp('2026-03-25T09:10:00.000Z');
+
+    assert.equal(first.toISOString(), '2026-03-25T09:05:00.000Z');
+    assert.equal(second.toISOString(), '2026-03-25T09:10:00.000Z');
+    assert.notEqual(first.getTime(), second.getTime());
+});
+
+test('activity timestamps stay unavailable when backend dates are missing', () => {
+    const timestamp = getStableActivityTimestamp(undefined, null, '');
+
+    assert.equal(timestamp.getTime(), 0);
+    assert.equal(hasStableActivityTimestamp(timestamp), false);
+});
+
+test('activity timestamp parser ignores invalid values before using fallback record dates', () => {
+    const timestamp = parseActivityTimestamp('not-a-date', '2026-03-25T09:15:00.000Z');
+
+    assert.equal(timestamp?.toISOString(), '2026-03-25T09:15:00.000Z');
+});
+
+test('application timeline cards prefer submission date over refreshed update date', () => {
+    const timestamp = getApplicationTimelineTimestamp({
+        created_at: '2026-05-05T19:43:08.367Z',
+        updated_at: '2026-07-07T05:58:00.000Z',
+    });
+
+    assert.equal(timestamp.toISOString(), '2026-05-05T19:43:08.367Z');
+});
+
+test('application timeline cards fall back to updated date when submission date is missing', () => {
+    const timestamp = getApplicationTimelineTimestamp({
+        updated_at: '2026-07-07T05:58:00.000Z',
+    });
+
+    assert.equal(timestamp.toISOString(), '2026-07-07T05:58:00.000Z');
+});
+
+test('timeline property context treats empty legacy snapshots and zero prices as incomplete', () => {
+    assert.equal(
+        hasTimelinePropertyDetails({
+            title: '',
+            address: '',
+            price: 0,
+            image: '',
+        }),
+        false,
+    );
+});
+
+test('timeline property context does not treat a title-only legacy snapshot as recovered details', () => {
+    assert.equal(
+        hasTimelinePropertyDetails({
+            title: 'QA LIVE 24H CANCEL 2026-05-05T20-21-55-620Z',
+            address: null,
+            price: null,
+            image: '',
+        }),
+        false,
+    );
+});
+
+test('timeline property context hides generated mobile live application titles', () => {
+    const resolved = resolveTimelinePropertyContext(
+        {
+            title: 'Mobile Live Approval mobile-live-1781121818495034',
+            address: 'London',
+            price: 2650,
+        },
+        null,
+    );
+
+    assert.deepEqual(resolved, {
+        title: undefined,
+        address: 'London',
+        price: 2650,
+        country: undefined,
+        currency: undefined,
+        image: undefined,
+    });
+});
+
+test('timeline property context hydrates broken legacy application snapshots from real property data', () => {
+    const resolved = resolveTimelinePropertyContext(
+        {
+            title: 'Actual River View Flat',
+            address: '12 Riverside Road, London, SW1A 1AA',
+            price: 2650,
+            image: ['https://cdn.example.test/property.jpg'],
+        },
+        {
+            title: 'QA LIVE 24H CANCEL 2026-05-05T20-21-55-620Z',
+            address: '',
+            price: 0,
+            image: '',
+        },
+    );
+
+    assert.deepEqual(resolved, {
+        title: 'Actual River View Flat',
+        address: '12 Riverside Road, London, SW1A 1AA',
+        price: 2650,
+        country: undefined,
+        currency: undefined,
+        image: ['https://cdn.example.test/property.jpg'],
+    });
+});
+
+test('timeline property context labels deleted legacy listings without fake address or price', () => {
+    const missingCopy = getMissingTimelinePropertyCopy(
+        {
+            title: 'QA LIVE 24H CANCEL 2026-05-05T20-21-55-620Z',
+            address: '',
+            price: null,
+            image: '',
+        },
+        true,
+    );
+
+    assert.deepEqual(missingCopy, {
+        title: undefined,
+        address: 'Original listing no longer available',
+        priceLabel: 'Original price not captured',
+    });
+});
+
+test('timeline property context keeps captured address and price for unavailable property records', () => {
+    const missingCopy = getMissingTimelinePropertyCopy(
+        {
+            title: 'Captured property',
+            address: '12 QA Street, Chennai, 600001',
+            price: 650000,
+            image: '',
+        },
+        true,
+    );
+
+    assert.deepEqual(missingCopy, {
+        title: undefined,
+        address: undefined,
+        priceLabel: undefined,
+    });
 });

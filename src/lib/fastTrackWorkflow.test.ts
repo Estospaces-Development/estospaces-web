@@ -15,6 +15,7 @@ import {
     formatLeadStage,
     getLatestFastTrackReviewDocuments,
     getFastTrackStartAction,
+    getFastTrackCaseRemainingHours,
     hasFastTrackReachedCompletion,
     isFastTrackCaseOverdue,
     getLeadNeedsReupload,
@@ -256,6 +257,14 @@ test('existing active lead without case creates the missing case', () => {
         ),
         'resume_existing_case',
     );
+
+    assert.equal(
+        getFastTrackStartAction(
+            { status: 'pending_broker_response' },
+            { workspaceFinalStatus: 'active', finalStatus: 'active' },
+        ),
+        'resume_existing_case',
+    );
 });
 
 test('fast-track completion helper accepts both final status and completed journey steps', () => {
@@ -315,6 +324,38 @@ test('overdue fast-track cases stay active but count as needing attention', () =
             finalStatus: 'in_progress',
             hoursRemaining: 3,
         }),
+        false,
+    );
+});
+
+test('fresh fast-track cases prefer the deadline over stale zero hours remaining', () => {
+    const now = Date.parse('2026-07-08T04:00:00.000Z');
+
+    const freshCase = {
+        finalStatus: 'in_progress',
+        submittedAt: '2026-07-08T03:55:00.000Z',
+        hoursRemaining: 0,
+    };
+
+    assert.equal(isFastTrackCaseOverdue(freshCase, now), false);
+    assert.equal(getFastTrackCaseRemainingHours(freshCase, now), 24);
+
+    assert.equal(
+        isFastTrackCaseOverdue({
+            finalStatus: 'in_progress',
+            submittedAt: '2026-05-01T03:55:00.000Z',
+            hoursRemaining: 3,
+        }, now),
+        false,
+    );
+
+    assert.equal(
+        isFastTrackCaseOverdue({
+            finalStatus: 'in_progress',
+            expiresAt: '2026-07-09T03:00:00.000Z',
+            hoursRemaining: 0,
+            overdue: true,
+        }, now),
         false,
     );
 });

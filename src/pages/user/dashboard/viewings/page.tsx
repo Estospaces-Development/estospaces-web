@@ -32,7 +32,7 @@ import {
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
@@ -103,6 +103,8 @@ export default function ViewingsPage() {
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
                 propertyPrice: viewing.property_price || 0,
+                propertyCountry: viewing.property_country || viewing.country,
+                propertyCurrency: viewing.property_currency || viewing.currency,
                 listingType: viewing.listing_type || 'sale',
                 agentName: viewing.agent_name || 'Agent',
                 agentPhone: viewing.agent_phone || '',
@@ -229,6 +231,11 @@ export default function ViewingsPage() {
             }
             return 0;
         });
+    const formatViewingPrice = (viewing: any) => formatLaunchCurrencyForCountry(viewing.propertyPrice, {
+        countryCode: viewing.propertyCountry,
+        countryName: viewing.propertyCountry,
+        currencyCode: viewing.propertyCurrency,
+    });
     const companionFastTrackCase = useMemo(() => (
         focusedCase
         || findLinkedFastTrackCase(fastTrackCases, {
@@ -514,7 +521,7 @@ export default function ViewingsPage() {
                                                 </h3>
                                                 {viewing.propertyPrice && (
                                                     <span className="text-lg font-bold text-gray-900 dark:text-white">
-                                                        {formatLaunchCurrency(viewing.propertyPrice)}
+                                                        {formatViewingPrice(viewing)}
                                                         <span className="text-sm text-gray-500 font-normal">{viewing.listingType === 'rent' ? '/mo' : ''}</span>
                                                     </span>
                                                 )}

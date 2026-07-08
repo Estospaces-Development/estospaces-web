@@ -10,11 +10,26 @@ type ApplicationPropertySnapshotSource = {
     property_type?: string | null;
     listing_type?: string | null;
     price?: number | null;
+    country?: string | null;
     agent_name?: string | null;
     agent_email?: string | null;
     agent_phone?: string | null;
     agent_company?: string | null;
 };
+
+type ApplicationPropertySnapshot = Partial<{
+    property_title: string;
+    property_address: string;
+    property_image: string;
+    property_type: string;
+    listing_type: string;
+    property_price: number;
+    property_country: string;
+    agent_name: string;
+    agent_email: string;
+    agent_phone: string;
+    agent_agency: string;
+}>;
 
 const normalizeText = (value?: string | null) => {
     const normalized = value?.trim();
@@ -43,10 +58,13 @@ const firstPropertyImage = (imageUrls?: string[] | string | null) => {
     return value;
 };
 
-export const buildApplicationPropertySnapshot = (property: ApplicationPropertySnapshotSource | null | undefined) => {
+export const buildApplicationPropertySnapshot = (
+    property: ApplicationPropertySnapshotSource | null | undefined,
+): ApplicationPropertySnapshot => {
     if (!property) {
         return {};
     }
+    const propertyCountry = normalizeText(property.country);
 
     return {
         property_title: normalizeText(property.title),
@@ -57,6 +75,7 @@ export const buildApplicationPropertySnapshot = (property: ApplicationPropertySn
         property_type: normalizeText(property.property_type),
         listing_type: normalizeText(property.listing_type),
         property_price: property.price ?? undefined,
+        ...(propertyCountry ? { property_country: propertyCountry } : {}),
         agent_name: normalizeText(property.agent_name),
         agent_email: normalizeText(property.agent_email),
         agent_phone: normalizeText(property.agent_phone),

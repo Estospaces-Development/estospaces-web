@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { getPublicHomeHref, isExternalHref } from '@/lib/utils/hostUtils';
+import { ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -97,11 +98,30 @@ export default function LoginPage() {
   const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.run.app');
   const forgotPasswordPath = getAuthPath('/forgot-password');
   const registerPath = getAuthPath('/register');
+  const homeHref = getPublicHomeHref();
+  const isExternalHomeHref = isExternalHref(homeHref);
 
   return (
     <section className="flex flex-col items-center" aria-labelledby="login-heading">
       <AuthBrand />
 
+      {isExternalHomeHref ? (
+        <a
+          href={homeHref}
+          className={`mb-6 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-orange-50 hover:underline dark:hover:bg-orange-950/30 ${authFocusClass}`}
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back to Home
+        </a>
+      ) : (
+        <Link
+          to={homeHref}
+          className={`mb-6 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-orange-50 hover:underline dark:hover:bg-orange-950/30 ${authFocusClass}`}
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back to Home
+        </Link>
+      )}
       {isAuthenticated && !isSwitching ? (
           <div className="text-center w-full max-w-sm">
               <h1 id="login-heading" className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
@@ -240,4 +260,3 @@ export default function LoginPage() {
     </section>
   );
 }
-

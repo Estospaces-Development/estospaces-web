@@ -38,6 +38,7 @@ import { getUserBrokerRequests, type BrokerRequestRecord } from '@/services/lead
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
+import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
@@ -452,7 +453,7 @@ const DashboardClient = () => {
       const stageLabel = getJourneyStageLabel(activeJourney.stage, activeJourney.journeyMode, 'user');
       return {
         title: dashboardCopy.activeJourneyTitle,
-        now: `${activeJourney.propertyTitle} is at ${stageLabel.toLowerCase()}.`,
+        now: buildUserJourneyNowCopy(activeJourney.propertyTitle, stageLabel),
         next: activeJourney.workspaceFinalStatus === 'active'
           ? `Next: ${activeJourney.hoursRemaining > 0 ? `${activeJourney.hoursRemaining}h left today.` : 'This journey needs attention.'}`
           : 'Next: review the latest update.',
@@ -484,7 +485,7 @@ const DashboardClient = () => {
     if (completedJourney) {
       return {
         title: dashboardCopy.completedJourneyTitle,
-        now: `${completedJourney.propertyTitle} has finished its guided journey.`,
+        now: buildCompletedUserJourneyCopy(completedJourney.propertyTitle),
         next: 'Next: review the property and any final records.',
         primaryLabel: dashboardCopy.completedJourneyPrimaryLabel,
         primaryAction: () => navigate(`/user/properties/${completedJourney.propertyId}`),

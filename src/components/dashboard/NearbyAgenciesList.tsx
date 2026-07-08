@@ -3,13 +3,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import {
     BROKER_REQUEST_WORKSPACE_EVENT,
     readBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
-import { formatLaunchLocationCode, formatLaunchPropertyLocation, isValidLaunchLocationCode, normalizeLaunchLocationCode } from '@/lib/launchLocale';
+import {
+    formatLaunchLocationCode,
+    formatLaunchPropertyLocation,
+    getLaunchLocationCodeErrorMessage,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
+    isValidLaunchLocationCodeForCountry,
+    normalizeLaunchLocationCode,
+} from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const normalizeLocationCode = (value?: string | null) => normalizeLaunchLocationCode(value);
 const nearbyAgentFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
@@ -73,6 +83,8 @@ export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary;
 );
 
 const NearbyAgenciesList = () => {
+    const authContext = useOptionalAuth();
+    const user = authContext?.user || null;
     const [searchParams] = useSearchParams();
     const [brokers, setBrokers] = useState<LeadBrokerSummary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,6 +104,12 @@ const NearbyAgenciesList = () => {
     const effectivePostcode = manualPostcode || liveRequestPostcode;
     const isManualSearchActive = Boolean(manualPostcode);
     const showSearchForm = isSearchOpen || isManualSearchActive || !liveRequestPostcode;
+    const geoMarket = useUserGeoMarket(user, {
+        locationCode: effectivePostcode || postcodeInput || activeRequest?.location_postcode || user?.postcode,
+    });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, effectivePostcode || postcodeInput);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, effectivePostcode || postcodeInput);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
 
     const loadActiveRequest = useCallback(async (preferredRequestId?: string | null) => {
         const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
@@ -186,12 +204,12 @@ const NearbyAgenciesList = () => {
 
         const trimmedPostcode = normalizeLocationCode(postcodeInput);
         if (!trimmedPostcode) {
-            setSearchError('Enter a valid Indian PIN code or UK postcode.');
+            setSearchError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
             return;
         }
 
-        if (!isValidLaunchLocationCode(trimmedPostcode)) {
-            setSearchError('Enter a valid Indian PIN code or UK postcode.');
+        if (!isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
+            setSearchError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
             return;
         }
 
@@ -264,14 +282,14 @@ const NearbyAgenciesList = () => {
             {effectivePostcode && (
                 <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                        {isManualSearchActive ? 'PIN code search' : 'Request area'}
+                        {isManualSearchActive ? `${locationCodeLabel} search` : 'Request area'}
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-3">
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{effectivePostcode}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {isManualSearchActive
-                                    ? 'Showing property agents ranked nearest to this PIN code.'
+                                    ? `Showing property agents ranked nearest to this ${lowerLocationCodeLabel}.`
                                     : 'Showing property agents ranked for your active request.'}
                             </p>
                         </div>
@@ -328,8 +346,8 @@ const NearbyAgenciesList = () => {
             ) : visibleBrokers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
                     {effectivePostcode
-                        ? 'No available property agents are ranked for this PIN code yet.'
-                        : 'Add a PIN code or request a nearby property agent to see ranked agents here.'}
+                        ? `No available property agents are ranked for this ${lowerLocationCodeLabel} yet.`
+                        : 'Add a location code or request a nearby property agent to see ranked agents here.'}
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -350,9 +368,9 @@ const NearbyAgenciesList = () => {
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by PIN code / postcode</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by {locationCodeLabel}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Enter a 6-digit Indian PIN code or UK postcode to rank the nearest available property agents in that area.
+                                Enter a valid {lowerLocationCodeLabel} to rank the nearest available property agents in that area.
                             </p>
                         </div>
                         {liveRequestPostcode && (
@@ -383,7 +401,7 @@ const NearbyAgenciesList = () => {
                                         setSearchError(null);
                                     }
                                 }}
-                                placeholder="e.g. 600001 or SW1A 1AA"
+                                placeholder={locationCodePlaceholder}
                                 inputMode="text"
                                 maxLength={8}
                                 className={`w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white ${nearbyAgentFocusClass}`}
@@ -414,7 +432,7 @@ const NearbyAgenciesList = () => {
                     }}
                     className={`mt-6 w-full rounded-lg bg-gray-50 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
                 >
-                    Find nearest agent by PIN code / postcode
+                    Find nearest agent by {locationCodeLabel}
                 </button>
             )}
         </div>

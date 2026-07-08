@@ -24,7 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getSaleJourneyProgress, getSaleJourneyStageLabel, resolveSaleJourneyDisplayStage } from '@/lib/saleJourney';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 interface ApplicationCardProps {
     application: Application;
@@ -36,7 +36,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
-    const formattedPropertyPrice = formatLaunchCurrency(application.propertyPrice || 0);
+    const formattedPropertyPrice = formatLaunchCurrencyForCountry(application.propertyPrice || 0, {
+        countryCode: application.propertyCountry,
+        countryName: application.propertyCountry,
+        currencyCode: application.propertyCurrency,
+    });
     const saleDisplayStage = application.listingType !== 'rent'
         ? resolveSaleJourneyDisplayStage(application)
         : null;

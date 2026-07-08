@@ -16,6 +16,7 @@ import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackServi
 import { getPropertyById } from '@/services/propertyService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { buildApplicationPropertySnapshot, findRelatedViewing } from '@/lib/applicationWorkflow';
+import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
 import {
     attachLinkedFastTrackCase,
     applicationStatusToFastTrackDecisionOutcome,
@@ -37,6 +38,8 @@ type PropertyContext = {
     address?: string;
     image?: string;
     price?: number;
+    country?: string;
+    currency?: string;
     propertyType?: string;
     agentName?: string;
     agentAgency?: string;
@@ -115,6 +118,8 @@ export interface Application {
     propertyAddress?: string;
     propertyImage?: string;
     propertyPrice?: number;
+    propertyCountry?: string;
+    propertyCurrency?: string;
     propertyType?: string;
     agentName?: string;
     agentAgency?: string;
@@ -246,6 +251,8 @@ export const buildPropertyContextFromProperty = (
         address: getPropertyAddress(property),
         image: getPrimaryPropertyImage(property) || undefined,
         price: property.price,
+        country: property.country,
+        currency: property.currency,
         propertyType: property.property_type,
         agentName: property.agent_name,
         agentAgency: property.agent_company,
@@ -417,6 +424,8 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
         propertyAddress: application.property_address || 'Address unavailable',
         propertyImage: toImageUrl(application.property_image),
         propertyPrice: application.property_price,
+        propertyCountry: application.property_country,
+        propertyCurrency: (application as any).property_currency,
         propertyType: application.property_type || 'property',
         agentName: application.agent_name || '',
         agentAgency: application.agent_agency || '',
@@ -465,6 +474,8 @@ const mapSaleProgression = (
         propertyAddress: propertyContext?.address || 'Address unavailable',
         propertyImage: toImageUrl(propertyContext?.image),
         propertyPrice: propertyContext?.price,
+        propertyCountry: propertyContext?.country,
+        propertyCurrency: propertyContext?.currency,
         propertyType: propertyContext?.propertyType || 'property',
         agentName: propertyContext?.agentName || relatedViewing?.agent_name || '',
         agentAgency: propertyContext?.agentAgency || relatedViewing?.agent_agency || '',
@@ -507,22 +518,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         WORKSPACE_SYNC_TAGS.CONTRACTS,
         WORKSPACE_SYNC_TAGS.PAYMENTS,
     ], []);
-    const [activeConsumerCount, setActiveConsumerCount] = useState(0);
-    const hasActiveConsumers = activeConsumerCount > 0;
-
-    const registerConsumer = useCallback(() => {
-        setActiveConsumerCount((current) => current + 1);
-
-        let released = false;
-        return () => {
-            if (released) {
-                return;
-            }
-
-            released = true;
-            setActiveConsumerCount((current) => Math.max(0, current - 1));
-        };
-    }, []);
+    const registerConsumer = useCallback(() => () => {}, []);
 
     const fetchApplications = async () => {
         if (!user) {
@@ -561,6 +557,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 address: application.property_address,
                 image: application.property_image,
                 price: application.property_price,
+                country: application.property_country,
+                currency: (application as any).property_currency,
                 propertyType: application.property_type,
                 agentName: application.agent_name,
                 agentAgency: application.agent_agency,
@@ -579,6 +577,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 address: viewing.property_address,
                 image: viewing.property_image,
                 price: viewing.property_price,
+                country: (viewing as any).property_country,
+                currency: (viewing as any).property_currency,
                 propertyType: viewing.listing_type,
                 agentName: viewing.agent_name,
                 agentAgency: viewing.agent_agency,
@@ -648,18 +648,13 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return;
         }
 
-        if (!hasActiveConsumers) {
-            setIsLoading(false);
-            return;
-        }
-
         fetchApplications();
-    }, [hasActiveConsumers, user]);
+    }, [user]);
 
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchApplications,
-        enabled: Boolean(user) && hasActiveConsumers,
+        enabled: Boolean(user),
     });
 
     const createApplication = async (data: any) => {
@@ -684,6 +679,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             'property_type',
             'listing_type',
             'property_price',
+            'property_country',
             'agent_name',
             'agent_email',
             'agent_phone',
@@ -694,6 +690,22 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         if (missingPropertySnapshot) {
             const { data: property } = await getPropertyById(propertyId);
             propertySnapshot = buildApplicationPropertySnapshot(property);
+        }
+
+        const listingType = String(data.listing_type || propertySnapshot.listing_type || data.property_type || '').trim().toLowerCase();
+        if (listingType === 'rent') {
+            const fastTrackCasesResult = await getFastTrackCases({ suppressErrorToast: true });
+            const linkedFastTrackCase = findLinkedFastTrackCase(fastTrackCasesResult.data || [], {
+                caseId: data.fast_track_case_id || data.fastTrackCaseId,
+                fastTrackCaseId: data.fast_track_case_id || data.fastTrackCaseId,
+                leadId: data.lead_id || data.leadId,
+                propertyId,
+            });
+            const fastTrackBlocker = getRentalApplicationFastTrackBlocker(linkedFastTrackCase);
+
+            if (fastTrackBlocker) {
+                return { success: false, error: fastTrackBlocker };
+            }
         }
 
         const { data: application, error: createError } = await createBackendApplication({
@@ -707,6 +719,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             property_title: data.property_title || propertySnapshot.property_title,
             property_address: data.property_address || propertySnapshot.property_address,
             property_image: data.property_image || propertySnapshot.property_image,
+            property_country: data.property_country || propertySnapshot.property_country,
             property_type: data.property_type || propertySnapshot.property_type,
             listing_type: data.listing_type || propertySnapshot.listing_type,
             property_price: data.property_price ?? propertySnapshot.property_price,

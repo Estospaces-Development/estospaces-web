@@ -18,10 +18,12 @@ import {
     getFastTrackDecisionGuard,
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
+    isFastTrackManagerReviewEligible,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
+    shouldStartDocumentsWhenSelectingStage,
 } from './fastTrackWorkspace';
 
 const fastTrackWorkspaceComponent = readFileSync(
@@ -176,6 +178,42 @@ test('document search params preserve selected address row across refresh', () =
     assert.equal(resolveFastTrackDocumentSearchParam(new URLSearchParams('document=missing'), ['identity', 'address']), null);
 });
 
+test('manager selecting documents on an assigned selected case starts document collection', () => {
+    const selectedCase = buildCase({
+        stage: 'selected',
+        workspaceFinalStatus: 'active',
+        managerId: 'manager-1',
+    });
+
+    assert.equal(shouldStartDocumentsWhenSelectingStage(selectedCase, 'manager', 'documents'), true);
+    assert.equal(shouldStartDocumentsWhenSelectingStage(selectedCase, 'user', 'documents'), false);
+    assert.equal(shouldStartDocumentsWhenSelectingStage(selectedCase, 'manager', 'viewing'), false);
+    assert.equal(
+        shouldStartDocumentsWhenSelectingStage(
+            buildCase({ stage: 'documents', workspaceFinalStatus: 'active', managerId: 'manager-1' }),
+            'manager',
+            'documents',
+        ),
+        false,
+    );
+    assert.equal(
+        shouldStartDocumentsWhenSelectingStage(
+            buildCase({ stage: 'selected', workspaceFinalStatus: 'cancelled', managerId: 'manager-1' }),
+            'manager',
+            'documents',
+        ),
+        false,
+    );
+    assert.equal(
+        shouldStartDocumentsWhenSelectingStage(
+            buildCase({ stage: 'selected', workspaceFinalStatus: 'active', managerId: undefined }),
+            'manager',
+            'documents',
+        ),
+        false,
+    );
+});
+
 test('document draft helpers keep notes scoped to role and case', () => {
     assert.equal(
         buildFastTrackDocumentDraftStorageKey('user', ' Case 123 '),
@@ -275,6 +313,43 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     });
     assert.equal(describeFastTrackWorkspaceFocus(completedHandoverCase, 'user'), 'Your journey is complete');
     assert.equal(describeFastTrackWorkspaceStatus(completedHandoverCase, 'user'), 'Every step is complete. You can keep this page for records and updates.');
+
+    const assignedSelectedCase = buildCase({ stage: 'selected', managerId: 'manager-1' });
+    assert.equal(describeFastTrackWorkspaceFocus(assignedSelectedCase, 'manager'), 'Start documents');
+    assert.doesNotMatch(describeFastTrackWorkspaceStatus(assignedSelectedCase, 'manager'), /Claim/i);
+
+    const unassignedSelectedCase = buildCase({ stage: 'selected', managerId: undefined });
+    assert.equal(describeFastTrackWorkspaceFocus(unassignedSelectedCase, 'manager'), 'Claim and start');
+    assert.match(describeFastTrackWorkspaceStatus(unassignedSelectedCase, 'manager'), /Claim the case/i);
+});
+
+test('manager review eligibility waits for assignment and manager interaction', () => {
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: undefined })), false);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'selected' })), false);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'documents' })), false);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'viewing' })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', workspaceFinalStatus: 'completed' })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({
+        managerId: 'manager-1',
+        stage: 'selected',
+        activity: [{ id: 'activity-1', type: 'case_updated', message: 'Manager responded', actorRole: 'manager', createdAt: '2026-07-07T00:00:00Z' }],
+    })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({
+        managerId: 'manager-1',
+        stage: 'selected',
+        documents: {
+            identityProof: 'verified',
+            addressProof: 'pending',
+            allUploaded: false,
+            allApproved: false,
+            items: [{ id: 'identity', label: 'Identity', status: 'approved', reviewedAt: '2026-07-07T00:00:00Z' }],
+        },
+    })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({
+        managerId: 'manager-1',
+        stage: 'documents',
+        workspaceFinalStatus: 'cancelled',
+    })), false);
 });
 
 test('user handover stays actionable after manager completion until receipt is confirmed', () => {
@@ -296,7 +371,7 @@ test('user handover stays actionable after manager completion until receipt is c
     assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'manager'), 'Case finished');
 });
 
-test('fast-track document preview opens a modal for selected and uploaded files', () => {
+test('fast-track document preview opens a modal only from explicit preview actions', () => {
     assert.match(
         fastTrackWorkspaceComponent,
         /const canPreview = Boolean\(selectedFile \|\| item\.documentRecordId \|\| item\.fileUrl\)/,
@@ -305,9 +380,13 @@ test('fast-track document preview opens a modal for selected and uploaded files'
         fastTrackWorkspaceComponent,
         /if \(selectedFile\) \{/,
     );
-    assert.match(
+    assert.doesNotMatch(
         fastTrackWorkspaceComponent,
         /setPreviewItemId\(uploadedItem\.id\);\s*setPreviewModalOpen\(true\);/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /toast\.success\(`\$\{item\.label\} uploaded and visible to your manager\.`\);/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
@@ -339,10 +418,30 @@ test('fast-track document preview opens a modal for selected and uploaded files'
     );
 });
 
-test('manager completed-case document open stays in the in-app preview modal', () => {
+test('fast-track document open stays inside the in-app preview modal', () => {
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const externalWindow = openInNewTab \? window\.open\('about:blank', '_blank'\) : null/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /externalWindow\.location\.href = url;/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const openedWindow = window\.open\(url, '_blank', 'noopener,noreferrer'\);/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /window\.location\.assign\(url\);/,
+    );
     assert.match(
         fastTrackWorkspaceComponent,
         /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\);/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
@@ -358,7 +457,11 @@ test('manager completed-case document open stays in the in-app preview modal', (
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onClick=\{\(\) => void ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)\}\s*busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
+        /onClick=\{\(\) => void handleRailOpen\(item\)\}\s*busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\)/,
     );
 });
 

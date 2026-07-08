@@ -101,6 +101,36 @@ export const getEffectiveManagerDocumentStatus = (
     return documentStatus;
 };
 
+export const getManagerReviewAuditLog = (
+    profile: ManagerProfile,
+    auditLog: AuditLogEntry[],
+): AuditLogEntry[] => {
+    if (auditLog.length > 0) {
+        return auditLog;
+    }
+
+    const fallbackActionByStatus: Partial<Record<VerificationStatus, string>> = {
+        approved: 'manager_approved',
+        rejected: 'manager_rejected',
+        under_review: 'review_started',
+        submitted: 'verification_submitted',
+    };
+    const actionType = fallbackActionByStatus[profile.verification_status];
+    if (!actionType) {
+        return auditLog;
+    }
+
+    return [{
+        id: `profile-status-${profile.id}-${profile.verification_status}`,
+        manager_id: profile.id,
+        action_type: actionType,
+        actor_id: '',
+        actor_role: 'system',
+        notes: 'Status imported from the approved manager profile because no detailed audit history was returned.',
+        created_at: profile.submitted_at || new Date(0).toISOString(),
+    }];
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -330,6 +360,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     }
 
     const { profile, documents, auditLog, userInfo } = details;
+    const effectiveAuditLog = getManagerReviewAuditLog(profile, auditLog);
     const isBroker = profile.profile_type === 'broker';
     const effectiveDocuments = documents.map((document) => ({
         ...document,
@@ -527,18 +558,18 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                             <History size={16} />
                             Activity Log
                             <span className="text-xs font-normal text-gray-500 bg-white px-2 py-0.5 rounded-full border">
-                                {auditLog.length}
+                                {effectiveAuditLog.length}
                             </span>
                         </span>
                         {showAuditLog ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                     </button>
                     {showAuditLog && (
                         <div className="px-4 pb-4 max-h-48 overflow-y-auto">
-                            {auditLog.length === 0 ? (
+                            {effectiveAuditLog.length === 0 ? (
                                 <p className="text-sm text-gray-500 italic py-2">No activity recorded</p>
                             ) : (
                                 <div className="space-y-3">
-                                    {auditLog.map((entry) => (
+                                    {effectiveAuditLog.map((entry) => (
                                         <div key={entry.id} className="flex gap-3 text-sm">
                                             <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />
                                             <div className="flex-1 min-w-0">

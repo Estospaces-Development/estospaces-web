@@ -4,6 +4,7 @@ import test from 'node:test';
 import { registerErrorToastHandler } from '@/lib/apiToastBus';
 import {
     createTicket,
+    getAdminUserDirectConversations,
     getMessages,
     getTicket,
     markAsRead,
@@ -34,6 +35,7 @@ test('handled messaging read failures suppress generic api toasts', async () => 
     globalThis.fetch = (async () => buildErrorResponse(403, 'conversation not found')) as typeof fetch;
 
     try {
+        await assert.rejects(() => getAdminUserDirectConversations('user-404'));
         await assert.rejects(() => getMessages('conversation-404'));
         await assert.rejects(() => markAsRead('conversation-404'));
         assert.equal(emittedToasts.length, 0);

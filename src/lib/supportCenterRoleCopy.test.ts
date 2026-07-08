@@ -34,3 +34,27 @@ test('user settings support shortcut does not mention inactive billing state', (
 
     assert.doesNotMatch(source, /billing state/i);
 });
+
+test('support search helper does not show an ambiguous 0/120 counter before typing', () => {
+    const source = readFileSync(
+        resolve(process.cwd(), 'src/components/support/SupportFilters.tsx'),
+        'utf8',
+    );
+
+    assert.doesNotMatch(source, /\{filters\.search\.length\}\/\{SUPPORT_SEARCH_MAX_LENGTH\}/);
+    assert.match(source, /Filter by subject, requester, module, or ticket text\./);
+    assert.match(source, /characters used/);
+});
+
+test('admin support queue exposes ticket ownership workflow for unassigned tickets', () => {
+    const source = readFileSync(
+        resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'),
+        'utf8',
+    );
+
+    assert.match(source, /support tickets need an owner/);
+    assert.match(source, /Claim selected ticket/);
+    assert.match(source, /Claim next unassigned/);
+    assert.match(source, /assignee_id: currentAdminId/);
+    assert.match(source, /Ticket assigned to you/);
+});

@@ -23,6 +23,8 @@ import {
     USER_FIRST_TIME_VERIFICATION_REQUIREMENTS,
 } from '@/lib/verificationUploadGate';
 import { leadsService, type UserDocument } from '@/services/leadsService';
+import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 interface VerificationSectionProps {
     userId?: string;
@@ -46,11 +48,6 @@ const firstTimeDocumentLabels: Record<UserVerificationDocumentStep, string> = {
     identity: 'Identity document',
     address: 'Proof of address',
 };
-const verificationDocumentGuidance: Record<UserVerificationDocumentStep, string> = {
-    identity: 'Identity proof: Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN/Form 60 may be requested separately.',
-    address: 'Recent utility bill, bank statement, rent agreement, property tax receipt, or government address document',
-};
-
 const mapDocumentStatus = (status?: string): StepStatus => {
     switch (status) {
         case 'approved':
@@ -67,6 +64,8 @@ const mapDocumentStatus = (status?: string): StepStatus => {
 };
 
 const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser }) => {
+    const geoMarket = useUserGeoMarket(currentUser);
+    const verificationDocumentGuidance = getCountryDocumentGuidance(geoMarket);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -382,8 +381,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Account verification</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm">Gain trust and unlock premium features</p>
                             <p className="mt-2 max-w-2xl text-xs leading-5 text-gray-500 dark:text-gray-400">
-                                Accepted identity documents: Aadhaar (Aadhar) proof, PAN/Form 60, passport,
-                                voter ID, driving licence, NREGA job card, or NPR letter.
+                                Accepted identity documents: {verificationDocumentGuidance.identityShort}.
                             </p>
                         </div>
                     </div>
@@ -441,7 +439,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <VerificationStep
                     step="identity"
                     title="Identity Document"
-                    description={verificationDocumentGuidance.identity}
+                    description={verificationDocumentGuidance.identityDetail}
                     icon={CreditCard}
                     actionLabel="Upload"
                     onAction={() => openDocumentUpload('identity')}
@@ -449,7 +447,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <VerificationStep
                     step="address"
                     title="Proof of Address"
-                    description="Bank statement or utility bill"
+                    description={verificationDocumentGuidance.addressDetail}
                     icon={MapPin}
                     actionLabel="Upload"
                     onAction={() => openDocumentUpload('address')}
@@ -552,8 +550,8 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                 <p className="text-sm text-gray-500 mt-1">or drag and drop it here</p>
                                 <p className="mx-auto mt-3 max-w-[26rem] text-xs leading-5 text-gray-500 dark:text-gray-400">
                                     {showUploadModal === 'identity'
-                                        ? `${verificationDocumentGuidance.identity}.`
-                                        : `${verificationDocumentGuidance.address}.`}
+                                        ? `${verificationDocumentGuidance.identityDetail}.`
+                                        : `${verificationDocumentGuidance.addressDetail}.`}
                                 </p>
                                 <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-4">PDF, PNG, JPG (Max 10MB)</p>
                             </label>
@@ -576,7 +574,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">First-time verification</h3>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload identity and address proof together for admin review.</p>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{verificationDocumentGuidance.firstTimeSummary}</p>
                             </div>
                             <button onClick={() => setShowFirstTimeUploadModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl" aria-label="Close first-time verification upload">
                                 <X size={20} />
@@ -594,7 +592,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                         {firstTimeUploadFiles[step]?.name || 'PDF, PNG or JPG'}
                                     </span>
                                     <span className="mt-2 block text-xs leading-5 text-gray-500 dark:text-gray-400">
-                                        {verificationDocumentGuidance[step]}.
+                                        {step === 'identity' ? verificationDocumentGuidance.identityDetail : verificationDocumentGuidance.addressDetail}.
                                     </span>
                                     <input
                                         type="file"

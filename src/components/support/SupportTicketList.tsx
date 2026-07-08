@@ -4,6 +4,7 @@ import { type SupportTicketSummary } from '@/services/messagesService';
 import { SupportPriorityBadge, SupportStatusBadge } from '@/components/support/SupportBadges';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { getLaunchSafeSupportCategoryLabel } from '@/lib/supportCenter';
+import { formatSupportTimestamp } from '@/lib/supportTranscript';
 
 interface SupportTicketListProps {
     tickets: SupportTicketSummary[];
@@ -95,7 +96,7 @@ export function SupportTicketList({
                             <SupportStatusBadge status={ticket.status} />
                             <SupportPriorityBadge priority={ticket.priority} />
                             <span className="text-xs font-medium text-gray-500 dark:text-gray-300">
-                                {new Date(ticket.last_message_at || ticket.updated_at).toLocaleString()}
+                                {formatSupportTimestamp(ticket.last_message_at, ticket.updated_at, ticket.created_at)}
                             </span>
                         </div>
                     </button>

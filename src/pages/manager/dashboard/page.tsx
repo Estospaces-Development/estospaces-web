@@ -7,6 +7,7 @@ import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type Booking } from '@/services/bookingsService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
 import {
   buildManagerActiveListingsPath,
   filterManagerLivePropertyPerformance,
@@ -326,6 +327,10 @@ function DashboardContent() {
 
       return {
         ...caseItem,
+        displayTitle: getFastTrackDisplayTitle(
+          caseItem.propertyTitle,
+          caseItem.clientName ? `${caseItem.clientName}'s fast-track case` : 'Selected fast-track case',
+        ),
         summary,
         statusLabel: isOverdue ? 'Overdue' : caseItem.hoursRemaining <= 6 ? 'Closing soon' : 'In progress',
         statusTone: isOverdue
@@ -432,6 +437,9 @@ function DashboardContent() {
   const hasPropertyFilters = propertySearchQuery.trim() || propertyTypeFilter !== 'all' || propertyStatusFilter !== 'all';
   const propertyPageStart = propertyTotal === 0 ? 0 : ((propertyPage - 1) * MANAGER_PROPERTIES_PAGE_SIZE) + 1;
   const propertyPageEnd = Math.min(propertyPage * MANAGER_PROPERTIES_PAGE_SIZE, propertyTotal);
+  const propertySummaryText = propertyTotal > 0
+    ? `Showing ${propertyPageStart}-${propertyPageEnd} of ${propertyTotal} properties`
+    : '';
   const reservationKeyFor = createDuplicateSafeKeyResolver('manager-reservation');
   const fastTrackQueueKeyFor = createDuplicateSafeKeyResolver('manager-fast-track-queue');
   const propertyCardKeyFor = createDuplicateSafeKeyResolver('manager-dashboard-property');
@@ -455,6 +463,7 @@ function DashboardContent() {
           icon={CalendarCheck}
           iconColor="bg-emerald-500"
           trendColor="text-emerald-700"
+          onClick={() => navigate('/manager/fast-track')}
         />
         <StatCard
           title="Active Listings"
@@ -472,6 +481,7 @@ function DashboardContent() {
           icon={Eye}
           iconColor="bg-purple-500"
           trendColor="text-purple-600"
+          onClick={() => navigate('/manager/analytics')}
         />
         <StatCard
           title="Conversion Rate"
@@ -480,6 +490,7 @@ function DashboardContent() {
           icon={UserCheck}
           iconColor="bg-orange-500"
           trendColor="text-orange-600"
+          onClick={() => navigate('/manager/analytics')}
         />
       </div>
 
@@ -664,7 +675,7 @@ function DashboardContent() {
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{item.propertyTitle}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{item.displayTitle}</p>
                       <div className="mt-2 flex items-center gap-3">
                         <Avatar
                           userId={item.clientId}
@@ -810,11 +821,7 @@ function DashboardContent() {
               </div>
 
               <div className="mb-6 flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                  {propertyTotal > 0
-                    ? `Showing ${propertyPageStart}-${propertyPageEnd} of ${propertyTotal} properties`
-                    : 'No properties matched the current search.'}
-                </p>
+                {propertySummaryText && <p>{propertySummaryText}</p>}
                 <button
                   onClick={() => navigate('/manager/dashboard/properties')}
                   className="text-sm font-semibold text-orange-500 transition-colors hover:text-orange-600"

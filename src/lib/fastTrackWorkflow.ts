@@ -42,7 +42,11 @@ export interface FastTrackCaseLike {
     backendCurrentStep?: string;
     currentStep?: string;
     finalStatus?: string;
+    workspaceFinalStatus?: string;
     hoursRemaining?: number;
+    overdue?: boolean;
+    submittedAt?: string | null;
+    expiresAt?: string | null;
     journeyType?: 'rent' | 'buy';
     jurisdiction?: string;
     liveStage?: string;
@@ -139,6 +143,13 @@ export type FastTrackStartAction =
     | 'resume_existing_case'
     | 'create_case_for_existing_lead'
     | 'create_lead_and_case';
+
+export const isActiveFastTrackCase = (
+    fastTrackCase: FastTrackCaseLike | null | undefined,
+) => (
+    fastTrackCase?.workspaceFinalStatus === 'active'
+    || fastTrackCase?.finalStatus === 'in_progress'
+);
 
 const CLOSED_LEAD_STATUSES = new Set(['closed_won', 'closed_lost', 'cancelled']);
 const REUPLOAD_STATUSES = new Set(['reupload_required', 'rejected']);
@@ -836,7 +847,7 @@ export const getFastTrackStartAction = (
     lead: LeadLike | null,
     fastTrackCase: FastTrackCaseLike | null,
 ): FastTrackStartAction => {
-    if (fastTrackCase?.finalStatus === 'in_progress') {
+    if (isActiveFastTrackCase(fastTrackCase)) {
         return 'resume_existing_case';
     }
 
@@ -847,13 +858,86 @@ export const getFastTrackStartAction = (
     return 'create_lead_and_case';
 };
 
+const FAST_TRACK_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+const toTimestamp = (value?: string | null) => {
+    if (!value) {
+        return null;
+    }
+
+    const timestamp = new Date(value).getTime();
+    return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const getFastTrackExplicitDeadlineTimestamp = (
+    fastTrackCase: FastTrackCaseLike,
+) => toTimestamp(fastTrackCase.expiresAt);
+
+const getFastTrackSubmittedDeadlineTimestamp = (
+    fastTrackCase: FastTrackCaseLike,
+) => {
+    const submittedAt = toTimestamp(fastTrackCase.submittedAt);
+    return submittedAt === null ? null : submittedAt + FAST_TRACK_WINDOW_MS;
+};
+
+export const getFastTrackCaseRemainingHours = (
+    fastTrackCase: FastTrackCaseLike | null | undefined,
+    now = Date.now(),
+) => {
+    if (!fastTrackCase) {
+        return null;
+    }
+
+    const explicitDeadline = getFastTrackExplicitDeadlineTimestamp(fastTrackCase);
+    if (explicitDeadline !== null) {
+        return Math.max(0, Math.ceil((explicitDeadline - now) / MS_PER_HOUR));
+    }
+
+    if (typeof fastTrackCase.hoursRemaining === 'number' && Number.isFinite(fastTrackCase.hoursRemaining) && fastTrackCase.hoursRemaining > 0) {
+        return fastTrackCase.hoursRemaining;
+    }
+
+    const submittedDeadline = getFastTrackSubmittedDeadlineTimestamp(fastTrackCase);
+    if (submittedDeadline !== null) {
+        return Math.max(0, Math.ceil((submittedDeadline - now) / MS_PER_HOUR));
+    }
+
+    if (typeof fastTrackCase.hoursRemaining === 'number' && Number.isFinite(fastTrackCase.hoursRemaining)) {
+        return Math.max(0, fastTrackCase.hoursRemaining);
+    }
+
+    return null;
+};
+
 export const isFastTrackCaseOverdue = (
     fastTrackCase: FastTrackCaseLike | null | undefined,
-) => Boolean(
-    fastTrackCase
-    && fastTrackCase.finalStatus === 'in_progress'
-    && Number(fastTrackCase.hoursRemaining ?? 0) <= 0,
-);
+    now = Date.now(),
+) => {
+    if (!fastTrackCase || !isActiveFastTrackCase(fastTrackCase)) {
+        return false;
+    }
+
+    const explicitDeadline = getFastTrackExplicitDeadlineTimestamp(fastTrackCase);
+    if (explicitDeadline !== null) {
+        return explicitDeadline <= now;
+    }
+
+    if (typeof fastTrackCase.hoursRemaining === 'number' && Number.isFinite(fastTrackCase.hoursRemaining) && fastTrackCase.hoursRemaining > 0) {
+        return false;
+    }
+
+    const submittedDeadline = getFastTrackSubmittedDeadlineTimestamp(fastTrackCase);
+    if (submittedDeadline !== null) {
+        return submittedDeadline <= now;
+    }
+
+    if (typeof fastTrackCase.hoursRemaining === 'number' && Number.isFinite(fastTrackCase.hoursRemaining)) {
+        return fastTrackCase.hoursRemaining <= 0;
+    }
+
+    return Boolean(fastTrackCase.overdue);
+};
 
 export const needsFastTrackCaseAttention = (
     fastTrackCase: FastTrackCaseLike | null | undefined,

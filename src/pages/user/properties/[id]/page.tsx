@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -43,6 +43,7 @@ import {
     buildFastTrackVerificationContent,
     filterDocumentsForLead,
     getFastTrackStartAction,
+    isActiveFastTrackCase,
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
 import {
@@ -67,8 +68,10 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
-import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
-import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
+import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
+import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
+import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -159,14 +162,13 @@ export const buildPropertyFastTrackStartRequest = ({
 
     const brokerRequestId = brokerRequestQuery || lead?.broker_request_id || undefined;
     const startsFromBrokerRequest = Boolean(brokerRequestId);
+    const managerId = lead?.matched_broker_id || lead?.broker_id || property.manager_id || undefined;
 
     return {
         property_id: property.id,
         broker_request_id: brokerRequestId,
         lead_id: startsFromBrokerRequest ? undefined : lead?.id,
-        manager_id: startsFromBrokerRequest
-            ? undefined
-            : lead?.matched_broker_id || lead?.broker_id || property.manager_id,
+        manager_id: managerId,
         client_id: clientId,
         client_name: clientName,
         property_title: property.title,
@@ -186,6 +188,23 @@ export const getPropertyDetailDisplayAddress = (property: Property | null | unde
 
     return formatLaunchPropertyLocation(getSavedPropertyLocationLabel(property));
 };
+
+export const getPropertyDetailLocationLabel = (property: Property | null | undefined) => {
+    if (!property) {
+        return 'Prime location';
+    }
+
+    return formatLaunchPropertyLocation([getSavedPropertyLocationCity(property), property.country]);
+};
+
+export const formatPropertyDetailCurrency = (
+    amount: number,
+    property: Pick<Property, 'country' | 'currency'> | null | undefined,
+) => formatLaunchCurrencyForCountry(amount, {
+    countryCode: property?.country,
+    countryName: property?.country,
+    currencyCode: property?.currency,
+});
 
 const toDateValue = (date: Date) => {
     const year = date.getFullYear();
@@ -474,6 +493,29 @@ const formatDetailLabel = (value: string) =>
         .trim()
         .replace(/\b\w/g, (char) => char.toUpperCase());
 
+export function buildPropertyHeroSummary(property: Property | null | undefined, locationLabel: string) {
+    const propertyType = property?.property_type ? formatDetailLabel(property.property_type).toLowerCase() : 'property';
+    const location = locationLabel || property?.city || 'this location';
+    const bedroomCount = typeof property?.bedrooms === 'number' ? property.bedrooms : 0;
+    const bathroomCount = typeof property?.bathrooms === 'number' ? property.bathrooms : 0;
+    const sizeText = typeof property?.property_size_sqft === 'number' && property.property_size_sqft > 0
+        ? ` with ${property.property_size_sqft} sq ft of interior space`
+        : '';
+    const description = property?.description?.trim().replace(/\s+/g, ' ');
+    const featureText = normalizeListValue(property?.features || property?.amenities)
+        .map(formatDetailLabel)
+        .slice(0, 3)
+        .join(', ');
+    const supportingText = description
+        || (featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.');
+
+    return [
+        `This ${propertyType} in ${location} offers ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'} and ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}${sizeText}.`,
+        supportingText,
+        description && featureText ? `Highlights include ${featureText}.` : '',
+    ].filter(Boolean).join(' ');
+}
+
 const formatLeadStage = (value?: string) => {
     if (!value) {
         return 'Matching nearby brokers';
@@ -578,6 +620,7 @@ interface RentalApplicationEntryCardProps {
     form: RentalApplicationForm;
     errors: RentalApplicationValidationErrors;
     isSubmitting: boolean;
+    submissionBlocker?: string | null;
     onChange: (field: keyof RentalApplicationForm, value: string) => void;
     onSubmit: React.FormEventHandler<HTMLFormElement>;
 }
@@ -587,6 +630,7 @@ const RentalApplicationEntryCard = ({
     form,
     errors,
     isSubmitting,
+    submissionBlocker,
     onChange,
     onSubmit,
 }: RentalApplicationEntryCardProps) => (
@@ -663,7 +707,7 @@ const RentalApplicationEntryCard = ({
                 aria-describedby={errors.employmentStatus ? 'rental-application-employment-error' : undefined}
                 className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
             >
-                <option value="">Select status</option>
+                <option value="" disabled>Select status</option>
                 <option value="employed">Employed</option>
                 <option value="self_employed">Self-employed</option>
                 <option value="student">Student</option>
@@ -753,13 +797,19 @@ const RentalApplicationEntryCard = ({
             )}
         </label>
 
+        {submissionBlocker && (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                {submissionBlocker}
+            </p>
+        )}
+
         <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || Boolean(submissionBlocker)}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-sky-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-700/20 transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
             {isSubmitting && <Loader2 size={15} className="animate-spin" />}
-            {isSubmitting ? 'Submitting application...' : 'Submit Rental Application'}
+            {isSubmitting ? 'Submitting application...' : submissionBlocker ? 'Complete Fast Track first' : 'Submit Rental Application'}
         </button>
     </form>
 );
@@ -882,6 +932,7 @@ const UserPropertyDetail = () => {
     const immersiveGalleryTriggerRef = useRef<HTMLElement | null>(null);
     const wasImmersiveGalleryOpenRef = useRef(false);
     const fastTrackTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const viewingFormRef = useRef<HTMLFormElement | null>(null);
     const wasFastTrackModalOpenRef = useRef(false);
     const offerInFlightRef = useRef(false);
     const rentalApplicationInFlightRef = useRef(false);
@@ -975,9 +1026,11 @@ const UserPropertyDetail = () => {
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
     const isSaved = id ? isPropertySaved(id) : false;
     const propertyAddress = getPropertyDetailDisplayAddress(property);
-    const locationLabel = property
-        ? formatLaunchPropertyLocation([property.city, property.country])
-        : 'Prime location';
+    const locationLabel = getPropertyDetailLocationLabel(property);
+    const propertyHeroSummary = useMemo(
+        () => buildPropertyHeroSummary(property, locationLabel),
+        [locationLabel, property],
+    );
     const propertyMapState = useMemo(
         () => getPropertyMapState(property ?? {}, {
             userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
@@ -1019,8 +1072,17 @@ const UserPropertyDetail = () => {
             : VIEWING_TIME_SLOTS,
         [bookedViewingSlotsByDate, viewingForm.requested_date],
     );
+    const propertyCountry = property?.country;
+    const propertyCurrencyCode = property?.currency;
+    const formatPropertyCurrency = useCallback((amount: number) => (
+        formatLaunchCurrencyForCountry(amount, {
+            countryCode: propertyCountry,
+            countryName: propertyCountry,
+            currencyCode: propertyCurrencyCode,
+        })
+    ), [propertyCountry, propertyCurrencyCode]);
     const priceLabel = typeof property?.price === 'number'
-        ? formatLaunchCurrency(property.price)
+        ? formatPropertyCurrency(property.price)
         : 'Price on request';
     const propertyTypeLabel = property?.property_type ? formatDetailLabel(property.property_type) : 'Property';
     const listingLabel = property?.listing_type ? formatDetailLabel(property.listing_type) : 'Listing';
@@ -1077,15 +1139,20 @@ const UserPropertyDetail = () => {
         { label: 'Market', value: listingLabel },
         { label: 'Condition', value: conditionLabel },
         { label: 'Availability', value: availableFromLabel },
-        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatLaunchCurrency(property.deposit_amount) : 'On request' },
-    ], [availableFromLabel, conditionLabel, listingLabel, property?.deposit_amount]);
+        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },
+    ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
+    const hasActiveFastTrackJourney = isActiveFastTrackCase(activeFastTrackCase);
+    const fastTrackSidebarActionLabel = hasActiveFastTrackJourney ? 'Continue 24-hour journey' : '24-hour fast track';
+    const fastTrackPrimaryActionLabel = hasActiveFastTrackJourney ? 'Continue 24-Hour Fast Track' : 'Start 24-Hour Fast Track';
+    const fastTrackBusyActionLabel = hasActiveFastTrackJourney ? 'Opening Fast-Track...' : 'Starting Fast-Track...';
+    const fastTrackConciergeActionLabel = hasActiveFastTrackJourney ? 'Continue your fast-track workspace' : '10-minute live broker response';
     const heroMetaItems = [
         { label: 'Condition', value: conditionLabel, icon: Sparkles },
         { label: 'Availability', value: availableFromLabel, icon: Clock },
         { label: 'Gallery', value: `${images.length} photo${images.length === 1 ? '' : 's'}`, icon: ImageIcon },
     ];
     const conciergeHighlights = [
-        { label: 'Response window', value: '10-minute live broker response', icon: Clock },
+        { label: 'Response window', value: fastTrackConciergeActionLabel, icon: Clock },
         { label: 'Private access', value: 'Message the broker directly', icon: MessageCircle },
         { label: 'Tour booking', value: 'Reserve a slot in minutes', icon: CalendarDays },
     ];
@@ -1107,12 +1174,13 @@ const UserPropertyDetail = () => {
         {
             label: 'Maintenance',
             value: typeof property?.maintenance_charges === 'number' && property.maintenance_charges > 0
-                ? formatLaunchCurrency(property.maintenance_charges)
+                ? formatPropertyCurrency(property.maintenance_charges)
                 : 'On request',
         },
         { label: 'Address', value: propertyAddress || locationLabel },
     ], [
         locationLabel,
+        formatPropertyCurrency,
         property?.furnished,
         property?.maintenance_charges,
         property?.parking_spaces,
@@ -1160,6 +1228,11 @@ const UserPropertyDetail = () => {
     };
     const closeFastTrackModal = () => {
         setIsFastTrackModalOpen(false);
+    };
+    const focusViewingRequestForm = () => {
+        viewingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const firstAvailableTimeSlot = viewingFormRef.current?.querySelector<HTMLButtonElement>('button[aria-label^="Select "]:not(:disabled)');
+        firstAvailableTimeSlot?.focus({ preventScroll: true });
     };
     const handleImmersiveGalleryMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
         const imageRect = immersiveGalleryImageRef.current?.getBoundingClientRect();
@@ -1628,8 +1701,8 @@ const UserPropertyDetail = () => {
     const liveLeadStageLabel = liveLeadPanelLabels.stage;
     const liveLeadDeadlineLabel = liveLeadPanelLabels.deadline;
     const liveLeadDispatchLabel =
-        activeFastTrackCase?.workspaceFinalStatus === 'active' || activeFastTrackCase?.finalStatus === 'in_progress'
-            ? formatLeadStage(activeFastTrackCase.stage)
+        hasActiveFastTrackJourney
+            ? formatLeadStage(activeFastTrackCase?.stage)
             : formatLeadStage(activeLead?.dispatch_status || (activeLead?.matched_broker ? 'broker_matched' : 'matching'));
     const liveLeadBrokerLabel =
         activeLead?.matched_broker?.name ||
@@ -1637,6 +1710,10 @@ const UserPropertyDetail = () => {
         activeLead?.broker_id ||
         'No broker matched yet';
     const liveLeadDocumentLabel = liveVerificationContent.documentsLabel;
+    const rentalApplicationFastTrackBlocker = useMemo(
+        () => getRentalApplicationFastTrackBlocker(activeFastTrackCase),
+        [activeFastTrackCase],
+    );
 
     const handleUploadFastTrackDocument = async (type: 'identity' | 'address', file: File) => {
         if (!ensureAuthenticated()) {
@@ -1886,6 +1963,11 @@ const UserPropertyDetail = () => {
             return;
         }
 
+        if (rentalApplicationFastTrackBlocker) {
+            toast.error(rentalApplicationFastTrackBlocker);
+            return;
+        }
+
         const normalizedForm = normalizeRentalApplicationForm(rentalApplicationForm);
         const validationErrors = getRentalApplicationValidationErrors(normalizedForm, minimumRentalApplicationMoveInDate);
         setRentalApplicationErrors(validationErrors);
@@ -1951,7 +2033,12 @@ const UserPropertyDetail = () => {
                 },
             });
             toast.success('Rental application submitted.');
-            navigate('/user/dashboard/applications');
+            navigate(buildWorkspacePath('/user/applications', {
+                applicationId: result.data.id,
+                propertyId: property.id,
+                caseId: activeFastTrackCase?.id,
+                leadId: activeLead?.id || activeFastTrackCase?.leadId,
+            }));
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to submit the rental application.');
         } finally {
@@ -2199,7 +2286,7 @@ const UserPropertyDetail = () => {
                                         <span>{propertyAddress || locationLabel}</span>
                                     </div>
                                     <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
-                                        Start with the lead image here, switch between the curated photo set below, and open the full-screen gallery whenever you want a larger, distraction-free look.
+                                        {propertyHeroSummary}
                                     </p>
 
                                     {images.length > 1 ? (
@@ -2280,7 +2367,7 @@ const UserPropertyDetail = () => {
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
                                             >
                                                 {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
-                                                <span>{isStartingFastTrack ? 'Checking live status...' : '24-hour fast track'}</span>
+                                                <span>{isStartingFastTrack ? 'Checking live status...' : fastTrackSidebarActionLabel}</span>
                                             </button>
                                 </div>
                             </div>
@@ -2612,20 +2699,40 @@ const UserPropertyDetail = () => {
                             <div className="mt-5 grid gap-2.5">
                                 {conciergeHighlights.map((item) => {
                                     const Icon = item.icon;
+                                    const isResponseAction = item.label === 'Response window';
+                                    const isMessageAction = item.label === 'Private access';
+                                    const isTourAction = item.label === 'Tour booking';
+                                    const isBusy = (isResponseAction && isStartingFastTrack) || (isMessageAction && isCreatingConversation);
 
                                     return (
-                                        <div
+                                        <button
                                             key={item.label}
-                                            className="flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                                            type="button"
+                                            onClick={(event) => {
+                                                if (isResponseAction) {
+                                                    fastTrackTriggerRef.current = event.currentTarget;
+                                                    void handleStartFastTrack();
+                                                    return;
+                                                }
+                                                if (isMessageAction) {
+                                                    void handleOpenConversation();
+                                                    return;
+                                                }
+                                                if (isTourAction) {
+                                                    focusViewingRequestForm();
+                                                }
+                                            }}
+                                            disabled={isBusy}
+                                            className="group flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-orange-800 dark:hover:bg-zinc-900/80"
                                         >
-                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-200">
-                                                <Icon size={16} />
+                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition group-hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200 dark:group-hover:bg-orange-950/70">
+                                                {isBusy ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
                                             </div>
                                             <div>
                                                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">{item.label}</p>
-                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{isBusy ? 'Opening...' : item.value}</p>
                                             </div>
-                                        </div>
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -2642,7 +2749,7 @@ const UserPropertyDetail = () => {
                                 disabled={isStartingFastTrack}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {isStartingFastTrack ? 'Starting Fast-Track...' : 'Start 24-Hour Fast Track'}
+                                {isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackPrimaryActionLabel}
                             </button>
                             <button
                                 type="button"
@@ -2687,13 +2794,14 @@ const UserPropertyDetail = () => {
                                     form={rentalApplicationForm}
                                     errors={rentalApplicationErrors}
                                     isSubmitting={isSubmittingRentalApplication}
+                                    submissionBlocker={rentalApplicationFastTrackBlocker}
                                     onChange={handleRentalApplicationChange}
                                     onSubmit={handleSubmitRentalApplication}
                                 />
                             </div>
                         )}
 
-                        <form onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
+                        <form ref={viewingFormRef} onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full scroll-mt-24 overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
                             <div className="border-b border-stone-200/80 px-5 py-5 dark:border-zinc-800 md:px-6 md:py-6">
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
