@@ -7,6 +7,7 @@ import { searchService, FilterOptions, AutocompleteSuggestion } from '../../serv
 import {
     formatLaunchCurrencyForCountry,
     getLaunchLocationCodeLabel,
+    getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
@@ -114,17 +115,19 @@ const SearchBar: React.FC<SearchBarProps> = ({
         || user?.user_metadata?.countryCode
         || user?.user_metadata?.country_code;
     const locationContext = filters.location || locationContextCode || user?.postcode;
+    const countryNameContext = countryContextName || (!locationContext && !userCountrySignal ? fallbackCountryName : undefined);
     const geoMarket = useUserGeoMarket(user, {
-        countryName: countryContextName || (!locationContext && !userCountrySignal ? fallbackCountryName : undefined),
+        countryName: countryNameContext,
         locationCode: locationContext,
     });
-    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, filters.location);
+    const searchMarket = getSupportedLaunchCountry(undefined, countryNameContext, locationContext) || geoMarket;
+    const locationCodeLabel = getLaunchLocationCodeLabel(searchMarket, undefined, locationContext);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
-    const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
-    const CurrencyIcon = geoMarket === 'GB' ? PoundSterling : IndianRupee;
+    const currencySymbol = searchMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
+    const CurrencyIcon = searchMarket === 'GB' ? PoundSterling : IndianRupee;
     const formatSearchCurrency = useCallback((amount: number) => (
-        formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
-    ), [geoMarket]);
+        formatLaunchCurrencyForCountry(amount, { countryCode: searchMarket })
+    ), [searchMarket]);
 
     // Fetch dynamic filters
     useEffect(() => {

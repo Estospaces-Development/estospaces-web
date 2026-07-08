@@ -64,7 +64,10 @@ test('user dashboard search passes active request location context into shared s
     assert.match(source, /countryContextName\?: string \| null;/);
     assert.match(source, /fallbackCountryName\?: string \| null;/);
     assert.match(source, /const locationContext = filters\.location \|\| locationContextCode \|\| user\?\.postcode/);
-    assert.match(source, /countryName: countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
+    assert.match(source, /const countryNameContext = countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
+    assert.match(source, /const searchMarket = getSupportedLaunchCountry\(undefined, countryNameContext, locationContext\) \|\| geoMarket/);
+    assert.match(source, /const locationCodeLabel = getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
+    assert.match(source, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
     assert.match(userDashboardSource, /locationContextCode=\{activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
