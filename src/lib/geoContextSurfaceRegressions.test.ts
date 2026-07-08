@@ -52,6 +52,8 @@ test("shared search ranges and property cards format money by country context", 
   assert.match(propertyCardSource, /formatLaunchCurrencyForCountry\(amount/);
   assert.match(propertyCardSource, /property\.countryCode/);
   assert.match(propertyCardSource, /currencyCode: currencyCode \|\| property\.currency/);
+  assert.match(propertyCardSource, /getSavedPropertyLocationLabel\(property\)/);
+  assert.doesNotMatch(propertyCardSource, /typeof property\.location === 'string'/);
   assert.doesNotMatch(propertyCardSource, /formatLaunchCurrency\(/);
 
   assert.match(managerPropertyCardSource, /formatLaunchCurrencyForCountry\(amount/);

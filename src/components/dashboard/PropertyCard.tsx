@@ -347,9 +347,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         <MapPin size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
                         <span className="line-clamp-1">
                             {formatLaunchPropertyLocation(
-                                typeof property.location === 'string'
-                                    ? property.location
-                                    : getSavedPropertyLocationLabel(property),
+                                getSavedPropertyLocationLabel(property),
                             )}
                         </span>
                     </p>

@@ -42,6 +42,19 @@ test('saved property location label corrects stale UK city when India PIN code i
   );
 });
 
+test('saved property location label ignores stale string location when structured India fields are available', () => {
+  assert.equal(
+    getSavedPropertyLocationLabel({
+      location: 'Attur, Edinburgh, 600001',
+      address_line_1: 'Attur',
+      city: 'Edinburgh',
+      postcode: '600001',
+      country: 'IN',
+    }),
+    'Attur, Chennai, 600001',
+  );
+});
+
 test('saved property filters match title type and location fallback', () => {
   const properties = [
     { title: 'River Loft', property_type: 'apartment', city: 'Attur', postcode: 'SW1A1AA', price: 2500 },

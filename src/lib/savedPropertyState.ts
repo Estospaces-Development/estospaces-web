@@ -46,10 +46,23 @@ export function getSavedPropertyLocationCity(property: any): string {
 
 export function getSavedPropertyLocationLabel(property: any): string {
   const location = property?.location;
-  if (typeof location === 'string' && location.trim()) {
+  const locationObject = getLocationObject(property);
+  const hasStructuredLocation = Boolean(firstText(
+    property?.address,
+    property?.address_line_1,
+    property?.city,
+    property?.postcode,
+    property?.postalCode,
+    locationObject?.addressLine1,
+    locationObject?.address_line_1,
+    locationObject?.city,
+    locationObject?.postcode,
+    locationObject?.postalCode,
+  ));
+
+  if (typeof location === 'string' && location.trim() && !hasStructuredLocation) {
     return location.trim();
   }
-  const locationObject = getLocationObject(property);
 
   const locationParts = [
     property?.address,
