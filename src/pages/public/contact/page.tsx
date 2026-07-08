@@ -99,8 +99,8 @@ export default function ContactPage() {
                                     <Phone className="text-green-500" size={24} />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Call Us</h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mon-Fri, 9am-6pm GMT</p>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">UK office phone</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">England support, Mon-Fri, 9am-6pm GMT</p>
                                     <a href="tel:+442012345678" className="text-orange-500 hover:underline text-sm">
                                         +44 20 1234 5678
                                     </a>
@@ -114,8 +114,8 @@ export default function ContactPage() {
                                     <MapPin className="text-blue-500" size={24} />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Visit Us</h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Our office location</p>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">UK office address</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">England regional office</p>
                                     <p className="text-sm text-gray-700 dark:text-gray-300">
                                         123 Property Street<br />
                                         London, EC1A 1BB<br />

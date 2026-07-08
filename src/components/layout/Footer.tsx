@@ -37,8 +37,11 @@ const Footer: React.FC = () => {
                                 <span className="text-xs uppercase tracking-[0.18em] text-orange-200/70">Property platform</span>
                             </div>
                         </div>
-                        <p className="mb-6 max-w-sm text-sm leading-relaxed text-gray-200">
-                            Premium property journeys for discovery, fast-track progression, contracts, and completion across India.
+                        <p className="mb-5 max-w-sm text-sm leading-relaxed text-gray-200">
+                            Premium property journeys for discovery, fast-track progression, contracts, and completion across India and England.
+                        </p>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-orange-200/80">
+                            India office
                         </p>
                         <div className="space-y-2 text-sm">
                             <div className="flex items-center gap-2">
