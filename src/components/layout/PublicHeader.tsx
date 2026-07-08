@@ -15,7 +15,8 @@ const logoIcon = '/logo-icon.png';
 
 const PublicHeader = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const pathname = useLocation().pathname;
+    const location = useLocation();
+    const pathname = location.pathname;
     const loginPath = getLoginPath();
     const registerPath = getAuthPath('/register');
 
@@ -29,12 +30,28 @@ const PublicHeader = () => {
 
     const isActive = (link: NavLink) => !link.external && pathname === link.href && link.href !== '/';
 
+    const resolveNavHref = (link: NavLink) => {
+        if (link.href === '/search' && pathname === '/search' && location.search) {
+            return `${link.href}${location.search}`;
+        }
+
+        return link.href;
+    };
+
     const navItemClass = (link: NavLink) =>
         `text-sm font-medium transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             isActive(link) ? 'text-primary' : 'text-gray-700 dark:text-gray-200'
         }`;
 
     const closeMenu = () => setIsMenuOpen(false);
+
+    const handleNavLinkClick = (event: React.MouseEvent<HTMLAnchorElement>, link: NavLink) => {
+        if (link.href === '/search' && pathname === '/search') {
+            event.preventDefault();
+        }
+
+        closeMenu();
+    };
 
     return (
         <header className="fixed left-0 right-0 top-0 z-50 bg-white shadow-md dark:bg-gray-900">
@@ -61,7 +78,7 @@ const PublicHeader = () => {
                                 {link.label}
                             </a>
                         ) : (
-                            <Link key={`${link.href}-${link.label}`} to={link.href} className={navItemClass(link)}>
+                            <Link key={`${link.href}-${link.label}`} to={resolveNavHref(link)} className={navItemClass(link)} onClick={(event) => handleNavLinkClick(event, link)}>
                                 {link.label}
                             </Link>
                         ),
@@ -113,11 +130,11 @@ const PublicHeader = () => {
                             ) : (
                                 <Link
                                     key={`${link.href}-${link.label}`}
-                                    to={link.href}
+                                    to={resolveNavHref(link)}
                                     className={`block rounded-lg px-3 py-3 text-sm font-medium transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-800 ${
                                         isActive(link) ? 'text-primary' : 'text-gray-700 dark:text-gray-200'
                                     }`}
-                                    onClick={closeMenu}
+                                    onClick={(event) => handleNavLinkClick(event, link)}
                                 >
                                     {link.label}
                                 </Link>
