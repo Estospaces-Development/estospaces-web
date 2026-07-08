@@ -62,9 +62,12 @@ test('user dashboard search uses the shared hero search type control', () => {
 test('user dashboard search passes active request location context into shared search copy', () => {
     assert.match(source, /locationContextCode\?: string \| null;/);
     assert.match(source, /countryContextName\?: string \| null;/);
-    assert.match(source, /locationCode: filters\.location \|\| locationContextCode \|\| user\?\.postcode/);
+    assert.match(source, /fallbackCountryName\?: string \| null;/);
+    assert.match(source, /const locationContext = filters\.location \|\| locationContextCode \|\| user\?\.postcode/);
+    assert.match(source, /countryName: countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
     assert.match(userDashboardSource, /locationContextCode=\{activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
+    assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
 });
 
 test('user dashboard hero search defaults to all sale and rental homes', () => {

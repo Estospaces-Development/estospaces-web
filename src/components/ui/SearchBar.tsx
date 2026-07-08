@@ -35,6 +35,7 @@ interface SearchBarProps {
     searchPath?: string;
     locationContextCode?: string | null;
     countryContextName?: string | null;
+    fallbackCountryName?: string | null;
 }
 
 const defaultFilters: SearchFilters = {
@@ -93,6 +94,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     searchPath = '/user/search',
     locationContextCode,
     countryContextName,
+    fallbackCountryName,
 }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -105,9 +107,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [propertyTypeMenuOpen, setPropertyTypeMenuOpen] = useState(false);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const usesDynamicFilters = variant !== 'compact';
+    const userCountrySignal = user?.country
+        || user?.countryCode
+        || user?.country_code
+        || user?.user_metadata?.country
+        || user?.user_metadata?.countryCode
+        || user?.user_metadata?.country_code;
+    const locationContext = filters.location || locationContextCode || user?.postcode;
     const geoMarket = useUserGeoMarket(user, {
-        countryName: countryContextName,
-        locationCode: filters.location || locationContextCode || user?.postcode,
+        countryName: countryContextName || (!locationContext && !userCountrySignal ? fallbackCountryName : undefined),
+        locationCode: locationContext,
     });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, filters.location);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();

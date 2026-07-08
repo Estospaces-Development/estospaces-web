@@ -40,6 +40,7 @@ import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
+import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
@@ -767,6 +768,7 @@ const DashboardClient = () => {
                         initialFilters={dashboardSearchFilters}
                         locationContextCode={activeBrokerRequest?.location_postcode || undefined}
                         countryContextName={activeJourney?.propertyCountry}
+                        fallbackCountryName={LAUNCH_COUNTRY_NAME}
                         className="w-full text-left"
                       />
 
