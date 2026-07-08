@@ -33,6 +33,8 @@ interface SearchBarProps {
     className?: string;
     navigateOnSearch?: boolean;
     searchPath?: string;
+    locationContextCode?: string | null;
+    countryContextName?: string | null;
 }
 
 const defaultFilters: SearchFilters = {
@@ -89,6 +91,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     className = '',
     navigateOnSearch = true,
     searchPath = '/user/search',
+    locationContextCode,
+    countryContextName,
 }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -101,7 +105,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [propertyTypeMenuOpen, setPropertyTypeMenuOpen] = useState(false);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const usesDynamicFilters = variant !== 'compact';
-    const geoMarket = useUserGeoMarket(user, { locationCode: filters.location || user?.postcode });
+    const geoMarket = useUserGeoMarket(user, {
+        countryName: countryContextName,
+        locationCode: filters.location || locationContextCode || user?.postcode,
+    });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, filters.location);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;

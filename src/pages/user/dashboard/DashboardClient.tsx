@@ -765,6 +765,8 @@ const DashboardClient = () => {
                         navigateOnSearch={false}
                         onSearch={handleDashboardSearch}
                         initialFilters={dashboardSearchFilters}
+                        locationContextCode={activeBrokerRequest?.location_postcode || undefined}
+                        countryContextName={activeJourney?.propertyCountry}
                         className="w-full text-left"
                       />
 
