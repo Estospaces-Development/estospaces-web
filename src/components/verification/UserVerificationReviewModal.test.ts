@@ -10,6 +10,10 @@ import {
     VERIFICATION_REASON_MIN_WORDS,
     canCompleteUserVerification,
     dedupeVerificationReviewDocuments,
+    formatVerificationConversationLastMessage,
+    formatVerificationConversationReference,
+    formatVerificationConversationSubtitle,
+    formatVerificationConversationTitle,
     formatVerificationLeadPropertyAddress,
     formatVerificationLeadPropertyLabel,
     formatVerificationLeadReference,
@@ -184,6 +188,29 @@ test('recent lead statuses render readable labels instead of backend enums', () 
     assert.doesNotMatch(source, />\{status\.replace\(\/_\/g, ' '\)\}<\/option>/);
 });
 
+test('admin verification review surfaces direct Contact Agent conversations', () => {
+    const conversation = {
+        id: '70b54418-9b70-41a6-a5f0-65bb7b0f5a8d',
+        property_title: 'Launch Apartment',
+        property_address: 'Chennai, 600001',
+        counterpart_name: 'Property Manager',
+        counterpart_email: 'manager@example.com',
+        counterpart_agency: 'Estospaces Launch Manager',
+        updated_at: '2026-07-08T07:30:00.000Z',
+        last_message: {
+            content: 'Inquiry regarding: Launch Apartment',
+        },
+    };
+
+    assert.equal(formatVerificationConversationTitle(conversation as any), 'Launch Apartment');
+    assert.equal(formatVerificationConversationSubtitle(conversation as any), 'Chennai, 600001');
+    assert.equal(formatVerificationConversationLastMessage(conversation as any), 'Inquiry regarding: Launch Apartment');
+    assert.equal(formatVerificationConversationReference(conversation as any), '70B54418');
+    assert.match(source, /getAdminUserDirectConversations\(userId, 5\)/);
+    assert.match(source, /Direct agent messages/);
+    assert.match(source, /No direct Contact Agent messages for this user\./);
+    assert.match(source, /formatVerificationConversationLastMessage\(conversation\)/);
+});
 test('recent lead rows prefer property context and compact references', () => {
     const lead = {
         id: '5fcd5515-9d55-463b-9a9c-415ed286311d',

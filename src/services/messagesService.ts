@@ -176,6 +176,13 @@ export async function getConversations(): Promise<Conversation[]> {
     });
 }
 
+export async function getAdminUserDirectConversations(userId: string, limit = 10): Promise<Conversation[]> {
+    const searchParams = new URLSearchParams({ limit: String(limit) });
+    return apiFetch<Conversation[]>(`${MESSAGING_URL()}/api/v1/admin/users/${encodeURIComponent(userId)}/direct-conversations?${searchParams.toString()}`, {
+        suppressErrorToast: true,
+    });
+}
+
 export async function getMessages(conversationId: string, page = 1, limit = 50): Promise<Message[]> {
     return apiFetch<Message[]>(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/messages?page=${page}&limit=${limit}`, {
         suppressErrorToast: true,
@@ -292,6 +299,7 @@ export async function openSupportAttachment(attachmentId: string): Promise<void>
 
 export const messagesService = {
     getConversations,
+    getAdminUserDirectConversations,
     getMessages,
     sendMessage,
     upsertDirectConversation,
