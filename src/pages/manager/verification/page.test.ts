@@ -18,3 +18,10 @@ test('manager verification opens previewable image documents inside the current 
     assert.match(source, /openDocumentAccessUrl\(document\.id\)/);
     assert.doesNotMatch(source, /handleOpenDocument\(doc\.id\)/);
 });
+
+test('manager verification lets uploaded documents be replaced from every review state', () => {
+    assert.match(source, /\['not_uploaded', 'pending', 'under_review', 'approved', 'rejected', 'reupload_required'\]\.includes\(status\)/);
+    assert.match(source, /hasDocument \? 'Replace File' : 'Upload File'/);
+    assert.match(source, /aria-label=\{`Upload \$\{step\.title\}`\}/);
+    assert.match(source, /void handleDocumentUpload\(step\.id, file\)/);
+});

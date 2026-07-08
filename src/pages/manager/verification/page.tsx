@@ -148,7 +148,7 @@ export default function VerificationPage() {
             return true;
         }
 
-        return status === 'not_uploaded' || status === 'rejected' || status === 'reupload_required';
+        return ['not_uploaded', 'pending', 'under_review', 'approved', 'rejected', 'reupload_required'].includes(status);
     };
 
     const getStatusColor = (status: string | null) => {
