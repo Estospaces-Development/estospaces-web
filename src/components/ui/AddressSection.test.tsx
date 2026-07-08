@@ -16,3 +16,14 @@ test("address section selects India or UK from the typed PIN or postcode", () =>
   assert.match(source, /countryCode: detectedCountry\.code/);
   assert.match(source, /postalCode: normalizeLaunchLocationCode\(value\.postalCode\)/);
 });
+
+test("address section uses country-aware state and region copy", () => {
+  assert.match(source, /stateLabel:\s*'State \/ Union Territory'/);
+  assert.match(source, /statePlaceholder:\s*'Select state \/ union territory'/);
+  assert.match(source, /cityFirstPlaceholder:\s*'Select state first'/);
+  assert.match(source, /stateLabel:\s*'Region'/);
+  assert.match(source, /statePlaceholder:\s*'Select region'/);
+  assert.match(source, /cityFirstPlaceholder:\s*'Select region first'/);
+  assert.match(source, /administrativeAreaCopy\.stateLabel/);
+  assert.match(source, /administrativeAreaCopy\.cityFirstPlaceholder/);
+});

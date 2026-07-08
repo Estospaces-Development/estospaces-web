@@ -15,7 +15,9 @@ import {
     getLaunchCountryFromLocationCode,
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
+    LAUNCH_COUNTRY_CODE,
     normalizeLaunchLocationCode,
+    UK_COUNTRY_CODE,
 } from '@/lib/launchLocale';
 
 export interface AddressFormData {
@@ -47,6 +49,38 @@ interface AddressSectionProps {
     initialCity?: string;
     fieldIdPrefix?: string;
 }
+
+const getAdministrativeAreaCopy = (countryCode?: string) => {
+    const normalizedCountryCode = countryCode?.toUpperCase();
+
+    if (normalizedCountryCode === LAUNCH_COUNTRY_CODE) {
+        return {
+            stateLabel: 'State / Union Territory',
+            statePlaceholder: 'Select state / union territory',
+            stateFirstPlaceholder: 'Select country first',
+            cityPlaceholder: 'Select City',
+            cityFirstPlaceholder: 'Select state first',
+        };
+    }
+
+    if (normalizedCountryCode === UK_COUNTRY_CODE) {
+        return {
+            stateLabel: 'Region',
+            statePlaceholder: 'Select region',
+            stateFirstPlaceholder: 'Select country first',
+            cityPlaceholder: 'Select City',
+            cityFirstPlaceholder: 'Select region first',
+        };
+    }
+
+    return {
+        stateLabel: 'Region',
+        statePlaceholder: 'Select region',
+        stateFirstPlaceholder: 'Select country first',
+        cityPlaceholder: 'Select City',
+        cityFirstPlaceholder: 'Select region first',
+    };
+};
 
 const AddressSection = ({
     value,
@@ -550,6 +584,11 @@ const AddressSection = ({
         value.postalCode,
     ), [value.countryCode, value.countryName, value.postalCode]);
 
+    const administrativeAreaCopy = useMemo(
+        () => getAdministrativeAreaCopy(value.countryCode),
+        [value.countryCode],
+    );
+
 
     // Render dropdown with loading and error states
     const renderSelect = (
@@ -674,7 +713,7 @@ const AddressSection = ({
                 {/* State */}
                 {renderSelect(
                     'state',
-                    'Region',
+                    administrativeAreaCopy.stateLabel,
                     value.stateId,
                     states,
                     handleStateChange,
@@ -682,7 +721,9 @@ const AddressSection = ({
                     isStateDisabled,
                     stateError,
                     retryStates,
-                    value.countryId ? 'Select Region' : 'Select Country first',
+                    value.countryId
+                        ? administrativeAreaCopy.statePlaceholder
+                        : administrativeAreaCopy.stateFirstPlaceholder,
                     errors.state
                 )}
 
@@ -697,7 +738,9 @@ const AddressSection = ({
                     isCityDisabled,
                     cityError,
                     retryCities,
-                    value.stateId ? 'Select City' : 'Select State first',
+                    value.stateId
+                        ? administrativeAreaCopy.cityPlaceholder
+                        : administrativeAreaCopy.cityFirstPlaceholder,
                     errors.city
                 )}
             </div>

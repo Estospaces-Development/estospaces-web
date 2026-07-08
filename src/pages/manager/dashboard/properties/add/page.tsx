@@ -2079,6 +2079,9 @@ export default function AddPropertyPage() {
   const mediaSourceEntityId = draftMediaEntityIdRef.current;
   const mediaTargetEntityId = idValue || "Created property after save";
   const displayCurrency = getCurrencySymbol(formData.currency);
+  const coordinatePlaceholder = formData.countryCode === UK_COUNTRY_CODE
+    ? { latitude: "e.g. 51.5074", longitude: "e.g. -0.1278" }
+    : { latitude: "e.g. 13.0827", longitude: "e.g. 80.2707" };
   const canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
   const selectedStagedUploadCount = [
     ...formData.images,
@@ -2627,7 +2630,7 @@ export default function AddPropertyPage() {
                     handleInputChange("latitude", e.target.value)
                   }
                   className={getFieldClassName("latitude")}
-                  placeholder="e.g. 13.0827"
+                  placeholder={coordinatePlaceholder.latitude}
                 />
                 {renderFieldError("latitude")}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2651,7 +2654,7 @@ export default function AddPropertyPage() {
                     handleInputChange("longitude", e.target.value)
                   }
                   className={getFieldClassName("longitude")}
-                  placeholder="e.g. 80.2707"
+                  placeholder={coordinatePlaceholder.longitude}
                 />
                 {renderFieldError("longitude")}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

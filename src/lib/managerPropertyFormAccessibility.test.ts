@@ -185,3 +185,13 @@ test('manager property money fields display the selected currency symbol', () =>
   assert.match(managerPropertyFormPage, /Security Deposit \(\{displayCurrency\}\)/);
   assert.match(managerPropertyFormPage, /Maintenance Charges \(\{displayCurrency\}\/month\)/);
 });
+
+test('manager property location coordinate examples follow the selected country', () => {
+  assert.match(managerPropertyFormPage, /formData\.countryCode === UK_COUNTRY_CODE/);
+  assert.match(managerPropertyFormPage, /latitude:\s*"e\.g\. 51\.5074"/);
+  assert.match(managerPropertyFormPage, /longitude:\s*"e\.g\. -0\.1278"/);
+  assert.match(managerPropertyFormPage, /latitude:\s*"e\.g\. 13\.0827"/);
+  assert.match(managerPropertyFormPage, /longitude:\s*"e\.g\. 80\.2707"/);
+  assert.match(managerPropertyFormPage, /placeholder=\{coordinatePlaceholder\.latitude\}/);
+  assert.match(managerPropertyFormPage, /placeholder=\{coordinatePlaceholder\.longitude\}/);
+});
