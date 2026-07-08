@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash, Trash2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { normalizeManagerServiceAreas } from '@/services/managerVerificationService';
@@ -31,6 +31,18 @@ const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
     return raw ? formatLaunchPropertyLocation(raw) : '';
 };
 
+function RequiredFieldLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <>
+            {children}
+            <span className="ml-1 text-red-600 dark:text-red-400" aria-hidden="true">*</span>
+            <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                Required
+            </span>
+        </>
+    );
+}
+
 export default function ManagerProfilePage() {
     const { user, refreshUser, mergeCurrentUserProfile } = useAuth();
     const {
@@ -48,6 +60,7 @@ export default function ManagerProfilePage() {
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [removingAvatar, setRemovingAvatar] = useState(false);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +126,7 @@ export default function ManagerProfilePage() {
         setProfileImagePreview(existingAvatar);
         setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
+        setRemovingAvatar(false);
     }, [user, managerProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -166,6 +180,7 @@ export default function ManagerProfilePage() {
         setUploadingImage(true);
         setSaveError('');
         setIsSaved(false);
+        setRemovingAvatar(false);
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -181,10 +196,46 @@ export default function ManagerProfilePage() {
     };
 
     const openAvatarPicker = () => {
-        if (uploadingImage) {
+        if (uploadingImage || removingAvatar) {
             return;
         }
         avatarInputRef.current?.click();
+    };
+
+    const handleRemoveAvatar = async () => {
+        if (uploadingImage || removingAvatar || !(profileImagePreview || storedAvatarValue || selectedAvatarFile)) {
+            return;
+        }
+
+        const confirmed = window.confirm('Remove your profile photo and restore the default avatar?');
+        if (!confirmed) {
+            return;
+        }
+
+        setRemovingAvatar(true);
+        setSaveError('');
+        setIsSaved(false);
+
+        try {
+            const { data, error } = await userService.updateProfile({ avatar: '' });
+            if (error) {
+                throw new Error(error);
+            }
+
+            mergeCurrentUserProfile({ ...(data || {}), avatar: '', avatar_url: '' });
+            setProfileImagePreview(null);
+            setStoredAvatarValue(null);
+            setSelectedAvatarFile(null);
+            setIsSaved(true);
+            setTimeout(() => {
+                void refreshUser();
+            }, 0);
+            setTimeout(() => setIsSaved(false), 3000);
+        } catch (err) {
+            setSaveError((err as Error).message || 'Failed to remove your profile photo.');
+        } finally {
+            setRemovingAvatar(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -302,8 +353,23 @@ export default function ManagerProfilePage() {
 
     const inputClass = "w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
     const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
+    const missingRequiredFields = [
+        !formData.firstName.trim() ? 'First name' : '',
+        !formData.lastName.trim() ? 'Last name' : '',
+        !formData.licenseNumber.trim() ? (managerProfile?.profile_type === 'company' ? 'Company registration number' : 'Broker license number') : '',
+    ].filter(Boolean);
+    const saveDisabledReason = missingRequiredFields.length > 0
+        ? `Complete required fields: ${missingRequiredFields.join(', ')}.`
+        : uploadingImage
+            ? 'Wait for the selected profile photo to finish preparing.'
+            : removingAvatar
+                ? 'Profile photo removal is being saved.'
+                : '';
+    const requiredHelpId = saveDisabledReason ? 'manager-profile-required-help' : undefined;
+    const getRequiredDescribedBy = (errorId?: string) => [errorId, requiredHelpId].filter(Boolean).join(' ') || undefined;
     const saveDisabled = isLoading
         || uploadingImage
+        || removingAvatar
         || !formData.firstName.trim()
         || !formData.lastName.trim()
         || !formData.licenseNumber.trim();
@@ -328,7 +394,7 @@ export default function ManagerProfilePage() {
                             <button
                                 type="button"
                                 onClick={openAvatarPicker}
-                                disabled={uploadingImage}
+                                disabled={uploadingImage || removingAvatar}
                                 className="group relative rounded-full focus:outline-none focus:ring-4 focus:ring-orange-200 dark:focus:ring-orange-900/40 disabled:cursor-wait"
                                 aria-label="Upload manager profile picture"
                             >
@@ -344,7 +410,7 @@ export default function ManagerProfilePage() {
                                             {(formData.firstName[0] || 'M')}{(formData.lastName[0] || 'P')}
                                         </span>
                                     )}
-                                    {uploadingImage && (
+                                    {(uploadingImage || removingAvatar) && (
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/45">
                                             <Loader2 className="h-7 w-7 animate-spin text-white" />
                                         </div>
@@ -357,12 +423,24 @@ export default function ManagerProfilePage() {
                             <button
                                 type="button"
                                 onClick={openAvatarPicker}
-                                disabled={uploadingImage}
+                                disabled={uploadingImage || removingAvatar}
                                 className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-70 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
                             >
-                                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={16} />}
-                                {uploadingImage ? 'Preparing image...' : 'Upload profile photo'}
+                                {uploadingImage || removingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={16} />}
+                                {uploadingImage ? 'Preparing image...' : removingAvatar ? 'Removing photo...' : 'Upload profile photo'}
                             </button>
+                            {(profileImagePreview || storedAvatarValue || selectedAvatarFile) && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveAvatar}
+                                    disabled={uploadingImage || removingAvatar || isLoading}
+                                    className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-wait disabled:opacity-70 dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                                    aria-label="Remove manager profile photo"
+                                >
+                                    {removingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
+                                    {removingAvatar ? 'Removing photo...' : 'Remove photo'}
+                                </button>
+                            )}
                             <input
                                 id="manager-avatar-upload"
                                 type="file"
@@ -444,12 +522,14 @@ export default function ManagerProfilePage() {
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="manager-first-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
+                                    <label htmlFor="manager-first-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                        <RequiredFieldLabel>First Name</RequiredFieldLabel>
+                                    </label>
                                     <input id="manager-first-name" type="text" name="firstName" value={formData.firstName} onChange={handleChange}
                                         required
                                         maxLength={80}
                                         aria-invalid={fieldErrors.firstName ? 'true' : 'false'}
-                                        aria-describedby={fieldErrors.firstName ? 'manager-first-name-error' : undefined}
+                                        aria-describedby={getRequiredDescribedBy(fieldErrors.firstName ? 'manager-first-name-error' : undefined)}
                                         className={inputClass} />
                                     {fieldErrors.firstName && (
                                         <p id="manager-first-name-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
@@ -458,12 +538,14 @@ export default function ManagerProfilePage() {
                                     )}
                                 </div>
                                 <div>
-                                    <label htmlFor="manager-last-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
+                                    <label htmlFor="manager-last-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                        <RequiredFieldLabel>Last Name</RequiredFieldLabel>
+                                    </label>
                                     <input id="manager-last-name" type="text" name="lastName" value={formData.lastName} onChange={handleChange}
                                         required
                                         maxLength={80}
                                         aria-invalid={fieldErrors.lastName ? 'true' : 'false'}
-                                        aria-describedby={fieldErrors.lastName ? 'manager-last-name-error' : undefined}
+                                        aria-describedby={getRequiredDescribedBy(fieldErrors.lastName ? 'manager-last-name-error' : undefined)}
                                         className={inputClass} />
                                     {fieldErrors.lastName && (
                                         <p id="manager-last-name-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
@@ -552,14 +634,16 @@ export default function ManagerProfilePage() {
                                             className={inputClass} />
                                     </div>
                                     <div>
-                                        <label htmlFor="manager-license-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License / Reg Number</label>
+                                        <label htmlFor="manager-license-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                            <RequiredFieldLabel>License / Reg Number</RequiredFieldLabel>
+                                        </label>
                                         <input id="manager-license-number" type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
                                             required
                                             maxLength={MANAGER_LICENSE_MAX_LENGTH}
                                             pattern={MANAGER_LICENSE_PATTERN}
                                             placeholder="REG123456"
                                             aria-invalid={fieldErrors.licenseNumber ? 'true' : 'false'}
-                                            aria-describedby={fieldErrors.licenseNumber ? 'manager-license-number-error' : undefined}
+                                            aria-describedby={getRequiredDescribedBy(fieldErrors.licenseNumber ? 'manager-license-number-error' : undefined)}
                                             className={inputClass} />
                                         {fieldErrors.licenseNumber && (
                                             <p id="manager-license-number-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
@@ -668,6 +752,13 @@ export default function ManagerProfilePage() {
                             </div>
                         )}
 
+                        {saveDisabledReason && (
+                            <div id="manager-profile-required-help" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                <span>{saveDisabledReason}</span>
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                             {isSaved && (
                                 <span className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
@@ -675,7 +766,7 @@ export default function ManagerProfilePage() {
                                     Profile Updated
                                 </span>
                             )}
-                            <button type="submit" disabled={saveDisabled}
+                            <button type="submit" disabled={saveDisabled} aria-describedby={requiredHelpId}
                                 className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors shadow-sm">
                                 {isLoading ? (
                                     <><Loader2 size={18} className="animate-spin" /> Saving...</>
