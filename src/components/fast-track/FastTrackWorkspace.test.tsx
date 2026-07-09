@@ -358,6 +358,21 @@ test("fast-track filter selection resolves from visible filtered cases", () => {
   assert.doesNotMatch(source, /resolveFastTrackSelectionCaseId\(cases, selectionParamsForResolution, selectedCaseId\)/);
 });
 
+test("fast-track notification deep links load the requested case before stale-link recovery", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const \[requestedCaseLookup, setRequestedCaseLookup\]/);
+  assert.match(source, /getFastTrackCaseById\(normalizedRequestedCaseParam, \{ suppressErrorToast: true \}\)/);
+  assert.match(source, /pendingSelectedCaseIdRef\.current = result\.data\.caseId/);
+  assert.match(source, /setCases\(\(previous\) => sortFastTrackWorkspaceCases\(\[/);
+  assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'miss' \}\)/);
+  assert.match(source, /&& requestedCaseLookupMissed/);
+  assert.ok(
+    source.indexOf("getFastTrackCaseById(normalizedRequestedCaseParam") <
+      source.indexOf("setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' })"),
+  );
+});
+
 test("compact case rail drawer sits above manager chrome without blurring the workspace", () => {
   const source = workspaceSource();
 

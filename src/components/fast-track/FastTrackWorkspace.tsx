@@ -531,6 +531,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     } | null>(null);
     const [selectedPropertyCountryLoading, setSelectedPropertyCountryLoading] = useState(false);
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
+    const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
+        caseId: string;
+        status: 'loading' | 'miss';
+    } | null>(null);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
         () => defaultFastTrackWorkspacePreferences(role),
     );
@@ -795,11 +799,75 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         ),
         [cases, requestedCaseParam],
     );
-    const hasInvalidRequestedCase = Boolean(requestedCaseParam && !loading && !requestedCaseIsAvailable);
+    const normalizedRequestedCaseParam = String(requestedCaseParam || '').trim();
+    const requestedCaseLookupPending = Boolean(
+        normalizedRequestedCaseParam
+        && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
+        && requestedCaseLookup.status === 'loading',
+    );
+    const requestedCaseLookupMissed = Boolean(
+        normalizedRequestedCaseParam
+        && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
+        && requestedCaseLookup.status === 'miss',
+    );
+    const hasInvalidRequestedCase = Boolean(
+        requestedCaseParam
+        && !loading
+        && !requestedCaseIsAvailable
+        && requestedCaseLookupMissed,
+    );
     const selectionParamsForResolution = useMemo(
         () => (hasInvalidRequestedCase ? stripCaseSearchParam(selectionParams) : selectionParams),
         [hasInvalidRequestedCase, selectionParams],
     );
+
+    useEffect(() => {
+        if (
+            !normalizedRequestedCaseParam
+            || loading
+            || requestedCaseIsAvailable
+            || requestedCaseLookupPending
+            || requestedCaseLookupMissed
+        ) {
+            return undefined;
+        }
+
+        let cancelled = false;
+        setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'loading' });
+
+        const loadRequestedCase = async () => {
+            const result = await getFastTrackCaseById(normalizedRequestedCaseParam, { suppressErrorToast: true });
+            if (cancelled) {
+                return;
+            }
+
+            if (result.data) {
+                setRecoveredCaseLink(null);
+                pendingSelectedCaseIdRef.current = result.data.caseId;
+                setCases((previous) => sortFastTrackWorkspaceCases([
+                    result.data as FastTrackCase,
+                    ...previous.filter((item) => item.caseId !== result.data?.caseId),
+                ]));
+                setSelectedCaseId(result.data.caseId);
+                setRequestedCaseLookup(null);
+                return;
+            }
+
+            setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' });
+        };
+
+        void loadRequestedCase();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        loading,
+        normalizedRequestedCaseParam,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+        requestedCaseLookupPending,
+    ]);
 
     useEffect(() => {
         if (!requestedCaseParam || loading) {
