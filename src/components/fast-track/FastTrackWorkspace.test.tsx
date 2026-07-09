@@ -367,6 +367,10 @@ test("fast-track notification deep links load the requested case before stale-li
   assert.match(source, /setCases\(\(previous\) => sortFastTrackWorkspaceCases\(\[/);
   assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'miss' \}\)/);
   assert.match(source, /&& requestedCaseLookupMissed/);
+  assert.match(source, /const recoveredCase = cases\.find\(\(item\) => \(/);
+  assert.match(source, /item\.caseId\.trim\(\)\.toLowerCase\(\) === recoveredCaseLink\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(source, /setRecoveredCaseLink\(null\);\s*pendingSelectedCaseIdRef\.current = recoveredCase\.caseId;/);
+  assert.match(source, /buildFastTrackSelectionSearchParams\(previous, recoveredCase\.caseId\)/);
   assert.ok(
     source.indexOf("getFastTrackCaseById(normalizedRequestedCaseParam") <
       source.indexOf("setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' })"),

@@ -893,6 +893,27 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const recoveredCase = cases.find((item) => (
+            item.caseId.trim().toLowerCase() === recoveredCaseLink.trim().toLowerCase()
+        ));
+        if (!recoveredCase) {
+            return;
+        }
+
+        setRecoveredCaseLink(null);
+        pendingSelectedCaseIdRef.current = recoveredCase.caseId;
+        setSelectedCaseId(recoveredCase.caseId);
+        setSearchParams(
+            (previous) => buildFastTrackSelectionSearchParams(previous, recoveredCase.caseId),
+            { replace: true },
+        );
+    }, [cases, recoveredCaseLink, setSearchParams]);
+
+    useEffect(() => {
+        if (!recoveredCaseLink) {
+            return;
+        }
+
         const frame = window.requestAnimationFrame(() => {
             recoveredCaseNoticeRef.current?.focus();
         });
