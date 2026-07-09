@@ -9,6 +9,7 @@ import {
   buildPropertyFastTrackStartRequest,
   buildPropertyFastTrackDashboardPath,
   buildPropertyHeroSummary,
+  buildPropertySnapshotNarrative,
   formatPropertyDetailCurrency,
   getPropertyDetailLocationLabel,
   getPropertyBrokerRequestQuery,
@@ -102,6 +103,20 @@ test("property detail hero summary uses real listing data instead of gallery gui
   assert.match(describedSummary, /house in Guwahati, India/);
   assert.match(describedSummary, /3 bedrooms and 2 bathrooms/);
   assert.match(describedSummary, /Bright home near the riverside\./);
+
+  const snapshotNarrative = buildPropertySnapshotNarrative({
+    property_type: "house",
+    listing_type: "sale",
+    condition: "well_maintained",
+    furnishing: "unfurnished",
+  } as any, "\u00a3700,000", "11 Apr 2026", "On request");
+
+  assert.match(snapshotNarrative, /sale house/);
+  assert.match(snapshotNarrative, /\u00a3700,000/);
+  assert.match(snapshotNarrative, /Availability is 11 Apr 2026/);
+  assert.match(snapshotNarrative, /Deposit is available on request/);
+  assert.doesNotMatch(propertyDetailSource, /The page keeps the gallery, decision data, and booking actions/);
+  assert.doesNotMatch(snapshotNarrative, /users|natural reading flow|engaged longer|act sooner/i);
 });
 
 test("property detail accepts broker request ids from dashboard and property links", () => {

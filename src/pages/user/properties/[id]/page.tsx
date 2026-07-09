@@ -539,6 +539,24 @@ export function buildPropertyHeroSummary(property: Property | null | undefined, 
     ].filter(Boolean).join(' ');
 }
 
+export function buildPropertySnapshotNarrative(
+    property: Property | null | undefined,
+    priceLabel: string,
+    availabilityLabel: string,
+    depositLabel: string,
+) {
+    const propertyType = property?.property_type ? formatDetailLabel(property.property_type).toLowerCase() : 'property';
+    const listingLabel = property?.listing_type ? formatDetailLabel(property.listing_type).toLowerCase() : 'listing';
+    const conditionLabel = property?.condition ? formatDetailLabel(property.condition).toLowerCase() : 'well maintained';
+    const depositText = depositLabel !== 'On request' ? `Deposit is ${depositLabel}.` : 'Deposit is available on request.';
+
+    return [
+        `This ${listingLabel} ${propertyType} is listed at ${priceLabel} and is ${conditionLabel}.`,
+        `Availability is ${availabilityLabel}.`,
+        depositText,
+    ].filter(Boolean).join(' ');
+}
+
 const formatLeadStage = (value?: string) => {
     if (!value) {
         return 'Matching nearby brokers';
@@ -1122,6 +1140,13 @@ const UserPropertyDetail = () => {
 
         return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }, [property?.available_from]);
+    const depositLabel = typeof property?.deposit_amount === 'number' && property.deposit_amount > 0
+        ? formatPropertyCurrency(property.deposit_amount)
+        : 'On request';
+    const propertySnapshotNarrative = useMemo(
+        () => buildPropertySnapshotNarrative(property, priceLabel, availableFromLabel, depositLabel),
+        [availableFromLabel, depositLabel, priceLabel, property],
+    );
     const highlightTags = useMemo(() => {
         const merged = [
             ...normalizeListValue(property?.features),
@@ -1162,8 +1187,8 @@ const UserPropertyDetail = () => {
         { label: 'Market', value: listingLabel },
         { label: 'Condition', value: conditionLabel },
         { label: 'Availability', value: availableFromLabel },
-        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },
-    ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
+        { label: 'Deposit', value: depositLabel },
+    ], [availableFromLabel, conditionLabel, depositLabel, listingLabel]);
     const hasActiveFastTrackJourney = isActiveFastTrackCase(activeFastTrackCase);
     const fastTrackSidebarActionLabel = hasActiveFastTrackJourney ? 'Continue 24-hour journey' : '24-hour fast track';
     const fastTrackPrimaryActionLabel = hasActiveFastTrackJourney ? 'Continue 24-Hour Fast Track' : 'Start 24-Hour Fast Track';
@@ -2516,7 +2541,7 @@ const UserPropertyDetail = () => {
                                 ))}
                             </div>
                             <div className="mt-6 rounded-[1.5rem] border border-orange-100 bg-white p-4 text-sm leading-6 text-gray-600 shadow-sm dark:border-orange-900/30 dark:bg-zinc-950 dark:text-gray-300">
-                                The page keeps the gallery, decision data, and booking actions in a natural reading flow, which helps users stay engaged longer and act sooner.
+                                {propertySnapshotNarrative}
                             </div>
                         </section>
                     </div>
