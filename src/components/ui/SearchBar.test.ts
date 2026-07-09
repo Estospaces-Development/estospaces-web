@@ -67,6 +67,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(source, /const countryNameContext = countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
     assert.match(source, /const searchMarket = getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
     assert.match(source, /const locationCodeLabel = getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
+    assert.match(source, /const sentenceLocationCodeLabel = locationCodeLabel === 'PIN code' \? locationCodeLabel : lowerLocationCodeLabel/);
     assert.match(source, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
     assert.match(userDashboardSource, /locationContextCode=\{brokerRequestLocationContext \|\| activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
@@ -77,7 +78,7 @@ test('user dashboard search passes active request location context into shared s
 test('dashboard search lets a typed or active PIN code override stale country text', () => {
     assert.match(source, /getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*getSupportedLaunchCountry\(undefined, countryNameContext\)/);
     assert.doesNotMatch(source, /getSupportedLaunchCountry\(undefined, countryNameContext, locationContext\)/);
-    assert.match(source, /placeholder=\{`City or \$\{lowerLocationCodeLabel\}\.\.\.`\}/);
+    assert.match(source, /placeholder=\{`City or \$\{sentenceLocationCodeLabel\}\.\.\.`\}/);
 });
 
 test('user dashboard hero search defaults to all sale and rental homes', () => {
