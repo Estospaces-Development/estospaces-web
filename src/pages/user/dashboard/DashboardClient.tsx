@@ -235,6 +235,7 @@ const DashboardClient = () => {
   const [showFastTrackCelebration, setShowFastTrackCelebration] = useState(false);
   const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
   const [activeBrokerRequest, setActiveBrokerRequest] = useState<BrokerRequestRecord | null>(null);
+  const [brokerRequestLocationContext, setBrokerRequestLocationContext] = useState<string | null>(null);
   const [activeJourney, setActiveJourney] = useState<FastTrackCase | null>(null);
   const [completedJourney, setCompletedJourney] = useState<FastTrackCase | null>(null);
   const [journeySummaryLoading, setJourneySummaryLoading] = useState(true);
@@ -626,6 +627,10 @@ const DashboardClient = () => {
     setLocationMessage(null);
   }, []);
 
+  const handleBrokerRequestLocationContextChange = useCallback((locationCode: string | null) => {
+    setBrokerRequestLocationContext(locationCode?.trim() || null);
+  }, []);
+
   const clearDashboardSearchParams = useCallback(() => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
@@ -766,7 +771,7 @@ const DashboardClient = () => {
                         navigateOnSearch={false}
                         onSearch={handleDashboardSearch}
                         initialFilters={dashboardSearchFilters}
-                        locationContextCode={activeBrokerRequest?.location_postcode || undefined}
+                        locationContextCode={brokerRequestLocationContext || activeBrokerRequest?.location_postcode || undefined}
                         countryContextName={activeJourney?.propertyCountry}
                         fallbackCountryName={LAUNCH_COUNTRY_NAME}
                         className="w-full text-left"
@@ -913,7 +918,7 @@ const DashboardClient = () => {
               }`}
             >
               <Suspense fallback={<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />}>
-                <BrokerRequestWidget />
+                <BrokerRequestWidget onLocationContextChange={handleBrokerRequestLocationContextChange} />
               </Suspense>
             </div>
             <div>

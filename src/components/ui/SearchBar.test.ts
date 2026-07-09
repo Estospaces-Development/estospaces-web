@@ -68,9 +68,10 @@ test('user dashboard search passes active request location context into shared s
     assert.match(source, /const searchMarket = getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
     assert.match(source, /const locationCodeLabel = getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
     assert.match(source, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
-    assert.match(userDashboardSource, /locationContextCode=\{activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
+    assert.match(userDashboardSource, /locationContextCode=\{brokerRequestLocationContext \|\| activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
+    assert.match(userDashboardSource, /<BrokerRequestWidget onLocationContextChange=\{handleBrokerRequestLocationContextChange\} \/>/);
 });
 
 test('dashboard search lets a typed or active PIN code override stale country text', () => {

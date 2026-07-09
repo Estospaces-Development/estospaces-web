@@ -261,7 +261,11 @@ const hasBrokerRequestDraft = ({
     || fastTrackEnabled !== true
 );
 
-const BrokerRequestWidget = () => {
+interface BrokerRequestWidgetProps {
+    onLocationContextChange?: (locationCode: string | null) => void;
+}
+
+const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetProps = {}) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
@@ -400,6 +404,10 @@ const BrokerRequestWidget = () => {
     useEffect(() => {
         void loadActiveRequest();
     }, [loadActiveRequest]);
+
+    useEffect(() => {
+        onLocationContextChange?.(activeRequest?.location_postcode || locationPostcode || null);
+    }, [activeRequest?.location_postcode, locationPostcode, onLocationContextChange]);
 
     useEffect(() => {
         const trimmedPostcode = normalizePostcode(locationPostcode);
