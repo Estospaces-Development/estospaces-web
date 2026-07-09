@@ -52,6 +52,23 @@ const dashboardFilterOptions = [
   { id: 'budget_friendly', label: 'Budget Friendly' },
 ];
 
+const dashboardSearchParamKeys = [
+  'page',
+  'filter',
+  'type',
+  'status',
+  'q',
+  'keyword',
+  'location',
+  'propertyType',
+  'minPrice',
+  'maxPrice',
+  'beds',
+  'baths',
+  'minBedrooms',
+  'minBathrooms',
+];
+
 const defaultDashboardSearchFilters: DashboardSearchFilters = {
   keyword: '',
   location: '',
@@ -606,22 +623,7 @@ const DashboardClient = () => {
     );
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
-      [
-        'page',
-        'filter',
-        'type',
-        'status',
-        'q',
-        'keyword',
-        'location',
-        'propertyType',
-        'minPrice',
-        'maxPrice',
-        'beds',
-        'baths',
-        'minBedrooms',
-        'minBathrooms',
-      ].forEach((key) => next.delete(key));
+      dashboardSearchParamKeys.forEach((key) => next.delete(key));
 
       buildDiscoverParams(nextDashboardType, selectedFilters, nextFilters).forEach((value, key) => {
         next.set(key, value);
@@ -658,7 +660,12 @@ const DashboardClient = () => {
     setShowFilteredResults(false);
     setError(null);
     setLocationMessage(null);
-  }, []);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      dashboardSearchParamKeys.forEach((key) => next.delete(key));
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const handleBrokerRequestLocationContextChange = useCallback((locationCode: string | null) => {
     setBrokerRequestLocationContext(locationCode?.trim() || null);
@@ -668,20 +675,7 @@ const DashboardClient = () => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       next.delete('reset');
-      next.delete('page');
-      next.delete('filter');
-      next.delete('type');
-      next.delete('status');
-      next.delete('q');
-      next.delete('keyword');
-      next.delete('location');
-      next.delete('propertyType');
-      next.delete('minPrice');
-      next.delete('maxPrice');
-      next.delete('beds');
-      next.delete('baths');
-      next.delete('minBedrooms');
-      next.delete('minBathrooms');
+      dashboardSearchParamKeys.forEach((key) => next.delete(key));
       return next;
     }, { replace: true });
   }, [setSearchParams]);

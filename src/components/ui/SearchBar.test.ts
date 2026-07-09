@@ -91,10 +91,17 @@ test('user dashboard hero search defaults to all sale and rental homes', () => {
 });
 
 test('user dashboard search keeps submitted filters in dashboard URL params', () => {
+    assert.match(userDashboardSource, /const dashboardSearchParamKeys = \[[\s\S]*'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
     assert.match(userDashboardSource, /const nextDashboardType = nextFilters\.listingType === 'rent'[\s\S]*selectedPropertyType;/);
     assert.match(userDashboardSource, /setSearchParams\(\(previous\) => \{/);
-    assert.match(userDashboardSource, /'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
+    assert.match(userDashboardSource, /dashboardSearchParamKeys\.forEach\(\(key\) => next\.delete\(key\)\);/);
     assert.match(userDashboardSource, /buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\)\.forEach\(\(value, key\) => \{/);
     assert.match(userDashboardSource, /next\.set\(key, value\);/);
     assert.match(userDashboardSource, /\}, \{ replace: true \}\);/);
+});
+
+test('user dashboard clear search removes stale dashboard URL filters', () => {
+    assert.match(userDashboardSource, /const clearFilteredResults = useCallback\(\(\) => \{[\s\S]*setShowFilteredResults\(false\);[\s\S]*setSearchParams\(\(previous\) => \{/);
+    assert.match(userDashboardSource, /const next = new URLSearchParams\(previous\);[\s\S]*dashboardSearchParamKeys\.forEach\(\(key\) => next\.delete\(key\)\);[\s\S]*return next;/);
+    assert.match(userDashboardSource, /\}, \{ replace: true \}\);[\s\S]*\}, \[setSearchParams\]\);/);
 });
