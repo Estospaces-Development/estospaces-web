@@ -125,6 +125,7 @@ const PropertySearch = () => {
     });
     const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
     const geoMarket = market || inferredGeoMarket || fallbackGeoMarket;
+    const searchCountry = market || geoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
     const sentenceLocationCodeLabel = formatLaunchLocationCodeSentenceLabel(locationCodeLabel);
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
@@ -167,7 +168,7 @@ const PropertySearch = () => {
 
     const buildBroaderSearchAttempts = useCallback(() => {
         const baseFilters = {
-            country: market || undefined,
+            country: searchCountry || undefined,
             propertyType: propertyType || undefined,
             listingType: listingType || undefined,
             minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
@@ -198,7 +199,7 @@ const PropertySearch = () => {
         }
 
         return attempts;
-    }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
+    }, [baths, bedrooms, listingType, location, maxPrice, minPrice, propertyType, searchCountry, sortBy]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -326,7 +327,7 @@ const PropertySearch = () => {
                 query,
                 {
                     location: location || undefined,
-                    country: market || undefined,
+                    country: searchCountry || undefined,
                     propertyType: propertyType || undefined,
                     minPrice: minPrice ? parseInt(minPrice) : undefined,
                     maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
@@ -384,7 +385,7 @@ const PropertySearch = () => {
                 setHasLoadedSearch(true);
             }
         }
-    }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
+    }, [query, location, searchCountry, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Refetch when search dependencies change (debounced)
     useEffect(() => {

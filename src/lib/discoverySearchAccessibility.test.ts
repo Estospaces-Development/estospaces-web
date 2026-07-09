@@ -68,6 +68,12 @@ test("user search keeps settled results stable while refreshed requests are in f
   assert.doesNotMatch(searchPage, /\{loading \? \(/);
 });
 
+test("user search preserves country context during broader fallback searches", () => {
+  assert.match(searchPage, /const searchCountry = market \|\| geoMarket/);
+  assert.match(searchPage, /country: searchCountry \|\| undefined/);
+  assert.doesNotMatch(searchPage, /country: market \|\| undefined/);
+});
+
 test("property detail action and gallery controls expose stable button state", () => {
   assert.match(propertyDetailPage, /aria-pressed=\{index === selectedImageIndex\}/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?onClick=\{handleBackNavigation\}/);
