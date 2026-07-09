@@ -1864,7 +1864,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [ensureDocumentPreview]);
 
     const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' });
+        await ensureDocumentPreview(item, { openInSameTab: true, busyAction: 'open' });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
