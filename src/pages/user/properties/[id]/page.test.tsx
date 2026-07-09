@@ -115,6 +115,7 @@ test("property detail hero summary uses real listing data instead of gallery gui
   assert.match(snapshotNarrative, /\u00a3700,000/);
   assert.match(snapshotNarrative, /Availability is 11 Apr 2026/);
   assert.match(snapshotNarrative, /Deposit is available on request/);
+  assert.doesNotMatch(propertyDetailSource, /users can move from interest to action/);
   assert.doesNotMatch(propertyDetailSource, /The page keeps the gallery, decision data, and booking actions/);
   assert.doesNotMatch(snapshotNarrative, /users|natural reading flow|engaged longer|act sooner/i);
 });

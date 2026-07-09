@@ -1147,6 +1147,7 @@ const UserPropertyDetail = () => {
         () => buildPropertySnapshotNarrative(property, priceLabel, availableFromLabel, depositLabel),
         [availableFromLabel, depositLabel, priceLabel, property],
     );
+    const propertySnapshotIntro = `${priceLabel} guide price, ${conditionLabel.toLowerCase()} condition, and ${availableFromLabel.toLowerCase()} availability are recorded for this ${listingLabel.toLowerCase()} listing.`;
     const highlightTags = useMemo(() => {
         const merged = [
             ...normalizeListValue(property?.features),
@@ -2527,7 +2528,7 @@ const UserPropertyDetail = () => {
                                 Everything important is visible at a glance.
                             </h3>
                             <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                Pricing, condition, availability, and booking readiness are grouped together so users can move from interest to action without friction.
+                                {propertySnapshotIntro}
                             </p>
                             <div className="mt-6 grid gap-3 sm:grid-cols-2">
                                 {snapshotDetails.map((item) => (
