@@ -32,6 +32,7 @@ import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { getApplicationPropertyDisplayTitle } from '@/lib/applicationDisplayTitle';
 
 type PropertyContext = {
     title?: string;
@@ -405,6 +406,8 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
         status: application.status,
         liveStage: application.liveStage,
     });
+    const propertyAddress = application.property_address || 'Address unavailable';
+    const propertyTitle = getApplicationPropertyDisplayTitle(application.property_title, propertyAddress, 'Property');
 
     return {
         id: application.id,
@@ -420,8 +423,8 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
         status: deriveStatusFromViewing(application, relatedViewing),
         createdAt: application.created_at,
         updatedAt: application.updated_at,
-        propertyTitle: application.property_title || 'Property',
-        propertyAddress: application.property_address || 'Address unavailable',
+        propertyTitle,
+        propertyAddress,
         propertyImage: toImageUrl(application.property_image),
         propertyPrice: application.property_price,
         propertyCountry: application.property_country,
@@ -457,6 +460,8 @@ const mapSaleProgression = (
 ): Application => {
     const status = mapSaleProgressionStatus(progression);
     const journeyCopy = getSaleJourneyCopy(status);
+    const propertyAddress = propertyContext?.address || 'Address unavailable';
+    const propertyTitle = getApplicationPropertyDisplayTitle(propertyContext?.title, propertyAddress, 'Purchase progression');
 
     return {
         id: progression.id,
@@ -470,8 +475,8 @@ const mapSaleProgression = (
         status,
         createdAt: progression.created_at,
         updatedAt: progression.updated_at,
-        propertyTitle: propertyContext?.title || 'Purchase progression',
-        propertyAddress: propertyContext?.address || 'Address unavailable',
+        propertyTitle,
+        propertyAddress,
         propertyImage: toImageUrl(propertyContext?.image),
         propertyPrice: propertyContext?.price,
         propertyCountry: propertyContext?.country,
