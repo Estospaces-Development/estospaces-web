@@ -30,6 +30,7 @@ import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSe
 import { buildSearchHistoryLabel, buildSearchHistoryMeta, buildSearchHistoryUrlParams } from '@/lib/searchHistory';
 import {
     formatLaunchCurrencyForCountry,
+    formatLaunchLocationCodeSentenceLabel,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     getLaunchLocationCodeLabel,
@@ -125,7 +126,7 @@ const PropertySearch = () => {
     const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
     const geoMarket = market || inferredGeoMarket || fallbackGeoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
-    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
+    const sentenceLocationCodeLabel = formatLaunchLocationCodeSentenceLabel(locationCodeLabel);
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
     const formatSearchCurrency = useCallback((amount: number) => (
         formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
@@ -579,7 +580,7 @@ const PropertySearch = () => {
                             if (locationSuggestions.length > 0) setShowSuggestions(true);
                         }}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        placeholder={`Search by ${lowerLocationCodeLabel}, city, property name...`}
+                        placeholder={`Search by ${sentenceLocationCodeLabel}, city, property name...`}
                         className="w-full min-w-0 rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     />
                     {queryValidationMessage && (
@@ -806,7 +807,7 @@ const PropertySearch = () => {
                                 type="text"
                                 value={location}
                                 onChange={(e) => { setLocation(e.target.value); setPage(1); }}
-                                placeholder={`City or ${lowerLocationCodeLabel}`}
+                                placeholder={`City or ${sentenceLocationCodeLabel}`}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>

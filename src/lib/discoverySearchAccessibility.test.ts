@@ -24,7 +24,8 @@ test("user search autocomplete is tied to the search field", () => {
 });
 
 test("user search main input uses country-aware PIN or postcode copy", () => {
-  assert.match(searchPage, /placeholder=\{`Search by \$\{lowerLocationCodeLabel\}, city, property name\.\.\.`\}/);
+  assert.match(searchPage, /formatLaunchLocationCodeSentenceLabel\(locationCodeLabel\)/);
+  assert.match(searchPage, /placeholder=\{`Search by \$\{sentenceLocationCodeLabel\}, city, property name\.\.\.`\}/);
   assert.doesNotMatch(searchPage, /Search by location, property name/);
 });
 

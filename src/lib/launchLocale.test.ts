@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   formatLaunchCurrency,
   formatLaunchCurrencyForCountry,
+  formatLaunchLocationCodeSentenceLabel,
   formatLaunchLocationCode,
   formatLaunchPinCode,
   formatLaunchPropertyLocation,
@@ -42,6 +43,9 @@ test('launch locale selects India or UK from location code and country', () => {
   assert.equal(formatLaunchLocationCode('sw1a1aa'), 'SW1A 1AA');
   assert.equal(getLaunchLocationCodeLabel('IN', 'India'), 'PIN code');
   assert.equal(getLaunchLocationCodeLabel('GB', 'United Kingdom'), 'Postcode');
+  assert.equal(formatLaunchLocationCodeSentenceLabel('PIN code'), 'PIN code');
+  assert.equal(formatLaunchLocationCodeSentenceLabel('Postcode'), 'postcode');
+  assert.equal(formatLaunchLocationCodeSentenceLabel('PIN code / postcode'), 'pin code / postcode');
   assert.equal(isValidLaunchLocationCodeForCountry('600001', 'IN', 'India'), true);
   assert.equal(isValidLaunchLocationCodeForCountry('SW1A 1AA', 'IN', 'India'), false);
   assert.equal(isValidLaunchLocationCodeForCountry('SW1A 1AA', 'GB', 'United Kingdom'), true);

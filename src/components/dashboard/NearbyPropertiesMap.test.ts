@@ -12,8 +12,9 @@ const source = readFileSync(
 test("nearby properties map uses country-aware location copy and currency", () => {
   assert.match(source, /useUserGeoMarket\(user\)/);
   assert.match(source, /getLaunchLocationCodeLabel\(geoMarket\)/);
-  assert.match(source, /Add a \{lowerLocationCodeLabel\} to unlock the map/);
-  assert.match(source, /Use your profile \{lowerLocationCodeLabel\}/);
+  assert.match(source, /formatLaunchLocationCodeSentenceLabel\(locationCodeLabel\)/);
+  assert.match(source, /Add a \{sentenceLocationCodeLabel\} to unlock the map/);
+  assert.match(source, /Use your profile \{sentenceLocationCodeLabel\}/);
   assert.match(source, /formatLaunchCurrencyForCountry\(property\.price/);
   assert.doesNotMatch(source, /Add a PIN code to unlock the map/);
   assert.doesNotMatch(source, /Use your profile PIN code/);

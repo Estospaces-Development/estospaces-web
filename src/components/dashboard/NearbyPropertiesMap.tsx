@@ -8,6 +8,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
     formatLaunchCurrencyForCountry,
+    formatLaunchLocationCodeSentenceLabel,
     formatLaunchPropertyLocation,
     getLaunchLocationCodeLabel,
 } from '@/lib/launchLocale';
@@ -191,7 +192,7 @@ const NearbyPropertiesMap = ({
     const user = authContext?.user || null;
     const geoMarket = useUserGeoMarket(user);
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket);
-    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
+    const sentenceLocationCodeLabel = formatLaunchLocationCodeSentenceLabel(locationCodeLabel);
     const [isMounted, setIsMounted] = useState(false);
     const [selectedPropertyID, setSelectedPropertyID] = useState<string | null>(null);
     const [isSelectionDismissed, setIsSelectionDismissed] = useState(false);
@@ -342,9 +343,9 @@ const NearbyPropertiesMap = ({
                         <div className={`flex items-center justify-center rounded-full ${compact ? 'mb-4 h-12 w-12 bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300' : 'mx-auto mb-4 h-14 w-14 bg-gray-100 dark:bg-gray-700'}`}>
                             <Navigation size={24} className={compact ? '' : 'text-gray-400 dark:text-gray-500'} />
                         </div>
-                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a {lowerLocationCodeLabel} to unlock the map</h3>
+                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a {sentenceLocationCodeLabel} to unlock the map</h3>
                         <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
-                            Use your profile {lowerLocationCodeLabel} or search a location to see nearby homes without leaving the dashboard.
+                            Use your profile {sentenceLocationCodeLabel} or search a location to see nearby homes without leaving the dashboard.
                         </p>
                     </div>
                 </div>

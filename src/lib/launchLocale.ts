@@ -237,6 +237,10 @@ export function getLaunchLocationCodeLabel(
   return "PIN code / postcode";
 }
 
+export function formatLaunchLocationCodeSentenceLabel(label: string): string {
+  return label === "PIN code" ? label : label.toLowerCase();
+}
+
 export function getLaunchLocationCodePlaceholder(
   countryCode?: string | null,
   countryName?: string | null,

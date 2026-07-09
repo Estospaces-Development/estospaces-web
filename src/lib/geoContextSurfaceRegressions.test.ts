@@ -13,7 +13,8 @@ test("application modal uses property/user country context for search copy and m
 
   assert.match(source, /useUserGeoMarket\(user/);
   assert.match(source, /getLaunchLocationCodeLabel\(userGeoMarket/);
-  assert.match(source, /placeholder=\{`Search by name, city, or \$\{lowerLocationCodeLabel\}\.\.\.`\}/);
+  assert.match(source, /formatLaunchLocationCodeSentenceLabel\(locationCodeLabel\)/);
+  assert.match(source, /placeholder=\{`Search by name, city, or \$\{sentenceLocationCodeLabel\}\.\.\.`\}/);
   assert.match(source, /formatLaunchCurrencyForCountry\(property\?\.price/);
   assert.match(source, /Annual Income \(\{incomeCurrencyCode\}\)/);
   assert.match(source, /IncomeCurrencyIcon/);
