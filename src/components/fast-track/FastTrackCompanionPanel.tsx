@@ -26,6 +26,7 @@ import {
   isFastTrackCaseCompleteForRole,
   resolveFastTrackThreadRecipientId,
 } from "@/lib/fastTrackWorkspace";
+import { getFastTrackDisplayTitle } from "@/lib/fastTrackDisplayTitle";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import type { FastTrackCase } from "@/services/fastTrackService";
@@ -150,6 +151,7 @@ export default function FastTrackCompanionPanel({
   const hasValidAgreementAmount =
     Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
   const caseComplete = isFastTrackCaseCompleteForRole(fastTrackCase, role);
+  const displayPropertyTitle = getFastTrackDisplayTitle(fastTrackCase.propertyTitle, "your selected home");
 
   const runAction = useCallback(
     async (action: string, payload: Record<string, unknown>, successMessage: string) => {
@@ -192,7 +194,7 @@ export default function FastTrackCompanionPanel({
       const conversation = await upsertDirectConversation(threadRecipientId, {
         fastTrackCaseId: fastTrackCase.caseId,
         propertyId: fastTrackCase.propertyId,
-        propertyTitle: fastTrackCase.propertyTitle,
+        propertyTitle: displayPropertyTitle,
         listingType: fastTrackCase.listingType,
         senderName: user.user_metadata?.full_name || user.name || user.email,
         senderEmail: user.email,
@@ -206,7 +208,7 @@ export default function FastTrackCompanionPanel({
     } finally {
       setOpeningConversation(false);
     }
-  }, [fastTrackCase, messagesPath, navigate, role, threadRecipientId, toast, user]);
+  }, [displayPropertyTitle, fastTrackCase, messagesPath, navigate, role, threadRecipientId, toast, user]);
 
   const renderViewingActions = () => {
     if (role === "user") {
@@ -796,7 +798,7 @@ export default function FastTrackCompanionPanel({
           </div>
           <div>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">
-              {fastTrackCase.propertyTitle}
+              {displayPropertyTitle}
             </p>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               {describeFastTrackCompanionSummary(fastTrackCase)}
