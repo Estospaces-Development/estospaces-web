@@ -89,3 +89,12 @@ test('user dashboard hero search defaults to all sale and rental homes', () => {
     assert.match(userDashboardSource, /dashboardSearchFilters\.listingType === 'all'\s*\?\s*undefined/);
     assert.doesNotMatch(userDashboardSource, /listingType: selectedPropertyType === 'rent' \? 'rent' : 'sale'/);
 });
+
+test('user dashboard search keeps submitted filters in dashboard URL params', () => {
+    assert.match(userDashboardSource, /const nextDashboardType = nextFilters\.listingType === 'rent'[\s\S]*selectedPropertyType;/);
+    assert.match(userDashboardSource, /setSearchParams\(\(previous\) => \{/);
+    assert.match(userDashboardSource, /'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
+    assert.match(userDashboardSource, /buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\)\.forEach\(\(value, key\) => \{/);
+    assert.match(userDashboardSource, /next\.set\(key, value\);/);
+    assert.match(userDashboardSource, /\}, \{ replace: true \}\);/);
+});

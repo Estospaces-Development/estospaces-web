@@ -582,6 +582,14 @@ const DashboardClient = () => {
   }, [fetchFilteredProperties, shouldFetchFilteredResults]);
 
   const handleDashboardSearch = useCallback((nextFilters: DashboardSearchFilters) => {
+    const nextDashboardType = nextFilters.listingType === 'rent'
+      ? 'rent'
+      : nextFilters.listingType === 'sale'
+        ? 'buy'
+        : selectedPropertyType === 'sold'
+          ? 'sold'
+          : selectedPropertyType;
+
     setDashboardSearchFilters(nextFilters);
     if (nextFilters.listingType === 'rent') {
       setSelectedPropertyType('rent');
@@ -594,9 +602,34 @@ const DashboardClient = () => {
     setShowFilteredResults(
       hasActiveDashboardSearch(nextFilters)
       || selectedFilters.length > 0
-      || selectedPropertyType === 'sold',
+      || nextDashboardType === 'sold',
     );
-  }, [selectedFilters.length, selectedPropertyType]);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      [
+        'page',
+        'filter',
+        'type',
+        'status',
+        'q',
+        'keyword',
+        'location',
+        'propertyType',
+        'minPrice',
+        'maxPrice',
+        'beds',
+        'baths',
+        'minBedrooms',
+        'minBathrooms',
+      ].forEach((key) => next.delete(key));
+
+      buildDiscoverParams(nextDashboardType, selectedFilters, nextFilters).forEach((value, key) => {
+        next.set(key, value);
+      });
+
+      return next;
+    }, { replace: true });
+  }, [selectedFilters, selectedPropertyType, setSearchParams]);
 
   const toggleQuickFilter = (filterId: string) => {
     setSelectedFilters((current) => {
