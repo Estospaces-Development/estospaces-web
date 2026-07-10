@@ -180,6 +180,17 @@ test("fast-track document guidance resolves missing case country from selected p
   assert.match(source, /selectedPropertyMarket \|\| geoMarket/);
 });
 
+test("fast-track workspace hides internal case titles across manager-facing surfaces", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /getFastTrackWorkspaceDisplayTitle/);
+  assert.match(source, /const selectedCaseDisplayTitle = selectedCase/);
+  assert.match(source, /title=\{selectedCaseDisplayTitle\}/);
+  assert.match(source, /propertyTitle: selectedCaseDisplayTitle/);
+  assert.match(source, /Cancel the fast-track case for \{selectedCaseDisplayTitle\}/);
+  assert.doesNotMatch(source, /selectedCase\.propertyTitle/);
+});
+
 test("case chat timeout recovery only accepts a recent matching sender message", () => {
   const sendStartedAt = new Date("2026-07-02T10:00:00Z").getTime();
   const recentMine: Message = {

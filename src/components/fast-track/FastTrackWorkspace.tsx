@@ -121,6 +121,10 @@ import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { formatLaunchCurrencyForCountry, getSupportedLaunchCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import {
+    getFastTrackDisplayTitle,
+    getFastTrackWorkspaceDisplayTitle,
+} from '@/lib/fastTrackDisplayTitle';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -295,7 +299,7 @@ export const buildAdminOverrideConfirmationMessage = (
     fastTrackCase: Pick<FastTrackCase, 'managerId' | 'propertyTitle'>,
     action: string,
 ) => (
-    `You are about to act on behalf of the assigned manager for ${fastTrackCase.propertyTitle}. `
+    `You are about to act on behalf of the assigned manager for ${getFastTrackDisplayTitle(fastTrackCase.propertyTitle, 'Selected fast-track case')}. `
     + `Action: ${getAdminOverrideActionLabel(action)}. Continue?`
 );
 
@@ -1023,6 +1027,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
         [filteredCases, selectedCaseId],
     );
+    const selectedCaseDisplayTitle = selectedCase
+        ? getFastTrackWorkspaceDisplayTitle(selectedCase, role)
+        : '';
     useEffect(() => {
         setSelectedPropertyCountrySignal(null);
 
@@ -1207,10 +1214,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const openCompletionCelebration = useCallback((nextCase: FastTrackCase) => {
         celebratedCaseIdRef.current = nextCase.caseId;
-        setCelebrationPropertyTitle(nextCase.propertyTitle);
+        setCelebrationPropertyTitle(getFastTrackWorkspaceDisplayTitle(nextCase, role));
         toast.clearAll();
         setShowCompletionCelebration(true);
-    }, [toast]);
+    }, [role, toast]);
 
     const workspaceFocus = useMemo(
         () => {
@@ -1950,7 +1957,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             const context = {
                 fastTrackCaseId: selectedCase.caseId,
                 propertyId: selectedCase.propertyId,
-                propertyTitle: selectedCase.propertyTitle,
+                propertyTitle: selectedCaseDisplayTitle,
                 listingType: selectedCase.listingType,
                 senderName: user.name,
                 senderEmail: user.email,
@@ -1988,7 +1995,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         return () => {
             cancelled = true;
         };
-    }, [activeUtilityModule, role, selectedCase?.caseId, selectedCase?.clientName, threadRecipientId, user]);
+    }, [activeUtilityModule, role, selectedCase?.caseId, selectedCase?.clientName, selectedCaseDisplayTitle, threadRecipientId, user]);
 
     const handleSendThreadMessage = useCallback(async () => {
         if (!selectedCase || !user || !threadRecipientId || !threadDraft.trim()) {
@@ -2005,7 +2012,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             conversation = threadConversation || await upsertDirectConversation(threadRecipientId, {
                 fastTrackCaseId: selectedCase.caseId,
                 propertyId: selectedCase.propertyId,
-                propertyTitle: selectedCase.propertyTitle,
+                propertyTitle: selectedCaseDisplayTitle,
                 listingType: selectedCase.listingType,
                 senderName: user.name,
                 senderEmail: user.email,
@@ -2042,7 +2049,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         } finally {
             setThreadSending(false);
         }
-    }, [role, selectedCase, threadConversation, threadDraft, threadRecipientId, toast, user]);
+    }, [role, selectedCase, selectedCaseDisplayTitle, threadConversation, threadDraft, threadRecipientId, toast, user]);
 
     const renderDocumentPreview = () => {
         if (!previewItem) {
@@ -2502,7 +2509,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Property</p>
-                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.propertyTitle}</p>
+                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCaseDisplayTitle}</p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             {selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / {selectedCase.propertyType}
                         </p>
@@ -3587,7 +3594,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             const chip = formatStatusChip(item);
             return {
                 caseId: item.caseId,
-                title: item.propertyTitle,
+                title: getFastTrackWorkspaceDisplayTitle(item, role),
                 subtitle: role === 'user'
                     ? `${item.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home`
                     : item.clientName,
@@ -3673,7 +3680,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : error
                 ? error
                 : selectedCase
-                    ? `${selectedCase.propertyTitle} selected. ${workspaceStatus}`
+                    ? `${selectedCaseDisplayTitle} selected. ${workspaceStatus}`
                     : filteredCases.length === 0
                         ? role === 'user'
                             ? 'No fast-track journeys match the current filters.'
@@ -3867,7 +3874,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                             <FastTrackCaseMasthead
                                 role={role}
-                                title={selectedCase.propertyTitle}
+                                title={selectedCaseDisplayTitle}
                                 subtitle={selectedCaseSubtitle}
                                 statusLabel={statusChip?.label || 'Active'}
                                 statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
@@ -4104,7 +4111,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             Cancel fast-track case
                         </h2>
                         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                            Cancel the fast-track case for {selectedCase.propertyTitle}? This will stop the active journey for the connected client.
+                            Cancel the fast-track case for {selectedCaseDisplayTitle}? This will stop the active journey for the connected client.
                         </p>
                         <div className="mt-6 flex justify-end gap-3">
                             <button

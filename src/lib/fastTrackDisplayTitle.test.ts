@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getFastTrackDisplayTitle, isInternalFastTrackTitle } from './fastTrackDisplayTitle';
+import {
+  getFastTrackDisplayTitle,
+  getFastTrackWorkspaceDisplayTitle,
+  isInternalFastTrackTitle,
+} from './fastTrackDisplayTitle';
 
 test('fast-track display titles hide internal QA artifact labels', () => {
   const generatedTitles = [
@@ -26,4 +30,19 @@ test('fast-track display titles hide internal QA artifact labels', () => {
 test('fast-track display titles keep real property titles', () => {
   assert.equal(isInternalFastTrackTitle('Canal View Apartment'), false);
   assert.equal(getFastTrackDisplayTitle('Canal View Apartment', 'Selected fast-track case'), 'Canal View Apartment');
+});
+
+test('fast-track workspace titles use role-aware fallbacks for internal labels', () => {
+  const fastTrackCase = {
+    propertyTitle: 'Round896 Issue228 Fresh Assignment 1783610503279',
+    clientName: 'Test User',
+  };
+
+  assert.equal(getFastTrackWorkspaceDisplayTitle(fastTrackCase, 'user'), 'your selected home');
+  assert.equal(getFastTrackWorkspaceDisplayTitle(fastTrackCase, 'manager'), "Test User's fast-track case");
+  assert.equal(getFastTrackWorkspaceDisplayTitle(fastTrackCase, 'admin'), "Test User's fast-track case");
+  assert.equal(
+    getFastTrackWorkspaceDisplayTitle({ ...fastTrackCase, propertyTitle: 'Canal View Apartment' }, 'manager'),
+    'Canal View Apartment',
+  );
 });

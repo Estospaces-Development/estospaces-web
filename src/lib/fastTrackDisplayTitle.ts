@@ -27,3 +27,18 @@ export const getFastTrackDisplayTitle = (
 
   return normalized;
 };
+
+export const getFastTrackWorkspaceDisplayTitle = (
+  fastTrackCase: {
+    propertyTitle?: string | null;
+    clientName?: string | null;
+  },
+  role: 'user' | 'manager' | 'admin',
+) => getFastTrackDisplayTitle(
+  fastTrackCase.propertyTitle,
+  role === 'user'
+    ? 'your selected home'
+    : fastTrackCase.clientName?.trim()
+      ? `${fastTrackCase.clientName.trim()}'s fast-track case`
+      : 'Selected fast-track case',
+);
