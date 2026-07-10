@@ -125,6 +125,7 @@ const formatWorkspaceStartedAt = (value?: string) => {
         month: 'short',
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
     });
 };
 
@@ -254,6 +255,7 @@ const BrokerResponseWidget: React.FC = () => {
                 userId: offer.user_id,
                 email: offer.requester_email,
                 phone: offer.requester_phone,
+                requestSummary: offer.details?.trim() || undefined,
                 location: offerArea || 'Location not available',
                 interestedIn: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
                 distance: formatLaunchLocationCode(offer.location_postcode) || offerArea || LAUNCH_COUNTRY_NAME,
@@ -824,6 +826,12 @@ const BrokerResponseWidget: React.FC = () => {
                                             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                                 {formatRequestArea(request.location, request.location_postcode) || 'Location shared in request'}
                                             </p>
+                                            {request.details?.trim() ? (
+                                                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-100">Requirements:</span>{' '}
+                                                    {request.details.trim()}
+                                                </p>
+                                            ) : null}
                                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                                 {selectedProperty
                                                     ? `${selectedProperty.title} has already been selected by the client.`

@@ -10,6 +10,7 @@ import { toDiscoverNearbyMapProperties } from './discoverMap';
 
 const root = process.cwd();
 const managerTracker = readFileSync(resolve(root, 'src/components/dashboard/BrokerResponseWidget.tsx'), 'utf8');
+const brokerRequestItem = readFileSync(resolve(root, 'src/components/dashboard/BrokerRequestItem.tsx'), 'utf8');
 const dashboardLeadModal = readFileSync(resolve(root, 'src/components/dashboard/AddLeadModal.tsx'), 'utf8');
 const sharedLeadModal = readFileSync(resolve(root, 'src/components/ui/AddLeadModal.tsx'), 'utf8');
 const userContractsPage = readFileSync(resolve(root, 'src/pages/user/dashboard/contracts/page.tsx'), 'utf8');
@@ -209,6 +210,13 @@ test('admin manager verification modal pauses queue refresh while reviewing', ()
     assert.match(adminVerificationsPage, /enabled:\s*selectedManagerId === null/);
     assert.match(adminVerificationsPage, /<ManagerReviewModal/);
     assert.match(adminVerificationsPage, /fetchManagers\(\);/);
+});
+
+test('manager broker request cards distinguish separate same-minute submissions', () => {
+    assert.match(brokerRequestItem, /second:\s*'2-digit'/);
+    assert.match(brokerRequestItem, /request\.requestSummary/);
+    assert.match(managerTracker, /requestSummary:\s*offer\.details\?\.trim\(\)\s*\|\|\s*undefined/);
+    assert.match(managerTracker, /request\.details\?\.trim\(\)/);
 });
 
 test('admin user verification queue keeps records visible during background refreshes', () => {

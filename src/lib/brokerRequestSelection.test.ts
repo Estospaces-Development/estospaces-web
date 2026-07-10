@@ -298,6 +298,37 @@ test('dedupeBrokerRequestsBySubmissionSignature keeps separate users with the sa
 
     assert.deepEqual(deduped.map((request) => request.id), ['second-client-workspace', 'first-client-workspace']);
 });
+
+test('dedupeBrokerRequestsBySubmissionSignature keeps distinct same-minute requirements visible', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'f859c836-cbd4-4a57-ba8b-070d1ce0b4b0',
+            user_id: 'user-duplicate-report',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'QA browser shortlist proof 1782508613',
+            created_at: '2026-06-26T21:16:55.462818Z',
+        }),
+        makeRequest({
+            id: 'e1a73164-9a21-4188-a68c-623bf4c2bbe4',
+            user_id: 'user-duplicate-report',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'QA shortlist proof 1782508567',
+            created_at: '2026-06-26T21:16:08.696163Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), [
+        'f859c836-cbd4-4a57-ba8b-070d1ce0b4b0',
+        'e1a73164-9a21-4188-a68c-623bf4c2bbe4',
+    ]);
+});
+
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
     const sorted = sortBrokerRequestsByPriority([
         makeRequest({
