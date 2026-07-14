@@ -553,29 +553,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 throw new Error('The selected home could not be opened from this agent request.');
             }
 
-            let nextFastTrackCaseId = selectedRequest.selected_fast_track_case_id || null;
+            const fastTrackResult = await createFastTrackCase({
+                property_id: selectedProperty.id,
+                broker_request_id: selectedRequest.id,
+                lead_id: selectedRequest.selected_lead_id || undefined,
+                manager_id: selectedRequest.matched_broker_id || undefined,
+                client_id: user.id,
+                client_name: displayName,
+                property_title: selectedProperty.title,
+                property_type: mapListingTypeToFastTrackPropertyType(selectedProperty.listing_type),
+                property_country: selectedProperty.country || undefined,
+                listing_type: selectedProperty.listing_type as 'rent' | 'sale' | 'lease' | undefined,
+                started_from: 'broker_request_selection',
+            });
 
-            if (!nextFastTrackCaseId) {
-                const fastTrackResult = await createFastTrackCase({
-                    property_id: selectedProperty.id,
-                    broker_request_id: selectedRequest.id,
-                    lead_id: selectedRequest.selected_lead_id || undefined,
-                    manager_id: selectedRequest.matched_broker_id || undefined,
-                    client_id: user.id,
-                    client_name: displayName,
-                    property_title: selectedProperty.title,
-                    property_type: mapListingTypeToFastTrackPropertyType(selectedProperty.listing_type),
-                    property_country: selectedProperty.country || undefined,
-                    listing_type: selectedProperty.listing_type as 'rent' | 'sale' | 'lease' | undefined,
-                    started_from: 'broker_request_selection',
-                });
-
-                if (fastTrackResult.error || !fastTrackResult.data) {
-                    throw new Error(fastTrackResult.error || 'Unable to start your 24-hour journey.');
-                }
-
-                nextFastTrackCaseId = fastTrackResult.data.caseId;
+            if (fastTrackResult.error || !fastTrackResult.data) {
+                throw new Error(fastTrackResult.error || 'Unable to start your 24-hour journey.');
             }
+
+            const nextFastTrackCaseId = fastTrackResult.data.caseId;
 
             const refreshedRequest = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
             const resolvedRequest = refreshedRequest.data || selectedRequest;
