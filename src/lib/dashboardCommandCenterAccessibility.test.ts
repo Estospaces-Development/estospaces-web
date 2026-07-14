@@ -22,20 +22,20 @@ test('user dashboard broker request opt-in checkbox exposes an accessible name',
 });
 
 
-test('matched broker requests lock replacement but keep a separate new-request path', () => {
+test('matched broker requests keep context while the form can start another request', () => {
   const brokerRequestWidget = readSource('src/components/dashboard/BrokerRequestWidget.tsx');
 
-  assert.ok(brokerRequestWidget.includes('const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);'));
-  assert.ok(brokerRequestWidget.includes("Your agent match is locked. Continue with this property agent or start another request separately."));
-  assert.ok(brokerRequestWidget.includes("type={requestReplacementLocked ? 'button' : 'submit'}"));
-  assert.ok(brokerRequestWidget.includes('onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}'));
-  assert.ok(brokerRequestWidget.includes('Open matched agent request'));
-  assert.ok(brokerRequestWidget.includes('navigate(buildBrokerRequestWorkspacePath(activeRequest.id));'));
+  assert.ok(brokerRequestWidget.includes('const requestKeepsMatchedAgent = Boolean(requestIsMatched && !requestIsExpired);'));
+  assert.ok(brokerRequestWidget.includes('This matched request keeps its current property agent. Use the form below to start a separate new request.'));
   assert.ok(brokerRequestWidget.includes('const handleStartAnotherRequest = useCallback(() => {'));
   assert.ok(brokerRequestWidget.includes('onClick={handleStartAnotherRequest}'));
-  assert.ok(brokerRequestWidget.includes('Agent match locked. This request keeps its confirmed property agent, and you can start another request separately.'));
+  assert.ok(brokerRequestWidget.includes('Current agent match is kept for this request. Submit the form to start another Fast Track request.'));
+  assert.ok(brokerRequestWidget.includes('type="submit"'));
+  assert.doesNotMatch(brokerRequestWidget, /type=\{requestReplacementLocked \? 'button' : 'submit'\}/);
+  assert.doesNotMatch(brokerRequestWidget, /onClick=\{requestReplacementLocked \? handleLockedMatchAction : undefined\}/);
   assert.doesNotMatch(brokerRequestWidget, /disabled=\{loading \|\| requestReplacementLocked\}/);
   assert.doesNotMatch(brokerRequestWidget, /\{!requestReplacementLocked && \(/);
+  assert.doesNotMatch(brokerRequestWidget, /Agent match locked/);
   assert.doesNotMatch(brokerRequestWidget, /New requests are paused/);
 });
 

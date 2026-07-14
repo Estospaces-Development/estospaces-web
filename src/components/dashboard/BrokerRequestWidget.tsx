@@ -488,8 +488,8 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             return;
         }
 
-        if (requestReplacementLocked) {
-            const message = 'Your agent match is locked. Continue with this property agent or start another request separately.';
+        if (requestKeepsMatchedAgent) {
+            const message = 'This matched request keeps its current property agent. Use the form below to start a separate new request.';
             setError(message);
             toast.error(message);
             return;
@@ -666,29 +666,6 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
         navigate('/user/dashboard', { replace: true });
     }, [navigate]);
 
-    const handleLockedMatchAction = () => {
-        if (!activeRequest?.id) {
-            const message = 'Your matched agent request could not be reopened. Please refresh and try again.';
-            setError(message);
-            toast.error(message);
-            return;
-        }
-
-        publishBrokerRequestWorkspaceSelection(activeRequest.id);
-
-        if (activeRequest.selected_fast_track_case_id) {
-            navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`);
-            return;
-        }
-
-        if (selectedProperty) {
-            navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}`);
-            return;
-        }
-
-        navigate(buildBrokerRequestWorkspacePath(activeRequest.id));
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -755,7 +732,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const activeRequestSeconds = secondsUntilDeadline(activeRequest?.response_deadline_at, clockNow);
     const requestIsMatched = activeRequest?.dispatch_status === 'broker_matched' || activeRequest?.status === 'matched';
     const requestIsExpired = activeRequest?.dispatch_status === 'expired' || activeRequest?.status === 'expired';
-    const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);
+    const requestKeepsMatchedAgent = Boolean(requestIsMatched && !requestIsExpired);
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
     const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
@@ -769,11 +746,6 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const selectedProperty = activeRequest?.selected_property
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
-    const lockedRequestActionLabel = activeRequest?.selected_fast_track_case_id
-        ? 'Continue in fast-track'
-        : selectedProperty
-            ? 'Start fast-track with selected home'
-            : 'Open matched agent request';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
         const filtered = availableSharedProperties.filter((share) => {
@@ -1309,9 +1281,9 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                             </div>
                                         )}
 
-                                        {!selectedProperty && requestReplacementLocked ? (
+                                        {!selectedProperty && requestKeepsMatchedAgent ? (
                                             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-                                                Your property agent is locked for this request. Continue with this agent, review shared homes, or start another request without changing this match.
+                                                This request keeps its current property agent. You can still start another Fast Track request from the form below.
                                             </div>
                                         ) : !selectedProperty ? (
                                             <button
@@ -1427,9 +1399,9 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                         An agent request is already running. You can still adjust the form below and start a new one if your needs change.
                     </div>
                 )}
-                {requestReplacementLocked && (
+                {requestKeepsMatchedAgent && (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-                        Agent match locked. This request keeps its confirmed property agent, and you can start another request separately.
+                        Current agent match is kept for this request. Submit the form to start another Fast Track request.
                     </div>
                 )}
 
@@ -1561,8 +1533,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 )}
 
                 <button
-                    type={requestReplacementLocked ? 'button' : 'submit'}
-                    onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}
+                    type="submit"
                     disabled={loading}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
@@ -1573,9 +1544,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     )}
                     {loading
                         ? 'Sending request...'
-                        : requestReplacementLocked
-                            ? lockedRequestActionLabel
-                            : requestIsActive
+                        : requestIsActive
                             ? brokerCopy.requestFormActionAgain
                             : activeRequest
                                 ? brokerCopy.requestFormActionAgain
