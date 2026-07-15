@@ -126,6 +126,21 @@ const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User
     const avatar = rawUser.avatar || rawUser.avatar_url || '';
     const phone = rawUser.phone || metadata.phone || '';
 
+    const country = rawUser.country || metadata.country || undefined;
+    
+    // Derive country code dynamically to avoid stale countryCode cached values
+    let derivedCode: string | undefined = undefined;
+    if (country) {
+        const norm = country.trim().toLowerCase();
+        if (norm === 'india' || norm === 'in' || norm === 'bharat') {
+            derivedCode = 'IN';
+        } else if (norm === 'united kingdom' || norm === 'uk' || norm === 'gb' || norm === 'great britain') {
+            derivedCode = 'GB';
+        }
+    }
+
+    const countryCode = derivedCode || rawUser.countryCode || rawUser.country_code || metadata.countryCode || metadata.country_code || undefined;
+
     return {
         id: String(rawUser.id || ''),
         email,
@@ -139,11 +154,14 @@ const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User
         phone: phone || undefined,
         address: rawUser.address || undefined,
         postcode: rawUser.postcode || undefined,
-        country: rawUser.country || metadata.country || undefined,
-        countryCode: rawUser.countryCode || rawUser.country_code || metadata.countryCode || metadata.country_code || undefined,
-        country_code: rawUser.country_code || rawUser.countryCode || metadata.country_code || metadata.countryCode || undefined,
+        country: country,
+        countryCode: countryCode,
+        country_code: countryCode,
         user_metadata: {
             ...metadata,
+            country: country,
+            countryCode: countryCode,
+            country_code: countryCode,
             full_name: fullName,
             phone: phone || undefined,
         },
