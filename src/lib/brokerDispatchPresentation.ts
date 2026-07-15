@@ -285,11 +285,24 @@ export const selectManagerTrackerItems = <T extends ManagerTrackerItem>(items: T
     }
 
     const sorted = sortManagerTrackerItems(items);
-    const topShareNeeded = sorted
+
+    // Pending offers/leads represent live client requests — always include them regardless of limit.
+    const pendingItems = sorted.filter(
+        (item) => item.trackerLane === 'offer_pending' || item.trackerLane === 'lead_pending',
+    );
+    const pendingIds = new Set(pendingItems.map((item) => item.id));
+
+    // From non-pending items, prefer share_needed (up to 2) then fill remaining slots.
+    const nonPending = sorted.filter((item) => !pendingIds.has(item.id));
+    const topShareNeeded = nonPending
         .filter((item) => item.requestKind === 'offer' && item.trackerLane === 'share_needed')
         .slice(0, Math.min(limit, 2));
-    const selectedIds = new Set(topShareNeeded.map((item) => item.id));
-    const remaining = sorted.filter((item) => !selectedIds.has(item.id));
+    const shareNeededIds = new Set(topShareNeeded.map((item) => item.id));
+    const rest = nonPending.filter((item) => !shareNeededIds.has(item.id));
 
-    return [...topShareNeeded, ...remaining].slice(0, limit);
+    const combined = [...pendingItems, ...topShareNeeded, ...rest];
+    // Always show all pending items; apply limit only to the non-pending tail.
+    const effectiveLimit = Math.max(limit, pendingItems.length);
+    return combined.slice(0, effectiveLimit);
 };
+

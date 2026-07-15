@@ -23,10 +23,7 @@ import {
     updateBrokerAvailability,
 } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
-import {
-    dedupeBrokerRequestsBySubmissionSignature,
-    sortBrokerRequestsByPriority,
-} from '@/lib/brokerRequestSelection';
+import { sortBrokerRequestsByPriority } from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useToast } from '@/contexts/ToastContext';
@@ -236,7 +233,17 @@ const BrokerResponseWidget: React.FC = () => {
                 };
             });
 
-            const dedupedOffers = dedupeBrokerRequestsBySubmissionSignature(offersResult.data || []);
+            // Dedup by request ID only — each distinct backend request is independently actionable.
+            // Signature-based dedup (same user+details+minute) must NOT be used here because it
+            // drops new pending offers when an older matched offer shares the same content and minute.
+            const seenOfferIds = new Set<string>();
+            const dedupedOffers = sortBrokerRequestsByPriority(
+                (offersResult.data || []).filter((o) => {
+                    if (!o.id || seenOfferIds.has(o.id)) return false;
+                    seenOfferIds.add(o.id);
+                    return true;
+                }),
+            );
 
             const mappedOffers = dedupedOffers.map((offer) => {
                 const workspaceAction = getManagerWorkspaceAction(offer);
