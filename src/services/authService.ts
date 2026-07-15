@@ -10,6 +10,7 @@ export interface UserProfile {
     phone?: string;
     address?: string;
     postcode?: string;
+    country?: string;
     bio?: string;
     role: string;
     avatar?: string;
@@ -50,6 +51,7 @@ export const updateProfile = async (profileData: Partial<UserProfile>) => {
             phone: profileData.phone,
             address: profileData.address,
             postcode: profileData.postcode,
+            country: profileData.country,
             avatar: profileData.avatar ?? profileData.avatar_url,
         };
         const data = await apiFetch<UserProfile>(`${CORE_URL()}/api/v1/users/profile`, {
