@@ -63,10 +63,13 @@ import {
     LAUNCH_CURRENCY_CODE,
     normalizeLaunchLocationCode,
     normalizeLaunchLocationCodeErrorMessage,
+    getLaunchCountryFromLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
+
+const DISMISSED_REQUEST_KEY = 'estospaces_dismissed_broker_request_id';
 
 export const limitNearestAgenciesForDashboard = (brokers: LeadBrokerSummary[]) => (
     brokers.slice(0, USER_DASHBOARD_NEAREST_AGENCY_LIMIT)
@@ -287,6 +290,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const [selectingPropertyId, setSelectingPropertyId] = useState<string | null>(null);
     const [rematching, setRematching] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
+    const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(() => {
+        try {
+            return localStorage.getItem(DISMISSED_REQUEST_KEY);
+        } catch {
+            return null;
+        }
+    });
     const [sharedHomeSearch, setSharedHomeSearch] = useState('');
     const [sharedHomeSort, setSharedHomeSort] = useState<'rank' | 'price_desc' | 'price_asc' | 'title_asc'>('rank');
     const [selectionStatusMessage, setSelectionStatusMessage] = useState('');
@@ -378,7 +388,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             return;
         }
 
-        if (!data || data.length === 0) {
+        const userMarket = user?.country === 'India' || user?.country_code === 'IN' || user?.countryCode === 'IN' ? 'IN' : 'GB';
+        const filteredRequests = (data || []).filter((req) => {
+            if (dismissedRequestId && req.id === dismissedRequestId) {
+                return false;
+            }
+            const reqMarket = getLaunchCountryFromLocationCode(req.location_postcode);
+            return !reqMarket || reqMarket === userMarket;
+        });
+
+        if (filteredRequests.length === 0) {
             setActiveRequest(null);
             publishBrokerRequestWorkspaceSelection(null);
             if (!draftStateRef.current) {
@@ -387,7 +406,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             return;
         }
 
-        const latestRequest = selectAutoResumeBrokerRequest(data);
+        const latestRequest = selectAutoResumeBrokerRequest(filteredRequests);
         if (!latestRequest) {
             setActiveRequest(null);
             publishBrokerRequestWorkspaceSelection(null);
@@ -405,7 +424,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
         setBudget(latestRequest.budget || '');
         setDetails(latestRequest.details || '');
         setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
-    }, [requestedWorkspaceRequestId, resetWorkspaceForm]);
+    }, [requestedWorkspaceRequestId, resetWorkspaceForm, user, dismissedRequestId]);
 
     useEffect(() => {
         void loadActiveRequest();
@@ -661,12 +680,18 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     };
 
     const handleStartAnotherRequest = useCallback(() => {
+        if (activeRequest) {
+            try {
+                localStorage.setItem(DISMISSED_REQUEST_KEY, activeRequest.id);
+            } catch {}
+            setDismissedRequestId(activeRequest.id);
+        }
         setActiveRequest(null);
         setError(null);
         setSelectionStatusMessage('');
         publishBrokerRequestWorkspaceSelection(null);
         navigate('/user/dashboard', { replace: true });
-    }, [navigate]);
+    }, [activeRequest, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -701,6 +726,11 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             }
 
             if (data) {
+                try {
+                    localStorage.removeItem(DISMISSED_REQUEST_KEY);
+                } catch {}
+                setDismissedRequestId(null);
+
                 const hydratedRequest = data.id
                     ? await getBrokerRequestById(data.id, { suppressErrorToast: true })
                     : { data: null };
