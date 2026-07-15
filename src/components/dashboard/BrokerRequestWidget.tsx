@@ -885,7 +885,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                             <div className="mt-2 flex items-center gap-2">
                                 <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
                                 <span className="font-mono text-lg font-bold tracking-[0.18em]">
-                                    {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
+                                    {requestIsMatched ? 'MATCHED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
                             <p className="mt-1 text-[11px] font-medium opacity-80">
