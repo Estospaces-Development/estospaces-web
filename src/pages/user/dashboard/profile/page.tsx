@@ -6,7 +6,6 @@ import {
     User,
     Phone,
     MapPin,
-    Globe,
     ArrowLeft,
     Loader2,
     Camera,
@@ -59,10 +58,7 @@ export default function ProfilePage() {
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [profileValidationError, setProfileValidationError] = useState('');
-    const geoMarket = useUserGeoMarket(
-        { ...currentUser, country: formData.country || currentUser?.country },
-        { locationCode: formData.postcode || currentUser?.postcode },
-    );
+    const geoMarket = useUserGeoMarket(currentUser, { countryName: formData.country || undefined, locationCode: formData.postcode || currentUser?.postcode });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
@@ -175,7 +171,7 @@ export default function ProfilePage() {
                 phone: formData.phone,
                 address: formData.address,
                 postcode: formData.postcode,
-                country: formData.country || undefined,
+                country: formData.country,
                 avatar: avatarValue,
             });
 
@@ -378,6 +374,24 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
+                                        <label htmlFor="user-country" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Country</label>
+                                        <select
+                                            id="user-country"
+                                            name="country"
+                                            value={formData.country}
+                                            onChange={(e) => {
+                                                setFormData(prev => ({ ...prev, country: e.target.value, postcode: '' }));
+                                                setSaveSuccess(false);
+                                            }}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                        >
+                                            <option value="">Select country...</option>
+                                            <option value="India">India</option>
+                                            <option value="United Kingdom">United Kingdom</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
                                             <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{locationCodeLabel}</label>
                                             <div className="relative">
                                                 <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -390,25 +404,7 @@ export default function ProfilePage() {
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white uppercase"
                                                 placeholder={locationCodePlaceholder}
                                             />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label htmlFor="user-country" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Country</label>
-                                        <div className="relative">
-                                            <Globe className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <select
-                                                id="user-country"
-                                                name="country"
-                                                value={formData.country}
-                                                onChange={(e) => { setFormData(prev => ({ ...prev, country: e.target.value })); setSaveSuccess(false); }}
-                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white appearance-none"
-                                            >
-                                                <option value="">Select country</option>
-                                                <option value="India">India</option>
-                                                <option value="United Kingdom">United Kingdom</option>
-                                            </select>
-                                        </div>
+                                            </div>
                                     </div>
 
                                     <div className="md:col-span-2 space-y-2">
