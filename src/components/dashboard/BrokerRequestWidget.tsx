@@ -297,8 +297,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
         ? searchParams.get('request')?.trim() || null
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
+    // Resolve geo-market from user's own country first; only fall back to request/form
+    // postcode when the user has no country context. This prevents a UK active request
+    // from locking an India user into UK validation.
+    const userHasCountryContext = Boolean(user?.country || user?.countryCode || user?.country_code || user?.postcode);
     const geoMarket = useUserGeoMarket(user, {
-        locationCode: activeRequest?.location_postcode || locationPostcode || user?.postcode,
+        locationCode: userHasCountryContext
+            ? (locationPostcode || undefined)
+            : (activeRequest?.location_postcode || locationPostcode || user?.postcode),
     });
     const brokerCopy = getBrokerRequestCopy(requestType, geoMarket);
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationPostcode);
