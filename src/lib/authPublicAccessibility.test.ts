@@ -20,8 +20,10 @@ test("register form exposes role selection and field labels", () => {
   assert.match(registerPage, /aria-labelledby="register-role-label"/);
   assert.match(registerPage, /aria-pressed=\{role === 'user'\}/);
   assert.match(registerPage, /aria-pressed=\{role === 'manager'\}/);
-  assert.match(registerPage, /htmlFor="register-name"/);
-  assert.match(registerPage, /id="register-name"/);
+  assert.match(registerPage, /htmlFor="register-first-name"/);
+  assert.match(registerPage, /id="register-first-name"/);
+  assert.match(registerPage, /htmlFor="register-last-name"/);
+  assert.match(registerPage, /id="register-last-name"/);
   assert.match(registerPage, /htmlFor="register-email"/);
   assert.match(registerPage, /id="register-email"/);
   assert.match(registerPage, /htmlFor="register-password"/);
