@@ -28,7 +28,7 @@ export const useLeads = () => {
     return context;
 };
 
-export const LeadProvider = ({ children }: { children: ReactNode }) => {
+export const LeadProvider = ({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) => {
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -42,6 +42,12 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
     ], []);
 
     const fetchLeads = useCallback(async () => {
+        if (!enabled) {
+            setLeads([]);
+            setIsInitialized(true);
+            return;
+        }
+
         try {
             const result = user?.role === 'manager' || user?.role === 'admin'
                 ? await getBrokerLeads()
@@ -57,7 +63,7 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
         } finally {
             setIsInitialized(true);
         }
-    }, [user?.role]);
+    }, [enabled, user?.role]);
 
     useEffect(() => {
         void fetchLeads();
@@ -66,7 +72,7 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchLeads,
-        enabled: isInitialized,
+        enabled: enabled && isInitialized,
     });
 
     const addLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {

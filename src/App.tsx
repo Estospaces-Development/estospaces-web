@@ -163,6 +163,7 @@ import SubdomainRouter from './components/routing/SubdomainRouter';
 import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
 import { useAuth } from './contexts/AuthContext';
+import { useManagerVerification } from './contexts/ManagerVerificationContext';
 import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
 
 function RouteScrollReset() {
@@ -177,6 +178,20 @@ function RouteScrollReset() {
   }, [location.pathname, location.search, location.hash]);
 
   return null;
+}
+
+function VerifiedManagerRoute({ children }: { children: ReactNode }) {
+  const { isLoading, isVerified } = useManagerVerification();
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
+  if (!isVerified) {
+    return <Navigate to="/manager/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function PublicRootEntry() {
@@ -257,11 +272,11 @@ const App: React.FC = () => {
             <Route path="dashboard/properties/add" element={<ManagerAddProperty />} />
             <Route path="dashboard/properties/edit/:id" element={<ManagerEditProperty />} />
             <Route path="dashboard/properties/:id" element={<ManagerPropertyDetail />} />
-            <Route path="analytics" element={<ManagerAnalytics />} />
+            <Route path="analytics" element={<VerifiedManagerRoute><ManagerAnalytics /></VerifiedManagerRoute>} />
             <Route path="applications" element={<ManagerApplications />} />
-            <Route path="appointments" element={<ManagerAppointments />} />
+            <Route path="appointments" element={<VerifiedManagerRoute><ManagerAppointments /></VerifiedManagerRoute>} />
             <Route path="case-files" element={<ManagerCaseFiles />} />
-            <Route path="contracts" element={<ManagerContracts />} />
+            <Route path="contracts" element={<VerifiedManagerRoute><ManagerContracts /></VerifiedManagerRoute>} />
             <Route path="docs" element={<ManagerDocs />} />
             <Route path="billing/*" element={<Navigate to="/manager/contracts" replace />} />
             <Route path="clients" element={<ManagerClients />} />

@@ -99,13 +99,10 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         verificationStatus !== 'approved';
     const propertySubmissionBlocker = getManagerPropertySubmissionBlocker(managerProfile);
     const isPropertySubmissionReady = propertySubmissionBlocker === null;
-    const shouldFetchVerificationSummary = useMemo(() => (
-        pathname.startsWith('/manager/verification')
-        || pathname.startsWith('/manager/profile')
-        || pathname.startsWith('/manager/dashboard')
-        || pathname.startsWith('/manager/dashboard/properties/add')
-        || pathname.startsWith('/manager/dashboard/properties/edit')
-    ), [pathname]);
+    const shouldFetchVerificationSummary = useMemo(
+        () => pathname.startsWith('/manager'),
+        [pathname],
+    );
     const syncTags = [
         WORKSPACE_SYNC_TAGS.VERIFICATIONS,
         WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,

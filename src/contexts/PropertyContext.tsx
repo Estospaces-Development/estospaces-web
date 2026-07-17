@@ -517,9 +517,11 @@ export const useProperties = () => {
 export const PropertyProvider = ({
   children,
   scope = "public",
+  enabled = true,
 }: {
   children: ReactNode;
   scope?: "public" | "manager" | "admin";
+  enabled?: boolean;
 }) => {
   const location = useLocation();
   const publishWorkspaceSync = usePublishWorkspaceSync();
@@ -916,7 +918,7 @@ export const PropertyProvider = ({
   );
 
   const fetchProperties = useCallback(async () => {
-    if (isAuthRoute) {
+    if (isAuthRoute || !enabled) {
       setError(null);
       setLoading(false);
       setProperties([]);
@@ -978,7 +980,7 @@ export const PropertyProvider = ({
     } finally {
       setLoading(false);
     }
-  }, [buildPropertyQuery, isAuthRoute, pagination.limit, pagination.page, scope]);
+  }, [buildPropertyQuery, enabled, isAuthRoute, pagination.limit, pagination.page, scope]);
 
   useEffect(() => {
     fetchProperties();
@@ -987,7 +989,7 @@ export const PropertyProvider = ({
   useWorkspaceRefresh({
     tags: syncTags,
     refresh: fetchProperties,
-    enabled: !isAuthRoute,
+    enabled: enabled && !isAuthRoute,
   });
 
   const filteredProperties = useMemo(

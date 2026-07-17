@@ -5,7 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
-import { ManagerVerificationProvider } from '../../contexts/ManagerVerificationContext';
+import { ManagerVerificationProvider, useManagerVerification } from '../../contexts/ManagerVerificationContext';
 import { MessagesProvider } from '../../contexts/MessagesContext';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
@@ -16,6 +16,19 @@ import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/l
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
     isSubdomain?: boolean;
+}
+
+function ManagerOperationalProviders({ children }: { children: React.ReactNode }) {
+    const { isLoading, isVerified } = useManagerVerification();
+    const operationalDataEnabled = !isLoading && isVerified;
+
+    return (
+        <PropertyProvider scope="manager" enabled={operationalDataEnabled}>
+            <LeadProvider enabled={operationalDataEnabled}>
+                <MessagesProvider>{children}</MessagesProvider>
+            </LeadProvider>
+        </PropertyProvider>
+    );
 }
 
 export default function ManagerLayoutClient({ children, isSubdomain = false }: ManagerLayoutClientProps) {
@@ -87,9 +100,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
         <ThemeProvider>
             <NotificationsProvider>
                 <ManagerVerificationProvider>
-                    <PropertyProvider scope="manager">
-                        <LeadProvider>
-                            <MessagesProvider>
+                    <ManagerOperationalProviders>
                                 <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
                                     {sidebarOpen && (
                                         <button
@@ -115,9 +126,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                                         </main>
                                     </div>
                                 </div>
-                            </MessagesProvider>
-                        </LeadProvider>
-                    </PropertyProvider>
+                    </ManagerOperationalProviders>
                 </ManagerVerificationProvider>
             </NotificationsProvider>
         </ThemeProvider>
