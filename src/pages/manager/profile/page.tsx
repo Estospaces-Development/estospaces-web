@@ -260,6 +260,13 @@ export default function ManagerProfilePage() {
                 ? 'Company registration number is required'
                 : 'Broker license number is required';
         }
+        const companyAddressTrimmed = formData.companyAddress.trim();
+        const registeredOfficeAddressTrimmed = formData.registeredOfficeAddress.trim();
+        if (!companyAddressTrimmed && !registeredOfficeAddressTrimmed) {
+            nextFieldErrors.companyAddress = managerProfile?.profile_type === 'company'
+                ? 'Company address is required'
+                : 'Office address is required';
+        }
         if (Object.keys(nextFieldErrors).length > 0) {
             setFieldErrors(nextFieldErrors);
             setSaveError('Please correct the highlighted profile fields.');

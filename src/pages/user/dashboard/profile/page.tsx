@@ -181,8 +181,11 @@ export default function ProfilePage() {
                 mergeCurrentUserProfile(data);
             }
 
-            setProfileImagePreview(avatarValue || null);
-            setStoredAvatarValue(avatarValue || null);
+            setProfileImagePreview((prev) => {
+                const next = avatarValue || prev;
+                setStoredAvatarValue(next);
+                return next;
+            });
             setSelectedAvatarFile(null);
             setSaveSuccess(true);
             toast.success('Profile updated successfully');
