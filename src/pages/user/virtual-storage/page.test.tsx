@@ -5,7 +5,45 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 
 import type { FastTrackCase } from "@/services/fastTrackService";
-import { UserVirtualStoragePageContent } from "./page";
+import type { UserDocument } from "@/services/leadsService";
+import { groupVirtualStorageDocuments, UserVirtualStoragePageContent } from "./page";
+
+test("groups the same stored file once while preserving category and review history", () => {
+  const baseDocument = {
+    id: "document-identity",
+    user_id: "user-1",
+    document_type: "identity",
+    document_category: "identity",
+    file_name: "pasta.jpeg",
+    file_url: "https://example.test/pasta.jpeg",
+    file_size: 2048,
+    mime_type: "image/jpeg",
+    status: "pending",
+    virtual_storage_state: "saved",
+    created_at: "2026-07-16T10:00:00Z",
+    updated_at: "2026-07-16T10:00:00Z",
+    linked_entities: [{ type: "fast_track_case", id: "case-1" }],
+  } as UserDocument;
+  const groups = groupVirtualStorageDocuments([
+    baseDocument,
+    {
+      ...baseDocument,
+      id: "document-address",
+      document_type: "address",
+      document_category: "address",
+      status: "approved",
+      updated_at: "2026-07-16T11:00:00Z",
+    },
+  ]);
+
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].document.id, "document-address");
+  assert.deepEqual(groups[0].categoryStatuses, [
+    { category: "identity", status: "pending" },
+    { category: "address", status: "approved" },
+  ]);
+  assert.equal(groups[0].linkedEntities.length, 1);
+});
 
 test("virtual storage page renders vault metrics, categories, and current fast-track state", () => {
   const fastTrackCase = {

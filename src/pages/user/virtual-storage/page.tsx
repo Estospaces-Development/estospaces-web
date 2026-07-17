@@ -71,6 +71,65 @@ const formatLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+export interface VirtualStorageDocumentGroup {
+  key: string;
+  document: UserDocument;
+  categoryStatuses: Array<{ category: string; status: string }>;
+  storageStates: string[];
+  linkedEntities: NonNullable<UserDocument["linked_entities"]>;
+}
+
+export const groupVirtualStorageDocuments = (
+  documents: UserDocument[],
+): VirtualStorageDocumentGroup[] => {
+  const groups = new Map<string, VirtualStorageDocumentGroup>();
+
+  documents.forEach((document) => {
+    const normalizedName = document.file_name.trim().toLowerCase();
+    const normalizedMime = document.mime_type.trim().toLowerCase();
+    const key = [normalizedName, document.file_size, normalizedMime].join(":");
+    const categoryStatus = {
+      category: document.document_category,
+      status: document.status,
+    };
+    const storageState = document.virtual_storage_state || "saved";
+    const existing = groups.get(key);
+
+    if (!existing) {
+      groups.set(key, {
+        key,
+        document,
+        categoryStatuses: [categoryStatus],
+        storageStates: [storageState],
+        linkedEntities: [...(document.linked_entities || [])],
+      });
+      return;
+    }
+
+    if (
+      !existing.categoryStatuses.some(
+        (entry) => entry.category === categoryStatus.category && entry.status === categoryStatus.status,
+      )
+    ) {
+      existing.categoryStatuses.push(categoryStatus);
+    }
+    if (!existing.storageStates.includes(storageState)) {
+      existing.storageStates.push(storageState);
+    }
+    (document.linked_entities || []).forEach((entity) => {
+      if (!existing.linkedEntities.some((entry) => entry.type === entity.type && entry.id === entity.id)) {
+        existing.linkedEntities.push(entity);
+      }
+    });
+
+    if (new Date(document.updated_at).getTime() > new Date(existing.document.updated_at).getTime()) {
+      existing.document = document;
+    }
+  });
+
+  return Array.from(groups.values());
+};
+
 const categoryUploadType = (category: VirtualStorageCategory | undefined) =>
   CATEGORY_UPLOAD_TYPES[category?.slug || ""] || "supporting_document";
 
@@ -150,7 +209,8 @@ export function UserVirtualStoragePageContent({
     (document) => document.virtual_storage_state === "pending_user_save",
   );
   const linkedDocuments = documents.filter((document) => (document.linked_entities || []).length > 0);
-  const activeDocumentCount = documents.length;
+  const storedDocumentGroups = useMemo(() => groupVirtualStorageDocuments(documents), [documents]);
+  const activeDocumentCount = storedDocumentGroups.length;
   const sortedFastTrackCases = useMemo(
     () => sortFastTrackWorkspaceCases(fastTrackCases),
     [fastTrackCases],
@@ -609,22 +669,28 @@ export function UserVirtualStoragePageContent({
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading Virtual Storage
               </div>
-            ) : documents.length > 0 ? (
-              documents.map((document) => (
-                <div key={document.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+            ) : storedDocumentGroups.length > 0 ? (
+              storedDocumentGroups.map(({ key, document, categoryStatuses, storageStates, linkedEntities }) => (
+                <div key={key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-gray-900 dark:text-white">{document.file_name}</p>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {formatLabel(document.document_category)} - {formatLabel(document.status)}
-                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {categoryStatuses.map(({ category, status }) => (
+                          <span key={[category, status].join(":")} className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-300">
+                            {formatLabel(category)} - {formatLabel(status)}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 dark:border-zinc-700 dark:text-gray-300">
-                        {formatLabel(document.virtual_storage_state || "saved")}
-                      </span>
-                      {(document.linked_entities || []).map((entity) => (
-                        <span key={`${document.id}:${entity.id}`} className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+                      {storageStates.map((state) => (
+                        <span key={state} className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 dark:border-zinc-700 dark:text-gray-300">
+                          {formatLabel(state)}
+                        </span>
+                      ))}
+                      {linkedEntities.map((entity) => (
+                        <span key={[entity.type, entity.id].join(":")} className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
                           Linked case
                         </span>
                       ))}
