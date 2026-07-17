@@ -119,9 +119,9 @@ export const getJourneyChromeCopy = (role: UserJourneyRole) => {
   }
 
   return {
-    headerTitle: 'Get your home in 24 hours',
+    headerTitle: 'Fast-track workspace',
     headerSubtitle:
-      'We guide you step by step from choosing a home to getting the keys.',
+      'Your selected home, documents, viewing, decision, agreement, and handover stay together here.',
     showRailLabel: 'See all journeys',
     hideRailLabel: 'Hide journeys',
     pageOptionsLabel: 'Page options',

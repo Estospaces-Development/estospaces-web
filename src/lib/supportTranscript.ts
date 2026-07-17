@@ -61,7 +61,7 @@ export function resolveSupportTranscriptMessagePresentation({
     const senderIsKnownRequester = REQUESTER_ROLES.has(normalizedSenderRole)
         || (hasValue(normalizedRequesterUserId) && normalizedSenderId === normalizedRequesterUserId);
     const isRequesterMessage = senderIsKnownRequester
-        || (!senderIsKnownStaff && (hasValue(normalizedRequesterUserId) ? normalizedSenderId === normalizedRequesterUserId : normalizedSenderId !== normalizedCurrentUserId));
+        || (!senderIsKnownStaff && hasValue(normalizedRequesterUserId) && normalizedSenderId === normalizedRequesterUserId);
     const participant = isRequesterMessage ? 'requester' : 'staff';
     const alignsEnd = perspective === 'staff' ? participant === 'staff' : normalizedSenderId === normalizedCurrentUserId;
     const showParticipantLabel = perspective === 'staff' || normalizedSenderId !== normalizedCurrentUserId;

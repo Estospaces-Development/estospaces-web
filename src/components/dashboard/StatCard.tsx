@@ -9,10 +9,11 @@ interface StatCardProps {
     icon: LucideIcon;
     iconColor: string;
     trendColor: string;
+    loading?: boolean;
     onClick?: () => void;
 }
 
-const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor, onClick }: StatCardProps) => {
+const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor, loading, onClick }: StatCardProps) => {
     const className = `bg-white dark:bg-black rounded-3xl shadow-sm p-6 relative overflow-hidden group transition-all duration-500 font-outfit border border-gray-50 dark:border-gray-900 ${
         onClick ? 'appearance-none cursor-pointer hover:shadow-xl hover:-translate-y-1 text-left w-full' : ''
     }`;
@@ -27,13 +28,26 @@ const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor, onC
                     <div className={`p-3 rounded-2xl ${iconColor} transition-transform duration-500 group-hover:scale-110 group-hover:shadow-2xl`}>
                         <Icon className="w-6 h-6 text-white" />
                     </div>
-                    <div className={`flex items-center gap-1.5 ${trendColor} transition-transform duration-500 group-hover:translate-x-1`}>
-                        <TrendingUp className="w-4 h-4 scale-110" />
-                        <span className="text-sm font-black tracking-tight">{change}</span>
-                    </div>
+                    {loading ? (
+                        <div className="h-4 w-16 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                    ) : (
+                        <div className={`flex items-center gap-1.5 ${trendColor} transition-transform duration-500 group-hover:translate-x-1`}>
+                            <TrendingUp className="w-4 h-4 scale-110" />
+                            <span className="text-sm font-black tracking-tight">{change}</span>
+                        </div>
+                    )}
                 </div>
-                <p className="text-3xl font-black text-gray-900 dark:text-white mb-1 transition-all duration-300 group-hover:tracking-tight">{value}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">{title}</p>
+                {loading ? (
+                    <div className="space-y-2">
+                        <div className="h-8 w-20 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                        <div className="h-3 w-24 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                    </div>
+                ) : (
+                    <>
+                        <p className="text-3xl font-black text-gray-900 dark:text-white mb-1 transition-all duration-300 group-hover:tracking-tight">{value}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">{title}</p>
+                    </>
+                )}
             </div>
         </>
     );

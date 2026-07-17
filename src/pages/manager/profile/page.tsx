@@ -61,6 +61,7 @@ export default function ManagerProfilePage() {
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [removingAvatar, setRemovingAvatar] = useState(false);
+    const [companyAddressError, setCompanyAddressError] = useState('');
     const [confirmingAvatarRemoval, setConfirmingAvatarRemoval] = useState(false);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -160,6 +161,15 @@ export default function ManagerProfilePage() {
         setSaveError('');
         if (e.target.name === 'firstName' || e.target.name === 'lastName' || e.target.name === 'licenseNumber') {
             setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));
+        }
+
+        if (e.target.name === 'companyAddress') {
+            const trimmed = nextValue.trim();
+            if (trimmed.length > 0) {
+                setCompanyAddressError('');
+            } else {
+                setCompanyAddressError('Please enter your office or company address.');
+            }
         }
     };
 
@@ -714,8 +724,11 @@ export default function ManagerProfilePage() {
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
                                         <textarea id="manager-company-address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
                                             placeholder="1 Office Road, Chennai, 600001"
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                            className={`w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border ${companyAddressError ? 'border-red-400 dark:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-orange-500'} rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-100 resize-none`} />
                                     </div>
+                                    {companyAddressError && (
+                                        <p role="alert" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{companyAddressError}</p>
+                                    )}
                                 </div>
 
                                 <div>

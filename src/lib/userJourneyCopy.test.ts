@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getBrokerRequestCopy } from "./userJourneyCopy";
+import { getBrokerRequestCopy, getJourneyChromeCopy } from "./userJourneyCopy";
+
+test("user Fast Track route identifies itself as the dedicated workspace", () => {
+  const copy = getJourneyChromeCopy("user");
+
+  assert.equal(copy.headerTitle, "Fast-track workspace");
+  assert.match(copy.headerSubtitle, /documents, viewing, decision, agreement, and handover/);
+});
 
 test("broker request copy uses India property-agent wording for PIN contexts", () => {
   const copy = getBrokerRequestCopy("rent", "IN");

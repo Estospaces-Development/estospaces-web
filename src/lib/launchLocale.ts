@@ -26,18 +26,23 @@ const LAUNCH_CITY_BY_PIN_CODE: Record<string, string> = {
 
 export function formatLaunchCurrency(
   amount: number | null | undefined,
-  options: { monthly?: boolean; showCode?: boolean } = {},
+  options: { monthly?: boolean; showCode?: boolean; currencyCode?: string } = {},
 ): string {
   if (typeof amount !== "number" || !Number.isFinite(amount)) {
     return "";
   }
 
-  const formatted = new Intl.NumberFormat(LAUNCH_LOCALE, {
+  const currency = String(options.currencyCode || "").trim().toUpperCase();
+  const locale = currency === "GBP" ? "en-GB" : LAUNCH_LOCALE;
+  const symbol = currency === "GBP" ? "£" : LAUNCH_CURRENCY_SYMBOL;
+  const code = currency || LAUNCH_CURRENCY_CODE;
+
+  const formatted = new Intl.NumberFormat(locale, {
     maximumFractionDigits: 0,
   }).format(amount);
   const suffix = options.monthly ? "/mo" : "";
-  const code = options.showCode ? ` ${LAUNCH_CURRENCY_CODE}` : "";
-  return `${LAUNCH_CURRENCY_SYMBOL}${formatted}${code}${suffix}`;
+  const codeSuffix = options.showCode ? ` ${code}` : "";
+  return `${symbol}${formatted}${codeSuffix}${suffix}`;
 }
 
 export function formatLaunchCurrencyForCountry(
@@ -71,6 +76,7 @@ export function formatLaunchCurrencyForCountry(
     return formatLaunchCurrency(amount, {
       monthly: options.monthly,
       showCode: options.showCode,
+      currencyCode: options.currencyCode || undefined,
     });
   }
 }
