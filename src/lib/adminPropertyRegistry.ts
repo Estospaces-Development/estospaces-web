@@ -189,9 +189,53 @@ export const isInternalAutomationProperty = (property: AdminPropertyRegistryProp
         || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(searchableText));
 };
 
+const COPY_PROPERTY_PATTERN = /\(copy\)/i;
+
+const getPropertyDedupKey = (property: AdminPropertyRegistryProperty) => {
+    const priceValue = typeof property.price === 'number'
+        ? property.price
+        : typeof property.price?.amount === 'number'
+            ? property.price.amount
+            : property.priceString || '';
+    const location = property.location?.city || property.city || property.address_line_1 || '';
+    const agent = property.contactName || property.agent_name || '';
+    return `${String(property.title || '').trim().toLowerCase()}|${priceValue}|${String(location).trim().toLowerCase()}|${String(agent).trim().toLowerCase()}`;
+};
+
+export const isDuplicateCopyProperty = (property: AdminPropertyRegistryProperty) => {
+    const searchableText = getAdminPropertyRegistryText(property);
+    if (COPY_PROPERTY_PATTERN.test(searchableText)) {
+        return true;
+    }
+    return false;
+};
+
 export const filterVisibleAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
     properties: readonly Property[],
-) => properties.filter((property) => !isInternalAutomationProperty(property));
+) => {
+    const seenKeys = new Set<string>();
+    const seenByTitle = new Map<string, string>();
+    const nonInternal = properties.filter((property) => !isInternalAutomationProperty(property));
+
+    const result: Property[] = [];
+    for (const property of nonInternal) {
+        if (isDuplicateCopyProperty(property)) {
+            continue;
+        }
+        const dedupKey = getPropertyDedupKey(property);
+        const titleKey = String(property.title || '').trim().toLowerCase();
+        if (seenByTitle.has(titleKey)) {
+            continue;
+        }
+        if (seenKeys.has(dedupKey)) {
+            continue;
+        }
+        seenKeys.add(dedupKey);
+        seenByTitle.set(titleKey, dedupKey);
+        result.push(property);
+    }
+    return result;
+};
 
 const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: string) => {
     const normalizedQuery = normalizePropertyValue(searchQuery);
