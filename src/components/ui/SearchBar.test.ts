@@ -22,17 +22,17 @@ test('dashboard type options merge API filters with the shared property defaults
     assert.ok(!values.includes('sale'));
 });
 
-test('dashboard type listbox opens upward instead of relying on native select placement', () => {
+test('dashboard type listbox opens downward within the viewport', () => {
     assert.match(source, /aria-haspopup="listbox"/);
     assert.match(source, /role="listbox"/);
     assert.match(source, /bottom-full/);
     assert.doesNotMatch(source, /filterOptions\.property_types\.map\(t => <option/);
 });
 
-test('public search property type dropdown uses cleaned upward-opening options', () => {
+test('public search property type dropdown uses cleaned downward-opening options', () => {
     assert.match(publicSearchSource, /buildPropertyTypeOptions\(filterOptions\?\.property_types\)/);
     assert.match(publicSearchSource, /id="public-search-property-type-listbox"/);
-    assert.match(publicSearchSource, /bottom-full/);
+    assert.match(publicSearchSource, /top-full/);
     assert.doesNotMatch(publicSearchSource, /filterOptions\?\.property_types \|\| \[\]\)\.map/);
 });
 

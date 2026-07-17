@@ -777,7 +777,7 @@ const PropertySearch = () => {
                                     id="public-search-property-type-listbox"
                                     role="listbox"
                                     aria-labelledby="public-search-property-type-label"
-                                    className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                                    className="absolute top-full left-0 right-0 z-50 mt-2 max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
                                 >
                                     {propertyTypeOptions.map((option) => (
                                         <button

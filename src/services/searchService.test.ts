@@ -38,17 +38,17 @@ test('core property search maps Indian PIN location to search', () => {
     assert.equal(params.get('city'), null);
     assert.equal(params.get('listing_type'), 'sale');
 });
-test('core property search keeps city location as city filter', () => {
+test('core property search merges city location into the search string', () => {
     const params = mapSearchFiltersToCoreQuery('', {
         location: 'Preston',
         listingType: 'sale',
     });
 
-    assert.equal(params.get('search'), null);
-    assert.equal(params.get('city'), 'Preston');
+    assert.equal(params.get('search'), 'preston');
+    assert.equal(params.get('city'), null);
 });
 
-test('core property search keeps non-type keyword and city as separate filters', () => {
+test('core property search merges keyword and city location into the search string', () => {
     const params = mapSearchFiltersToCoreQuery('Garden', {
         location: 'Chennai',
         propertyType: 'apartment',
@@ -56,14 +56,14 @@ test('core property search keeps non-type keyword and city as separate filters',
         limit: 12,
     });
 
-    assert.equal(params.get('search'), 'garden');
-    assert.equal(params.get('city'), 'Chennai');
+    assert.equal(params.get('search'), 'garden chennai');
+    assert.equal(params.get('city'), null);
     assert.equal(params.get('type'), 'apartment');
     assert.equal(params.get('listing_type'), 'rent');
     assert.equal(params.get('limit'), '12');
 });
 
-test('core property search does not send a keyword already covered by selected property type', () => {
+test('core property search keeps keyword covered by property type and still includes location in search', () => {
     const params = mapSearchFiltersToCoreQuery('Apartment', {
         location: 'Chennai',
         propertyType: 'apartment',
@@ -71,8 +71,8 @@ test('core property search does not send a keyword already covered by selected p
         limit: 12,
     });
 
-    assert.equal(params.get('search'), null);
-    assert.equal(params.get('city'), 'Chennai');
+    assert.equal(params.get('search'), 'chennai');
+    assert.equal(params.get('city'), null);
     assert.equal(params.get('type'), 'apartment');
     assert.equal(params.get('listing_type'), 'rent');
     assert.equal(params.get('limit'), '12');
@@ -87,8 +87,8 @@ test('core property search keeps city type and price filters without duplicating
         limit: 12,
     });
 
-    assert.equal(params.get('search'), null);
-    assert.equal(params.get('city'), 'Guwahati');
+    assert.equal(params.get('search'), 'guwahati');
+    assert.equal(params.get('city'), null);
     assert.equal(params.get('type'), 'apartment');
     assert.equal(params.get('min_price'), '300000');
     assert.equal(params.get('max_price'), '400000');
@@ -103,7 +103,8 @@ test('core property search preserves market country filters', () => {
     });
 
     assert.equal(gbParams.get('country'), 'GB');
-    assert.equal(gbParams.get('city'), 'London');
+    assert.equal(gbParams.get('search'), 'london');
+    assert.equal(gbParams.get('city'), null);
     assert.equal(gbParams.get('type'), 'duplex');
 
     const inParams = mapSearchFiltersToCoreQuery('apartment', {
@@ -114,7 +115,8 @@ test('core property search preserves market country filters', () => {
     });
 
     assert.equal(inParams.get('country'), 'IN');
-    assert.equal(inParams.get('city'), 'Guwahati');
+    assert.equal(inParams.get('search'), 'guwahati');
+    assert.equal(inParams.get('city'), null);
 });
 
 test('core property search normalizes route-loaded query text', () => {

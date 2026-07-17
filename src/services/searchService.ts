@@ -240,16 +240,14 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     if (normalizedPostcode) {
         searchParts.push(normalizedPostcode);
     }
-    if (locationIsPostcode) {
-        searchParts.push(normalizedLocation);
+    if (normalizedLocation) {
+        const locationForSearch = locationIsPostcode ? normalizedLocation : normalizedLocation.toLowerCase();
+        searchParts.push(locationForSearch);
     }
     const combinedSearch = searchParts.join(' ').trim();
 
     if (combinedSearch) {
         params.append('search', combinedSearch);
-    }
-    if (normalizedLocation && !locationIsPostcode) {
-        params.append('city', normalizedLocation);
     }
 
     if (hasFilterValue(filters.minPrice)) params.append('min_price', String(filters.minPrice));
