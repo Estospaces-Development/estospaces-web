@@ -15,7 +15,8 @@ const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-vi
 export const REGISTER_DRAFT_STORAGE_KEY = 'estospaces:register:draft:v1';
 
 type RegisterDraft = {
-    name: string;
+    firstName: string;
+    lastName: string;
     email: string;
     role: string;
 };
@@ -35,24 +36,28 @@ export function normalizeRegisterEmail(value: string): string {
     return value.trim().toLowerCase();
 }
 
-export function validateRegisterName(value: string): string | null {
+export function validateRegisterName(value: string, label = 'Name'): string | null {
     const trimmed = value.trim();
     if (!trimmed) {
-        return 'Please enter your name';
+        return `Please enter your ${label.toLowerCase()}`;
     }
     if (trimmed.length < 2) {
-        return 'Name must be at least 2 characters';
+        return `${label} must be at least 2 characters`;
     }
     if (trimmed.length > 80) {
-        return 'Name must be 80 characters or fewer';
+        return `${label} must be 80 characters or fewer`;
     }
     if (!/^[A-Za-z .'-]+$/.test(trimmed)) {
-        return 'Name can only include letters, spaces, apostrophes, periods, and hyphens';
+        return `${label} can only include letters, spaces, apostrophes, periods, and hyphens`;
     }
     if ((trimmed.match(/[A-Za-z]/g) || []).length < 2) {
-        return 'Name must include at least 2 letters';
+        return `${label} must include at least 2 letters`;
     }
     return null;
+}
+
+export function buildRegisterFullName(firstName: string, lastName: string): string {
+    return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
 }
 
 export function validateRegisterEmail(value: string): string | null {
@@ -89,9 +94,12 @@ function readRegisterDraft(): RegisterDraft | null {
         if (!rawDraft) {
             return null;
         }
-        const parsed = JSON.parse(rawDraft) as Partial<RegisterDraft>;
+        const parsed = JSON.parse(rawDraft) as Partial<RegisterDraft> & { name?: unknown };
+        const legacyName = typeof parsed.name === 'string' ? parsed.name.trim() : '';
+        const legacyNameParts = legacyName.split(/\s+/).filter(Boolean);
         return {
-            name: typeof parsed.name === 'string' ? parsed.name : '',
+            firstName: typeof parsed.firstName === 'string' ? parsed.firstName : (legacyNameParts[0] || ''),
+            lastName: typeof parsed.lastName === 'string' ? parsed.lastName : legacyNameParts.slice(1).join(' '),
             email: typeof parsed.email === 'string' ? parsed.email : '',
             role: normalizeRegisterRole(typeof parsed.role === 'string' ? parsed.role : 'user'),
         };
@@ -109,7 +117,8 @@ function saveRegisterDraft(draft: RegisterDraft) {
     window.sessionStorage.setItem(
         REGISTER_DRAFT_STORAGE_KEY,
         JSON.stringify({
-            name: draft.name,
+            firstName: draft.firstName,
+            lastName: draft.lastName,
             email: draft.email,
             role: normalizeRegisterRole(draft.role),
         }),
@@ -245,14 +254,16 @@ export default function RegisterPage() {
     const resendCooldownTimerRef = useRef<number | null>(null);
     const registerDraftSaveReadyRef = useRef(false);
 
-    const [name, setName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('user');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [nameError, setNameError] = useState('');
+    const [firstNameError, setFirstNameError] = useState('');
+    const [lastNameError, setLastNameError] = useState('');
     const [emailError, setEmailError] = useState('');
     const [success, setSuccess] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -302,7 +313,8 @@ export default function RegisterPage() {
             return;
         }
 
-        setName(draft.name);
+        setFirstName(draft.firstName);
+        setLastName(draft.lastName);
         setEmail(draft.email);
         setRole(normalizeRegisterRole(draft.role));
     }, []);
@@ -316,8 +328,8 @@ export default function RegisterPage() {
             return;
         }
 
-        saveRegisterDraft({ name, email, role });
-    }, [email, name, role, success]);
+        saveRegisterDraft({ firstName, lastName, email, role });
+    }, [email, firstName, lastName, role, success]);
 
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);
@@ -347,11 +359,19 @@ export default function RegisterPage() {
         setIsTermsModalOpen(false);
     };
 
-    const handleNameChange = (value: string) => {
-        setName(value);
+    const handleFirstNameChange = (value: string) => {
+        setFirstName(value);
         setError('');
-        if (nameError) {
-            setNameError(validateRegisterName(value) || '');
+        if (firstNameError) {
+            setFirstNameError(validateRegisterName(value, 'First name') || '');
+        }
+    };
+
+    const handleLastNameChange = (value: string) => {
+        setLastName(value);
+        setError('');
+        if (lastNameError) {
+            setLastNameError(validateRegisterName(value, 'Last name') || '');
         }
     };
 
@@ -366,13 +386,15 @@ export default function RegisterPage() {
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const nextNameError = validateRegisterName(name);
+        const nextFirstNameError = validateRegisterName(firstName, 'First name');
+        const nextLastNameError = validateRegisterName(lastName, 'Last name');
         const nextEmailError = validateRegisterEmail(email);
-        setNameError(nextNameError || '');
+        setFirstNameError(nextFirstNameError || '');
+        setLastNameError(nextLastNameError || '');
         setEmailError(nextEmailError || '');
 
-        if (nextNameError) {
-            setError(nextNameError);
+        if (nextFirstNameError || nextLastNameError) {
+            setError(nextFirstNameError || nextLastNameError || 'Please enter your name');
             return;
         }
         if (nextEmailError) {
@@ -394,7 +416,7 @@ export default function RegisterPage() {
         setEmail(normalizedEmail);
 
         try {
-            const result = await register(name.trim(), normalizedEmail, password, role, {
+            const result = await register(buildRegisterFullName(firstName, lastName), normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
             });
@@ -580,29 +602,52 @@ export default function RegisterPage() {
                         </div>
                     </div>
 
-                    <div className="mb-4">
-                        <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
-                        <input
-                            id="register-name"
-                            name="name"
-                            type="text"
-                            autoComplete="name"
-                            placeholder="Enter your full name"
-                            value={name}
-                            onChange={(e) => handleNameChange(e.target.value)}
-                            onBlur={() => setNameError(validateRegisterName(name) || '')}
-                            maxLength={80}
-                            aria-invalid={Boolean(nameError)}
-                            aria-describedby={nameError ? 'register-name-error' : undefined}
-                            className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${nameError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
-                        />
-                        {nameError && (
-                            <p id="register-name-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
-                                {nameError}
-                            </p>
-                        )}
+                    <div className="mb-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label htmlFor="register-first-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">First name</label>
+                            <input
+                                id="register-first-name"
+                                name="firstName"
+                                type="text"
+                                autoComplete="given-name"
+                                placeholder="Enter your first name"
+                                value={firstName}
+                                onChange={(e) => handleFirstNameChange(e.target.value)}
+                                onBlur={() => setFirstNameError(validateRegisterName(firstName, 'First name') || '')}
+                                maxLength={80}
+                                aria-invalid={Boolean(firstNameError)}
+                                aria-describedby={firstNameError ? 'register-first-name-error' : undefined}
+                                className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${firstNameError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
+                            />
+                            {firstNameError && (
+                                <p id="register-first-name-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                    {firstNameError}
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <label htmlFor="register-last-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Last name</label>
+                            <input
+                                id="register-last-name"
+                                name="lastName"
+                                type="text"
+                                autoComplete="family-name"
+                                placeholder="Enter your last name"
+                                value={lastName}
+                                onChange={(e) => handleLastNameChange(e.target.value)}
+                                onBlur={() => setLastNameError(validateRegisterName(lastName, 'Last name') || '')}
+                                maxLength={80}
+                                aria-invalid={Boolean(lastNameError)}
+                                aria-describedby={lastNameError ? 'register-last-name-error' : undefined}
+                                className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${lastNameError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
+                            />
+                            {lastNameError && (
+                                <p id="register-last-name-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                    {lastNameError}
+                                </p>
+                            )}
+                        </div>
                     </div>
-
                     <div className="mb-4">
                         <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                         <input
@@ -702,13 +747,13 @@ export default function RegisterPage() {
                                 <FileText size={16} />
                                 {agreedToTerms ? 'Review Terms Again' : 'Read Terms & Conditions'}
                             </button>
-                                <Link
-                                    to="/privacy"
-                                    onClick={() => saveRegisterDraft({ name, email, role })}
-                                    className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
-                                >
-                                    Privacy Policy
-                                </Link>
+                            <Link
+                                to="/privacy"
+                                onClick={() => saveRegisterDraft({ firstName, lastName, email, role })}
+                                className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
+                            >
+                                Privacy Policy
+                            </Link>
                             {acceptedTermsLabel && (
                                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                     Accepted on {acceptedTermsLabel}

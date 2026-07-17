@@ -280,9 +280,15 @@ test('register page validates identity fields and persists safe draft data', asy
     const registerModule = await import('../pages/auth/register/page');
     const validateRegisterName = registerModule.validateRegisterName as unknown;
     const validateRegisterEmail = registerModule.validateRegisterEmail as unknown;
+    const buildRegisterFullName = registerModule.buildRegisterFullName as unknown;
 
     assert.equal(typeof validateRegisterName, 'function');
     assert.equal(typeof validateRegisterEmail, 'function');
+    assert.equal(typeof buildRegisterFullName, 'function');
+    assert.equal(
+        (validateRegisterName as (value: string, label?: string) => string | null)('', 'Last name'),
+        'Please enter your last name',
+    );
 
     assert.equal(
         (validateRegisterName as (value: string) => string | null)('@#$123'),
@@ -296,7 +302,17 @@ test('register page validates identity fields and persists safe draft data', asy
         (validateRegisterEmail as (value: string) => string | null)('release-check@yopmail.com'),
         null,
     );
-    assert.match(registerPage, /onBlur=\{\(\) => setNameError/);
+    assert.equal(
+        (buildRegisterFullName as (firstName: string, lastName: string) => string)('Property', 'Manager'),
+        'Property Manager',
+    );
+    assert.match(registerPage, /id="register-first-name"/);
+    assert.match(registerPage, /id="register-last-name"/);
+    assert.doesNotMatch(registerPage, /id="register-name"/);
+    assert.match(registerPage, /autoComplete="given-name"/);
+    assert.match(registerPage, /autoComplete="family-name"/);
+    assert.match(registerPage, /onBlur=\{\(\) => setFirstNameError/);
+    assert.match(registerPage, /onBlur=\{\(\) => setLastNameError/);
     assert.match(registerPage, /onBlur=\{\(\) => setEmailError/);
 });
 
