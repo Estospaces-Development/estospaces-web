@@ -174,3 +174,46 @@ test("validateManagerPropertyField enforces full description length", () => {
     "Full description must be 1000 characters or fewer",
   );
 });
+
+test("validateManagerPropertyField rejects phone numbers exceeding 15 digits (#283)", () => {
+  const tooLong = validateManagerPropertyField("contactPhone", {
+    ...baseValues,
+    contactPhone: "6457475343464575",
+  });
+  assert.equal(tooLong, "Please enter a valid phone number");
+
+  const withinLimit = validateManagerPropertyField("contactPhone", {
+    ...baseValues,
+    contactPhone: "+919876543210",
+  });
+  assert.equal(withinLimit, null);
+});
+
+test("validateManagerPropertyField rejects PIN code that mismatches selected state (#281)", () => {
+  const mismatch = validateManagerPropertyField("postalCode", {
+    ...baseValues,
+    country: "India",
+    countryCode: "IN",
+    stateCode: "DL",
+    postalCode: "600005",
+  });
+  assert.equal(mismatch, "PIN code does not match the selected state");
+
+  const correct = validateManagerPropertyField("postalCode", {
+    ...baseValues,
+    country: "India",
+    countryCode: "IN",
+    stateCode: "TN",
+    postalCode: "600001",
+  });
+  assert.equal(correct, null);
+
+  const noState = validateManagerPropertyField("postalCode", {
+    ...baseValues,
+    country: "India",
+    countryCode: "IN",
+    stateCode: "",
+    postalCode: "600001",
+  });
+  assert.equal(noState, null);
+});

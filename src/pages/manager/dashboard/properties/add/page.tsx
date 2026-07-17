@@ -3098,78 +3098,42 @@ export default function AddPropertyPage() {
         {/* Step 4: Media & Features */}
         {currentStep === 4 && (
           <div className="space-y-8">
-            {import.meta.env.DEV && (
             <section className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/60">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-                    Media attachment details
-                  </h2>
-                  <dl className="mt-3 grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
-                    <div>
-                      <dt className="font-semibold text-gray-900 dark:text-white">Staged media source</dt>
-                      <dd className="mt-1 break-all font-mono text-xs">{mediaSourceEntityId}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-gray-900 dark:text-white">Reassignment target</dt>
-                      <dd className="mt-1 break-all font-mono text-xs">{mediaTargetEntityId}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-gray-900 dark:text-white">Selected staged uploads</dt>
-                      <dd className="mt-1">{selectedStagedUploadCount}</dd>
-                    </div>
-                  </dl>
-                  {mediaAttachMessage && (
-                    <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-200">
-                      {mediaAttachMessage}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void refreshMediaFiles()}
-                    disabled={mediaListLoading}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
-                  >
-                    {mediaListLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Refresh media list
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleAttachStagedMedia()}
-                    disabled={!canAttachStagedMedia || mediaListLoading}
-                    className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Attach staged media
-                  </button>
-                </div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                My Uploads
+              </h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void refreshMediaFiles()}
+                  disabled={mediaListLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
+                >
+                  {mediaListLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Refresh
+                </button>
               </div>
               <div className="mt-4 overflow-x-auto">
                 {visibleMediaFiles.length > 0 ? (
-                  <table className="w-full min-w-[680px] text-left text-sm">
+                  <table className="w-full min-w-[480px] text-left text-sm">
                     <thead className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       <tr>
-                        <th className="py-2 pr-4">Media ID</th>
                         <th className="py-2 pr-4">File</th>
                         <th className="py-2 pr-4">Type</th>
-                        <th className="py-2 pr-4">Entity ID</th>
                         <th className="py-2 pr-4">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                       {visibleMediaFiles.map((file) => (
                         <tr key={file.id}>
-                          <td className="py-2 pr-4 font-mono text-xs text-gray-600 dark:text-gray-300">{file.id}</td>
                           <td className="py-2 pr-4 text-gray-800 dark:text-gray-100">{file.original_name || file.file_name}</td>
                           <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">{file.mime_type}</td>
-                          <td className="py-2 pr-4 font-mono text-xs text-gray-600 dark:text-gray-300">{file.entity_id}</td>
                           <td className="py-2 pr-4">
                             <button
                               type="button"
                               onClick={() => void handleDeleteMediaFile(file)}
                               disabled={mediaListLoading}
-                              aria-label={`Remove media ${file.original_name || file.file_name || file.id}`}
+                              aria-label={`Remove ${file.original_name || file.file_name || file.id}`}
                               className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20"
                             >
                               Remove
@@ -3181,12 +3145,11 @@ export default function AddPropertyPage() {
                   </table>
                 ) : (
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    No uploaded media records found for the staged source or reassignment target yet. Remove controls appear here after media is attached.
+                    No media uploaded yet. Use the upload area below to add property images and videos.
                   </p>
                 )}
               </div>
             </section>
-            )}
 
             {/* Images */}
             <div>
