@@ -1,3 +1,5 @@
+import { getServiceUrl } from '@/lib/apiUtils';
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
 
@@ -50,6 +52,29 @@ const isPrivateMediaBucketUrl = (image: string) => {
     }
 };
 
+const MEDIA_ACCESS_RELATIVE_PATTERN = /^\/api\/v1\/media\/access\//;
+
+export const resolvePropertyImageUrl = (image: string): string => {
+    const trimmed = image.trim();
+    if (!trimmed) {
+        return trimmed;
+    }
+
+    // Already absolute — no change needed
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+    }
+
+    // Relative media access path — resolve against media service base URL
+    if (MEDIA_ACCESS_RELATIVE_PATTERN.test(trimmed)) {
+        const mediaBase = getServiceUrl('media');
+        const cleanMediaBase = mediaBase.replace(/\/$/, '');
+        return `${cleanMediaBase}${trimmed}`;
+    }
+
+    return trimmed;
+};
+
 const isPlaceholderUrl = (image: string) => {
     try {
         const url = new URL(image);
@@ -76,15 +101,15 @@ export const getPropertyImages = (property: unknown): string[] => {
     }
 
     return uniqueImages([
-        ...normalizeImageValue(property.image_urls),
-        ...normalizeImageValue(property.images),
-        ...normalizeImageValue(isRecord(property.media) ? property.media.images : undefined),
-        ...normalizeImageValue(property.image),
-        ...normalizeImageValue(property.image_url),
-        ...normalizeImageValue(property.thumbnail_url),
-        ...normalizeImageValue(property.photo),
-        ...normalizeImageValue(property.main_image),
-        ...normalizeImageValue(property.property_image),
+        ...normalizeImageValue(property.image_urls).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.images).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(isRecord(property.media) ? property.media.images : undefined).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.image).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.image_url).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.thumbnail_url).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.photo).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.main_image).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.property_image).map(resolvePropertyImageUrl),
     ]);
 };
 
