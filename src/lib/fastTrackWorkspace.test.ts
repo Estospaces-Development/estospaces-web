@@ -426,7 +426,7 @@ test('fast-track document preview opens a modal only from explicit preview actio
     );
 });
 
-test('fast-track document open launches the full viewer instead of the preview modal', () => {
+test('fast-track document open stays in the preview modal instead of navigating to raw media', () => {
     assert.match(
         fastTrackWorkspaceComponent,
         /const externalWindow = openInNewTab \? window\.open\('about:blank', '_blank'\) : null/,
@@ -445,7 +445,7 @@ test('fast-track document open launches the full viewer instead of the preview m
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\);/,
+        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\);/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
@@ -473,7 +473,7 @@ test('fast-track document open launches the full viewer instead of the preview m
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
-        /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/,
+        /ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\)/,
     );
 });
 
