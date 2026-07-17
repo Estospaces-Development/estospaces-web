@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Filter, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 import BarChart from '@/components/ui/BarChart';
 import PieChart from '@/components/ui/PieChart';
@@ -55,6 +56,7 @@ const managerFunnelColorClasses: Record<ManagerFunnelColor, string> = {
 };
 
 const Analytics = () => {
+    const location = useLocation();
     const { properties } = useProperties();
     const { leads } = useLeads();
 
@@ -62,6 +64,19 @@ const Analytics = () => {
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [timeRange, setTimeRange] = useState<'6m' | '12m'>('6m');
+
+    useEffect(() => {
+        const anchorId = decodeURIComponent(location.hash.slice(1));
+        if (!anchorId || loading) return;
+
+        const frame = window.requestAnimationFrame(() => {
+            const target = document.getElementById(anchorId);
+            target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target?.focus({ preventScroll: true });
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [loading, location.hash]);
 
     const fetchData = useCallback(async (forceRefresh = false, silent = false) => {
         if (!silent) {
@@ -255,6 +270,7 @@ const Analytics = () => {
                     },
                     { 
                         label: 'Conv. Rate', 
+                        anchorId: 'manager-analytics-conversion',
                         value: managerConversionRateLabel,
                         icon: Target, 
                         color: 'green', 
@@ -262,6 +278,7 @@ const Analytics = () => {
                     },
                     { 
                         label: 'Views', 
+                        anchorId: 'manager-analytics-views',
                         value: analyticsData?.total_views || 0, 
                         icon: TrendingUp, 
                         color: 'purple', 
@@ -271,7 +288,12 @@ const Analytics = () => {
                     const colorClasses = managerMetricColorClasses[metric.color as ManagerAnalyticsColor] || managerMetricColorClasses.blue;
 
                     return (
-                    <div key={i} className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                    <div
+                        key={i}
+                        id={metric.anchorId}
+                        tabIndex={metric.anchorId ? -1 : undefined}
+                        className="scroll-mt-28 bg-white dark:bg-black rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group focus-visible:ring-2 focus-visible:ring-orange-500"
+                    >
                         <div className="flex justify-between items-start mb-4">
                             <div className={`p-3 ${colorClasses.iconWrap} rounded-2xl group-hover:scale-110 transition-transform`}>
                                 <metric.icon className={`w-6 h-6 ${colorClasses.icon}`} />

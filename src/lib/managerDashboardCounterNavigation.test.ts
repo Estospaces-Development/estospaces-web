@@ -22,6 +22,15 @@ test('manager dashboard KPI counters expose destination actions', () => {
 
   assert.match(source, /title="Live Fast Track"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/fast-track'\)\}/);
   assert.match(source, /title="Active Listings"[\s\S]*?onClick=\{\(\) => navigate\(buildManagerActiveListingsPath\(\)\)\}/);
-  assert.match(source, /title="Total Views"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/analytics'\)\}/);
-  assert.match(source, /title="Conversion Rate"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/analytics'\)\}/);
+  assert.match(source, /title="Total Views"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/analytics#manager-analytics-views'\)\}/);
+  assert.match(source, /title="Conversion Rate"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/analytics#manager-analytics-conversion'\)\}/);
+});
+
+test('manager analytics exposes and restores KPI deep-link anchors', () => {
+  const source = readSource('src/pages/manager/analytics/page.tsx');
+
+  assert.match(source, /anchorId: 'manager-analytics-views'/);
+  assert.match(source, /anchorId: 'manager-analytics-conversion'/);
+  assert.match(source, /document\.getElementById\(anchorId\)/);
+  assert.match(source, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/);
 });

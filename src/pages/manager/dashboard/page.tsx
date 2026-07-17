@@ -481,7 +481,7 @@ function DashboardContent() {
           icon={Eye}
           iconColor="bg-purple-500"
           trendColor="text-purple-600"
-          onClick={() => navigate('/manager/analytics')}
+          onClick={() => navigate('/manager/analytics#manager-analytics-views')}
         />
         <StatCard
           title="Conversion Rate"
@@ -490,7 +490,7 @@ function DashboardContent() {
           icon={UserCheck}
           iconColor="bg-orange-500"
           trendColor="text-orange-600"
-          onClick={() => navigate('/manager/analytics')}
+          onClick={() => navigate('/manager/analytics#manager-analytics-conversion')}
         />
       </div>
 
