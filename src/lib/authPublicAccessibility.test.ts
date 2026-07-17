@@ -50,7 +50,7 @@ test("login password reveal uses one custom control with non-inverted state", ()
   assert.match(loginPage, /type=\{showPassword \? 'text' : 'password'\}/);
   assert.match(loginPage, /password-input-no-native-reveal/);
   assert.match(loginPage, /aria-label=\{showPassword \? 'Hide password' : 'Show password'\}/);
-  assert.match(loginPage, /\{showPassword \? <EyeOff size=\{20\} \/> : <Eye size=\{20\} \/>}/);
+  assert.match(loginPage, /\{showPassword \? <Eye size=\{20\} \/> : <EyeOff size=\{20\} \/>}/);
   assert.match(globalsCss, /input\[type="password"\]::\-ms-reveal/);
   assert.match(globalsCss, /input\[type="password"\]::\-ms-clear/);
 });
