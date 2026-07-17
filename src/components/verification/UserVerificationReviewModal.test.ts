@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 import {
     USER_VERIFICATION_REVIEW_CLOSE_LABEL,
+    VERIFICATION_DOCUMENT_ISSUES,
     VERIFICATION_REASON_MIN_LENGTH,
     VERIFICATION_REASON_MIN_WORDS,
+    buildVerificationDocumentReviewReason,
     canCompleteUserVerification,
     dedupeVerificationReviewDocuments,
     formatVerificationConversationLastMessage,
@@ -133,10 +135,15 @@ test('document review reasons require specific actionable text', () => {
         getVerificationDocumentReviewReasonError('Document image is blurry and the address is cut off.'),
         null,
     );
+    assert.ok(VERIFICATION_DOCUMENT_ISSUES.length >= 5);
+    assert.equal(
+        buildVerificationDocumentReviewReason('expired', 'Upload a current passport showing the expiry date.'),
+        'Document is expired: Upload a current passport showing the expiry date.',
+    );
 
     assert.match(source, /minLength=\{VERIFICATION_REASON_MIN_LENGTH\}/);
     assert.match(source, /aria-invalid=\{Boolean\(visibleReviewReasonError\)\}/);
-    assert.match(source, /disabled=\{loading \|\| disabled \|\| Boolean\(reviewReasonError\)\}/);
+    assert.match(source, /disabled=\{loading \|\| disabled \|\| !reviewIssue \|\| Boolean\(reviewReasonError\)\}/);
 });
 
 test('verification review documents collapse same-day duplicate uploads by file type and name', () => {

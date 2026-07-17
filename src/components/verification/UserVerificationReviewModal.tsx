@@ -52,6 +52,14 @@ const VERIFICATION_NOTES_MAX_LENGTH = 1000;
 const VERIFICATION_REASON_MAX_LENGTH = 500;
 export const VERIFICATION_REASON_MIN_LENGTH = 20;
 export const VERIFICATION_REASON_MIN_WORDS = 4;
+export const VERIFICATION_DOCUMENT_ISSUES = [
+    { value: 'unreadable', label: 'Image is blurry or unreadable' },
+    { value: 'expired', label: 'Document is expired' },
+    { value: 'cropped', label: 'Important details are cropped or missing' },
+    { value: 'mismatch', label: 'Details do not match the account' },
+    { value: 'unsupported', label: 'Document type is not accepted' },
+    { value: 'other', label: 'Other document issue' },
+] as const;
 type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
 type VerificationSortMode = 'newest' | 'oldest' | 'status';
 type VerificationRecentLead = UserVerificationDetails['recent_leads'][number];
@@ -107,6 +115,11 @@ export const getVerificationDocumentReviewReasonError = (reason: string) => {
     }
 
     return null;
+};
+
+export const buildVerificationDocumentReviewReason = (issue: string, detail: string) => {
+    const issueLabel = VERIFICATION_DOCUMENT_ISSUES.find((option) => option.value === issue)?.label;
+    return issueLabel ? issueLabel + ': ' + detail.trim() : detail.trim();
 };
 
 const normalizeVerificationDocumentDuplicatePart = (value?: string | null) => (
@@ -882,6 +895,7 @@ const DocumentReviewCard: React.FC<{
 }> = ({ document, onApprove, onRequestChanges, onReject, onView, loading, viewLoading = false, disabled = false }) => {
     const [reviewMode, setReviewMode] = useState<'reupload' | 'reject' | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [reviewIssue, setReviewIssue] = useState('');
 
     const config = (() => {
         switch (document.status) {
@@ -943,6 +957,20 @@ const DocumentReviewCard: React.FC<{
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                 {reviewMode ? (
                     <div className="space-y-2">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-200">
+                            Document issue
+                            <select
+                                value={reviewIssue}
+                                onChange={(event) => setReviewIssue(event.target.value)}
+                                aria-label={'Document issue for ' + document.file_name}
+                                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                            >
+                                <option value="">Select the issue found</option>
+                                {VERIFICATION_DOCUMENT_ISSUES.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </label>
                         <textarea
                             value={rejectReason}
                             onChange={(event) => setRejectReason(event.target.value)}
@@ -966,8 +994,11 @@ const DocumentReviewCard: React.FC<{
                         )}
                         <div className="flex gap-2">
                             <button
-                                onClick={() => reviewMode === 'reject' ? onReject(rejectReason) : onRequestChanges(rejectReason)}
-                                disabled={loading || disabled || Boolean(reviewReasonError)}
+                                onClick={() => {
+                                    const reason = buildVerificationDocumentReviewReason(reviewIssue, rejectReason);
+                                    return reviewMode === 'reject' ? onReject(reason) : onRequestChanges(reason);
+                                }}
+                                disabled={loading || disabled || !reviewIssue || Boolean(reviewReasonError)}
                                 aria-label={reviewMode === 'reject' ? `Confirm rejection for ${document.file_name}` : `Request re-upload for ${document.file_name}`}
                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
                             >
@@ -977,6 +1008,7 @@ const DocumentReviewCard: React.FC<{
                                 onClick={() => {
                                     setReviewMode(null);
                                     setRejectReason('');
+                                    setReviewIssue('');
                                 }}
                                 aria-label={`Cancel document review action for ${document.file_name}`}
                                 className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200"
