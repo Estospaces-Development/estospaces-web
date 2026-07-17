@@ -530,7 +530,7 @@ export function buildPropertyHeroSummary(property: Property | null | undefined, 
         .slice(0, 3)
         .join(', ');
     const supportingText = description
-        || (featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.');
+        || (featureText ? `Highlights include ${featureText}.` : '');
 
     return [
         `This ${propertyType} in ${location} offers ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'} and ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}${sizeText}.`,
@@ -2462,7 +2462,7 @@ const UserPropertyDetail = () => {
                                     </div>
 
                                     <div className="rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
-                                        Open the full-screen gallery for a closer look, use the thumbnail rail to jump between angles quickly, and keep the key facts close enough to compare while the image stays front and centre.
+                                        {propertySnapshotNarrative}
                                     </div>
                                 </div>
                             </div>

@@ -91,7 +91,17 @@ test("property detail hero summary uses real listing data instead of gallery gui
   assert.match(summary, /750 sq ft/);
   assert.match(summary, /Highlights include Balcony, Near Metro\./);
   assert.doesNotMatch(propertyDetailSource, /Start with the lead image here/);
+  assert.doesNotMatch(propertyDetailSource, /Open the full-screen gallery for a closer look/);
   assert.doesNotMatch(summary, /full-screen gallery|curated photo set|distraction-free look/i);
+
+  const factsOnlySummary = buildPropertyHeroSummary({
+    property_type: "flat",
+    bedrooms: 1,
+    bathrooms: 1,
+  } as any, "London, UK");
+
+  assert.equal(factsOnlySummary, "This flat in London, UK offers 1 bedroom and 1 bathroom.");
+  assert.doesNotMatch(factsOnlySummary, /review|gallery|overview|next step/i);
 
   const describedSummary = buildPropertyHeroSummary({
     property_type: "house",

@@ -15,6 +15,13 @@ test("property gallery does not wrap overlay controls in a focusable role button
   );
 });
 
+test("property detail does not render gallery instructions as listing content", () => {
+  assert.doesNotMatch(propertyDetailSource, /Start with the lead image here/);
+  assert.doesNotMatch(propertyDetailSource, /Open the full-screen gallery for a closer look/);
+  assert.doesNotMatch(propertyDetailSource, /Review the full overview and details below/);
+  assert.match(propertyDetailSource, /\{propertySnapshotNarrative\}/);
+});
+
 test("property gallery image area remains keyboard accessible", () => {
   assert.match(
     propertyDetailSource,
