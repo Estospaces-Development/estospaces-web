@@ -373,3 +373,8 @@ test("property detail fast-track CTA resumes active broker-request journeys inst
   assert.match(propertyDetailSource, /fastTrackConciergeActionLabel/);
   assert.doesNotMatch(propertyDetailSource, /activeFastTrackCase\?\.workspaceFinalStatus === 'active' \|\| activeFastTrackCase\?\.finalStatus === 'in_progress'/);
 });
+
+test("property fast-track modal opens the selected case instead of passing the click event as a case", () => {
+  assert.match(propertyDetailSource, /onOpenDashboard=\{\(\) => openFastTrackDashboard\(\)\}/);
+  assert.doesNotMatch(propertyDetailSource, /onOpenDashboard=\{openFastTrackDashboard\}/);
+});

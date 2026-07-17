@@ -3068,7 +3068,7 @@ const UserPropertyDetail = () => {
                 uploadingType={uploadingFastTrackDocumentType}
                 onClose={closeFastTrackModal}
                 onUploadDocument={handleUploadFastTrackDocument}
-                onOpenDashboard={openFastTrackDashboard}
+                onOpenDashboard={() => openFastTrackDashboard()}
                 onOpenMessages={handleOpenConversation}
             />
 
