@@ -998,6 +998,12 @@ const UserPropertyDetail = () => {
     };
 
     useEffect(() => {
+        if (id) {
+            recordPropertyNavigation(id);
+        }
+    }, [id]);
+
+    useEffect(() => {
         const fetchProperty = async () => {
             if (!id) {
                 return;
