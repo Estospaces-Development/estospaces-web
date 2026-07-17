@@ -1155,6 +1155,7 @@ export default function AddPropertyPage() {
       countryCode: data.countryCode,
       state: data.state,
       stateId: data.stateId,
+      stateCode: data.stateCode,
       city: data.city,
       cityId: data.cityId,
       postalCode: data.postalCode,
@@ -3097,6 +3098,7 @@ export default function AddPropertyPage() {
         {/* Step 4: Media & Features */}
         {currentStep === 4 && (
           <div className="space-y-8">
+            {import.meta.env.DEV && (
             <section className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/60">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -3184,6 +3186,7 @@ export default function AddPropertyPage() {
                 )}
               </div>
             </section>
+            )}
 
             {/* Images */}
             <div>
@@ -3428,6 +3431,7 @@ export default function AddPropertyPage() {
                   <input
                     {...fieldState("contactPhone")}
                     type="tel"
+                    maxLength={20}
                     value={formData.contactPhone}
                     onChange={(e) =>
                       handleInputChange("contactPhone", e.target.value)
@@ -3452,6 +3456,7 @@ export default function AddPropertyPage() {
                   <input
                     {...fieldState("alternatePhone")}
                     type="tel"
+                    maxLength={20}
                     value={formData.alternatePhone}
                     onChange={(e) =>
                       handleInputChange("alternatePhone", e.target.value)

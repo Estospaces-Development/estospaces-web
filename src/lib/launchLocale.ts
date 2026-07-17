@@ -326,3 +326,19 @@ export function formatLaunchLocationCode(value?: string | null): string {
   }
   return "";
 }
+
+const LAUNCH_PIN_PREFIX_STATE_CODE: Record<string, string> = {
+  "600": "TN", "641": "TN", "625": "TN",
+  "560": "KA", "570": "KA", "575": "KA",
+  "500": "TS", "506": "TS",
+  "400": "MH", "411": "MH", "440": "MH",
+  "110": "DL",
+  "682": "KL", "695": "KL",
+};
+
+export function getLaunchStateCodeFromPinPrefix(pinCode?: string | null): string | null {
+  const normalized = normalizeLaunchPinCode(pinCode);
+  if (!isValidLaunchPinCode(normalized)) return null;
+  const prefix = normalized.slice(0, 3);
+  return LAUNCH_PIN_PREFIX_STATE_CODE[prefix] || null;
+}

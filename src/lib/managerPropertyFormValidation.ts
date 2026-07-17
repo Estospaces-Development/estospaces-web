@@ -2,6 +2,7 @@ import type { ListingType } from "@/contexts/PropertyContext";
 import {
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
+  getLaunchStateCodeFromPinPrefix,
   isLaunchIndiaCountry,
   isLaunchUKCountry,
   isValidLaunchLocationCodeForCountry,
@@ -81,6 +82,7 @@ export interface ManagerPropertyValidationValues {
   countryCode: string;
   state: string;
   stateId: string;
+  stateCode: string;
   city: string;
   cityId: string;
   postalCode: string;
@@ -155,6 +157,10 @@ export function validateManagerPropertyField(
       }
       if (!isValidPostalCodeForCountry(values.postalCode, values.countryCode, values.country)) {
         return postalCodeMessageForCountry(values.countryCode, values.country);
+      }
+      const pinStateCode = getLaunchStateCodeFromPinPrefix(values.postalCode);
+      if (pinStateCode && values.stateCode && values.stateCode.toUpperCase() !== pinStateCode) {
+        return "PIN code does not match the selected state";
       }
       return null;
     case "latitude":
@@ -420,7 +426,8 @@ function requiresMinimumLease(listingType: ListingType): boolean {
 }
 
 function hasValidPhoneNumber(value: string): boolean {
-  return value.replace(/\D/g, "").length >= 7;
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15;
 }
 
 function hasScale(value: number, scale: number): boolean {

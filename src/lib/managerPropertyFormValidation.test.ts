@@ -18,6 +18,7 @@ const baseValues: ManagerPropertyValidationValues = {
   countryCode: "IN",
   state: "Tamil Nadu",
   stateId: "state-1",
+  stateCode: "TN",
   city: "Chennai",
   cityId: "city-1",
   postalCode: "600001",
