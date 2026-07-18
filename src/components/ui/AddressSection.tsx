@@ -12,7 +12,6 @@ import {
     type City,
 } from '../../services/addressService';
 import {
-    getLaunchCountryFromLocationCode,
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
     LAUNCH_COUNTRY_CODE,
@@ -463,64 +462,15 @@ const AddressSection = ({
         });
     }, [value, onChange]);
 
-    // Handler for launch location code.
+    // Handler for launch location code. The postal code is validated against the currently
+    // selected country (via the parent form's field validation) rather than switching the
+    // country to match whatever format the entered code looks like — e.g. typing an Indian
+    // PIN code while United Kingdom is selected should surface an "invalid pincode for United
+    // Kingdom" error, not silently change the country to India.
     const handlePostalCodeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const postalCode = normalizeLaunchLocationCode(e.target.value);
-        const detectedCountryCode = getLaunchCountryFromLocationCode(postalCode);
-        const detectedCountry = detectedCountryCode
-            ? countries.find((country) => country.code.toUpperCase() === detectedCountryCode)
-            : undefined;
-
-        if (detectedCountry && detectedCountry.id !== value.countryId) {
-            setStates([]);
-            setCities([]);
-            onChange({
-                ...value,
-                countryId: detectedCountry.id,
-                countryName: detectedCountry.name,
-                countryCode: detectedCountry.code,
-                stateId: '',
-                stateName: '',
-                stateCode: '',
-                cityId: '',
-                cityName: '',
-                postalCode,
-            });
-            return;
-        }
-
         handleTextChange('postalCode', postalCode);
-    }, [countries, handleTextChange, onChange, value]);
-
-    useEffect(() => {
-        if (!countries.length || !value.postalCode) {
-            return;
-        }
-
-        const detectedCountryCode = getLaunchCountryFromLocationCode(value.postalCode);
-        const detectedCountry = detectedCountryCode
-            ? countries.find((country) => country.code.toUpperCase() === detectedCountryCode)
-            : undefined;
-
-        if (!detectedCountry || detectedCountry.id === value.countryId) {
-            return;
-        }
-
-        setStates([]);
-        setCities([]);
-        onChange({
-            ...value,
-            countryId: detectedCountry.id,
-            countryName: detectedCountry.name,
-            countryCode: detectedCountry.code,
-            stateId: '',
-            stateName: '',
-            stateCode: '',
-            cityId: '',
-            cityName: '',
-            postalCode: normalizeLaunchLocationCode(value.postalCode),
-        });
-    }, [countries, onChange, value]);
+    }, [handleTextChange]);
 
     // Retry handlers
     const retryCountries = useCallback(async () => {
