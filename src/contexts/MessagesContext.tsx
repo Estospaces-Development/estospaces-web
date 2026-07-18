@@ -619,7 +619,13 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     }, [conversations, loadConversationMessages, selectedConversationIdState]);
 
     const totalUnreadCount = conversations.reduce((sum, conversation) => {
-        return sum + (conversation.isArchived ? 0 : conversation.unreadCount);
+        if (conversation.isArchived) {
+            return sum;
+        }
+        if (conversation.id === selectedConversationIdState) {
+            return sum;
+        }
+        return sum + conversation.unreadCount;
     }, 0);
 
     const getFilteredConversations = useCallback(() => {

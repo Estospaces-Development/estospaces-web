@@ -14,6 +14,7 @@ import {
     FileText,
     Home,
     Loader2,
+    RefreshCw,
     SendHorizontal,
     ShieldCheck,
     Star,
@@ -515,6 +516,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewBusyKey, setPreviewBusyKey] = useState<string | null>(null);
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [previewZoom, setPreviewZoom] = useState(0);
+    const [previewLoadFailed, setPreviewLoadFailed] = useState(false);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
     const [threadMessages, setThreadMessages] = useState<Message[]>([]);
     const [threadDraft, setThreadDraft] = useState('');
@@ -1908,6 +1910,23 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         });
     }, []);
 
+    const handlePreviewRetry = useCallback(async () => {
+        if (!previewItemId) {
+            return;
+        }
+
+        setPreviewLoadFailed(false);
+        setPreviewError(null);
+
+        const currentItem = selectedCase?.documents.items.find((item) => item.id === previewItemId) || null;
+        if (!currentItem) {
+            setPreviewUrl(null);
+            return;
+        }
+
+        await ensureDocumentPreview(currentItem);
+    }, [ensureDocumentPreview, previewItemId, selectedCase?.documents.items]);
+
     useEffect(() => {
         return () => {
             releasePreviewObjectUrl();
@@ -1935,6 +1954,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     useEffect(() => {
         if (previewModalOpen) {
             setPreviewZoom(0);
+            setPreviewLoadFailed(false);
         }
     }, [previewItemId, previewModalOpen]);
 
@@ -2181,13 +2201,31 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             </ActionButton>
                         </div>
                         <iframe
+                            key={previewUrl}
                             src={previewUrl}
                             title={`${previewDisplayItem.fileName || previewDisplayItem.label} PDF preview`}
                             className="h-[min(620px,calc(100vh-18rem))] min-h-[360px] w-full rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900"
+                            onLoad={() => setPreviewLoadFailed(false)}
+                            onError={() => setPreviewLoadFailed(true)}
                         />
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                            If your browser blocks the inline PDF viewer, use Open PDF to view the same signed document in a new tab.
-                        </p>
+                        {previewLoadFailed ? (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                <p className="font-semibold">The PDF preview failed to load.</p>
+                                <p className="mt-1">The signed URL may have expired. Try opening the PDF in a new tab, or retry the preview.</p>
+                                <button
+                                    type="button"
+                                    onClick={() => handlePreviewRetry()}
+                                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40"
+                                >
+                                    <RefreshCw size={14} />
+                                    Retry preview
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                If your browser blocks the inline PDF viewer, use Open PDF to view the same signed document in a new tab.
+                            </p>
+                        )}
                     </div>
                 ) : (
                     <div className="rounded-3xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">

@@ -219,15 +219,60 @@ export const dedupeNotificationsForDisplay = (notifications: Notification[]): No
  * Get notifications for the current user
  * GET /api/v1/notifications
  */
-export async function getNotifications(unreadOnly: boolean = false): Promise<{
+export async function getNotifications(unreadOnly: boolean = false, role?: string): Promise<{
     notifications: Notification[];
     unread_count: number;
 }> {
     const url = `${NOTIFICATION_URL()}/api/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`;
     const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url, {
         suppressErrorToast: true,
+        headers: role ? { 'X-User-Role': role } : undefined,
     });
-    const notifications = dedupeNotificationsForDisplay((data.notifications || []).map(normalizeNotification));
+    let notifications = dedupeNotificationsForDisplay((data.notifications || []).map(normalizeNotification));
+
+    // For managers, ensure all manager-relevant notification types are surfaced
+    // even if the backend applies partial filtering based on role heuristics.
+    if (role === 'manager' || role === 'broker') {
+        const managerRelevantTypes = new Set([
+            NOTIFICATION_TYPES.FAST_TRACK_STARTED,
+            NOTIFICATION_TYPES.FAST_TRACK_UPDATED,
+            NOTIFICATION_TYPES.FAST_TRACK_COMPLETED,
+            NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED,
+            NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED,
+            NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED,
+            NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED,
+            NOTIFICATION_TYPES.DOCUMENTS_REQUESTED,
+            NOTIFICATION_TYPES.VIEWING_BOOKED,
+            NOTIFICATION_TYPES.VIEWING_CONFIRMED,
+            NOTIFICATION_TYPES.VIEWING_COMPLETED,
+            NOTIFICATION_TYPES.VIEWING_RESCHEDULED,
+            NOTIFICATION_TYPES.VIEWING_CANCELLED,
+            NOTIFICATION_TYPES.APPOINTMENT_REMINDER,
+            NOTIFICATION_TYPES.APPLICATION_UPDATE,
+            NOTIFICATION_TYPES.APPLICATION_APPROVED,
+            NOTIFICATION_TYPES.APPLICATION_REJECTED,
+            NOTIFICATION_TYPES.CONTRACT_UPDATE,
+            NOTIFICATION_TYPES.CONTRACT_EXPIRING,
+            NOTIFICATION_TYPES.MESSAGE_RECEIVED,
+            NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED,
+            NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED,
+            NOTIFICATION_TYPES.SALE_JOURNEY_UPDATED,
+            NOTIFICATION_TYPES.SALE_JOURNEY_COMPLETED,
+        ]);
+
+        // If the backend returned fewer notifications than available, check if
+        // any manager-relevant types were missing from the response.
+        const hasManagerTypes = notifications.some((n) => managerRelevantTypes.has(n.type as any));
+        if (!hasManagerTypes && data.notifications && data.notifications.length > notifications.length) {
+            const seenIds = new Set(notifications.map((n) => n.id));
+            const extra = (data.notifications as any[])
+                .filter((raw) => managerRelevantTypes.has(raw.type))
+                .filter((raw) => !seenIds.has(raw.id))
+                .map(normalizeNotification);
+            notifications = [...notifications, ...extra];
+        }
+    }
+
     return {
         notifications,
         unread_count: notifications.filter((notification) => !notification.is_read).length,
