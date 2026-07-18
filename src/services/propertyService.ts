@@ -444,6 +444,20 @@ export const saveProperty = async (
   }
 };
 
+export const copyProperty = async (
+  id: string,
+): Promise<{ data: Property | null; error: string | null }> => {
+  try {
+    const data = await apiFetch<Property>(`${CORE_URL()}/api/v1/properties/${id}/copy`, {
+      method: "POST",
+      suppressErrorToast: true,
+    });
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
 /**
  * Unsave a property from favorites
  * DELETE /api/v1/properties/:id/save (core-service)

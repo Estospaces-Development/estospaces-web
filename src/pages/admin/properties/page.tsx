@@ -5,18 +5,20 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
     ChevronRight,
+    Copy,
     Globe,
     Home,
     Layers,
     Loader2,
     MapPin,
+    Maximize,
     Plus,
     Search,
     Trash2,
 } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useToast } from '@/contexts/ToastContext';
-import { adminUpdatePropertyStatus, deleteProperty as deletePropertyRequest } from '@/services/propertyService';
+import { adminUpdatePropertyStatus, copyProperty, deleteProperty as deletePropertyRequest } from '@/services/propertyService';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
@@ -48,6 +50,7 @@ function PropertyManagementContent() {
     const [rejectReason, setRejectReason] = useState('');
     const [rejectReasonError, setRejectReasonError] = useState('');
     const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(null);
+    const [copyingPropertyId, setCopyingPropertyId] = useState<string | null>(null);
 
     const resolvePropertyId = (property: any): string | null => {
         const candidates = [property?.id, property?.propertyId, property?.property_id];
@@ -116,6 +119,23 @@ function PropertyManagementContent() {
 
     const closeDeleteDialog = () => {
         setDeletingPropertyId(null);
+    };
+
+    const closeCopyDialog = () => {
+        setCopyingPropertyId(null);
+    };
+
+    const openCopyDialog = (propertyId: string | null) => {
+        if (!propertyId) {
+            showErrorToast('Property ID missing. Please refresh and try again.');
+            return;
+        }
+
+        setRejectingPropertyId(null);
+        setRejectReason('');
+        setRejectReasonError('');
+        setDeletingPropertyId(null);
+        setCopyingPropertyId(propertyId);
     };
 
     const openDeleteDialog = (propertyId: string | null) => {
@@ -200,6 +220,33 @@ function PropertyManagementContent() {
             showErrorToast(error?.message || 'Failed to delete property.');
         } finally {
             setUpdatingPropertyId(null);
+        }
+    };
+
+    const handleCopyConfirm = async () => {
+        const propertyId = copyingPropertyId;
+        if (!propertyId) {
+            showErrorToast('Property ID missing. Please refresh and try again.');
+            return;
+        }
+
+        setUpdatingPropertyId(propertyId);
+        try {
+            const { data, error } = await copyProperty(propertyId);
+            if (error) {
+                throw new Error(error);
+            }
+            showSuccessToast('Property copied successfully. Navigate to edit the copy.');
+            closeCopyDialog();
+            await fetchProperties();
+            if (data?.id) {
+                navigate(`/admin/properties/${data.id}`);
+            }
+        } catch (error: any) {
+            showErrorToast(error?.message || 'Failed to copy property.');
+        } finally {
+            setUpdatingPropertyId(null);
+            setCopyingPropertyId(null);
         }
     };
 
@@ -374,6 +421,46 @@ function PropertyManagementContent() {
                                 className="rounded-2xl bg-red-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-red-600/20 transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {updatingPropertyId === deletingPropertyId ? 'Deleting...' : 'Delete property'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+            {copyingPropertyId ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-8 backdrop-blur-sm">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Copy property confirmation"
+                        aria-labelledby="copy-property-dialog-title"
+                        aria-describedby="copy-property-dialog-description"
+                        className="w-full max-w-md rounded-3xl border border-blue-100 bg-white p-6 shadow-2xl dark:border-blue-900/50 dark:bg-gray-900"
+                    >
+                        <div className="mb-6">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Duplicate listing</p>
+                            <h2 id="copy-property-dialog-title" className="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                                Copy property
+                            </h2>
+                            <p id="copy-property-dialog-description" className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Create a new draft listing from this property. Images and details will be copied. You can edit the copy before publishing.
+                            </p>
+                        </div>
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={closeCopyDialog}
+                                disabled={updatingPropertyId === copyingPropertyId}
+                                className="rounded-2xl border border-gray-200 px-6 py-3 text-xs font-black uppercase tracking-widest text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCopyConfirm}
+                                disabled={updatingPropertyId === copyingPropertyId}
+                                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {updatingPropertyId === copyingPropertyId ? 'Copying...' : 'Copy as draft'}
                             </button>
                         </div>
                     </div>
@@ -619,6 +706,19 @@ function PropertyManagementContent() {
 
                                     <div className="mt-6 flex gap-2">
                                         {renderWorkflowActions(property)}
+                                        <button
+                                            type="button"
+                                            aria-label={`Copy ${property.title || 'property'}`}
+                                            disabled={isBusy}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                openCopyDialog(propertyId);
+                                            }}
+                                            className="rounded-xl bg-gray-900 px-4 py-3 text-white shadow-xl transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                            title="Copy Property"
+                                        >
+                                            <Copy size={18} />
+                                        </button>
                                         <button
                                             type="button"
                                             aria-label={`Delete ${property.title || 'property'}`}
