@@ -487,6 +487,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
     const [activeStageOverride, setActiveStageOverride] = useState<FastTrackStage | null>(null);
+    const [stageConfirmDialog, setStageConfirmDialog] = useState<{ open: boolean; stage: FastTrackStage } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [query, setQuery] = useState(() => (
@@ -1403,6 +1404,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             'Case cancelled.',
         );
     }, [runAction]);
+
+    const handleConfirmStageNavigation = useCallback(() => {
+        if (!stageConfirmDialog || !selectedCase) {
+            return;
+        }
+
+        const { stage } = stageConfirmDialog;
+        setStageConfirmDialog(null);
+        setActiveStageOverride(stage);
+        setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage));
+        void runAction('start_documents', {}, 'Documents stage started.');
+    }, [runAction, selectedCase, setSearchParams, stageConfirmDialog]);
 
     const handleUploadDocument = useCallback(async (item: FastTrackDocumentItem) => {
         if (!selectedCase) {
@@ -3623,16 +3636,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         const nextStage = stage as FastTrackStage;
+
         if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
-            setActiveStageOverride(nextStage);
-            setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
-            void runAction('start_documents', {}, 'Documents stage started.');
+            setStageConfirmDialog({
+                open: true,
+                stage: nextStage,
+            });
             return;
         }
 
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
-    }, [role, runAction, selectedCase, setSearchParams]);
+    }, [role, selectedCase, setSearchParams]);
 
     const handleSelectCase = useCallback((caseId: string) => {
         pendingSelectedCaseIdRef.current = caseId;
@@ -4085,6 +4100,47 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {activeAction === pendingAdminOverrideAction.action ? 'Recording...' : 'Continue as admin'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )) : null}
+
+            {stageConfirmDialog && selectedCase ? renderFastTrackPortal((
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4"
+                    onClick={() => setStageConfirmDialog(null)}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Start documents stage confirmation"
+                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-950"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            Start documents stage?
+                        </h2>
+                        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                            This will start the documents stage for {selectedCaseDisplayTitle}.
+                            {role === 'user'
+                                ? ' Your manager will see your documents. Are you ready to upload?'
+                                : ' The client will be asked to upload their documents.'}
+                        </p>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setStageConfirmDialog(null)}
+                                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                            >
+                                Go back
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmStageNavigation}
+                                className="rounded-xl bg-estospaces px-4 py-2 text-sm font-semibold text-white transition hover:bg-estospaces-light disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Start documents
                             </button>
                         </div>
                     </div>
