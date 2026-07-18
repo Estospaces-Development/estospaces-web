@@ -14,7 +14,10 @@ export const getDocumentAccessUrl = async (
         const data = await apiFetch<DocumentAccessURLResponse>(
             `${CORE_URL()}/api/v1/documents/${documentId}/access-url`,
         );
-        return { url: data.access_url || null, error: null };
+        if (!data.access_url) {
+            return { url: null, error: 'No preview URL returned for this document.' };
+        }
+        return { url: data.access_url, error: null };
     } catch (error: any) {
         return { url: null, error: getErrorMessage(error) };
     }
@@ -29,20 +32,31 @@ export const getDocumentAccessBlob = async (
     }
 
     try {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 10000);
         const response = await fetch(url, {
             method: 'GET',
             mode: 'cors',
+            signal: controller.signal,
         });
+        window.clearTimeout(timeoutId);
         if (!response.ok) {
             return {
                 url,
                 blob: null,
-                error: `Document preview request failed with status ${response.status}.`,
+                error: `Document preview failed with status ${response.status}. The file may not be available for preview.`,
             };
         }
 
         return { url, blob: await response.blob(), error: null };
     } catch (fetchError: any) {
+        if (fetchError?.name === 'AbortError') {
+            return {
+                url,
+                blob: null,
+                error: 'Document preview timed out after 10 seconds. The file may be too large or the service is slow. Please try downloading the file instead.',
+            };
+        }
         return {
             url,
             blob: null,

@@ -31,6 +31,7 @@ export interface LeadBrokerSummary {
   company_name?: string;
   postcode?: string;
   service_areas?: string[];
+  dispatch_pincodes?: string[];
   rating?: number;
   review_count?: number;
   fast_track_eligible?: boolean;

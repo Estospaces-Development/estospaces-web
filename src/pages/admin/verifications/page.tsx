@@ -11,7 +11,7 @@ import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import Avatar from '@/components/ui/Avatar';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
-import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { useWorkflowWorkspaceRefresh, useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -37,6 +37,8 @@ function VerificationsContent() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
   const fetchManagers = useCallback(async () => {
     try {
       const { data, error } = await getManagers();
@@ -55,7 +57,7 @@ function VerificationsContent() {
     fetchManagers();
   }, [fetchManagers]);
 
-  useWorkflowWorkspaceRefresh({
+  useWorkspaceRefresh({
     tags: [
       WORKSPACE_SYNC_TAGS.VERIFICATIONS,
       WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
@@ -63,7 +65,10 @@ function VerificationsContent() {
       WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
     ],
     refresh: fetchManagers,
-    enabled: selectedManagerId === null,
+    enabled: selectedManagerId === null && autoRefresh,
+    refreshOnFocus: autoRefresh,
+    refreshOnVisible: autoRefresh,
+    intervalMs: autoRefresh ? 30000 : undefined,
   });
 
   useEffect(() => {
@@ -198,6 +203,15 @@ function VerificationsContent() {
               </h1>
             </div>
             <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Auto-refresh</span>
+              </label>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
                 <input

@@ -7,7 +7,7 @@ import { getServiceUrl } from '@/lib/apiUtils';
 import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
-import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
+import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText, Shield } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = getServiceUrl('core');
@@ -148,6 +148,68 @@ type TermsAcceptanceModalProps = {
     onReachedEnd: () => void;
 };
 
+type PrivacyPolicyModalProps = {
+    isOpen: boolean;
+    onClose: () => void;
+};
+
+function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps) {
+    if (!isOpen) {
+        return null;
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-950/70 backdrop-blur-sm" onClick={onClose} />
+            <div
+                className="relative w-full max-w-3xl rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="privacy-dialog-title"
+            >
+                <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-4">
+                    <div>
+                        <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600 mb-3">
+                            <Shield size={12} />
+                            Your Privacy
+                        </div>
+                        <h3 id="privacy-dialog-title" className="text-xl font-black text-gray-900 dark:text-white">Privacy Policy</h3>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className={`px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${authFocusClass}`}
+                    >
+                        Close
+                    </button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto px-6 py-6 bg-gray-50/80 dark:bg-gray-950/60">
+                    <div className="rounded-[1.5rem] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 md:p-8 space-y-4 text-sm text-gray-600 dark:text-gray-400">
+                        <p>Last updated: July 2026</p>
+                        <h4 className="font-bold text-gray-900 dark:text-white">Information We Collect</h4>
+                        <p>We collect information you provide directly to us, such as your name, email address, phone number, and property preferences when you register or use our services.</p>
+                        <h4 className="font-bold text-gray-900 dark:text-white">How We Use Your Information</h4>
+                        <p>We use your information to provide and improve our property platform, connect you with property managers and agents, and communicate important updates about your inquiries.</p>
+                        <h4 className="font-bold text-gray-900 dark:text-white">Data Sharing</h4>
+                        <p>We share your information with property managers and agents only when you make a property inquiry or use our Fast Track service. We never sell your personal data to third parties.</p>
+                        <h4 className="font-bold text-gray-900 dark:text-white">Your Rights</h4>
+                        <p>You can access, update, or delete your personal information at any time through your account settings. For any privacy concerns, contact us at privacy@estospaces.com.</p>
+                    </div>
+                </div>
+                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-6 py-3 rounded-2xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition-colors"
+                    >
+                        Got It
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function TermsAcceptanceModal({
     isOpen,
     canAccept,
@@ -280,6 +342,7 @@ export default function RegisterPage() {
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
     const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+    const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
     const [hasScrolledTermsToEnd, setHasScrolledTermsToEnd] = useState(false);
     const [resending, setResending] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
@@ -346,6 +409,10 @@ export default function RegisterPage() {
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);
         setIsTermsModalOpen(true);
+    };
+
+    const openPrivacyModal = () => {
+        setIsPrivacyModalOpen(true);
     };
 
     const clearTermsAcceptance = () => {
@@ -802,13 +869,13 @@ export default function RegisterPage() {
                                 <FileText size={16} />
                                 {agreedToTerms ? 'Review Terms Again' : 'Read Terms & Conditions'}
                             </button>
-                            <Link
-                                to="/privacy"
-                                onClick={() => saveRegisterDraft({ firstName, lastName, email, role, country })}
+                            <button
+                                type="button"
+                                onClick={openPrivacyModal}
                                 className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
                             >
                                 Privacy Policy
-                            </Link>
+                            </button>
                             {acceptedTermsLabel && (
                                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                     Accepted on {acceptedTermsLabel}
@@ -840,6 +907,10 @@ export default function RegisterPage() {
                 onClose={() => setIsTermsModalOpen(false)}
                 onAccept={handleAcceptTerms}
                 onReachedEnd={() => setHasScrolledTermsToEnd(true)}
+            />
+            <PrivacyPolicyModal
+                isOpen={isPrivacyModalOpen}
+                onClose={() => setIsPrivacyModalOpen(false)}
             />
         </>
     );

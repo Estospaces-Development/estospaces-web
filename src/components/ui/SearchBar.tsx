@@ -392,15 +392,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Min Price</label>
                             <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
-                                <CurrencyIcon size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: ${formatSearchCurrency(filterOptions.price_range.min)}` : `Min ${currencySymbol}`} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <CurrencyIcon size={16} className="text-gray-400 mr-2 shrink-0" />
+                                <input type="number" inputMode="numeric" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: ${formatSearchCurrency(filterOptions.price_range.min)}` : `Min ${currencySymbol}`} className="w-full min-w-0 outline-none text-gray-900 dark:text-gray-100 bg-transparent leading-none" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Max Price</label>
                             <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
-                                <CurrencyIcon size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: ${formatSearchCurrency(filterOptions.price_range.max)}` : `Max ${currencySymbol}`} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <CurrencyIcon size={16} className="text-gray-400 mr-2 shrink-0" />
+                                <input type="number" inputMode="numeric" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: ${formatSearchCurrency(filterOptions.price_range.max)}` : `Max ${currencySymbol}`} className="w-full min-w-0 outline-none text-gray-900 dark:text-gray-100 bg-transparent leading-none" />
                             </div>
                         </div>
                         <div>

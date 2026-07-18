@@ -149,7 +149,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         }
 
         try {
-            const result = await notificationsService.getNotifications();
+            const result = await notificationsService.getNotifications(false, user?.role);
             const nextNotifications = result.notifications || [];
             const nextUnreadIDs = new Set(
                 nextNotifications

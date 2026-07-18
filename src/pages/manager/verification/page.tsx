@@ -585,7 +585,7 @@ export default function VerificationPage() {
                                             }`}
                                         >
                                             <Upload className="w-3.5 h-3.5" />
-                                            {useFirstTimeBundle ? 'Upload All' : hasDocument ? 'Replace File' : 'Upload File'}
+                                            {useFirstTimeBundle ? 'Upload All' : isRejected ? 'Re-upload' : hasDocument ? 'Replace File' : 'Upload File'}
                                         </button>
                                     </>
                                 )}

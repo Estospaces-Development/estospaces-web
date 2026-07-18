@@ -93,7 +93,7 @@ const PropertyContactInfo = ({ property, propertyAddress }: PropertyContactInfoP
 
     const handleContactSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!property?.manager_id) {
+        if (!property?.manager_id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(property.manager_id)) {
             showToastError('Agent contact information is incomplete.');
             return;
         }
@@ -142,7 +142,8 @@ ${contactForm.message}
             setContactErrors({ phone: '' });
             setContactForm(defaultContactForm);
         } catch (err: any) {
-            showToastError('Failed to send message. Please try again later.');
+            const message = err?.message || 'Failed to send message. Please try again later.';
+            showToastError(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -329,6 +330,7 @@ ${contactForm.message}
                                 type="button"
                                 onClick={() => {
                                     setShowContactForm(false);
+                                    setContactForm(defaultContactForm);
                                     setContactErrors({ phone: '' });
                                 }}
                                 className="rounded-[1rem] border border-stone-200 px-4 py-3 font-medium text-gray-700 transition hover:bg-stone-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-950"

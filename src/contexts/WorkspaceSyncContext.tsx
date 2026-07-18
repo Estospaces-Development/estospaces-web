@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
     createWorkspaceRefreshController,
     type PublishWorkspaceSyncInput,
+    type WorkspaceRefreshControllerOptions,
     type WorkspaceSyncEvent,
     WORKSPACE_SYNC_INTERVALS,
     WorkspaceSyncBus,
@@ -180,14 +181,23 @@ export const useWorkflowWorkspaceRefresh = ({
     refresh,
     enabled = true,
     debounceMs,
-}: UsePresetWorkspaceRefreshOptions) => useWorkspaceRefresh({
+    refreshOnFocus,
+    refreshOnVisible,
+}: {
+    tags: string[];
+    refresh: () => void | Promise<void>;
+    enabled?: boolean;
+    debounceMs?: number;
+    refreshOnFocus?: boolean;
+    refreshOnVisible?: boolean;
+}) => useWorkspaceRefresh({
     tags,
     refresh,
     enabled,
     debounceMs,
     intervalMs: WORKSPACE_SYNC_INTERVALS.WORKFLOW,
-    refreshOnFocus: true,
-    refreshOnVisible: true,
+    refreshOnFocus: refreshOnFocus ?? true,
+    refreshOnVisible: refreshOnVisible ?? true,
 });
 
 export const useDashboardWorkspaceRefresh = ({

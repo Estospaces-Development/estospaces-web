@@ -81,7 +81,13 @@ const NotificationDropdown = () => {
             } else {
                 window.location.href = resolved.toString();
             }
+            return;
         }
+
+        // Fallback: navigate to the notifications list page for notifications
+        // without a specific destination so the user always lands somewhere.
+        const fallbackPath = getNotificationsPagePath(user?.role || 'user');
+        navigate(fallbackPath);
     };
 
     const getIcon = (notification: Notification) => {
