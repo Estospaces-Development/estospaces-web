@@ -26,6 +26,7 @@ import {
     Star,
 } from 'lucide-react';
 import { getPropertyById, Property } from '../../../../services/propertyService';
+import { recordPropertyNavigation } from '@/lib/propertyNavigation';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';

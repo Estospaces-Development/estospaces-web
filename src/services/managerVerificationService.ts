@@ -56,6 +56,7 @@ export interface ManagerProfile {
     authorized_representative_name?: string;
     authorized_representative_email?: string;
     service_areas?: string[];
+    dispatch_pincodes?: string[];
     has_ombudsman: boolean;
     has_insurance: boolean;
     has_client_money: boolean;
@@ -381,6 +382,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         company_address: data.company_address || undefined,
         registered_office_address: data.registered_office_address || undefined,
         service_areas: normalizeManagerServiceAreas(data.service_areas),
+        dispatch_pincodes: Array.isArray(data.dispatch_pincodes) ? data.dispatch_pincodes : [],
         complaints_contact: data.complaints_contact || undefined,
         redress_scheme_name: data.redress_scheme_name || undefined,
         redress_membership_number: data.redress_membership_number || undefined,
@@ -560,6 +562,7 @@ const buildCreateManagerProfilePayload = (data: Partial<ManagerProfile>) => ({
     authorized_representative_name: data.authorized_representative_name || '',
     authorized_representative_email: data.authorized_representative_email || '',
     service_areas: JSON.stringify(normalizeManagerServiceAreas(data.service_areas)),
+    dispatch_pincodes: JSON.stringify(Array.isArray(data.dispatch_pincodes) ? data.dispatch_pincodes : []),
     profile_type: data.profile_type || 'broker',
     has_ombudsman: data.has_ombudsman || false,
     has_insurance: data.has_insurance || false,
@@ -593,6 +596,7 @@ const buildUpdateManagerProfilePayload = (data: Partial<ManagerProfile>) => {
     if (data.authorized_representative_name !== undefined) payload.authorized_representative_name = data.authorized_representative_name;
     if (data.authorized_representative_email !== undefined) payload.authorized_representative_email = data.authorized_representative_email;
     if (data.service_areas !== undefined) payload.service_areas = JSON.stringify(normalizeManagerServiceAreas(data.service_areas));
+    if (data.dispatch_pincodes !== undefined) payload.dispatch_pincodes = JSON.stringify(data.dispatch_pincodes);
     if (data.has_ombudsman !== undefined) payload.has_ombudsman = data.has_ombudsman;
     if (data.has_insurance !== undefined) payload.has_insurance = data.has_insurance;
     if (data.has_client_money !== undefined) payload.has_client_money = data.has_client_money;

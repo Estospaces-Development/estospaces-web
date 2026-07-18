@@ -11,7 +11,7 @@ import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import Avatar from '@/components/ui/Avatar';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
-import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { useWorkflowWorkspaceRefresh, useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -57,7 +57,7 @@ function VerificationsContent() {
     fetchManagers();
   }, [fetchManagers]);
 
-  useWorkflowWorkspaceRefresh({
+  useWorkspaceRefresh({
     tags: [
       WORKSPACE_SYNC_TAGS.VERIFICATIONS,
       WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
@@ -66,6 +66,9 @@ function VerificationsContent() {
     ],
     refresh: fetchManagers,
     enabled: selectedManagerId === null && autoRefresh,
+    refreshOnFocus: autoRefresh,
+    refreshOnVisible: autoRefresh,
+    intervalMs: autoRefresh ? 30000 : undefined,
   });
 
   useEffect(() => {

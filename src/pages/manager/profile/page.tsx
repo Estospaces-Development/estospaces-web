@@ -24,7 +24,7 @@ const MANAGER_PHONE_MAX_LENGTH = 20;
 const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
 const MANAGER_PHONE_PATTERN = '\\+?[0-9 ()-]{7,20}';
 
-type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber', string>>;
+type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber' | 'companyAddress', string>>;
 
 const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
     const raw = String(value || '').trim();
@@ -76,6 +76,7 @@ export default function ManagerProfilePage() {
         companyName: '',
         branchName: '',
         serviceAreas: '',
+        dispatchPincodes: '',
         businessPhone: '',
         companyAddress: '',
         registeredOfficeAddress: '',
@@ -113,6 +114,7 @@ export default function ManagerProfilePage() {
             companyName: managerProfile?.company_name || prev.companyName || '',
             branchName: formatLaunchPropertyText(managerProfile?.branch_name || prev.branchName || '', ''),
             serviceAreas: normalizeManagerServiceAreas(managerProfile?.service_areas).join(', ') || prev.serviceAreas || '',
+            dispatchPincodes: Array.isArray(managerProfile?.dispatch_pincodes) ? managerProfile.dispatch_pincodes.join(', ') : prev.dispatchPincodes || '',
             businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
             companyAddress: formatOptionalLaunchPropertyLocation(managerProfile?.company_address || prev.companyAddress || ''),
             registeredOfficeAddress: formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address || prev.registeredOfficeAddress || ''),
@@ -146,7 +148,7 @@ export default function ManagerProfilePage() {
                 return formatLaunchPropertyText(e.target.value, '');
             }
 
-            if (e.target.name === 'serviceAreas') {
+            if (e.target.name === 'serviceAreas' || e.target.name === 'dispatchPincodes') {
                 return e.target.value.toUpperCase();
             }
 
@@ -284,6 +286,7 @@ export default function ManagerProfilePage() {
             const companyAddress = formData.companyAddress.trim();
             const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
             const serviceAreas = normalizeManagerServiceAreas(formData.serviceAreas);
+            const dispatchPincodes = formData.dispatchPincodes.split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean);
             const isBrokerProfile = managerProfile?.profile_type !== 'company';
             let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
 
@@ -322,6 +325,7 @@ export default function ManagerProfilePage() {
                     company_address: companyAddress || formData.address.trim(),
                     registered_office_address: registeredOfficeAddress || companyAddress || formData.address.trim(),
                     service_areas: JSON.stringify(serviceAreas),
+                    dispatch_pincodes: JSON.stringify(Array.isArray(formData.dispatchPincodes) ? formData.dispatchPincodes : []),
                     complaints_contact: formData.complaintsContact,
                     redress_scheme_name: formData.redressSchemeName,
                     redress_membership_number: formData.redressMembershipNumber,
@@ -712,6 +716,16 @@ export default function ManagerProfilePage() {
                                         className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         Add exact PIN codes or postcodes, or area prefixes, for live requests.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="manager-dispatch-pincodes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dispatch pincodes / postcodes</label>
+                                    <textarea id="manager-dispatch-pincodes" name="dispatchPincodes" value={formData.dispatchPincodes} onChange={handleChange} rows={2}
+                                        placeholder="SW1A 1AA, 600001"
+                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Exact pincodes or postcodes where you want to receive Fast Track leads first.
                                     </p>
                                 </div>
 
