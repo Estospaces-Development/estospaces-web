@@ -48,6 +48,8 @@ interface AddressSectionProps {
     initialState?: string;
     initialCity?: string;
     fieldIdPrefix?: string;
+    // When true, the country field is locked (read-only) — state/city selection still works normally
+    restrictCountry?: boolean;
 }
 
 const getAdministrativeAreaCopy = (countryCode?: string) => {
@@ -93,6 +95,7 @@ const AddressSection = ({
     initialState,
     initialCity,
     fieldIdPrefix = '',
+    restrictCountry = false,
 }: AddressSectionProps) => {
     // Data states
     const [countries, setCountries] = useState<Country[]>([]);
@@ -602,7 +605,8 @@ const AddressSection = ({
         error: string | null,
         onRetry: () => void,
         placeholder: string,
-        validationError?: string
+        validationError?: string,
+        helperText?: string
     ) => {
         const id = getFieldId(field);
         const loadErrorId = `${id}-load-error`;
@@ -679,6 +683,10 @@ const AddressSection = ({
             {validationError && !error && (
                 <p id={validationErrorId} role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{validationError}</p>
             )}
+
+            {helperText && !error && !validationError && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{helperText}</p>
+            )}
         </div>
         );
     };
@@ -703,11 +711,12 @@ const AddressSection = ({
                     countries,
                     handleCountryChange,
                     loadingCountries,
-                    disabled,
+                    disabled || restrictCountry,
                     countryError,
                     retryCountries,
                     'Select Country',
-                    errors.country
+                    errors.country,
+                    restrictCountry ? "Country is set from your account and can't be changed here." : undefined
                 )}
 
                 {/* State */}

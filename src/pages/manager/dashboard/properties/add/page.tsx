@@ -2461,18 +2461,33 @@ export default function AddPropertyPage() {
                   >
                     Country
                   </label>
-                  <select
-                    id={getManagerPropertyFieldId("countryCode")}
-                    value={formData.countryCode}
-                    onChange={(e) => handleCountryChange(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
-                  >
-                    {countries.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.name} ({country.currency})
-                      </option>
-                    ))}
-                  </select>
+                  {isEditMode ? (
+                    <select
+                      id={getManagerPropertyFieldId("countryCode")}
+                      value={formData.countryCode}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                    >
+                      {countries.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name} ({country.currency})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <>
+                      <div
+                        id={getManagerPropertyFieldId("countryCode")}
+                        className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      >
+                        {formData.country || "—"}
+                        {formData.currency ? ` (${formData.currency})` : ""}
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Properties are created in your account's country and can't be changed here.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div>
@@ -2613,6 +2628,7 @@ export default function AddPropertyPage() {
               initialCountryCode={formData.countryCode}
               initialState={formData.state}
               initialCity={formData.city}
+              restrictCountry={!isEditMode}
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>

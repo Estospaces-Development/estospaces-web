@@ -19,7 +19,14 @@ type RegisterDraft = {
     lastName: string;
     email: string;
     role: string;
+    country: string;
 };
+
+const MANAGER_COUNTRIES = ['India', 'United Kingdom'] as const;
+
+function normalizeRegisterCountry(value: string): string {
+    return (MANAGER_COUNTRIES as readonly string[]).includes(value) ? value : '';
+}
 
 const commonMistypedEmailTlds = new Set([
     'cim',
@@ -102,6 +109,7 @@ function readRegisterDraft(): RegisterDraft | null {
             lastName: typeof parsed.lastName === 'string' ? parsed.lastName : legacyNameParts.slice(1).join(' '),
             email: typeof parsed.email === 'string' ? parsed.email : '',
             role: normalizeRegisterRole(typeof parsed.role === 'string' ? parsed.role : 'user'),
+            country: normalizeRegisterCountry(typeof parsed.country === 'string' ? parsed.country : ''),
         };
     } catch {
         window.sessionStorage.removeItem(REGISTER_DRAFT_STORAGE_KEY);
@@ -121,6 +129,7 @@ function saveRegisterDraft(draft: RegisterDraft) {
             lastName: draft.lastName,
             email: draft.email,
             role: normalizeRegisterRole(draft.role),
+            country: normalizeRegisterCountry(draft.country),
         }),
     );
 }
@@ -259,12 +268,14 @@ export default function RegisterPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('user');
+    const [country, setCountry] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [firstNameError, setFirstNameError] = useState('');
     const [lastNameError, setLastNameError] = useState('');
     const [emailError, setEmailError] = useState('');
+    const [countryError, setCountryError] = useState('');
     const [success, setSuccess] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
@@ -317,6 +328,7 @@ export default function RegisterPage() {
         setLastName(draft.lastName);
         setEmail(draft.email);
         setRole(normalizeRegisterRole(draft.role));
+        setCountry(normalizeRegisterCountry(draft.country));
     }, []);
 
     useEffect(() => {
@@ -328,8 +340,8 @@ export default function RegisterPage() {
             return;
         }
 
-        saveRegisterDraft({ firstName, lastName, email, role });
-    }, [email, firstName, lastName, role, success]);
+        saveRegisterDraft({ firstName, lastName, email, role, country });
+    }, [country, email, firstName, lastName, role, success]);
 
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);
@@ -389,9 +401,11 @@ export default function RegisterPage() {
         const nextFirstNameError = validateRegisterName(firstName, 'First name');
         const nextLastNameError = validateRegisterName(lastName, 'Last name');
         const nextEmailError = validateRegisterEmail(email);
+        const nextCountryError = role === 'manager' && !country ? 'Please select your country' : '';
         setFirstNameError(nextFirstNameError || '');
         setLastNameError(nextLastNameError || '');
         setEmailError(nextEmailError || '');
+        setCountryError(nextCountryError);
 
         if (nextFirstNameError || nextLastNameError) {
             setError(nextFirstNameError || nextLastNameError || 'Please enter your name');
@@ -399,6 +413,10 @@ export default function RegisterPage() {
         }
         if (nextEmailError) {
             setError(nextEmailError);
+            return;
+        }
+        if (nextCountryError) {
+            setError(nextCountryError);
             return;
         }
         if (!allRulesPassed) {
@@ -419,6 +437,7 @@ export default function RegisterPage() {
             const result = await register(buildRegisterFullName(firstName, lastName), normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
+                country: role === 'manager' ? country : undefined,
             });
 
             if (!result.success) {
@@ -602,6 +621,42 @@ export default function RegisterPage() {
                         </div>
                     </div>
 
+                    {role === 'manager' && (
+                        <div className="mb-5">
+                            <p id="register-country-label" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Country</p>
+                            <div role="group" aria-labelledby="register-country-label" className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    aria-pressed={country === 'India'}
+                                    onClick={() => { setCountry('India'); setCountryError(''); setError(''); }}
+                                    className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${country === 'India'
+                                        ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
+                                        : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                        } ${authFocusClass}`}
+                                >
+                                    <span className="font-medium text-sm">India</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-pressed={country === 'United Kingdom'}
+                                    onClick={() => { setCountry('United Kingdom'); setCountryError(''); setError(''); }}
+                                    className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${country === 'United Kingdom'
+                                        ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
+                                        : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                        } ${authFocusClass}`}
+                                >
+                                    <span className="font-medium text-sm">United Kingdom</span>
+                                </button>
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                This is fixed once your account is created and cannot be changed later.
+                            </p>
+                            {countryError && (
+                                <p role="alert" className="mt-1 text-xs font-medium text-red-500">{countryError}</p>
+                            )}
+                        </div>
+                    )}
+
                     <div className="mb-4 grid gap-4 sm:grid-cols-2">
                         <div>
                             <label htmlFor="register-first-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">First name</label>
@@ -749,7 +804,7 @@ export default function RegisterPage() {
                             </button>
                             <Link
                                 to="/privacy"
-                                onClick={() => saveRegisterDraft({ firstName, lastName, email, role })}
+                                onClick={() => saveRegisterDraft({ firstName, lastName, email, role, country })}
                                 className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
                             >
                                 Privacy Policy

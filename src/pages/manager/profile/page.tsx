@@ -17,6 +17,7 @@ import {
     normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import DispatchServiceAreaPicker from '@/components/manager/DispatchServiceAreaPicker';
 
 const MANAGER_LICENSE_MAX_LENGTH = 64;
 const MANAGER_BIO_MAX_LENGTH = 1000;
@@ -24,7 +25,7 @@ const MANAGER_PHONE_MAX_LENGTH = 20;
 const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
 const MANAGER_PHONE_PATTERN = '\\+?[0-9 ()-]{7,20}';
 
-type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber', string>>;
+type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber' | 'companyAddress', string>>;
 
 const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
     const raw = String(value || '').trim();
@@ -75,7 +76,7 @@ export default function ManagerProfilePage() {
         postcode: '',
         companyName: '',
         branchName: '',
-        serviceAreas: '',
+        serviceAreas: [] as string[],
         businessPhone: '',
         companyAddress: '',
         registeredOfficeAddress: '',
@@ -112,7 +113,9 @@ export default function ManagerProfilePage() {
             // Broker / manager fields
             companyName: managerProfile?.company_name || prev.companyName || '',
             branchName: formatLaunchPropertyText(managerProfile?.branch_name || prev.branchName || '', ''),
-            serviceAreas: normalizeManagerServiceAreas(managerProfile?.service_areas).join(', ') || prev.serviceAreas || '',
+            serviceAreas: managerProfile
+                ? normalizeManagerServiceAreas(managerProfile?.service_areas)
+                : prev.serviceAreas,
             businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
             companyAddress: formatOptionalLaunchPropertyLocation(managerProfile?.company_address || prev.companyAddress || ''),
             registeredOfficeAddress: formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address || prev.registeredOfficeAddress || ''),
@@ -144,10 +147,6 @@ export default function ManagerProfilePage() {
 
             if (e.target.name === 'branchName') {
                 return formatLaunchPropertyText(e.target.value, '');
-            }
-
-            if (e.target.name === 'serviceAreas') {
-                return e.target.value.toUpperCase();
             }
 
             return e.target.value;
@@ -262,11 +261,13 @@ export default function ManagerProfilePage() {
         }
         const companyAddressTrimmed = formData.companyAddress.trim();
         const registeredOfficeAddressTrimmed = formData.registeredOfficeAddress.trim();
-        if (!companyAddressTrimmed && !registeredOfficeAddressTrimmed) {
+        const missingCompanyAddress = !companyAddressTrimmed && !registeredOfficeAddressTrimmed;
+        if (missingCompanyAddress) {
             nextFieldErrors.companyAddress = managerProfile?.profile_type === 'company'
                 ? 'Company address is required'
                 : 'Office address is required';
         }
+        setCompanyAddressError(missingCompanyAddress ? nextFieldErrors.companyAddress! : '');
         if (Object.keys(nextFieldErrors).length > 0) {
             setFieldErrors(nextFieldErrors);
             setSaveError('Please correct the highlighted profile fields.');
@@ -640,6 +641,15 @@ export default function ManagerProfilePage() {
                                             className={iconInputClass} />
                                     </div>
                                 </div>
+                                <div>
+                                    <label htmlFor="manager-country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Country</label>
+                                    <div className="relative">
+                                        <Globe size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input id="manager-country" type="text" name="country" value={user?.country || '—'} disabled readOnly
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Country is fixed at signup and cannot be changed.</p>
+                                </div>
                             </div>
                         </div>
 
@@ -706,12 +716,18 @@ export default function ManagerProfilePage() {
                                 </div>
 
                                 <div>
-                                    <label htmlFor="manager-service-areas" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dispatch service areas</label>
-                                    <textarea id="manager-service-areas" name="serviceAreas" value={formData.serviceAreas} onChange={handleChange} rows={2}
-                                        placeholder="600001, 600, SW1A"
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dispatch service areas</label>
+                                    <DispatchServiceAreaPicker
+                                        countryName={user?.country}
+                                        selectedCodes={formData.serviceAreas}
+                                        onChange={(nextCodes) => {
+                                            setFormData(prev => ({ ...prev, serviceAreas: nextCodes }));
+                                            setIsSaved(false);
+                                            setSaveError('');
+                                        }}
+                                    />
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Add exact PIN codes or postcodes, or area prefixes, for live requests.
+                                        Only {user?.country === 'United Kingdom' ? 'UK postcodes' : 'Indian PIN codes'} for your account's country are available for live requests.
                                     </p>
                                 </div>
 

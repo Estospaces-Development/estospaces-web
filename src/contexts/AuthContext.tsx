@@ -41,7 +41,7 @@ interface AuthContextType {
         email: string,
         password: string,
         role: string,
-        termsAcceptance: { acceptedAt: string; version: string },
+        termsAcceptance: { acceptedAt: string; version: string; country?: string },
     ) => Promise<{ success: boolean; error?: string }>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
@@ -414,7 +414,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: string,
         password: string,
         role: string,
-        termsAcceptance: { acceptedAt: string; version: string },
+        termsAcceptance: { acceptedAt: string; version: string; country?: string },
     ) => {
         setError(null);
         try {
@@ -431,6 +431,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         email,
                         password,
                         role,
+                        ...(termsAcceptance.country ? { country: termsAcceptance.country } : {}),
                         accepted_terms: true,
                         accepted_terms_version: termsAcceptance.version,
                         accepted_terms_at: termsAcceptance.acceptedAt,
