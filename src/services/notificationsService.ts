@@ -226,7 +226,6 @@ export async function getNotifications(unreadOnly: boolean = false, role?: strin
     const url = `${NOTIFICATION_URL()}/api/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`;
     const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url, {
         suppressErrorToast: true,
-        headers: role ? { 'X-User-Role': role } : undefined,
     });
     let notifications = dedupeNotificationsForDisplay((data.notifications || []).map(normalizeNotification));
 
