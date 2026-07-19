@@ -354,7 +354,7 @@ export default function ManagerProfilePage() {
                 mergeCurrentUserProfile(data);
             }
 
-            const savedAvatar = avatarValue || existingAvatar || null;
+            const savedAvatar = avatarValue || (user?.avatar_url || user?.avatar || null) || null;
             const resolvedSavedAvatar = (() => {
                 const raw = savedAvatar;
                 if (!raw || typeof raw !== 'string') return null;
