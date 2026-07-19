@@ -24,7 +24,7 @@ import {
 import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
-import { buildAdminDashboardSnapshot, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
+import { buildAdminDashboardSnapshot, getAdminTotalProperties, getAdminActiveListings, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNotificationNavigationPath,
@@ -351,7 +351,7 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* Main Content Area - Quick Actions & Feed */}
                 <div className="lg:col-span-2 space-y-8">

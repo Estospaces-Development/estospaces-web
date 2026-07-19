@@ -73,6 +73,15 @@ export const userService = {
         }
     },
 
+    getProfile: async (): Promise<{ data: any, error: string | null }> => {
+        try {
+            const data = await apiFetch<any>(`${CORE_URL()}/api/v1/users/profile`);
+            return { data, error: null };
+        } catch (error: any) {
+            return { data: null, error: getErrorMessage(error) };
+        }
+    },
+
     getUserSummaries: async (ids: string[]): Promise<{ data: UserProfileSummary[]; error: string | null }> => {
         try {
             const data = await apiFetch<UserProfileSummary[]>(`${CORE_URL()}/api/v1/users/summaries`, {

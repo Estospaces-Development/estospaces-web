@@ -52,7 +52,8 @@ const isPrivateMediaBucketUrl = (image: string) => {
     }
 };
 
-const MEDIA_ACCESS_RELATIVE_PATTERN = /^\/api\/v1\/media\/access\//;
+const MEDIA_ACCESS_RELATIVE_PATTERN = /^\/api\/v1\/media\//;
+const PROPERTY_MEDIA_RELATIVE_PATTERN = /^\/api\/v1\/properties\//;
 
 export const resolvePropertyImageUrl = (image: string): string => {
     const trimmed = image.trim();
@@ -65,11 +66,18 @@ export const resolvePropertyImageUrl = (image: string): string => {
         return trimmed;
     }
 
-    // Relative media access path — resolve against media service base URL
+    // Relative media path (/api/v1/media/...) — resolve against media service base URL
     if (MEDIA_ACCESS_RELATIVE_PATTERN.test(trimmed)) {
         const mediaBase = getServiceUrl('media');
         const cleanMediaBase = mediaBase.replace(/\/$/, '');
         return `${cleanMediaBase}${trimmed}`;
+    }
+
+    // Relative property media path (/api/v1/properties/...) — resolve against core service base URL
+    if (PROPERTY_MEDIA_RELATIVE_PATTERN.test(trimmed)) {
+        const coreBase = getServiceUrl('core');
+        const cleanCoreBase = coreBase.replace(/\/$/, '');
+        return `${cleanCoreBase}${trimmed}`;
     }
 
     return trimmed;

@@ -418,6 +418,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                         if (convType === 'system' || metadataStr.includes('"is_system":true')) {
                             return false;
                         }
+                        if (metadataStr.includes('"is_test":true') || metadataStr.includes('"qa_test"')) {
+                            return false;
+                        }
                         return true;
                     })
                     .map((conversation) =>

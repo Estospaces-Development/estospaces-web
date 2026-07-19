@@ -1430,6 +1430,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const existingUploaded = (item.documentRecordId || item.fileUrl);
+        if (existingUploaded && file.size > 0) {
+            toast.info('This file has already been uploaded.');
+            return;
+        }
+
         setActiveAction(`upload-${item.id}`);
         const uploadResult = await uploadDocument(
             item.id === 'identity' ? 'identity' : 'address',
@@ -2660,7 +2666,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item, itemIndex) => {
-                        const canUpload = role === 'user';
+                        const canUpload = role === 'user' && Boolean(selectedCase.managerId);
                         const busyKey = `upload-${item.id}`;
                         const selectedFile = selectedFiles[item.id] || null;
                         const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
@@ -2821,10 +2827,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                     inputRef={(node) => {
                                                         fileInputRefs.current[item.id] = node;
                                                     }}
-                                                    onFileSelected={(file) => setSelectedFiles((previous) => ({
-                                                        ...previous,
-                                                        [item.id]: file,
-                                                    }))}
+                                                    onFileSelected={(file) => {
+                                                        if (file && item.fileUrl && file.name === (item.fileName || '')) {
+                                                            toast.info('This file has already been uploaded.');
+                                                            return;
+                                                        }
+                                                        setSelectedFiles((previous) => ({
+                                                            ...previous,
+                                                            [item.id]: file,
+                                                        }))
+                                                    }}
                                                 />
                                                 <span className="min-w-0 flex-1 truncate rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                                     {selectedFile?.name || uploadCopy.chooserSummary}

@@ -48,7 +48,13 @@ export const filterAdminNotifications = (
     const query = normalizeAdminNotificationSearch(searchQuery);
 
     return notifications.filter((notification) => {
-        // Exclude system/QA test notifications from admin view
+        // Exclude QA/test notifications from admin view regardless of type
+        const metadataStr = typeof notification.data === 'string'
+            ? notification.data
+            : JSON.stringify(notification.data ?? {});
+        if (metadataStr.includes('"is_test":true') || metadataStr.includes('"qa_test"')) {
+            return false;
+        }
         if (notification.type === NOTIFICATION_TYPES.SYSTEM) {
             const entity = typeof notification.data?.entity === 'string'
                 ? notification.data.entity.trim()

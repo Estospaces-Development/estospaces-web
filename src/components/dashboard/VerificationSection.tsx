@@ -478,13 +478,17 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     </div>
                 </div>
 
-                {documents.length === 0 ? (
+                {(documents.filter((document) => document.status !== 'approved' && document.status !== 'rejected')).length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-                        No documents are stored yet.
+                        {documents.some((d) => d.status === 'approved' || d.status === 'rejected')
+                            ? 'All documents have been processed.'
+                            : 'No documents are stored yet.'}
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {documents.map((document) => {
+                        {documents
+                            .filter((document) => document.status !== 'approved' && document.status !== 'rejected')
+                            .map((document) => {
                             const canDelete = document.status === 'pending'
                                 || document.status === 'rejected'
                                 || document.status === 'reupload_required';

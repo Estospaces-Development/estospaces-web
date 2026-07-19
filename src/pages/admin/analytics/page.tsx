@@ -15,6 +15,8 @@ import {
     buildAdminAnalyticsMetricCards,
     createAdminAnalyticsExportDeduper,
     type AdminAnalyticsIconKey,
+    getAdminTotalProperties,
+    getAdminActiveListings,
 } from '@/lib/adminPlatformAnalytics';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 

@@ -51,15 +51,16 @@ export const getAdminTotalBookings = (data?: AnalyticsData | null) => (
 );
 
 export const getAdminActiveListings = (data?: AnalyticsData | null) => {
-    if (data?.active_listings !== undefined) {
-        return data.active_listings;
-    }
-
     const livePerformanceRows = (data?.propertyPerformance || []).filter((property) => (
         ADMIN_LIVE_LISTING_STATUSES.has(property.status?.trim().toLowerCase() || '')
     ));
 
-    return livePerformanceRows.length || data?.total_properties || 0;
+    return livePerformanceRows.length;
+};
+
+export const getAdminTotalProperties = (data?: AnalyticsData | null) => {
+    const perfCount = (data?.propertyPerformance || []).length;
+    return data?.total_properties ?? perfCount;
 };
 
 export const buildAdminAnalyticsMetricCards = (
@@ -193,7 +194,7 @@ export const buildAdminDashboardSnapshot = (
     data?: AnalyticsData | null,
 ): AdminAnalyticsDisplayItem[] => [
     { id: 'users', label: 'Total Users', value: formatAdminNumber(data?.total_users), icon: 'users', color: 'text-blue-500' },
-    { id: 'properties', label: 'Total Properties', value: formatAdminNumber(data?.total_properties), icon: 'building', color: 'text-emerald-500' },
+    { id: 'properties', label: 'Total Properties', value: formatAdminNumber(getAdminTotalProperties(data)), icon: 'building', color: 'text-emerald-500' },
     { id: 'bookings', label: 'Total Bookings', value: formatAdminNumber(getAdminTotalBookings(data)), icon: 'file', color: 'text-sky-500' },
     { id: 'revenue', label: 'Revenue', value: formatAdminCurrency(data?.total_revenue), icon: 'trending', color: 'text-green-500' },
     { id: 'active-listings', label: 'Active Listings', value: formatAdminNumber(getAdminActiveListings(data)), icon: 'activity', color: 'text-orange-500' },

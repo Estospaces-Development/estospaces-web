@@ -7,6 +7,7 @@ import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { normalizeManagerServiceAreas } from '@/services/managerVerificationService';
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
+import { getServiceUrl } from '@/lib/apiUtils';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
     formatLaunchLocationCode,
@@ -24,7 +25,7 @@ const MANAGER_PHONE_MAX_LENGTH = 20;
 const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
 const MANAGER_PHONE_PATTERN = '\\+?[0-9 ()-]{7,20}';
 
-type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber' | 'companyAddress', string>>;
+type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber' | 'companyAddress' | 'registeredOfficeAddress', string>>;
 
 const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
     const raw = String(value || '').trim();
@@ -127,7 +128,16 @@ export default function ManagerProfilePage() {
             taxId: managerProfile?.tax_id || prev.taxId || '',
         }));
         const existingAvatar = user?.avatar_url || user?.avatar || null;
-        setProfileImagePreview(existingAvatar);
+        const resolvedAvatar = (() => {
+            const raw = existingAvatar;
+            if (!raw || typeof raw !== 'string') return null;
+            if (/^https?:\/\//i.test(raw)) return raw;
+            if (raw.startsWith('/api/v1/media/')) {
+                return `${getServiceUrl('media').replace(/\/$/, '')}${raw}`;
+            }
+            return raw;
+        })();
+        setProfileImagePreview(resolvedAvatar);
         setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
         setRemovingAvatar(false);
@@ -260,10 +270,13 @@ export default function ManagerProfilePage() {
         }
         const companyAddressTrimmed = formData.companyAddress.trim();
         const registeredOfficeAddressTrimmed = formData.registeredOfficeAddress.trim();
-        if (!companyAddressTrimmed && !registeredOfficeAddressTrimmed) {
+        if (!companyAddressTrimmed) {
             nextFieldErrors.companyAddress = managerProfile?.profile_type === 'company'
                 ? 'Company address is required'
                 : 'Office address is required';
+        }
+        if (!registeredOfficeAddressTrimmed) {
+            nextFieldErrors.registeredOfficeAddress = 'Registered office address is required';
         }
         if (Object.keys(nextFieldErrors).length > 0) {
             setFieldErrors(nextFieldErrors);
@@ -341,8 +354,18 @@ export default function ManagerProfilePage() {
                 mergeCurrentUserProfile(data);
             }
 
-            setProfileImagePreview(avatarValue || null);
-            setStoredAvatarValue(avatarValue || null);
+            const savedAvatar = avatarValue || existingAvatar || null;
+            const resolvedSavedAvatar = (() => {
+                const raw = savedAvatar;
+                if (!raw || typeof raw !== 'string') return null;
+                if (/^https?:\/\//i.test(raw)) return raw;
+                if (raw.startsWith('/api/v1/media/')) {
+                    return `${getServiceUrl('media').replace(/\/$/, '')}${raw}`;
+                }
+                return raw;
+            })();
+            setProfileImagePreview(resolvedSavedAvatar);
+            setStoredAvatarValue(savedAvatar);
             setSelectedAvatarFile(null);
             setIsSaved(true);
             setTimeout(() => {
@@ -374,6 +397,8 @@ export default function ManagerProfilePage() {
         !formData.firstName.trim() ? 'First name' : '',
         !formData.lastName.trim() ? 'Last name' : '',
         !formData.licenseNumber.trim() ? (managerProfile?.profile_type === 'company' ? 'Company registration number' : 'Broker license number') : '',
+        !formData.companyAddress.trim() ? 'Office / Company address' : '',
+        !formData.registeredOfficeAddress.trim() ? 'Registered office address' : '',
     ].filter(Boolean);
     const saveDisabledReason = missingRequiredFields.length > 0
         ? `Complete required fields: ${missingRequiredFields.join(', ')}.`
@@ -389,7 +414,9 @@ export default function ManagerProfilePage() {
         || removingAvatar
         || !formData.firstName.trim()
         || !formData.lastName.trim()
-        || !formData.licenseNumber.trim();
+        || !formData.licenseNumber.trim()
+        || !formData.companyAddress.trim()
+        || !formData.registeredOfficeAddress.trim();
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
@@ -654,10 +681,13 @@ export default function ManagerProfilePage() {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="manager-company-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Company Name</label>
+                                        <label htmlFor="manager-company-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                            <RequiredFieldLabel>Company Name</RequiredFieldLabel>
+                                        </label>
                                         <div className="relative">
                                             <Building size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                             <input id="manager-company-name" type="text" name="companyName" value={formData.companyName} onChange={handleChange}
+                                                required
                                                 placeholder="Acme Properties Ltd"
                                                 className={iconInputClass} />
                                         </div>
@@ -736,10 +766,13 @@ export default function ManagerProfilePage() {
                                 </div>
 
                                 <div>
-                                    <label htmlFor="manager-company-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office / Company Address</label>
+                                    <label htmlFor="manager-company-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                        <RequiredFieldLabel>Office / Company Address</RequiredFieldLabel>
+                                    </label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
                                         <textarea id="manager-company-address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
+                                            required
                                             placeholder="1 Office Road, Chennai, 600001"
                                             className={`w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border ${companyAddressError ? 'border-red-400 dark:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-orange-500'} rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-100 resize-none`} />
                                     </div>

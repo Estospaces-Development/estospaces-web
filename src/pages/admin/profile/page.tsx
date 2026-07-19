@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Shield } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Shield, Upload, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
@@ -10,6 +10,7 @@ import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
     normalizeLaunchLocationCode,
+    formatLaunchPropertyLocation,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -20,6 +21,12 @@ export default function AdminProfilePage() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<ProfileNameErrors>({});
+    const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+    const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -34,8 +41,25 @@ export default function AdminProfilePage() {
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
-    useEffect(() => {
-        if (user) {
+    const loadAdminProfile = useCallback(async () => {
+        if (!user) return;
+        setIsInitialLoading(true);
+        setProfileLoadError(null);
+        try {
+            const { data } = await userService.getProfile();
+            const profileData = data || user;
+            const nameParts = (profileData.name || '').split(' ');
+            setFormData({
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' ') || '',
+                email: profileData.email || '',
+                phone: profileData.phone || '',
+                address: profileData.address || '',
+                postcode: profileData.postcode || '',
+                bio: profileData.user_metadata?.bio || '',
+            });
+        } catch {
+            // fallback to auth context data
             const nameParts = (user.name || '').split(' ');
             setFormData({
                 firstName: nameParts[0] || '',
@@ -46,9 +70,17 @@ export default function AdminProfilePage() {
                 postcode: user.postcode || '',
                 bio: user.user_metadata?.bio || '',
             });
+            setProfileLoadError('Could not load profile details — showing cached data.');
+        } finally {
             setIsInitialLoading(false);
         }
     }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            loadAdminProfile();
+        }
+    }, [user, loadAdminProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData(prev => ({
@@ -106,6 +138,21 @@ export default function AdminProfilePage() {
         return (
             <div className="flex justify-center items-center py-20">
                 <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+            </div>
+        );
+    }
+
+    if (profileLoadError) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Shield className="text-blue-500" />
+                    Admin Account Settings
+                </h1>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">{profileLoadError}</p>
+                </div>
+                <button onClick={loadAdminProfile} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Retry</button>
             </div>
         );
     }

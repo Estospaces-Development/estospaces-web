@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown, ArrowLeft } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
 import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion, SearchHistoryEntry } from '../../../services/searchService';
@@ -545,6 +545,16 @@ const PropertySearch = () => {
         <div className="mx-auto w-full max-w-7xl space-y-6 overflow-x-hidden px-4 pb-20 pt-5 sm:px-6 lg:px-8 animate-in fade-in duration-500">
             {/* Navigation breadcrumb */}
             <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center gap-1.5 text-gray-500 hover:text-orange-500 transition-colors dark:text-gray-400"
+                    aria-label="Go back"
+                >
+                    <ArrowLeft size={14} />
+                    Back
+                </button>
+                <span className="text-gray-300 dark:text-gray-600">/</span>
                 <Link to="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-orange-500 transition-colors dark:text-gray-400">
                     <Home size={14} />
                     Home

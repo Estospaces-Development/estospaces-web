@@ -364,7 +364,11 @@ function DashboardContent() {
 
   const stats = {
     liveFastTrack: String(fastTrackSummary.active),
-    liveFastTrackChange: `${fastTrackSummary.completed} done · ${fastTrackSummary.cancelled} closed · ${fastTrackSummary.closingSoon} urgent`,
+    liveFastTrackChange: [
+        fastTrackSummary.completed > 0 && `${fastTrackSummary.completed} completed`,
+        fastTrackSummary.cancelled > 0 && `${fastTrackSummary.cancelled} closed`,
+        fastTrackSummary.closingSoon > 0 && `${fastTrackSummary.closingSoon} closing soon`,
+    ].filter(Boolean).join(' · ') || `${fastTrackSummary.active} active`,
     activeProperties: getManagerLiveListingCount(analytics, properties, livePropertyTotal).toString(),
     activeListingsChange: analytics?.property_growth || '0%',
     totalViews: analytics?.total_views?.toString() || String(
@@ -454,49 +458,58 @@ function DashboardContent() {
         actionPath={canLoadOperationalDashboard ? undefined : '/manager/verification'}
       />
 
+      {managerVerificationLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 size={28} className="animate-spin text-orange-500 mr-3" />
+          <span className="text-sm text-gray-500 dark:text-gray-400">Loading your dashboard…</span>
+        </div>
+      )}
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Live Fast Track"
-          value={stats.liveFastTrack}
-          change={stats.liveFastTrackChange}
-          icon={CalendarCheck}
-          iconColor="bg-emerald-500"
-          trendColor="text-emerald-700"
-          onClick={() => navigate('/manager/fast-track')}
-          loading={isLoading}
-        />
-        <StatCard
-          title="Active Listings"
-          value={stats.activeProperties}
-          change={stats.activeListingsChange}
-          icon={Building2}
-          iconColor="bg-blue-500"
-          trendColor="text-blue-600"
-          onClick={() => navigate(buildManagerActiveListingsPath())}
-          loading={isLoading}
-        />
-        <StatCard
-          title="Total Views"
-          value={stats.totalViews.toString()}
-          change={stats.totalViewsChange}
-          icon={Eye}
-          iconColor="bg-purple-500"
-          trendColor="text-purple-600"
-          onClick={() => navigate('/manager/analytics#manager-analytics-views')}
-          loading={isLoading}
-        />
-        <StatCard
-          title="Conversion Rate"
-          value={stats.conversionRate}
-          change={stats.conversionRateChange}
-          icon={UserCheck}
-          iconColor="bg-orange-500"
-          trendColor="text-orange-600"
-          onClick={() => navigate('/manager/analytics#manager-analytics-conversion')}
-          loading={isLoading}
-        />
-      </div>
+      {canLoadOperationalDashboard ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Live Fast Track"
+            value={stats.liveFastTrack}
+            change={stats.liveFastTrackChange}
+            icon={CalendarCheck}
+            iconColor="bg-emerald-500"
+            trendColor="text-emerald-700"
+            onClick={() => navigate('/manager/fast-track')}
+            loading={isLoading}
+          />
+          <StatCard
+            title="Active Listings"
+            value={stats.activeProperties}
+            change={stats.activeListingsChange}
+            icon={Building2}
+            iconColor="bg-blue-500"
+            trendColor="text-blue-600"
+            onClick={() => navigate(buildManagerActiveListingsPath())}
+            loading={isLoading}
+          />
+          <StatCard
+            title="Total Views"
+            value={stats.totalViews.toString()}
+            change={stats.totalViewsChange}
+            icon={Eye}
+            iconColor="bg-purple-500"
+            trendColor="text-purple-600"
+            onClick={() => navigate('/manager/analytics#manager-analytics-views')}
+            loading={isLoading}
+          />
+          <StatCard
+            title="Conversion Rate"
+            value={stats.conversionRate}
+            change={stats.conversionRateChange}
+            icon={UserCheck}
+            iconColor="bg-orange-500"
+            trendColor="text-orange-600"
+            onClick={() => navigate('/manager/analytics#manager-analytics-conversion')}
+            loading={isLoading}
+          />
+        </div>
+      ) : null}
 
       {/* Tab Bar */}
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
@@ -543,7 +556,7 @@ function DashboardContent() {
                 docsDocument={managerDocs.document}
               />
 
-              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8" id="section-reservations">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-xl">
@@ -607,7 +620,7 @@ function DashboardContent() {
             </div>
               </div>
 
-              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8" id="section-fast-track">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
               <div>
                 <div className="flex items-center gap-3">
@@ -727,7 +740,7 @@ function DashboardContent() {
               </div>
 
               {/* Your Properties Section */}
-              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 relative overflow-hidden group">
+              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 relative overflow-hidden group" id="section-properties">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out pointer-events-none"></div>
 
             <div className="relative z-10">

@@ -103,6 +103,11 @@ const AddLeadModal = ({
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!(formData.name || '').trim()) newErrors.name = 'Name is required';
+        if (!(formData.phone || '').trim()) {
+            newErrors.phone = 'Phone is required';
+        } else if (!/^[+]?[\d\s()-]+$/.test((formData.phone || '').trim())) {
+            newErrors.phone = 'Phone must contain only numbers, spaces, and +()-';
+        }
         if (!(formData.email || '').trim()) {
             newErrors.email = 'Email is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email || '')) {
@@ -238,9 +243,15 @@ const AddLeadModal = ({
                                 type="tel"
                                 value={formData.phone}
                                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:text-white dark:placeholder-gray-500"
+                                aria-invalid={Boolean(errors.phone)}
+                                aria-describedby={errors.phone ? 'manual-lead-phone-error' : undefined}
+                                className={`w-full px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:text-white dark:placeholder-gray-500 ${errors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                                    }`}
                                 placeholder="Enter phone number"
                             />
+                            {errors.phone && (
+                                <p id="manual-lead-phone-error" role="alert" className="text-red-600 dark:text-red-300 text-xs mt-1">{errors.phone}</p>
+                            )}
                         </div>
 
                         <div>

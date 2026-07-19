@@ -30,12 +30,23 @@ import {
     normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { getServiceUrl } from '@/lib/apiUtils';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
     const { user: currentUser, refreshUser, mergeCurrentUserProfile, loading: authLoading, isAuthenticated } = useAuth();
     const { savedCount } = useSavedProperties();
     const toast = useToast();
+
+    const resolveUserImageUrl = (url?: string | null): string => {
+        if (!url || typeof url !== 'string') return '';
+        if (/^https?:\/\//i.test(url)) return url;
+        if (url.startsWith('/api/v1/media/')) {
+            return `${getServiceUrl('media').replace(/\/$/, '')}${url}`;
+        }
+        return url;
+    };
+
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -97,7 +108,8 @@ export default function ProfilePage() {
             country: currentUser.country || '',
         });
         const existingAvatar = currentUser.avatar_url || currentUser.avatar || null;
-        setProfileImagePreview(existingAvatar);
+        const resolvedAvatar = resolveUserImageUrl(existingAvatar);
+        setProfileImagePreview(resolvedAvatar);
         setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
         fetchStats();
@@ -152,7 +164,8 @@ export default function ProfilePage() {
 
         try {
             setSavingProfile(true);
-            let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
+            let avatarValue: string | undefined;
+            const prevPreview = profileImagePreview;
 
             if (selectedAvatarFile && currentUser?.id) {
                 const uploadedAvatar = await uploadMediaFile(
@@ -163,6 +176,10 @@ export default function ProfilePage() {
                     true,
                 );
                 avatarValue = uploadedAvatar.file_url;
+            } else if (storedAvatarValue && !storedAvatarValue.startsWith('data:')) {
+                avatarValue = storedAvatarValue;
+            } else {
+                avatarValue = prevPreview || undefined;
             }
 
             const { data, error } = await updateProfile({
@@ -181,11 +198,17 @@ export default function ProfilePage() {
                 mergeCurrentUserProfile(data);
             }
 
-            setProfileImagePreview((prev) => {
-                const next = avatarValue || prev;
-                setStoredAvatarValue(next);
-                return next;
-            });
+            const nextAvatar = (() => {
+                const raw = avatarValue || prevPreview || '';
+                if (!raw || typeof raw !== 'string') return '';
+                if (/^https?:\/\//i.test(raw)) return raw;
+                if (raw.startsWith('/api/v1/media/')) {
+                    return `${getServiceUrl('media').replace(/\/$/, '')}${raw}`;
+                }
+                return raw;
+            })();
+            setProfileImagePreview(nextAvatar);
+            setStoredAvatarValue(avatarValue || prevPreview || '');
             setSelectedAvatarFile(null);
             setSaveSuccess(true);
             toast.success('Profile updated successfully');

@@ -108,8 +108,8 @@ const buildFullName = (
 export const splitRegistrationName = (name: string) => {
     const normalizedName = name.trim().replace(/\s+/g, ' ');
     const nameParts = normalizedName ? normalizedName.split(' ') : [];
-    const first_name = nameParts[0] || 'Unknown';
-    const last_name = nameParts.slice(1).join(' ');
+    const first_name = nameParts[0] || '';
+    const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
     return { first_name, last_name };
 };
@@ -409,6 +409,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [refreshUser]);
 
+const sanitizeRegistrationError = (err: unknown): string => {
+    const raw = getErrorMessage(err, '').toLowerCase();
+
+    if (raw.includes('already exists') || raw.includes('already registered') || raw.includes('duplicate') || raw.includes('unique constraint') || (raw.includes('email') && raw.includes('taken'))) {
+        return 'An account with this email already exists. Please sign in or use a different email.';
+    }
+
+    if (raw.includes('weak password') || raw.includes('password too short') || raw.includes('password must')) {
+        return 'Please choose a stronger password that meets all requirements.';
+    }
+
+    if (raw.includes('invalid') || raw.includes('bad request')) {
+        return 'Please check your information and try again.';
+    }
+
+    return 'We could not create your account. Please try again later.';
+};
+
     const register = useCallback(async (
         name: string,
         email: string,
@@ -467,7 +485,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             return { success: true };
         } catch (err: any) {
-            const errorMessage = getErrorMessage(err, 'Registration failed');
+            const errorMessage = sanitizeRegistrationError(err);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         }

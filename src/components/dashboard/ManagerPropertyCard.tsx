@@ -19,6 +19,7 @@ interface ManagerPropertyCardProps {
         title?: string;
         name?: string;
         address?: string;
+        description?: string;
         location?: any;
         price?: PriceInfo | number | string;
         priceString?: string;
@@ -64,6 +65,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
     const size = property.area || property.sqft || 0;
+    const description = property.description?.trim() || '';
 
     const formatPrice = (price?: PriceInfo | number | string) => {
         const isRentalListing =
@@ -155,6 +157,10 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     <MapPin size={14} className="mt-0.5 flex-shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1 break-words">{address}</span>
                 </p>
+
+                {description && (
+                    <p className="mb-4 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{description}</p>
+                )}
 
                 {inventoryCaption && (
                     <div className="mb-4 inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">

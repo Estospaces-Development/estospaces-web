@@ -187,7 +187,7 @@ export const buildUserPropertyPortfolio = ({
       ),
       propertyAddress: firstString(
         application?.property_address,
-        "Address unavailable",
+        "Address not recorded",
       ),
       propertyImage: toPropertyImage(application?.property_image),
       priceLabel: formatMoney(application?.property_price, "", application),
@@ -253,7 +253,7 @@ export const buildUserPropertyPortfolio = ({
       ),
       propertyAddress: firstString(
         application.property_address,
-        "Address unavailable",
+        "Address not recorded",
       ),
       propertyImage: toPropertyImage(application.property_image),
       priceLabel: formatMoney(application.property_price, "", application),
@@ -307,7 +307,7 @@ export const buildUserPropertyPortfolio = ({
       propertyTitle: firstString(application?.property_title, "Rental home"),
       propertyAddress: firstString(
         application?.property_address,
-        "Address unavailable",
+        "Address not recorded",
       ),
       propertyImage: toPropertyImage(application?.property_image),
       priceLabel:

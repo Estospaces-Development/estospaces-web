@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
 import { getManagerApplicationCount, getManagerLiveListingCount } from '@/lib/managerPropertyDashboard';
@@ -24,6 +24,7 @@ const WelcomeBanner = ({
 }: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [stats, setStats] = useState({
         activeProperties: 0,
         activeLeads: 0,
@@ -76,6 +77,7 @@ const WelcomeBanner = ({
         {
             label: loading ? '...' : `${stats.activeProperties} Active Listings`,
             path: '/manager/dashboard/properties',
+            sectionId: 'section-properties',
             dotClassName: 'bg-primary',
             ariaLabel: 'Open active listings',
         },
@@ -88,6 +90,7 @@ const WelcomeBanner = ({
         {
             label: loading ? '...' : `${stats.totalApplications} Applications`,
             path: '/manager/applications',
+            sectionId: 'section-reservations',
             dotClassName: 'bg-purple-500',
             ariaLabel: 'Open applications',
         },
@@ -118,7 +121,18 @@ const WelcomeBanner = ({
                         {index > 0 && <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>}
                         <button
                             type="button"
-                            onClick={() => navigate(item.path)}
+                            onClick={() => {
+                                const isDashboard = location.pathname === '/manager/dashboard' || location.pathname.startsWith('/manager/dashboard');
+                                const section = (item as any).sectionId;
+                                if (isDashboard && section) {
+                                    const element = document.getElementById(section);
+                                    if (element) {
+                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        return;
+                                    }
+                                }
+                                navigate(item.path);
+                            }}
                             aria-label={item.ariaLabel}
                             className="flex items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-700"
                         >

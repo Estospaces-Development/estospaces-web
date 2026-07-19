@@ -62,7 +62,13 @@ export function resolveSupportTranscriptMessagePresentation({
         || (hasValue(normalizedRequesterUserId) && normalizedSenderId === normalizedRequesterUserId);
     const isRequesterMessage = senderIsKnownRequester
         || (!senderIsKnownStaff && hasValue(normalizedRequesterUserId) && normalizedSenderId === normalizedRequesterUserId);
-    const participant = isRequesterMessage ? 'requester' : 'staff';
+
+    // Admin/staff messages may arrive without sender_role from the backend.
+    // If the sender is the current user in staff perspective, override to staff
+    // even if sender_role was missing or unreliable.
+    const participant = (!isRequesterMessage && perspective === 'staff' && normalizedSenderId === normalizedCurrentUserId)
+        ? 'staff'
+        : (isRequesterMessage ? 'requester' : 'staff');
     const alignsEnd = perspective === 'staff' ? participant === 'staff' : normalizedSenderId === normalizedCurrentUserId;
     const showParticipantLabel = perspective === 'staff' || normalizedSenderId !== normalizedCurrentUserId;
 
