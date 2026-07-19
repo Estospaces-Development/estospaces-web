@@ -1482,23 +1482,28 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (input) {
             input.value = '';
         }
-        updateLocalCase(data);
-        const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
-        if (uploadedItem) {
-            handleDocumentFocus(uploadedItem.id);
-        }
-        publishWorkspaceSync({
-            source: 'mutation',
-            tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
-            reason: 'Fast-track document uploaded',
-            ids: {
-                caseId: data.caseId,
-                leadId: data.leadId,
-                propertyId: data.propertyId,
-            },
-        });
-        toast.success(`${item.label} uploaded and visible to your manager.`);
-    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
+    // After a successful upload, keep the workspace on the Documents stage
+    // and focus the just-uploaded document so the user can continue with
+    // any remaining uploads without being redirected away.
+    setActiveStageOverride('documents');
+    setSearchParams((previous) => buildFastTrackStageSearchParams(previous, 'documents'));
+    updateLocalCase(data);
+    const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
+    if (uploadedItem) {
+        handleDocumentFocus(uploadedItem.id);
+    }
+    publishWorkspaceSync({
+        source: 'mutation',
+        tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
+        reason: 'Fast-track document uploaded',
+        ids: {
+            caseId: data.caseId,
+            leadId: data.leadId,
+            propertyId: data.propertyId,
+        },
+    });
+    toast.success(`${item.label} uploaded and visible to your manager.`);
+    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, setSearchParams, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
@@ -1827,20 +1832,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             if (item.documentRecordId) {
                 const access = await getDocumentAccessUrl(item.documentRecordId);
                 if (access.error || !access.url) {
-                    setPreviewUrl(null);
-                    setPreviewError(access.error || 'Preview is unavailable for this document.');
-                    closeExternalDocumentWindow();
-                    if (revealInViewport) {
-                        if (role === 'user') {
-                            setUserDetailsOpen(true);
+                    // Fall back to the cached fileUrl if the document record is stale
+                    // (common for completed cases where the record may have been cleaned up)
+                    if (item.fileUrl) {
+                        releasePreviewObjectUrl();
+                        nextUrl = item.fileUrl;
+                        nextAccessUrl = item.fileUrl;
+                    } else {
+                        setPreviewUrl(null);
+                        setPreviewError(access.error || 'Preview is unavailable for this document.');
+                        closeExternalDocumentWindow();
+                        if (revealInViewport) {
+                            if (role === 'user') {
+                                setUserDetailsOpen(true);
+                            }
+                            revealPreviewSection();
                         }
-                        revealPreviewSection();
+                        return null;
                     }
-                    return null;
+                } else {
+                    releasePreviewObjectUrl();
+                    nextUrl = access.url;
+                    nextAccessUrl = access.url;
                 }
-                releasePreviewObjectUrl();
-                nextUrl = access.url;
-                nextAccessUrl = access.url;
             } else {
                 releasePreviewObjectUrl();
             }

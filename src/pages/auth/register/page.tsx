@@ -19,7 +19,14 @@ type RegisterDraft = {
     lastName: string;
     email: string;
     role: string;
+    country: string;
 };
+
+const MANAGER_COUNTRIES = ['India', 'United Kingdom'] as const;
+
+function normalizeRegisterCountry(value: string): string {
+    return (MANAGER_COUNTRIES as readonly string[]).includes(value) ? value : '';
+}
 
 const commonMistypedEmailTlds = new Set([
     'cim',
@@ -102,6 +109,7 @@ function readRegisterDraft(): RegisterDraft | null {
             lastName: typeof parsed.lastName === 'string' ? parsed.lastName : legacyNameParts.slice(1).join(' '),
             email: typeof parsed.email === 'string' ? parsed.email : '',
             role: normalizeRegisterRole(typeof parsed.role === 'string' ? parsed.role : 'user'),
+            country: normalizeRegisterCountry(typeof parsed.country === 'string' ? parsed.country : ''),
         };
     } catch {
         window.sessionStorage.removeItem(REGISTER_DRAFT_STORAGE_KEY);
@@ -121,6 +129,7 @@ function saveRegisterDraft(draft: RegisterDraft) {
             lastName: draft.lastName,
             email: draft.email,
             role: normalizeRegisterRole(draft.role),
+            country: normalizeRegisterCountry(draft.country),
         }),
     );
 }
@@ -327,6 +336,8 @@ export default function RegisterPage() {
     const [firstNameError, setFirstNameError] = useState('');
     const [lastNameError, setLastNameError] = useState('');
     const [emailError, setEmailError] = useState('');
+    const [country, setCountry] = useState('');
+    const [countryError, setCountryError] = useState('');
     const [success, setSuccess] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
@@ -380,6 +391,7 @@ export default function RegisterPage() {
         setLastName(draft.lastName);
         setEmail(draft.email);
         setRole(normalizeRegisterRole(draft.role));
+        setCountry(normalizeRegisterCountry(draft.country));
     }, []);
 
     useEffect(() => {
@@ -391,7 +403,7 @@ export default function RegisterPage() {
             return;
         }
 
-        saveRegisterDraft({ firstName, lastName, email, role });
+        saveRegisterDraft({ firstName, lastName, email, role, country });
     }, [email, firstName, lastName, role, success]);
 
     const openTermsModal = () => {
@@ -454,14 +466,24 @@ export default function RegisterPage() {
         e.preventDefault();
 
         const nextFirstNameError = validateRegisterName(firstName, 'First name');
-        const nextLastNameError = validateRegisterName(lastName, 'Last name');
         const nextEmailError = validateRegisterEmail(email);
         setFirstNameError(nextFirstNameError || '');
-        setLastNameError(nextLastNameError || '');
+        setLastNameError(lastName.trim() ? validateRegisterName(lastName, 'Last name') || '' : '');
         setEmailError(nextEmailError || '');
 
-        if (nextFirstNameError || nextLastNameError) {
-            setError(nextFirstNameError || nextLastNameError || 'Please enter your name');
+        const nextCountryError = role === 'manager' && !country ? 'Please select your country' : '';
+        setCountryError(nextCountryError);
+
+        if (nextFirstNameError) {
+            setError(nextFirstNameError);
+            return;
+        }
+        if (!firstName.trim() && !lastName.trim()) {
+            setError('Please enter your name');
+            return;
+        }
+        if (nextCountryError) {
+            setError(nextCountryError);
             return;
         }
         if (nextEmailError) {
@@ -486,6 +508,7 @@ export default function RegisterPage() {
             const result = await register(buildRegisterFullName(firstName, lastName), normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
+                country: role === 'manager' ? country : undefined,
             });
 
             if (!result.success) {
@@ -667,6 +690,28 @@ export default function RegisterPage() {
                                 <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">Managing properties</span>
                             </button>
                         </div>
+                        {role === 'manager' && (
+                            <div className="mt-1">
+                                <label htmlFor="register-country" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Country</label>
+                                <select
+                                    id="register-country"
+                                    value={country}
+                                    onChange={(e) => { setCountry(e.target.value); setCountryError(''); }}
+                                    onBlur={() => setCountryError(role === 'manager' && !country ? 'Please select your country' : '')}
+                                    className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${countryError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
+                                >
+                                    <option value="">Select country</option>
+                                    {MANAGER_COUNTRIES.map((item) => (
+                                        <option key={item} value={item}>{item}</option>
+                                    ))}
+                                </select>
+                                {countryError && (
+                                    <p id="register-country-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                        {countryError}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="mb-4 grid gap-4 sm:grid-cols-2">

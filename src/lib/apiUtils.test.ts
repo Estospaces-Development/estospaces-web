@@ -64,8 +64,8 @@ test('auth headers use the in-memory bearer token without reading browser token 
 
 test('manager workflow errors classify purchase workflow outages from api errors', () => {
     const error = new ApiRequestError(
+        'upstream 503',
         'Live purchase workflow unavailable. Please retry the manager action.',
-        'Temporary service issue',
         503,
     );
 

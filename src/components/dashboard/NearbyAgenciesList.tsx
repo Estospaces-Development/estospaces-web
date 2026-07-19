@@ -188,7 +188,16 @@ const NearbyAgenciesList = () => {
                     throw new Error(error);
                 }
 
-                setBrokers((data || []).slice(0, NEARBY_AGENT_DISPLAY_LIMIT));
+                const seen = new Set<string>();
+                const unique = (data || []).filter((broker: LeadBrokerSummary) => {
+                    const key = broker.id;
+                    if (seen.has(key)) {
+                        return false;
+                    }
+                    seen.add(key);
+                    return true;
+                });
+                setBrokers(unique.slice(0, NEARBY_AGENT_DISPLAY_LIMIT));
                 setLoadError(null);
             } catch (err: any) {
                 setLoadError(err.message || 'Nearby property agents are not available right now.');

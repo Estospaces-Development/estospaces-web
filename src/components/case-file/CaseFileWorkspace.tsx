@@ -3035,6 +3035,15 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                         return;
                       }
 
+                      if (reviewDialog.status === "reupload_required") {
+                        const reason = (reviewReasonByLinkId[reviewDialog.document.id] || "").trim();
+                        const wordCount = reason.split(/\s+/).filter(Boolean).length;
+                        if (reason.length < 20 || wordCount < 4) {
+                          toast.error("Please provide a detailed reason (at least 20 characters and 4 words) explaining what needs to be fixed.");
+                          return;
+                        }
+                      }
+
                       void handleReviewDocument(
                         reviewDialog.document,
                         reviewDialog.status,
@@ -3095,8 +3104,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                           [reviewDialog.document.id]: event.target.value,
                         }))
                       }
+                      required
+                      minLength={20}
                       className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
-                      placeholder="Add guidance if the client needs to re-upload."
+                      placeholder="Add at least 4 words explaining what needs to be fixed (minimum 20 characters)."
                       autoFocus
                     />
                   </label>

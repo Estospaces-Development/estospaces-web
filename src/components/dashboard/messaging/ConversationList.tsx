@@ -149,7 +149,7 @@ export default function ConversationList({
                           key={conversationKeyFor(conversation.id, conversationIndex)}
                           type="button"
                           onClick={() => onSelectConversation(conversation.id)}
-                          className={`w-full rounded-2xl border p-3 text-left transition-all ${
+                          className={`relative w-full rounded-2xl border p-3 text-left transition-all ${
                             selected
                               ? "border-orange-200 bg-orange-50 shadow-[0_20px_40px_-30px_rgba(249,115,22,0.8)] dark:border-orange-500/40 dark:bg-orange-500/10"
                               : "border-transparent hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-700/40"
@@ -157,6 +157,9 @@ export default function ConversationList({
                           aria-pressed={selected}
                           aria-label={`${title}. ${subtitle}. ${unreadLabel}. ${notificationLabel}. ${conversation.lastMessage || "No recent message"}`}
                         >
+                          {selected && (
+                            <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-orange-500 dark:bg-orange-400" aria-hidden="true" />
+                          )}
                           <div className="flex items-center gap-3">
                             <div className="relative flex-shrink-0">
                               <Avatar

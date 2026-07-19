@@ -152,6 +152,7 @@ const filterSectionProperties = (
         maxPrice: string;
         beds: string;
         baths: string;
+        countryCode: string;
     },
 ) => {
     const normalizedSearch = filters.searchQuery.trim().toLowerCase();
@@ -167,6 +168,7 @@ const filterSectionProperties = (
     const listingType = filters.activeTab === 'buy' ? 'sale' : filters.activeTab === 'rent' ? 'rent' : '';
     const status = filters.statusFilter.trim().toLowerCase();
     const type = filters.propertyType !== 'all' ? filters.propertyType.trim().toLowerCase() : '';
+    const countryFilter = filters.countryCode?.trim().toUpperCase();
 
     return properties.filter((property) => {
         if (listingType && property.listing_type !== listingType) return false;
@@ -176,6 +178,10 @@ const filterSectionProperties = (
         if (maxPrice !== null && Number(property.price || 0) > maxPrice) return false;
         if (minBeds !== null && Number(property.bedrooms || 0) < minBeds) return false;
         if (minBaths !== null && Number(property.bathrooms || 0) < minBaths) return false;
+        if (countryFilter) {
+            const propCountry = (property.countryCode || property.country || '').trim().toUpperCase();
+            if (propCountry && propCountry !== countryFilter) return false;
+        }
         if (normalizedLocation && ![
             property.location,
             property.city,
@@ -375,6 +381,7 @@ function DiscoverContent() {
                 maxPrice: priceRange.max,
                 beds,
                 baths,
+                countryCode: geoMarket,
             });
             const sorted = sortSectionProperties(
                 filtered,

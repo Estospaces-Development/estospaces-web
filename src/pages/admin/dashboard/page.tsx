@@ -479,7 +479,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className="space-y-8">
+                <div className="lg:col-span-1 space-y-8">
                     {/* Platform Snapshot */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit">
                         <div className="flex items-center justify-between mb-8">

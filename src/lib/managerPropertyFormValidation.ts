@@ -3,6 +3,7 @@ import {
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
   getLaunchStateCodeFromPinPrefix,
+  getLaunchCityFromPin,
   isLaunchIndiaCountry,
   isLaunchUKCountry,
   isValidLaunchLocationCodeForCountry,
@@ -161,6 +162,10 @@ export function validateManagerPropertyField(
       const pinStateCode = getLaunchStateCodeFromPinPrefix(values.postalCode);
       if (pinStateCode && values.stateCode && values.stateCode.toUpperCase() !== pinStateCode) {
         return "PIN code does not match the selected state";
+      }
+      const pinCityName = getLaunchCityFromPin(values.postalCode);
+      if (pinCityName && values.city && values.city.trim() && values.city.trim().toLowerCase() !== pinCityName.toLowerCase()) {
+        return `PIN code does not match the selected city (${pinCityName})`;
       }
       return null;
     case "latitude":

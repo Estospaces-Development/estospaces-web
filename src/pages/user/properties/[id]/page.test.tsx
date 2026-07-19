@@ -214,6 +214,7 @@ test("property detail fast-track continue opens the live workspace route directl
     buildPropertyFastTrackDashboardPath({
       caseId: "case-active-1",
       finalStatus: "in_progress",
+      stage: "documents",
     }),
     "/user/dashboard/fast-track?case=case-active-1&section=documents",
   );
@@ -221,6 +222,7 @@ test("property detail fast-track continue opens the live workspace route directl
     buildPropertyFastTrackDashboardPath({
       caseId: "case-done-1",
       finalStatus: "completed",
+      stage: "handover",
     }),
     "/user/dashboard/fast-track?case=case-done-1&section=overview&celebrate=1",
   );

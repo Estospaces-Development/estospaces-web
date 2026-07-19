@@ -117,6 +117,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       headers: SECURITY_HEADERS,
+      hmr: {
+        overlay: false,
+      },
       fs: {
         allow: [path.resolve(rootDir, '..')],
       },

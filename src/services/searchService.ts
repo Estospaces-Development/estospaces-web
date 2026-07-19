@@ -477,6 +477,7 @@ export interface SearchResult {
     city: string;
     postcode: string;
     country?: string;
+    countryCode?: string;
     bedrooms: number;
     bathrooms: number;
     square_feet: number;

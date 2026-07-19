@@ -48,6 +48,20 @@ export const filterAdminNotifications = (
     const query = normalizeAdminNotificationSearch(searchQuery);
 
     return notifications.filter((notification) => {
+        // Exclude system/QA test notifications from admin view
+        if (notification.type === NOTIFICATION_TYPES.SYSTEM) {
+            const entity = typeof notification.data?.entity === 'string'
+                ? notification.data.entity.trim()
+                : '';
+            // Keep legitimate system notifications but exclude QA/test ones
+            if (notification.title?.toLowerCase().includes('qa') ||
+                notification.message?.toLowerCase().includes('test message') ||
+                notification.message?.toLowerCase().includes('test notification') ||
+                entity === 'qa_test') {
+                return false;
+            }
+        }
+
         if (filter === 'unread' && notification.is_read) return false;
         if (filter === 'read' && !notification.is_read) return false;
 

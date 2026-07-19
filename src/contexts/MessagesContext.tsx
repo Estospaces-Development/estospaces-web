@@ -26,6 +26,7 @@ interface Message {
 interface Conversation {
     id: string;
     isSupportConversation: boolean;
+    isSystemConversation: boolean;
     agentId: string;
     agentName: string;
     contactName: string;
@@ -165,6 +166,7 @@ const buildConversationContext = (
 const createPlaceholderConversation = (conversationId: string): Conversation => ({
     id: conversationId,
     isSupportConversation: false,
+    isSystemConversation: false,
     agentId: '',
     agentName: 'Conversation',
     contactName: 'Conversation',
@@ -252,6 +254,40 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     ): Conversation => {
         const metadata = parseMetadata(backendConversation.metadata);
         const isSupportConversation = backendConversation.type === 'support';
+        const rawConvType = (backendConversation as messagesService.Conversation & { type?: string }).type as string;
+        const isSystemConversation = rawConvType === 'system'
+            || (backendConversation.metadata && typeof backendConversation.metadata === 'string'
+                && backendConversation.metadata.includes('"is_system":true'));
+        if (isSystemConversation) {
+            return {
+                id: backendConversation.id,
+                isSupportConversation: false,
+                isSystemConversation: true,
+                agentId: '',
+                agentName: '',
+                contactName: '',
+                agentAgency: '',
+                agentAvatar: '',
+                agentEmail: '',
+                agentPhone: '',
+                isOnline: false,
+                propertyId: null,
+                propertyTitle: null,
+                propertyAddress: null,
+                propertyImage: null,
+                propertyPrice: null,
+                isArchived: true,
+                isMuted: true,
+                lastActivity: backendConversation.updated_at,
+                lastMessage: '',
+                lastMessageTime: '',
+                unreadCount: 0,
+                messages: [],
+                messagesPage: 0,
+                hasOlderMessages: false,
+                isLoadingOlderMessages: false,
+            };
+        }
         const lastMessage = backendConversation.last_message
             ? mapBackendMessage(backendConversation.last_message)
             : existingConversation?.messages[existingConversation.messages.length - 1];
@@ -267,6 +303,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         return {
             id: backendConversation.id,
             isSupportConversation,
+            isSystemConversation: false,
             agentId: isSupportConversation ? 'support' : (backendConversation.counterpart_id || metadata?.agentId || ''),
             agentName: contactName,
             contactName,
@@ -374,7 +411,16 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             const backendConversations = await messagesService.getConversations();
             setConversations((previous) =>
                 {
-                    const mappedConversations = backendConversations.map((conversation) =>
+                    const mappedConversations = backendConversations
+                    .filter((conversation) => {
+                        const convType = ((conversation as messagesService.Conversation & { type?: string }).type ?? '') as string;
+                        const metadataStr = typeof conversation.metadata === 'string' ? conversation.metadata : JSON.stringify(conversation.metadata);
+                        if (convType === 'system' || metadataStr.includes('"is_system":true')) {
+                            return false;
+                        }
+                        return true;
+                    })
+                    .map((conversation) =>
                         mapBackendConversation(
                             conversation,
                             previous.find((existingConversation) => existingConversation.id === conversation.id),

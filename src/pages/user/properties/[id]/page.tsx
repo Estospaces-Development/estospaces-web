@@ -182,7 +182,7 @@ export const buildPropertyFastTrackStartRequest = ({
     };
 };
 
-type PropertyFastTrackDashboardCase = Pick<FastTrackCase, 'caseId' | 'finalStatus'> | null | undefined;
+type PropertyFastTrackDashboardCase = Pick<FastTrackCase, 'caseId' | 'finalStatus' | 'stage'> | null | undefined;
 
 export const buildPropertyFastTrackDashboardPath = (
     fastTrackCase: PropertyFastTrackDashboardCase,
@@ -193,9 +193,12 @@ export const buildPropertyFastTrackDashboardPath = (
         return '/user/dashboard/fast-track';
     }
 
+    const targetStage = fastTrackCase?.stage === 'documents'
+        ? 'documents'
+        : (fastTrackCase?.finalStatus === 'completed' ? 'overview' : 'documents');
     const path = buildWorkspacePath('/user/dashboard/fast-track', {
         caseId,
-        section: fastTrackCase?.finalStatus === 'completed' ? 'overview' : 'documents',
+        section: targetStage,
     });
 
     if (fastTrackCase?.finalStatus !== 'completed') {

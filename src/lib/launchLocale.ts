@@ -342,3 +342,9 @@ export function getLaunchStateCodeFromPinPrefix(pinCode?: string | null): string
   const prefix = normalized.slice(0, 3);
   return LAUNCH_PIN_PREFIX_STATE_CODE[prefix] || null;
 }
+
+export function getLaunchCityFromPin(pinCode?: string | null): string | null {
+  const normalized = normalizeLaunchPinCode(pinCode);
+  if (!isValidLaunchPinCode(normalized)) return null;
+  return LAUNCH_CITY_BY_PIN_CODE[normalized] || null;
+}

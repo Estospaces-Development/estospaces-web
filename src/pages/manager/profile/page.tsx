@@ -140,10 +140,6 @@ export default function ManagerProfilePage() {
                 return normalizeLaunchLocationCode(e.target.value);
             }
 
-            if (e.target.name === 'address' || e.target.name === 'companyAddress' || e.target.name === 'registeredOfficeAddress') {
-                return formatOptionalLaunchPropertyLocation(e.target.value);
-            }
-
             if (e.target.name === 'branchName') {
                 return formatLaunchPropertyText(e.target.value, '');
             }
@@ -410,7 +406,7 @@ export default function ManagerProfilePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Profile Card */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 flex flex-col items-center text-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 flex flex-col items-center text-center overflow-hidden">
                         <div className="mb-4 flex flex-col items-center gap-3">
                             <button
                                 type="button"

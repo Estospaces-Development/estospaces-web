@@ -1,7 +1,10 @@
 "use client";
 
+"use client";
+
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, Building2, Clock3, Search, ShieldCheck } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 const stats = [
   { label: "Verified listings", value: "1,200+" },
@@ -10,6 +13,10 @@ const stats = [
 ];
 
 export default function HomePage() {
+  const location = useLocation();
+  const marketParam = new URLSearchParams(location.search).get("market");
+  const searchHref = marketParam ? `/search?market=${encodeURIComponent(marketParam)}` : "/search";
+
   return (
     <div className="bg-white text-gray-950">
       <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden sm:min-h-[calc(100vh-5rem)]">
@@ -33,7 +40,7 @@ export default function HomePage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                to="/search"
+                to={searchHref}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-950/20 transition-colors hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-white"
               >
                 <Search className="h-4 w-4" />

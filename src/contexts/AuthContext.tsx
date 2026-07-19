@@ -41,7 +41,7 @@ interface AuthContextType {
         email: string,
         password: string,
         role: string,
-        termsAcceptance: { acceptedAt: string; version: string },
+        termsAcceptance: { acceptedAt: string; version: string; country?: string },
     ) => Promise<{ success: boolean; error?: string }>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
@@ -414,27 +414,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: string,
         password: string,
         role: string,
-        termsAcceptance: { acceptedAt: string; version: string },
+        termsAcceptance: { acceptedAt: string; version: string; country?: string },
     ) => {
         setError(null);
         try {
             const { first_name, last_name } = splitRegistrationName(name);
+
+            const payload: Record<string, any> = {
+                first_name,
+                last_name,
+                email,
+                password,
+                role,
+                accepted_terms: true,
+                accepted_terms_version: termsAcceptance.version,
+                accepted_terms_at: termsAcceptance.acceptedAt,
+            };
+
+            if (role === 'manager' && termsAcceptance.country) {
+                payload.country = termsAcceptance.country;
+            }
 
             const data = await apiFetch<any>(
                 `${CORE_SERVICE_URL()}/api/v1/auth/register`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        first_name,
-                        last_name,
-                        email,
-                        password,
-                        role,
-                        accepted_terms: true,
-                        accepted_terms_version: termsAcceptance.version,
-                        accepted_terms_at: termsAcceptance.acceptedAt,
-                    }),
+                    body: JSON.stringify(payload),
                     suppressErrorToast: true,
                 },
             );

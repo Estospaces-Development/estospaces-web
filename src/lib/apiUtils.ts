@@ -344,7 +344,7 @@ export async function handleUnauthorizedResponse(
 
 export function getErrorMessage(error: unknown, fallback = SYSTEM_ERROR_MESSAGE): string {
     if (error instanceof ApiRequestError) {
-        return error.message || error.userMessage;
+        return error.userMessage || error.message || fallback;
     }
 
     if (error instanceof Error) {

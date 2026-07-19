@@ -464,6 +464,7 @@ function DashboardContent() {
           iconColor="bg-emerald-500"
           trendColor="text-emerald-700"
           onClick={() => navigate('/manager/fast-track')}
+          loading={isLoading}
         />
         <StatCard
           title="Active Listings"
@@ -473,6 +474,7 @@ function DashboardContent() {
           iconColor="bg-blue-500"
           trendColor="text-blue-600"
           onClick={() => navigate(buildManagerActiveListingsPath())}
+          loading={isLoading}
         />
         <StatCard
           title="Total Views"
@@ -482,6 +484,7 @@ function DashboardContent() {
           iconColor="bg-purple-500"
           trendColor="text-purple-600"
           onClick={() => navigate('/manager/analytics#manager-analytics-views')}
+          loading={isLoading}
         />
         <StatCard
           title="Conversion Rate"
@@ -491,6 +494,7 @@ function DashboardContent() {
           iconColor="bg-orange-500"
           trendColor="text-orange-600"
           onClick={() => navigate('/manager/analytics#manager-analytics-conversion')}
+          loading={isLoading}
         />
       </div>
 

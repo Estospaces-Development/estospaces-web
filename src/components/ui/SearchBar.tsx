@@ -226,6 +226,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (nextFilters.maxPrice !== null) params.set('maxPrice', nextFilters.maxPrice.toString());
         if (nextFilters.minBedrooms !== null) params.set('beds', nextFilters.minBedrooms.toString());
         if (nextFilters.minBathrooms !== null) params.set('baths', nextFilters.minBathrooms.toString());
+        if (searchMarket) params.set('market', searchMarket === 'GB' ? 'england' : 'india');
 
         if (onSearch) onSearch(nextFilters);
         if (navigateOnSearch) navigate(`${searchPath}?${params.toString()}`);
