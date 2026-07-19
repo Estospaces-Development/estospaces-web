@@ -13,7 +13,10 @@ test('manager dashboard summary counters navigate to their workspaces', () => {
   assert.match(source, /path:\s*'\/manager\/dashboard\/properties'/);
   assert.match(source, /path:\s*'\/manager\/leads'/);
   assert.match(source, /path:\s*'\/manager\/applications'/);
-  assert.match(source, /onClick=\{\(\) => navigate\(item\.path\)\}/);
+  assert.match(source, /const section = \(item as any\)\.sectionId;/);
+  assert.match(source, /const element = document\.getElementById\(section\);/);
+  assert.match(source, /if \(element\) \{\s*element\.scrollIntoView/);
+  assert.match(source, /navigate\(item\.path\);/);
   assert.match(source, /aria-label=\{item\.ariaLabel\}/);
 });
 

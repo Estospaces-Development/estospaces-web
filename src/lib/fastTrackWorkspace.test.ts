@@ -410,7 +410,7 @@ test('fast-track document preview opens a modal only from explicit preview actio
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /<iframe\s*src=\{previewUrl\}/,
+        /<iframe\s*(key|src)=\{previewUrl\}/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
