@@ -32,6 +32,16 @@ const analytics = {
     conversion_growth: '+2%',
     active_listings: 8,
     total_bookings: 6,
+    propertyPerformance: [
+        { property: 'Unit 1', status: 'available', views: 10, applications: 2, conversionRate: 20 },
+        { property: 'Unit 2', status: 'available', views: 15, applications: 3, conversionRate: 20 },
+        { property: 'Unit 3', status: 'active', views: 20, applications: 4, conversionRate: 20 },
+        { property: 'Unit 4', status: 'published', views: 25, applications: 5, conversionRate: 20 },
+        { property: 'Unit 5', status: 'available', views: 30, applications: 6, conversionRate: 20 },
+        { property: 'Unit 6', status: 'active', views: 35, applications: 7, conversionRate: 20 },
+        { property: 'Unit 7', status: 'online', views: 40, applications: 8, conversionRate: 20 },
+        { property: 'Unit 8', status: 'available', views: 45, applications: 9, conversionRate: 20 },
+    ],
 } as AnalyticsData;
 
 test('admin analytics metric cards expose revenue and growth data', () => {
