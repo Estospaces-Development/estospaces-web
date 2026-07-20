@@ -23,7 +23,7 @@ const MANAGER_LICENSE_MAX_LENGTH = 64;
 const MANAGER_BIO_MAX_LENGTH = 1000;
 const MANAGER_PHONE_MAX_LENGTH = 20;
 const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
-const MANAGER_PHONE_PATTERN = '\\+?[0-9 ()-]{7,20}';
+const MANAGER_PHONE_PATTERN = '\\+?[-0-9 ()]{7,20}';
 
 type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber' | 'companyAddress' | 'registeredOfficeAddress', string>>;
 
