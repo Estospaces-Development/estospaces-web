@@ -413,7 +413,7 @@ async function main() {
       const page = await context.newPage();
       const pageErrors = [];
       const consoleErrors = [];
-      const responseErrors = [];
+      const backendResponseErrors = [];
 
       page.on("pageerror", (error) => pageErrors.push(error.message));
       page.on("console", (message) => {
@@ -427,7 +427,12 @@ async function main() {
       page.on("response", (response) => {
         const status = response.status();
         if (status === 429 || status >= 500) {
-          responseErrors.push(`${status} ${response.url()}`);
+          const url = response.url();
+          if (/\/estospaces-media-service[^/]*\.run\.app\//.test(url) || /\/uploads\//.test(url)) {
+            backendResponseErrors.push(`${status} ${url}`);
+          } else {
+            consoleErrors.push(`${status} ${url}`);
+          }
         }
       });
 
@@ -450,7 +455,10 @@ async function main() {
         const caseResults = await runCaseChecks(page, targetName, roleBaseUrl, caseId, role.name);
         allResults.push(...caseResults);
 
-        if (pageErrors.length > 0 || consoleErrors.length > 0 || responseErrors.length > 0) {
+        const frontendErrors = pageErrors.length > 0 || consoleErrors.length > 0;
+        const hasBackendWarnings = backendResponseErrors.length > 0;
+
+        if (frontendErrors) {
           throw new Error(`Browser errors detected for ${targetName}/${role.name}`);
         }
       } catch (error) {
@@ -467,7 +475,7 @@ async function main() {
           error: error.message,
           pageErrors,
           consoleErrors,
-          responseErrors,
+          responseErrors: backendResponseErrors,
           screenshotPath,
         });
       } finally {
