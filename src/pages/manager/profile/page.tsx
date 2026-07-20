@@ -22,7 +22,7 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 const MANAGER_LICENSE_MAX_LENGTH = 64;
 const MANAGER_BIO_MAX_LENGTH = 1000;
 const MANAGER_PHONE_MAX_LENGTH = 20;
-const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
+const MANAGER_LICENSE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._/-]*$/;
 const MANAGER_PHONE_PATTERN = /^\+?[-0-9 ()]{7,20}$/;
 
 type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'phone' | 'businessPhone' | 'licenseNumber' | 'companyAddress' | 'registeredOfficeAddress', string>>;
@@ -275,6 +275,8 @@ export default function ManagerProfilePage() {
             nextFieldErrors.licenseNumber = managerProfile?.profile_type === 'company'
                 ? 'Company registration number is required'
                 : 'Broker license number is required';
+        } else if (!MANAGER_LICENSE_PATTERN.test(formData.licenseNumber)) {
+            nextFieldErrors.licenseNumber = 'License number must start with a letter or number and contain only letters, numbers, spaces, dots, slashes, hyphens, and underscores';
         }
         const companyAddressTrimmed = formData.companyAddress.trim();
         const registeredOfficeAddressTrimmed = formData.registeredOfficeAddress.trim();
@@ -732,7 +734,6 @@ export default function ManagerProfilePage() {
                                         <input id="manager-license-number" type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
                                             required
                                             maxLength={MANAGER_LICENSE_MAX_LENGTH}
-                                            pattern={MANAGER_LICENSE_PATTERN}
                                             placeholder="REG123456"
                                             aria-invalid={fieldErrors.licenseNumber ? 'true' : 'false'}
                                             aria-describedby={getRequiredDescribedBy(fieldErrors.licenseNumber ? 'manager-license-number-error' : undefined)}
