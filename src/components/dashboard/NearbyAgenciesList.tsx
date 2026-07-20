@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import {
@@ -40,16 +40,21 @@ const formatBrokerDistance = (distanceMiles?: number) => {
     return `${(distanceMiles * 1.609344).toFixed(1)} km away`;
 };
 
-export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary; index: number }) => (
-    <div className="group flex min-w-0 items-start gap-4">
+export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary; index: number }) => {
+    const agentProfileLink = `/user/dashboard/messages?recipient=${encodeURIComponent(broker.id)}&name=${encodeURIComponent(broker.name)}`;
+    return (
+    <div className="flex min-w-0 items-start gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
             <span className="text-sm font-bold">{index + 1}</span>
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex min-w-0 items-start justify-between gap-2">
-                <h4 className="min-w-0 max-w-full break-words text-sm font-semibold text-gray-900 transition-colors group-hover:text-orange-600 dark:text-white">
+                <Link
+                    to={agentProfileLink}
+                    className="min-w-0 max-w-full break-words text-sm font-semibold text-gray-900 transition-colors hover:text-orange-600 dark:text-white dark:hover:text-orange-400"
+                >
                     {broker.name}
-                </h4>
+                </Link>
                 <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                     <BadgeCheck size={11} />
                     Available
@@ -81,7 +86,8 @@ export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary;
             </div>
         </div>
     </div>
-);
+    );
+};
 
 const NearbyAgenciesList = () => {
     const authContext = useOptionalAuth();
