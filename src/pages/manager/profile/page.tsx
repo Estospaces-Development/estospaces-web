@@ -23,9 +23,9 @@ const MANAGER_LICENSE_MAX_LENGTH = 64;
 const MANAGER_BIO_MAX_LENGTH = 1000;
 const MANAGER_PHONE_MAX_LENGTH = 20;
 const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
-const MANAGER_PHONE_PATTERN = '\\+?[-0-9 ()]{7,20}';
+const MANAGER_PHONE_PATTERN = /^\+?[-0-9 ()]{7,20}$/;
 
-type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber' | 'companyAddress' | 'registeredOfficeAddress', string>>;
+type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'phone' | 'businessPhone' | 'licenseNumber' | 'companyAddress' | 'registeredOfficeAddress', string>>;
 
 const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
     const raw = String(value || '').trim();
@@ -263,6 +263,14 @@ export default function ManagerProfilePage() {
             lastName: formData.lastName,
         });
         const nextFieldErrors: ManagerProfileFieldErrors = { ...nameErrors };
+        const phoneTrimmed = formData.phone.trim();
+        if (phoneTrimmed && !MANAGER_PHONE_PATTERN.test(phoneTrimmed)) {
+            nextFieldErrors.phone = 'Enter a valid phone number (7-20 digits, spaces, hyphens, parentheses, optional + prefix)';
+        }
+        const businessPhoneTrimmed = formData.businessPhone.trim();
+        if (businessPhoneTrimmed && !MANAGER_PHONE_PATTERN.test(businessPhoneTrimmed)) {
+            nextFieldErrors.businessPhone = 'Enter a valid phone number (7-20 digits, spaces, hyphens, parentheses, optional + prefix)';
+        }
         if (!formData.licenseNumber.trim()) {
             nextFieldErrors.licenseNumber = managerProfile?.profile_type === 'company'
                 ? 'Company registration number is required'
@@ -641,9 +649,13 @@ export default function ManagerProfilePage() {
                                         <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="manager-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange}
                                             maxLength={MANAGER_PHONE_MAX_LENGTH}
-                                            pattern={MANAGER_PHONE_PATTERN}
                                             placeholder="+91 98765 43210"
                                             className={iconInputClass} />
+                                        {fieldErrors.phone && (
+                                            <p id="manager-phone-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {fieldErrors.phone}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                                 <div>
@@ -698,9 +710,13 @@ export default function ManagerProfilePage() {
                                             <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                             <input id="manager-business-phone" type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange}
                                                 maxLength={MANAGER_PHONE_MAX_LENGTH}
-                                                pattern={MANAGER_PHONE_PATTERN}
                                                 placeholder="+91 44 0000 0000"
                                                 className={iconInputClass} />
+                                            {fieldErrors.businessPhone && (
+                                                <p id="manager-business-phone-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                    {fieldErrors.businessPhone}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                     <div>
