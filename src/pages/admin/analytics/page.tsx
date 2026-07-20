@@ -5,6 +5,7 @@ import {
     BarChart3, Users, Eye, RefreshCw,
     Activity, Zap, Globe2, Loader2, TrendingUp, Building2, FileText
 } from 'lucide-react';
+import PieChart from '@/components/ui/PieChart';
 import { getPlatformAnalytics, invalidateAnalyticsCache, type AnalyticsData } from '../../../services/analyticsService';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import {
@@ -29,6 +30,14 @@ const metricIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?: 
     users: Users,
     zap: Zap,
 };
+
+const PIE_COLORS = [
+    '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
+    '#f97316', '#eab308', '#22c55e', '#06b6d4',
+    '#3b82f6', '#14b8a6', '#a855f7', '#ef4444',
+];
+
+const getPieColor = (index: number): string => PIE_COLORS[index % PIE_COLORS.length];
 
 function AnalyticsContent() {
     const [isLoading, setIsLoading] = useState(true);
@@ -183,6 +192,44 @@ function AnalyticsContent() {
                     );
                 })}
             </div>
+
+            {/* Pie Chart Section */}
+            {data && data.applicationsByProperty && data.applicationsByProperty.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-gray-700 p-10">
+                    <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight mb-6">
+                        Application Insights
+                    </h2>
+                    <div className="flex flex-col lg:flex-row items-center gap-10">
+                        <PieChart
+                            data={data.applicationsByProperty.map((item) => ({
+                                label: item.label,
+                                value: item.value,
+                                color: getPieColor(data.applicationsByProperty!.indexOf(item)),
+                            }))}
+                            size={260}
+                            title="Applications by Property"
+                        />
+                        <div className="flex-1 space-y-3">
+                            {data.applicationsByProperty.map((item, index) => {
+                                const total = data.applicationsByProperty!.reduce((s, i) => s + i.value, 0);
+                                const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
+                                return (
+                                    <div key={item.label} className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-gray-900 px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getPieColor(index) }} />
+                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{item.label}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-black text-gray-900 dark:text-white">{item.value}</span>
+                                            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-14 text-right">{pct}%</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">

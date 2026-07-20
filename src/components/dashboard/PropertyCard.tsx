@@ -68,6 +68,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     const applicationStatus = existingApplication?.status || property.application_status || null;
     const viewCount = property.view_count || 0;
     const statusBadge = getManagerPropertyStatusBadge(property.status);
+    const isPending = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
+
+    // #176/#225/#302: Only show "Awaiting Manager Submission" for pending submission statuses, not all properties
+    const isPendingSubmission = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
+    const shouldShowAwaitingBadge = isPendingSubmission && !(property.type || showStatusBadge);
     const displayTitle = formatLaunchPropertyText(property.title);
 
     const handleViewDetails = (e: React.MouseEvent) => {
@@ -274,7 +279,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         )}
                     </>
 
-                    {(property.type || showStatusBadge) && (
+                    {(property.type || showStatusBadge || shouldShowAwaitingBadge) && (
                         <div className="absolute top-3 left-3 right-16 flex flex-col items-start gap-2">
                             {property.type && (
                                 <span className={`px-3 py-1.5 rounded-lg text-xs font-bold font-manager shadow-sm ${property.type?.toLowerCase() === 'rent'
