@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
     ArrowRight,
@@ -669,6 +669,50 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 recipientEmail: matchedBroker?.email || '',
                 recipientPhone: matchedBroker?.phone || '',
                 recipientAgency: matchedBroker?.company_name || '',
+            });
+
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+        } finally {
+            setOpeningConversation(false);
+        }
+    };
+
+    const handleOpenBrokerConversation = async (broker: LeadBrokerSummary) => {
+        if (!user || !broker?.id) {
+            toast.error('The agent conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const propertyContext = selectedProperty
+                ? {
+                    propertyId: selectedProperty.id,
+                    propertyTitle: selectedProperty.title,
+                    propertyAddress: formatPropertyAddress(selectedProperty),
+                    propertyImage: parsePropertyImage(selectedProperty.image_urls),
+                    listingType: selectedProperty.listing_type,
+                    propertyPrice: selectedProperty.price,
+                }
+                : activeRequest
+                ? {
+                    propertyTitle: `${formatRequestTypeLabel(activeRequest.request_type)} request`,
+                    propertyAddress: formatRequestArea(activeRequest.location, activeRequest.location_postcode) || undefined,
+                    listingType: activeRequest.request_type === 'buy' ? 'sale' : activeRequest.request_type,
+                }
+                : undefined;
+
+            const conversation = await messagesService.upsertDirectConversation(broker.id, {
+                ...(propertyContext || {}),
+                senderName: displayName,
+                senderEmail: user.email || '',
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: broker.name || '',
+                recipientEmail: broker.email || '',
+                recipientPhone: broker.phone || '',
+                recipientAgency: broker.company_name || '',
             });
 
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
@@ -1536,7 +1580,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 <div key={nearbyBrokerKeyFor(broker.id, index)} className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                     <div className="min-w-0 flex-1">
                                         <p className="break-words text-sm font-semibold text-gray-900 dark:text-white">
-                                            {index + 1}. {broker.name}
+                                            {index + 1}. {' '}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenBrokerConversation(broker)}
+                                                className="text-left text-sm font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            >
+                                                {broker.name}
+                                            </button>
                                         </p>
                                         <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
                                             {broker.company_name || 'Independent agent'}
