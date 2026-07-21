@@ -64,7 +64,7 @@ test('[SCENARIO 2 - empty] empty broker list shows empty state without link', ()
   assert.match(cardMarkup, /href="\/user\/dashboard\/messages\?recipient=e1/);
   // Confirm the source contains the empty-state copy for users that the
   // NearbyAgenciesList falls through to. This locks in the copy.
-  // @ts-expect-error - reading source for assertion only
+  // @ts-ignore - reading source for assertion only
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fs = require('node:fs');
   // eslint-disable-next-line @typescript-eslint/no-var-requires

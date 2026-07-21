@@ -458,6 +458,10 @@ async function main() {
         const frontendErrors = pageErrors.length > 0 || consoleErrors.length > 0;
         const hasBackendWarnings = backendResponseErrors.length > 0;
 
+        if (hasBackendWarnings) {
+          console.warn(`[${targetName}/${role.name}] backend warnings (not test failures):`, backendResponseErrors);
+        }
+
         if (frontendErrors) {
           throw new Error(`Browser errors detected for ${targetName}/${role.name}`);
         }

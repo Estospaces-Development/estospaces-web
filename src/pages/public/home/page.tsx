@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, Building2, Clock3, Search, ShieldCheck } from "lucide-react";
 import { useLocation } from "react-router-dom";

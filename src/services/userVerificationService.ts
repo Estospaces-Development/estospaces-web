@@ -143,6 +143,11 @@ export const getVerificationLevelLabel = (level: UserVerificationLevel): string 
     }
 };
 
+export const getAdminPendingVerificationsCount = async (): Promise<number> => {
+    const { data, error } = await getPendingUserVerifications('admin', { suppressErrorToast: true });
+    return data?.length || 0;
+};
+
 export const getVerificationLevelColor = (
     level: UserVerificationLevel,
 ): { bg: string; text: string } => {
