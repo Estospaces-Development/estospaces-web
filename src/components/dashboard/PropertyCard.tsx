@@ -280,7 +280,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     </>
 
                     {(property.type || showStatusBadge || shouldShowAwaitingBadge) && (
-                        <div className="absolute top-3 left-3 right-16 flex flex-col items-start gap-2">
+                        <div className="absolute top-3 left-3 right-20 flex flex-col items-start gap-2">
                             {property.type && (
                                 <span className={`px-3 py-1.5 rounded-lg text-xs font-bold font-manager shadow-sm ${property.type?.toLowerCase() === 'rent'
                                     ? 'bg-blue-500 text-white'
