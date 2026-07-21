@@ -60,7 +60,7 @@ export default function ContactPage() {
                         className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors"
                     >
                         <ArrowLeft size={20} />
-                        <span className="text-sm font-medium">Back</span>
+                        <span className="text-sm font-medium">Back to Home</span>
                     </button>
                 </div>
             </header>
@@ -120,6 +120,23 @@ export default function ContactPage() {
                                         123 Property Street<br />
                                         London, EC1A 1BB<br />
                                         United Kingdom
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                                    <MapPin className="text-orange-500" size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">India office address</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Chennai regional office</p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                        456 Property Avenue<br />
+                                        Chennai, Tamil Nadu 600001<br />
+                                        India
                                     </p>
                                 </div>
                             </div>
