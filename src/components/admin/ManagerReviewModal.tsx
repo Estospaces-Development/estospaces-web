@@ -576,7 +576,8 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                                 <p className="font-medium text-gray-900">{formatActionType(entry.action_type)}</p>
                                                 <p className="text-xs text-gray-500">
                                                     {new Date(entry.created_at).toLocaleString()}
-                                                    {entry.actor_role && ` - ${entry.actor_role}`}
+                                                    {entry.actor_id ? ` - Admin #${entry.actor_id.slice(0, 8)}` : ''}
+                                                    {entry.actor_role ? ` (${entry.actor_role})` : ''}
                                                 </p>
                                                 {entry.notes && (
                                                     <p className="text-xs text-gray-600 mt-1 bg-white px-2 py-1 rounded border">{entry.notes}</p>
@@ -1125,7 +1126,7 @@ const formatActionType = (actionType: string): string => {
         'critical_field_edited': 'Critical Field Edited',
         'approval_revoked': 'Approval Revoked',
     };
-    return map[actionType] || actionType;
+    return map[actionType] || actionType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
 export default ManagerReviewModal;
