@@ -50,7 +50,17 @@ const formatStageLabel = (fastTrackCase: FastTrackCase | null) => {
     return STAGES.find((item) => item.stage === fastTrackCase.stage)?.label || 'Selected';
 };
 
+const isCaseBeyondSelected = (fastTrackCase: FastTrackCase | null): boolean => {
+    if (!fastTrackCase) return false;
+    const stage = fastTrackCase.stage;
+    if (!stage) return false;
+    return stage !== 'selected';
+};
+
 const formatCountdown = (fastTrackCase: FastTrackCase | null) => {
+    if (isCaseBeyondSelected(fastTrackCase)) {
+        return 'In progress';
+    }
     if (!fastTrackCase) {
         return '24h window';
     }
