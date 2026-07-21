@@ -225,7 +225,7 @@ export default function ManagerProfilePage() {
     };
 
     const handleRemoveAvatar = async () => {
-        if (uploadingImage || removingAvatar || !(profileImagePreview || storedAvatarValue || selectedAvatarFile)) {
+        if (uploadingImage || removingAvatar || !(profileImagePreview || storedAvatarValue)) {
             return;
         }
 
