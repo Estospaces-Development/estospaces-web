@@ -38,6 +38,9 @@ function VerificationsContent() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedManagers, setArchivedManagers] = useState<ManagerProfile[]>([]);
 
   const fetchManagers = useCallback(async () => {
     try {
@@ -116,7 +119,7 @@ function VerificationsContent() {
     fetchManagers();
   };
 
-  const isPending = (s: string) => ['submitted', 'pending', 'documents_submitted', 'verification_required', 'basic', 'incomplete'].includes(s);
+  const isPending = (s: string) => ['submitted', 'pending', 'documents_submitted', 'verification_required', 'basic', 'incomplete', 'profile_required'].includes(s);
   const isReview = (s: string) => s === 'under_review';
   const isApproved = (s: string) => ['approved', 'verified', 'fully_verified'].includes(s);
   const isRejected = (s: string) => s === 'rejected';
@@ -138,6 +141,11 @@ function VerificationsContent() {
   const stats = getStats();
 
   const filteredManagers = managers.filter(m => {
+    // Exclude archived managers from the main view (they are shown in the Archived tab)
+    if (showArchived) return true;
+    const archivedStatuses = ['archived', 'archived_rejected', 'archived_approved', 'archived_pending'];
+    if (archivedStatuses.includes(m.verification_status)) return false;
+    return true;
     // Map internal status to tab types for filtering
     let mappedStatus = 'other';
     if (isPending(m.verification_status)) mappedStatus = 'pending';
@@ -286,11 +294,24 @@ function VerificationsContent() {
             >
               All Applications
             </button>
-            <button className="text-xs font-black uppercase tracking-widest pb-2 border-b-2 border-transparent text-gray-400 hover:text-gray-600">Archived</button>
+            <button
+              onClick={() => { const archived = managers.filter(m => ['archived', 'archived_rejected', 'archived_approved', 'archived_pending'].includes(m.verification_status)); setArchivedManagers(archived); setShowArchived(true); setActiveTab('all'); }}
+              className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${showArchived ? 'border-orange-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >Archived</button>
           </div>
           <div className="flex gap-2">
-            <button aria-label="Show manager verifications as grid" className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"><LayoutGrid size={18} /></button>
-            <button aria-label="Show manager verifications as list" aria-pressed="true" className="p-2 text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-lg transition-all"><List size={18} /></button>
+            <button
+              onClick={() => setViewMode('grid')}
+              aria-label="Show manager verifications as grid"
+              aria-pressed={viewMode === 'grid'}
+              className={`p-2 transition-all ${viewMode === 'grid' ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-lg' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+            ><LayoutGrid size={18} /></button>
+            <button
+              onClick={() => setViewMode('list')}
+              aria-label="Show manager verifications as list"
+              aria-pressed={viewMode === 'list'}
+              className={`p-2 transition-all ${viewMode === 'list' ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-lg' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+            ><List size={18} /></button>
           </div>
         </div>
 
@@ -301,7 +322,7 @@ function VerificationsContent() {
                <Loader2 className="animate-spin text-orange-500" size={40} />
              </div>
           ) : filteredManagers.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6">
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'grid grid-cols-1 gap-6'}>
               {filteredManagers.map((manager) => {
                 const displayName = getManagerDisplayName(manager);
                 return (
