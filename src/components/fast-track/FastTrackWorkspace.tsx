@@ -3717,11 +3717,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     // Smoothly scroll to the stage content area when the visible stage changes,
     // preventing the browser from jumping the viewport abruptly.
     const contentRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (!contentRef.current) return;
-        contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [activeStageOverride, selectedCase?.stage]);
-
     const handleSelectCase = useCallback((caseId: string) => {
         pendingSelectedCaseIdRef.current = caseId;
         setSelectedCaseId(caseId);

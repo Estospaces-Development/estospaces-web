@@ -841,7 +841,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         </div>
                         <button
                             onClick={() => handleVerificationUpdate('rejected')}
-                            disabled={verificationActionLoading || Boolean(activeDocumentId) || !notes.trim()}
+                            disabled={verificationActionLoading || Boolean(activeDocumentId)}
                             className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
                         >
                             {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
@@ -852,7 +852,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     <div className="flex gap-3">
                     <button
                         onClick={() => handleVerificationUpdate('rejected')}
-                        disabled={verificationActionLoading || Boolean(activeDocumentId) || !notes.trim()}
+                        disabled={verificationActionLoading || Boolean(activeDocumentId)}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
                     >
                         {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}

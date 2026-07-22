@@ -101,7 +101,7 @@ export const buildAdminAnalyticsMetricCards = (
     {
         id: 'revenue',
         label: 'Total Revenue',
-        value: formatAdminCurrency(data?.total_revenue),
+        value: formatAdminCurrency(data?.total_revenue ?? 0),
         icon: 'trending',
         color: 'text-emerald-500',
         detail: formatGrowthValue(data?.revenue_growth),
@@ -196,7 +196,7 @@ export const buildAdminDashboardSnapshot = (
     { id: 'users', label: 'Total Users', value: formatAdminNumber(data?.total_users), icon: 'users', color: 'text-blue-500' },
     { id: 'properties', label: 'Total Properties', value: formatAdminNumber(getAdminTotalProperties(data)), icon: 'building', color: 'text-emerald-500' },
     { id: 'bookings', label: 'Total Bookings', value: formatAdminNumber(getAdminTotalBookings(data)), icon: 'file', color: 'text-sky-500' },
-    { id: 'revenue', label: 'Revenue', value: formatAdminCurrency(data?.total_revenue), icon: 'trending', color: 'text-green-500' },
+    { id: 'revenue', label: 'Revenue', value: formatAdminCurrency(data?.total_revenue ?? 0), icon: 'trending', color: 'text-green-500' },
     { id: 'active-listings', label: 'Active Listings', value: formatAdminNumber(getAdminActiveListings(data)), icon: 'activity', color: 'text-orange-500' },
     { id: 'brokers', label: 'Verified Brokers', value: formatAdminNumber(data?.total_brokers), icon: 'zap', color: 'text-purple-500' },
     { id: 'pending', label: 'Pending Verifications', value: formatAdminNumber(data?.pending_verifications), icon: 'activity', color: 'text-amber-500' },

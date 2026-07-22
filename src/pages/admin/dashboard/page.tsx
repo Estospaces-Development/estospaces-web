@@ -22,9 +22,10 @@ import {
     X,
 } from 'lucide-react';
 import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
+import { getAdminPendingVerificationsCount } from '@/services/userVerificationService';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
-import { buildAdminDashboardSnapshot, getAdminTotalProperties, getAdminActiveListings, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
+import { buildAdminDashboardSnapshot, getAdminActiveListings, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNotificationNavigationPath,
@@ -130,6 +131,7 @@ export default function AdminDashboard() {
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [recentNotificationSearch, setRecentNotificationSearch] = useState('');
+    const [pendingVerificationsCount, setPendingVerificationsCount] = useState<number>(0);
     const {
         notifications,
         loading: notificationsLoading,
@@ -166,6 +168,18 @@ export default function AdminDashboard() {
         void fetchAnalytics();
     }, [fetchAnalytics]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const loadPendingCount = async () => {
+            const count = await getAdminPendingVerificationsCount();
+            if (!cancelled) {
+                setPendingVerificationsCount(count);
+            }
+        };
+        loadPendingCount();
+        return () => { cancelled = true; };
+    }, []);
+
     useDashboardWorkspaceRefresh({
         tags: [
             WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
@@ -197,7 +211,7 @@ export default function AdminDashboard() {
     const stats = {
         slaCompliance: data?.sla_success_rate || 0,
         avgResponseTime: data?.avg_response_time ? `${Math.floor(data.avg_response_time / 60)}m ${Math.round(data.avg_response_time % 60)}s` : "0m 0s",
-        pendingVerifications: data?.pending_verifications || 0,
+        pendingVerifications: pendingVerificationsCount,
         activeTransactions: data?.leadAnalytics?.totalLeads || data?.active_leads || 0
     };
 
@@ -462,7 +476,7 @@ export default function AdminDashboard() {
                                 <h2 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h2>
                                 <p className="text-gray-200 text-sm max-w-md mb-6">
                                     Platform status summary:
-                                    {` ${data?.total_properties || 0} `}verified properties,
+                                    {` ${getAdminActiveListings(data)} `}active listings,
                                     {` ${data?.total_brokers || 0} `}brokers, and
                                     {` ${stats.activeTransactions} `}active lead transactions.
                                 </p>

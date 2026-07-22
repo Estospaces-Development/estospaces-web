@@ -160,7 +160,7 @@ const PropertySearch = () => {
             chips.push({ label: 'Beds', value: `${bedrooms}+` });
         }
         if (baths) {
-            chips.push({ label: 'Baths', value: `${baths}+` });
+            chips.push({ label: 'Bathrooms', value: `${baths}+` });
         }
 
         return chips;

@@ -106,7 +106,16 @@ function DashboardContent() {
     isLoading: managerVerificationLoading,
     error: managerVerificationError,
   } = useManagerVerification();
-  const [activeTab, setActiveTab] = useState('overview');
+  const getTabFromPath = (): string => {
+    const path = location.pathname;
+    if (path.startsWith('/manager/dashboard/properties')) return 'properties';
+    if (path.startsWith('/manager/leads')) return 'leads';
+    if (path.startsWith('/manager/applications')) return 'application';
+    if (path.startsWith('/manager/analytics')) return 'analytics';
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState(() => getTabFromPath());
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [livePropertyTotal, setLivePropertyTotal] = useState<number | null>(null);
@@ -572,7 +581,7 @@ function DashboardContent() {
               <div className="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 sm:min-w-[360px]">
                 {[
                   { label: 'Pending', value: reservationSummary.pending },
-                  { label: 'Confirmed', value: reservationSummary.confirmed },
+                  { label: 'Approved', value: reservationSummary.confirmed },
                   { label: 'Completed', value: reservationSummary.completed },
                   { label: 'Cancelled', value: reservationSummary.cancelled },
                 ].map((item) => (

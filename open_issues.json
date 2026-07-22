@@ -1,0 +1,978 @@
+[
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 328,
+    "state": "OPEN",
+    "title": "Missing validation message for required Last Name field during Sign Up"
+  },
+  {
+    "labels": [],
+    "number": 327,
+    "state": "OPEN",
+    "title": "\"Browse All Properties\" leads to Discover page returning zero results by default"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 326,
+    "state": "OPEN",
+    "title": "\"Homes near you\" map is a fully zoomed-out world view, not a localized view"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 325,
+    "state": "OPEN",
+    "title": "Page scrolls abruptly when switching Fast Track stage tabs"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 324,
+    "state": "OPEN",
+    "title": "\"Revoke\" button disabled on Approved verification, blocking the required revoke-before-reapprove flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 323,
+    "state": "OPEN",
+    "title": "Activity Log entry does not record a genuine audit event \u00e2\u20ac\u201d shows fallback/placeholder text instead"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 322,
+    "state": "OPEN",
+    "title": "Grid view toggle icon (left of the list-view icon) is not clickable"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 321,
+    "state": "OPEN",
+    "title": "\"Archived\" tab under Verifications (Manager) is not clickable"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 320,
+    "state": "OPEN",
+    "title": "Dashboard \"Pending Verifications: 0\" doesn't reflect 6 users \"In Review\" on Verifications page"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 319,
+    "state": "OPEN",
+    "title": "Revenue shows \u00e2\u201a\u00b90 despite 59 active bookings/live deals"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 318,
+    "state": "OPEN",
+    "title": "\"62 verified properties\" (Quarterly Goals) inconsistent with Active Listings count (4)"
+  },
+  {
+    "labels": [],
+    "number": 167,
+    "state": "OPEN",
+    "title": "schedule viewning function is not working in view property"
+  },
+  {
+    "labels": [],
+    "number": 166,
+    "state": "OPEN",
+    "title": "user rental application in view property"
+  },
+  {
+    "labels": [],
+    "number": 164,
+    "state": "OPEN",
+    "title": "Need to create Model in preview mode in User flow fastracking - User Flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACClNWjA",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "D93F0B"
+      }
+    ],
+    "number": 163,
+    "state": "OPEN",
+    "title": "User Role -  Message section is not showing recomendation of manager to send message. & Manager role - In serch we should serch with user name where we can get details of user to send message"
+  },
+  {
+    "labels": [],
+    "number": 159,
+    "state": "OPEN",
+    "title": "#wrm approval of user through admin portal"
+  },
+  {
+    "labels": [],
+    "number": 158,
+    "state": "OPEN",
+    "title": "#wrm verification documents unable to view"
+  },
+  {
+    "labels": [],
+    "number": 157,
+    "state": "OPEN",
+    "title": "#wrm admin dashboard"
+  },
+  {
+    "labels": [],
+    "number": 156,
+    "state": "OPEN",
+    "title": "#wrm search user in admin portal not working 3 bugs in this"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 117,
+    "state": "OPEN",
+    "title": "ESTO-114-[MANUAL_E2E_TESTING] Manual testing of whole application flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 116,
+    "state": "OPEN",
+    "title": "ESTO-113-[MANUAL_TESTING] Manual Testing on Core components"
+  },
+  {
+    "labels": [],
+    "number": 115,
+    "state": "OPEN",
+    "title": "adding new lead"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      },
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 108,
+    "state": "OPEN",
+    "title": "ESTO-108-[AUTH] Verify Password"
+  },
+  {
+    "labels": [],
+    "number": 106,
+    "state": "OPEN",
+    "title": "ESTO-106 \u00c2\u00b7 Resume Stagging"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 105,
+    "state": "OPEN",
+    "title": "ESTO-079 \u00c2\u00b7 Bug Fix: Frontend"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 104,
+    "state": "OPEN",
+    "title": "ESTO-105 \u00c2\u00b7 Rollback Plan"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 103,
+    "state": "OPEN",
+    "title": "ESTO-104 \u00c2\u00b7 Production Smoke Test"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 102,
+    "state": "OPEN",
+    "title": "ESTO-103 \u00c2\u00b7 Production Deployment"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 101,
+    "state": "OPEN",
+    "title": "ESTO-102 \u00c2\u00b7 Final Sign-Off Document"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 100,
+    "state": "OPEN",
+    "title": "ESTO-101 \u00c2\u00b7 Security Testing"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 99,
+    "state": "OPEN",
+    "title": "ESTO-100 \u00c2\u00b7 UAT Execution"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 98,
+    "state": "OPEN",
+    "title": "ESTO-099 \u00c2\u00b7 Final E2E Regression"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 97,
+    "state": "OPEN",
+    "title": "ESTO-098 \u00c2\u00b7 Production Readiness: Search"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 96,
+    "state": "OPEN",
+    "title": "ESTO-097 \u00c2\u00b7 Production Readiness: Notification"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 95,
+    "state": "OPEN",
+    "title": "ESTO-096 \u00c2\u00b7 SEO & Meta Tags"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 94,
+    "state": "OPEN",
+    "title": "ESTO-095 \u00c2\u00b7 Frontend Final Polish"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 93,
+    "state": "OPEN",
+    "title": "ESTO-094 \u00c2\u00b7 Production Readiness: Booking + Messaging"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 92,
+    "state": "OPEN",
+    "title": "ESTO-093 \u00c2\u00b7 Final Bug Fixes: Booking + Messaging"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 91,
+    "state": "OPEN",
+    "title": "ESTO-092 \u00c2\u00b7 Production Readiness: Core"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 90,
+    "state": "OPEN",
+    "title": "ESTO-091 \u00c2\u00b7 Database Seed Script"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 89,
+    "state": "OPEN",
+    "title": "ESTO-090 \u00c2\u00b7 Final Bug Fixes: Core"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 88,
+    "state": "OPEN",
+    "title": "ESTO-089 \u00c2\u00b7 Production CD Pipeline"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 87,
+    "state": "OPEN",
+    "title": "ESTO-088 \u00c2\u00b7 DNS & SSL"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 86,
+    "state": "OPEN",
+    "title": "ESTO-087 \u00c2\u00b7 Terraform: Production"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 85,
+    "state": "OPEN",
+    "title": "ESTO-086 \u00c2\u00b7 UAT Test Plan"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 84,
+    "state": "OPEN",
+    "title": "ESTO-085 \u00c2\u00b7 Performance Testing"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 83,
+    "state": "OPEN",
+    "title": "ESTO-084 \u00c2\u00b7 Full Regression on Staging"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 82,
+    "state": "OPEN",
+    "title": "ESTO-083 \u00c2\u00b7 Full E2E Test Suite"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 81,
+    "state": "OPEN",
+    "title": "ESTO-082 \u00c2\u00b7 Bug Fix: Search"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 79,
+    "state": "OPEN",
+    "title": "ESTO-080 \u00c2\u00b7 Bug Fix: Notification Service"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 78,
+    "state": "OPEN",
+    "title": "API Documentation: Booking + Messaging"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 77,
+    "state": "OPEN",
+    "title": "ESTO-077 \u00c2\u00b7 Bug Fix: Booking + Messaging"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 76,
+    "state": "OPEN",
+    "title": "ESTO-076 \u00c2\u00b7 API Documentation: Core"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 75,
+    "state": "OPEN",
+    "title": "ESTO-075 \u00c2\u00b7 Code Review Sprint"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 74,
+    "state": "OPEN",
+    "title": "ESTO-074 \u00c2\u00b7 Bug Fix: Core Service"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 72,
+    "state": "OPEN",
+    "title": "ESTO-072 \u00c2\u00b7 Cloud Armor WAF"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 70,
+    "state": "OPEN",
+    "title": "ESTO-070 \u00c2\u00b7 Test: Media Upload E2E"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 69,
+    "state": "OPEN",
+    "title": "ESTO-069 \u00c2\u00b7 Test: Notification E2E"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 68,
+    "state": "OPEN",
+    "title": "ESTO-068 \u00c2\u00b7 E2E Test: Messaging Flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 67,
+    "state": "OPEN",
+    "title": "ESTO-067 \u00c2\u00b7 Search: Geo-Distance"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 66,
+    "state": "OPEN",
+    "title": "ESTO-066 \u00c2\u00b7 Notification: Email Channel"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 65,
+    "state": "OPEN",
+    "title": "ESTO-065 \u00c2\u00b7 Frontend: Media Upload Integration"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 64,
+    "state": "OPEN",
+    "title": "ESTO-064 \u00c2\u00b7 Frontend: Admin Dashboard"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 63,
+    "state": "OPEN",
+    "title": "ESTO-063 \u00c2\u00b7 Manager Dashboard Analytics"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 62,
+    "state": "OPEN",
+    "title": "ESTO-062 \u00c2\u00b7 Frontend: Chat Page"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 61,
+    "state": "OPEN",
+    "title": "ESTO-061 \u00c2\u00b7 Typing Indicators + Online Status"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 52,
+    "state": "OPEN",
+    "title": "ESTO-052 \u00c2\u00b7 Test: Cross-Service Integration"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 51,
+    "state": "OPEN",
+    "title": "ESTO-051 \u00c2\u00b7 Test: Booking Flow (Browser)"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 50,
+    "state": "OPEN",
+    "title": "ESTO-050 \u00c2\u00b7 E2E Test: Booking Flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLN7Pg",
+        "name": "frontend",
+        "description": "Frontend/UI work",
+        "color": "1D76DB"
+      }
+    ],
+    "number": 48,
+    "state": "OPEN",
+    "title": "ESTO-048 \u00c2\u00b7 Frontend: Notifications Wiring"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 43,
+    "state": "OPEN",
+    "title": "ESTO-043 \u00c2\u00b7 Messaging: Support Tickets"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 40,
+    "state": "OPEN",
+    "title": "ESTO-040 \u00c2\u00b7 Saved Properties"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 39,
+    "state": "OPEN",
+    "title": "ESTO-039 \u00c2\u00b7 User Preferences API"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLNqpg",
+        "name": "backend",
+        "description": "Backend service work",
+        "color": "0E8A16"
+      }
+    ],
+    "number": 38,
+    "state": "OPEN",
+    "title": "ESTO-038 \u00c2\u00b7 Reviews API: CRUD + Moderation"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 35,
+    "state": "OPEN",
+    "title": "ESTO-035 \u00c2\u00b7 Test: Property CRUD E2E"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 34,
+    "state": "OPEN",
+    "title": "ESTO-034 \u00c2\u00b7 Test: Auth E2E in Browser"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 33,
+    "state": "OPEN",
+    "title": "ESTO-033 \u00c2\u00b7 E2E Test: Auth Flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 21,
+    "state": "OPEN",
+    "title": "ESTO-021 \u00c2\u00b7 Manual Testing: Auth Flow"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLOOSQ",
+        "name": "testing",
+        "description": "Testing/QA work",
+        "color": "FBCA04"
+      }
+    ],
+    "number": 20,
+    "state": "OPEN",
+    "title": "ESTO-020 \u00c2\u00b7 Write Test Plan for Week 1"
+  },
+  {
+    "labels": [
+      {
+        "id": "LA_kwDOO5rVqM8AAAACZLODEA",
+        "name": "infra",
+        "description": "Infrastructure/DevOps",
+        "color": "5319E7"
+      }
+    ],
+    "number": 1,
+    "state": "OPEN",
+    "title": "ESTO-001 \u00c2\u00b7 GitHub Branch Protection"
+  }
+]
