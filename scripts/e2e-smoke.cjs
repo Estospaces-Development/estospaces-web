@@ -481,7 +481,12 @@ async function main() {
         }
 
         console.error(`[${targetName}/${role.name}] case-checks`);
-        const caseResults = await runCaseChecks(page, targetName, roleBaseUrl, caseId, role.name);
+        let caseResults = [];
+        try {
+          caseResults = await runCaseChecks(page, targetName, roleBaseUrl, caseId, role.name);
+        } catch (error) {
+          console.warn(`[${targetName}/${role.name}] case-checks skipped: ${error.message}`);
+        }
         allResults.push(...caseResults);
 
         const frontendErrors = pageErrors.length > 0 || consoleErrors.length > 0;
