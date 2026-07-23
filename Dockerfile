@@ -39,7 +39,7 @@ FROM nginx:alpine
 RUN mkdir -p /etc/nginx/snippets /var/cache/nginx /var/run /var/log/nginx
 RUN sed -i -E 's#pid[[:space:]]+[^;]+;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
 
-ARG NGINX_CONF=nginx.gcp-dev.conf.v3
+ARG NGINX_CONF=nginx.gcp-dev.conf
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
