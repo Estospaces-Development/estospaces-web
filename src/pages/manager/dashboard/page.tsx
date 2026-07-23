@@ -856,7 +856,7 @@ function DashboardContent() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="h-[350px] bg-gray-50 dark:bg-gray-900 animate-pulse rounded-2xl border border-gray-100 dark:border-gray-800" />

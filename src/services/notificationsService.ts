@@ -272,9 +272,15 @@ export async function getNotifications(unreadOnly: boolean = false, role?: strin
         }
     }
 
+    // Prefer the backend's authoritative unread_count when provided.
+    // Falling back to the local filter would inflate the count whenever the
+    // dedupe/role-merging step surfaces a notification the backend had already
+    // counted, causing stale "unread" badges after the user marks all as read.
+    const backendUnreadCount = typeof data.unread_count === 'number' ? data.unread_count : null;
+    const computedUnreadCount = notifications.filter((notification) => !notification.is_read).length;
     return {
         notifications,
-        unread_count: notifications.filter((notification) => !notification.is_read).length,
+        unread_count: backendUnreadCount !== null ? Math.max(0, backendUnreadCount) : computedUnreadCount,
     };
 }
 

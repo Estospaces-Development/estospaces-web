@@ -2,7 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 function requireEnv(name) {
-  const value = process.env[name];
+  const value = process.env[name]
+    || readEnvValue(name, ['.env.e2e', '.env.development', '.env.local'])
+    || readEnvValue(name, ['.env.gcp-dev']);
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
@@ -247,7 +249,7 @@ async function loginViaApi(target, roleName) {
 async function createAuthedContext(browser, session) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, ignoreHTTPSErrors: true });
   await context.addInitScript(({ token, storedUser }) => {
-    localStorage.setItem('esto_token', token);
+    sessionStorage.setItem('esto_session_token', token);
     localStorage.setItem('esto_user', JSON.stringify(storedUser));
   }, session);
   return context;
@@ -294,4 +296,5 @@ module.exports = {
   parseTarget,
   parseJson,
   resolveTarget,
+  requireEnv,
 };

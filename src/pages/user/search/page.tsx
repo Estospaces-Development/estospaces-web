@@ -846,7 +846,7 @@ const PropertySearch = () => {
                                     setPage(1);
                                 }}
                                 placeholder={filterOptions?.price_range?.min ? `Min: ${formatSearchCurrency(filterOptions.price_range.min)}` : "No min"}
-                                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                className="themed-number-input w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <div>
@@ -863,7 +863,7 @@ const PropertySearch = () => {
                                     setPage(1);
                                 }}
                                 placeholder={filterOptions?.price_range?.max ? `Max: ${formatSearchCurrency(filterOptions.price_range.max)}` : "No max"}
-                                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                className="themed-number-input w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <Select

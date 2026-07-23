@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const { chromium } = require('playwright');
 const {
   buildArtifactPath,
@@ -9,17 +10,34 @@ const {
   resolveTarget,
 } = require('./platform-proof-shared.cjs');
 
+function readEnvFromFile(filename, envKey) {
+  const filePath = path.join(__dirname, filename);
+  if (!fs.existsSync(filePath)) return '';
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const [key, ...valueParts] = line.split('=');
+    if (key === envKey) return valueParts.join('=').trim();
+  }
+  return '';
+}
+
 function requireEnv(name) {
-  const value = process.env[name];
+  const value = process.env[name] || readEnvFromFile('.env.development', name);
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
 }
 
+function resolveCredential(envKey, fileKey, fallback) {
+  return process.env[envKey] || readEnvFromFile('.env.development', envKey) || readEnvFromFile('.env.e2e', envKey) || readEnvFromFile('.env.local', fileKey || envKey) || fallback;
+}
+
 const credentials = {
-  user: { email: requireEnv('E2E_USER_EMAIL'), password: requireEnv('E2E_USER_PASSWORD'), dashboard: '/user/dashboard' },
-  admin: { email: requireEnv('E2E_ADMIN_EMAIL'), password: requireEnv('E2E_ADMIN_PASSWORD'), dashboard: '/admin/dashboard' },
+  user: { email: resolveCredential('E2E_USER_EMAIL', 'E2E_USER_EMAIL', 'siranjeeviworks@gmail.com'), password: resolveCredential('E2E_USER_PASSWORD', 'E2E_USER_PASSWORD'), dashboard: '/user/dashboard' },
+  admin: { email: resolveCredential('E2E_ADMIN_EMAIL', 'E2E_ADMIN_EMAIL', 'admin@estospaces.com'), password: resolveCredential('E2E_ADMIN_PASSWORD', 'E2E_ADMIN_PASSWORD'), dashboard: '/admin/dashboard' },
 };
 
 async function waitForTicketVisible(page, ticketId) {
@@ -47,10 +65,25 @@ async function fetchTicketById(ticketsUrl, token, ticketId) {
 }
 
 async function createTicketViaUi(page, subject, content) {
-  await page.goto(`${new URL(page.url()).origin}/user/dashboard/help`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[placeholder="What\'s it about?"], input[placeholder="Short subject"]').first().fill(subject);
-  await page.locator('textarea[placeholder="Give us more details..."], textarea').first().fill(content);
-  await page.getByRole('button', { name: /send message|create ticket/i }).click();
+  const helpUrl = `${new URL(page.url()).origin}/user/dashboard/help`;
+  await page.goto(helpUrl, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: buildArtifactPath('support-lifecycle-debug-ticket-form.png'), fullPage: true }).catch(() => {});
+  const pageText = await page.evaluate(() => document.body.innerText.substring(0, 2000));
+  console.log('PAGE TEXT:', pageText);
+  const newTicketButton = page.getByRole('button', { name: /new ticket/i });
+  const newTicketVisible = await newTicketButton.isVisible().catch(() => false);
+  if (newTicketVisible) {
+    await newTicketButton.click();
+    await page.waitForTimeout(500);
+  }
+  const inputLocator = page.locator('input[placeholder="Short subject"], input[aria-label="Support ticket subject"]').first();
+  await inputLocator.waitFor({ state: 'visible', timeout: 60000 });
+  await inputLocator.fill(subject);
+  const textareaLocator = page.locator('textarea').first();
+  await textareaLocator.waitFor({ state: 'visible', timeout: 60000 });
+  await textareaLocator.fill(content);
+  await page.getByRole('button', { name: /create ticket/i }).click();
   await page.waitForFunction(
     () => Boolean(new URL(window.location.href).searchParams.get('ticket')),
     undefined,
@@ -137,7 +170,7 @@ async function main() {
 
     const { createResponse } = await createTicketViaUi(userPage, subject, userReply);
     result.createResponse = createResponse;
-    const userToken = await userPage.evaluate(() => localStorage.getItem('esto_token'));
+    const userToken = await userPage.evaluate(() => sessionStorage.getItem('esto_session_token'));
     const ticketsPayload = await apiJson(`${target.services.messaging}/api/v1/tickets`, {
       headers: { Authorization: `Bearer ${userToken}` },
     });
@@ -156,7 +189,7 @@ async function main() {
     await waitForHelpWorkspace(adminPage, ticket.id, subject);
     result.steps.push({ name: 'admin opened ticket', status: 'passed' });
 
-    const adminToken = await adminPage.evaluate(() => localStorage.getItem('esto_token'));
+    const adminToken = await adminPage.evaluate(() => sessionStorage.getItem('esto_session_token'));
     const headers = {
       Authorization: `Bearer ${adminToken}`,
       'Content-Type': 'application/json',

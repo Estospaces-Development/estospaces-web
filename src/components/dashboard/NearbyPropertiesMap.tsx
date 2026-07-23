@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -144,7 +144,7 @@ function MapAutoFit({
 }) {
     const map = useMap();
 
-    useEffect(() => {
+    const apply = useCallback(() => {
         try {
             const points: [number, number][] = [];
 
@@ -170,11 +170,34 @@ function MapAutoFit({
                 return;
             }
 
+            map.invalidateSize();
             map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
-        } catch {
-            // Ignore transient Leaflet teardown errors during route or data changes.
+
+            // Leaflet may have already loaded the tile layer at the
+            // initial zoom before fitBounds ran. Force a fresh tile
+            // request at the new zoom by redrawing the tile layer.
+            setTimeout(() => {
+                map.eachLayer((layer) => {
+                    if (
+                        typeof (layer as any).redraw === 'function' &&
+                        (layer as any)._url
+                    ) {
+                        (layer as any).redraw();
+                    }
+                });
+            }, 150);
+        } catch (err) {
+            console.warn('[MapAutoFit] transient error:', err);
         }
-    }, [fitSignal, map, properties, userLocation]);
+    }, [map, properties, userLocation]);
+
+    // Re-apply the bounds fit on every meaningful data change.
+    useEffect(() => {
+        apply();
+    }, [apply]);
+
+    // Re-apply fit once tiles finish their first batch.
+    useMapEvent('load', apply);
 
     return null;
 }
@@ -285,8 +308,37 @@ const NearbyPropertiesMap = ({
     const mapKey = useMemo(() => [
         userLocation?.latitude ?? 'none',
         userLocation?.longitude ?? 'none',
-        ...propertiesWithCoords.map((property) => `${property.id}:${property.latitude}:${property.longitude}`),
-    ].join('|'), [propertiesWithCoords, userLocation?.latitude, userLocation?.longitude]);
+    ].join('|'), [userLocation?.latitude, userLocation?.longitude]);
+
+    // Compute an initial view from user/properties so the MapContainer
+    // mounts at the right center/zoom on first render — this avoids the
+    // Leaflet bug where fitBounds() runs before the tile layer is ready
+    // and gets clobbered when initial tiles arrive.
+    const initialView = useMemo(() => {
+        const points: [number, number][] = [];
+
+        if (typeof userLocation?.latitude === 'number' && typeof userLocation?.longitude === 'number') {
+            points.push([userLocation.latitude, userLocation.longitude]);
+        }
+
+        for (const property of propertiesWithCoords) {
+            if (typeof property.latitude === 'number' && typeof property.longitude === 'number') {
+                points.push([property.latitude, property.longitude]);
+            }
+        }
+
+        if (points.length === 0) {
+            return { center: [20.5937, 78.9629] as [number, number], zoom: 5 };
+        }
+
+        if (points.length === 1) {
+            return { center: points[0], zoom: 14 };
+        }
+
+        const bounds = L.latLngBounds(points);
+        const center = bounds.getCenter();
+        return { center: [center.lat, center.lng] as [number, number], zoom: 12 };
+    }, [propertiesWithCoords, userLocation?.latitude, userLocation?.longitude]);
 
     const hasMapData = Boolean(
         (userLocation?.latitude && userLocation?.longitude) || propertiesWithCoords.length > 0,
@@ -368,8 +420,8 @@ const NearbyPropertiesMap = ({
         >
             <MapContainer
                 key={mapKey}
-                center={[20.5937, 78.9629]}
-                zoom={6}
+                center={initialView.center}
+                zoom={initialView.zoom}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={false}
                 dragging={!compact}

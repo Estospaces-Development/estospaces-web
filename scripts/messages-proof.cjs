@@ -74,9 +74,12 @@ async function main() {
     result.availableConversationCount = availableConversationCount;
     result.chosenConversationId = conversationId;
 
+    // Fresh browser per role prevents OOM across intensive page operations
     browser = await chromium.launch({ headless: true });
     context = await createAuthedContext(browser, session);
     let tampered = false;
+
+    context.on('close', () => {});
 
     await context.route(`${target.services.messaging}/api/v1/conversations*`, async (route) => {
       try {

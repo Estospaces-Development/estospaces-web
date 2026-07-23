@@ -39,7 +39,7 @@ FROM nginx:alpine
 RUN mkdir -p /etc/nginx/snippets /var/cache/nginx /var/run /var/log/nginx
 RUN sed -i -E 's#pid[[:space:]]+[^;]+;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
 
-ARG NGINX_CONF=nginx.conf
+ARG NGINX_CONF=nginx.gcp-dev.conf.v3
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -47,6 +47,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # SPA fallback — serve index.html for all routes
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
+
+# Cache-bust: login-route-fix-v3-1784799728
+RUN echo "login-route-fix-v3-1784799728" > /etc/nginx/version.txt
 
 RUN chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html /etc/nginx/conf.d /etc/nginx/snippets
 

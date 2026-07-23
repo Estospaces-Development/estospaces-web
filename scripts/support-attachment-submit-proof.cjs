@@ -156,7 +156,7 @@ async function createAuthedContext(browser, session) {
     ignoreHTTPSErrors: true,
   });
   await context.addInitScript(({ token, storedUser }) => {
-    localStorage.setItem('esto_token', token);
+    sessionStorage.setItem('esto_session_token', token);
     localStorage.setItem('esto_user', JSON.stringify(storedUser));
   }, session);
   return context;

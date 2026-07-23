@@ -606,7 +606,7 @@ function DiscoverContent() {
                                         setPriceRange({ ...priceRange, min: normalizePriceBoundInput(e.target.value) });
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                    className="themed-number-input w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                     />
                                 </div>
                                 <span className="text-gray-400">-</span>
@@ -625,7 +625,7 @@ function DiscoverContent() {
                                         setPriceRange({ ...priceRange, max: normalizePriceBoundInput(e.target.value) });
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                    className="themed-number-input w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                     />
                                 </div>
                             </div>

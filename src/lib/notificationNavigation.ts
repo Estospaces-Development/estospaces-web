@@ -63,6 +63,110 @@ const isPathOrNestedPath = (path: string, basePath: string) => (
     || path.startsWith(`${basePath}#`)
 );
 
+const WORKSPACE_BASE_PATHS = [
+    '/user/dashboard/viewings',
+    '/user/dashboard/appointments',
+    '/user/applications',
+    '/user/dashboard/fast-track',
+    '/user/dashboard/case-file',
+    '/user/dashboard/contracts',
+    '/manager/appointments',
+    '/manager/applications',
+    '/manager/fast-track',
+    '/manager/case-files',
+    '/manager/contracts',
+] as const;
+
+const LEGACY_ID_KEY_MAP: Record<string, string> = {
+    applicationId: 'application',
+    application_id: 'application',
+    viewingId: 'viewing',
+    viewing_id: 'viewing',
+    contractId: 'contract',
+    contract_id: 'contract',
+    caseId: 'case',
+    case_id: 'case',
+    leadId: 'lead',
+    lead_id: 'lead',
+    propertyId: 'property',
+    property_id: 'property',
+    fastTrackId: 'case',
+    fast_track_id: 'case',
+    invoiceId: 'invoice',
+    invoice_id: 'invoice',
+    paymentId: 'payment',
+    payment_id: 'payment',
+    progressionId: 'progression',
+    progression_id: 'progression',
+    conversationId: 'conversation',
+    conversation_id: 'conversation',
+    ticketId: 'ticket',
+    ticket_id: 'ticket',
+};
+
+const normalizeTargetPath = (
+    targetPath: string,
+    data: NotificationNavigationData,
+): string => {
+    const [pathWithoutQuery, ...rest] = targetPath.split('?');
+    if (!rest.length) {
+        return targetPath;
+    }
+
+    const queryString = rest.join('?');
+    const hashIndex = queryString.indexOf('#');
+    const cleanQuery = hashIndex >= 0 ? queryString.slice(0, hashIndex) : queryString;
+    const hash = hashIndex >= 0 ? queryString.slice(hashIndex) : '';
+
+    if (!pathWithoutQuery) {
+        return targetPath;
+    }
+
+    const normalizedPath = pathWithoutQuery.replace(/\/+$/, '');
+    const isWorkspacePath = WORKSPACE_BASE_PATHS.some(
+        (basePath) => isPathOrNestedPath(normalizedPath, basePath),
+    );
+
+    if (!isWorkspacePath) {
+        return targetPath;
+    }
+
+    let params: URLSearchParams;
+    try {
+        params = new URLSearchParams(cleanQuery);
+    } catch {
+        return targetPath;
+    }
+
+    const rewritten = new URLSearchParams();
+    const seen = new Set<string>();
+    params.forEach((value, key) => {
+        const canonicalKey = LEGACY_ID_KEY_MAP[key] || key;
+        if (!seen.has(canonicalKey)) {
+            rewritten.set(canonicalKey, value);
+            seen.add(canonicalKey);
+        }
+    });
+
+    const dataOverrides: Record<string, string> = {
+        application: data?.applicationId || data?.application_id || '',
+        viewing: data?.viewingId || data?.viewing_id || '',
+        contract: data?.contractId || data?.contract_id || '',
+        case: data?.caseId || data?.case_id || data?.fastTrackId || data?.fast_track_id || '',
+        lead: data?.leadId || data?.lead_id || '',
+        property: data?.propertyId || data?.property_id || '',
+    };
+
+    Object.entries(dataOverrides).forEach(([key, value]) => {
+        if (value && !rewritten.has(key)) {
+            rewritten.set(key, value);
+        }
+    });
+
+    const finalQuery = rewritten.toString();
+    return finalQuery ? `${normalizedPath}?${finalQuery}${hash}` : `${normalizedPath}${hash}`;
+};
+
 export function getNotificationNavigationPath(
     notification: { type: string; data?: NotificationNavigationData },
     role: string = 'user',
@@ -141,8 +245,11 @@ export function getNotificationNavigationPath(
     ]);
 
     if (targetPath) {
+        const normalizedTargetPath = normalizeTargetPath(targetPath, data);
+        const effectiveTargetPath = normalizedTargetPath || targetPath;
+
         const isGenericUserHelpTarget = notificationRole === 'user'
-            && isPathOrNestedPath(targetPath, '/user/dashboard/help')
+            && isPathOrNestedPath(effectiveTargetPath, '/user/dashboard/help')
             && !ticketId
             && !conversationID
             && !supportNotificationTypes.has(notification.type);
@@ -152,29 +259,27 @@ export function getNotificationNavigationPath(
         }
 
         if (supportNotificationTypes.has(notification.type) && (ticketId || conversationID)) {
-            if (notificationRole === 'manager' && isPathOrNestedPath(targetPath, '/manager/help')) {
+            if (notificationRole === 'manager') {
                 return buildSupportPath('/manager/help', ticketId, conversationID);
             }
-            if (notificationRole === 'admin' && isPathOrNestedPath(targetPath, '/admin/help')) {
+            if (notificationRole === 'admin') {
                 return buildSupportPath('/admin/help', ticketId, conversationID);
             }
-            if (notificationRole === 'user' && isPathOrNestedPath(targetPath, '/user/dashboard/help')) {
-                return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
-            }
+            return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
         }
 
-        if (notificationRole === 'admin' && readNestedPathId(targetPath, '/admin/properties')) {
-            return buildAdminPropertyRegistryNotificationPath(data, propertyId, targetPath);
+        if (notificationRole === 'admin' && readNestedPathId(effectiveTargetPath, '/admin/properties')) {
+            return buildAdminPropertyRegistryNotificationPath(data, propertyId, effectiveTargetPath);
         }
 
         if (
-            isPathOrNestedPath(targetPath, '/user/dashboard/payments')
-            || isPathOrNestedPath(targetPath, '/manager/billing')
+            isPathOrNestedPath(effectiveTargetPath, '/user/dashboard/payments')
+            || isPathOrNestedPath(effectiveTargetPath, '/manager/billing')
         ) {
             return notificationRole === 'manager' ? managerContractsPath : userContractsPath;
         }
 
-        return targetPath;
+        return effectiveTargetPath;
     }
     const managerUserVerificationPath = subjectUserId
         ? `/manager/user-verifications?user=${encodeURIComponent(subjectUserId)}`
