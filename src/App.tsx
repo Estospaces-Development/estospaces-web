@@ -235,14 +235,14 @@ const App: React.FC = () => {
 
           {/* Auth Routes */}
           <Route element={<AuthLayout />}>
-            <Route path="/login/" element={<LoginPage />} />
+            <Route path="/auth/" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
           </Route>
           {/* Redirect /login to /login/ for GFE cache compatibility */}
-          <Route path="/login" element={<Navigate to="/login/" replace />} />
+          <Route path="/auth" element={<Navigate to="/auth/" replace />} />
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
