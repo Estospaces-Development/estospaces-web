@@ -9,7 +9,7 @@ const ADMIN_DOMAIN = 'admin.estospaces.com';
 const LANDING_DOMAIN = 'estospaces.com';
 
 const ADMIN_AUTH_ROUTE_PATHS = new Set([
-    '/auth',
+    '/login',
     '/forgot-password',
     '/reset-password',
     '/verify-email',
