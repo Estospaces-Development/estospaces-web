@@ -47,7 +47,7 @@ test('gcp dev auth routes serve the SPA with noindex headers', () => {
   assert.match(gcpDevNginxSource, /location ~ \^\/\(login\|register\|forgot-password\|reset-password\|verify-email\)\/\?\$ \{/);
   assert.match(gcpDevNginxSource, /add_header X-Robots-Tag "noindex, nofollow, noarchive" always;/);
   assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
-  assert.match(gcpDevNginxSource, /try_files \/index\.html =404;/);
+  assert.match(gcpDevNginxSource, /rewrite \^ \/index\.html last;/);
 });
 
 test('nginx health route returns explicit web health JSON before SPA fallback', () => {
