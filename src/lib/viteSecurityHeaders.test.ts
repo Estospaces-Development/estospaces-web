@@ -42,7 +42,9 @@ test('production security headers allow signed and blob backed document previews
 });
 
 test('gcp dev auth routes serve the SPA with noindex headers', () => {
-  assert.doesNotMatch(gcpDevNginxSource, /location = \/login \{/);
+  assert.match(gcpDevNginxSource, /location = \/login \{/);
+  assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
+  assert.match(gcpDevNginxSource, /return 308 \/login\//);
   assert.match(gcpDevNginxSource, /location ~ \^\/\(login\|register\|forgot-password\|reset-password\|verify-email\)\/\?\$ \{/);
   assert.match(gcpDevNginxSource, /add_header X-Robots-Tag "noindex, nofollow, noarchive" always;/);
   assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
