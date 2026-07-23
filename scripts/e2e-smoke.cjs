@@ -409,8 +409,8 @@ async function main() {
     }
 
     for (const role of selectedRoles) {
-      const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
-      const page = await context.newPage();
+      let context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+      let page = await context.newPage();
       const pageErrors = [];
       const consoleErrors = [];
       const backendResponseErrors = [];
@@ -445,10 +445,39 @@ async function main() {
         await login(page, roleBaseUrl, role);
         allResults.push({ target: targetName, role: role.name, route: "login", status: "passed" });
 
-        for (const route of role.routes) {
+        for (let i = 0; i < role.routes.length; i++) {
+          const route = role.routes[i];
           console.error(`[${targetName}/${role.name}] route -> ${route}`);
           await runRouteCheck(page, roleBaseUrl, route);
           allResults.push({ target: targetName, role: role.name, route, status: "passed" });
+
+          // Recycle page after every route for admin to prevent browser memory crashes
+          if (role.name === "admin" && i + 1 < role.routes.length) {
+            await context.close();
+            context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+            page = await context.newPage();
+            page.on("pageerror", (error) => pageErrors.push(error.message));
+            page.on("console", (message) => {
+              if (message.type() === "error") {
+                const text = message.text();
+                if (!/^Failed to load resource:/i.test(text)) {
+                  consoleErrors.push(text);
+                }
+              }
+            });
+            page.on("response", (response) => {
+              const status = response.status();
+              if (status === 429 || status >= 500) {
+                const url = response.url();
+                if (/\/estospaces-media-service[^/]*\.run\.app\//.test(url) || /\/uploads\//.test(url)) {
+                  backendResponseErrors.push(`${status} ${url}`);
+                } else {
+                  consoleErrors.push(`${status} ${url}`);
+                }
+              }
+            });
+            await login(page, roleBaseUrl, role);
+          }
         }
 
         console.error(`[${targetName}/${role.name}] case-checks`);

@@ -48,8 +48,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
 
-# Cache-bust: login-route-fix-v3-1784799728
-RUN echo "login-route-fix-v3-1784799728" > /etc/nginx/version.txt
+# Cache-bust: login-route-fix-v4-1784848
+RUN echo "login-route-fix-v4-1784848" > /etc/nginx/version.txt
 
 RUN chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html /etc/nginx/conf.d /etc/nginx/snippets
 
