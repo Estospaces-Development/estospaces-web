@@ -227,7 +227,7 @@ function parseOption(argv, name) {
 
 function resolveLoginPath(baseUrl) {
   const hostname = new URL(baseUrl).hostname;
-  return hostname.endsWith(".run.app") ? "/login/" : "/login";
+  return hostname.endsWith(".run.app") ? "/sessions/create/" : "/sessions/create";
 }
 
 async function ensureReachable(baseUrl) {
