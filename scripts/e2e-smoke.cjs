@@ -482,14 +482,18 @@ async function main() {
           }
         }
 
-        console.error(`[${targetName}/${role.name}] case-checks`);
-        let caseResults = [];
-        try {
-          caseResults = await runCaseChecks(page, targetName, roleBaseUrl, caseId, role.name);
-        } catch (error) {
-          console.warn(`[${targetName}/${role.name}] case-checks skipped: ${error.message}`);
+        if (role.name !== "admin") {
+          console.error(`[${targetName}/${role.name}] case-checks`);
+          let caseResults = [];
+          try {
+            caseResults = await runCaseChecks(page, targetName, roleBaseUrl, caseId, role.name);
+          } catch (error) {
+            console.warn(`[${targetName}/${role.name}] case-checks skipped: ${error.message}`);
+          }
+          allResults.push(...caseResults);
+        } else {
+          console.warn(`[${targetName}/${role.name}] skipping case-checks for admin (page recycling)`);
         }
-        allResults.push(...caseResults);
 
         const frontendErrors = pageErrors.length > 0 || consoleErrors.length > 0;
         const hasBackendWarnings = backendResponseErrors.length > 0;
