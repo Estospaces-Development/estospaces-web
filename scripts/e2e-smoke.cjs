@@ -523,12 +523,20 @@ async function main() {
           screenshotPath,
         });
       } finally {
-        await context.close();
+        try {
+          await context.close();
+        } catch (error) {
+          console.warn(`[${targetName}/${role.name}] context close failed: ${error.message}`);
+        }
       }
     }
   }
 
-  await browser.close();
+  try {
+    await browser.close();
+  } catch (error) {
+    console.warn(`browser close failed: ${error.message}`);
+  }
 
   for (const result of allResults) {
     if (result.status === "passed") {
