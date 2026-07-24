@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("playwright");
+const { firefox } = require("playwright");
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
@@ -381,7 +381,7 @@ async function main() {
   const selectedRoles = parseRoles(argv);
   const overrideBaseUrl = parseOption(argv, "--base-url");
   const overrideCaseId = parseOption(argv, "--case-id");
-  const browser = await chromium.launch({ headless: true });
+  const browser = await firefox.launch({ headless: true });
   const allResults = [];
   const summary = {
     passed: 0,
