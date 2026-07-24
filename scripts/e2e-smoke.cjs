@@ -409,6 +409,7 @@ async function main() {
 
     for (const role of selectedRoles) {
       const browser = await chromium.launch({ headless: true });
+      let context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
       let page = await context.newPage();
       const pageErrors = [];
       const consoleErrors = [];
