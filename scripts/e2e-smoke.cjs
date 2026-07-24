@@ -443,6 +443,7 @@ async function main() {
 
         console.error(`[${targetName}/${role.name}] login -> ${roleBaseUrl}`);
         await login(page, roleBaseUrl, role);
+          await new Promise(r => setTimeout(r, 500));
         allResults.push({ target: targetName, role: role.name, route: "login", status: "passed" });
 
         for (let i = 0; i < role.routes.length; i++) {
@@ -477,6 +478,7 @@ async function main() {
               }
             });
             await login(page, roleBaseUrl, role);
+          await new Promise(r => setTimeout(r, 500));
           }
         }
 
