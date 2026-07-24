@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { firefox } = require("playwright");
+const { chromium } = require("playwright");
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
@@ -381,7 +381,7 @@ async function main() {
   const selectedRoles = parseRoles(argv);
   const overrideBaseUrl = parseOption(argv, "--base-url");
   const overrideCaseId = parseOption(argv, "--case-id");
-  const browser = await firefox.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true });
   const allResults = [];
   const summary = {
     passed: 0,
@@ -453,7 +453,7 @@ async function main() {
           allResults.push({ target: targetName, role: role.name, route, status: "passed" });
 
           // Recycle page after every route for admin to prevent browser memory crashes
-          if (role.name === "admin" && i + 1 < role.routes.length) {
+          if (role.name === "admin" && (i + 1) % 2 === 0 && i + 1 < role.routes.length) {
             await context.close();
             context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
             page = await context.newPage();
