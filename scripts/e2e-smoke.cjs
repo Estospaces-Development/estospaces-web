@@ -381,7 +381,6 @@ async function main() {
   const selectedRoles = parseRoles(argv);
   const overrideBaseUrl = parseOption(argv, "--base-url");
   const overrideCaseId = parseOption(argv, "--case-id");
-  const browser = await chromium.launch({ headless: true });
   const allResults = [];
   const summary = {
     passed: 0,
@@ -409,7 +408,7 @@ async function main() {
     }
 
     for (const role of selectedRoles) {
-      let context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+      const browser = await chromium.launch({ headless: true });
       let page = await context.newPage();
       const pageErrors = [];
       const consoleErrors = [];
@@ -545,14 +544,13 @@ async function main() {
         } catch (error) {
           console.warn(`[${targetName}/${role.name}] context close failed: ${error.message}`);
         }
+        try {
+          await browser.close();
+        } catch (error) {
+          console.warn(`[${targetName}/${role.name}] browser close failed: ${error.message}`);
+        }
       }
     }
-  }
-
-  try {
-    await browser.close();
-  } catch (error) {
-    console.warn(`browser close failed: ${error.message}`);
   }
 
   for (const result of allResults) {

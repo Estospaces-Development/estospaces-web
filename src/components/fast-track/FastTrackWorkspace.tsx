@@ -1829,6 +1829,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        setPreviewBusyKey(null);
         setPreviewBusyKey((current) => current ?? busyKey);
         handleDocumentFocus(item.id);
         setPreviewError(null);
