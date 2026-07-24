@@ -538,6 +538,7 @@ async function main() {
           responseErrors: backendResponseErrors,
           screenshotPath,
         });
+      }
       } finally {
         try {
           await context.close();
