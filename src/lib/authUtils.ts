@@ -6,7 +6,7 @@ import {
 } from '@/lib/utils/hostUtils';
 
 const AUTH_ROUTE_PATHS = new Set([
-    '/sessions/create',
+    '/login',
     '/register',
     '/forgot-password',
     '/reset-password',
@@ -87,7 +87,7 @@ export function getRedirectPath(role?: string): string {
 }
 
 export function getLoginPath(hostname?: string): string {
-    return getAuthPath('/sessions/create', hostname);
+    return getAuthPath('/login', hostname);
 }
 
 export function getAuthPath(pathname: string, hostname?: string): string {
