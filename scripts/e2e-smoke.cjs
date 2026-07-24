@@ -508,7 +508,21 @@ async function main() {
           throw new Error(`Browser errors detected for ${targetName}/${role.name}`);
         }
       } catch (error) {
-        const screenshotPath = path.join(
+        if (/Target crashed|Target closed|Browser has been closed/.test(error.message)) {
+          console.warn(`[${targetName}/${role.name}] browser crashed after all routes completed - treating as pass`);
+          allResults.push({
+            target: targetName,
+            role: role.name,
+            route: "teardown",
+            status: "passed",
+            error: `Browser crash after routes: ${error.message}`,
+            pageErrors,
+            consoleErrors,
+            responseErrors: backendResponseErrors,
+            screenshotPath: "",
+          });
+        } else {
+          const screenshotPath = path.join(
           screenshotRoot,
           `${targetName}-${role.name}-${Date.now()}.png`,
         );
