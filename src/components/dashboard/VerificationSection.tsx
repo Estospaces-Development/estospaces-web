@@ -16,6 +16,7 @@ import {
     MapPin,
     ArrowRight,
     Trash2,
+    Globe,
 } from 'lucide-react';
 import {
     getMissingVerificationBundleFileKeys,
@@ -23,8 +24,9 @@ import {
     USER_FIRST_TIME_VERIFICATION_REQUIREMENTS,
 } from '@/lib/verificationUploadGate';
 import { leadsService, type UserDocument } from '@/services/leadsService';
-import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
+import { getCountryDocumentGuidance, type CountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { LAUNCH_COUNTRY_CODE, UK_COUNTRY_CODE, type SupportedLaunchCountryCode } from '@/lib/launchLocale';
 
 interface VerificationSectionProps {
     userId?: string;
@@ -66,7 +68,9 @@ const mapDocumentStatus = (status?: string): StepStatus => {
 
 const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser, locationCodeOverride }) => {
     const geoMarket = useUserGeoMarket(currentUser, { locationCode: locationCodeOverride || currentUser?.postcode });
-    const verificationDocumentGuidance = getCountryDocumentGuidance(geoMarket);
+    const [selectedMarket, setSelectedMarket] = useState<SupportedLaunchCountryCode>(geoMarket);
+    const activeMarket = selectedMarket;
+    const verificationDocumentGuidance = getCountryDocumentGuidance(activeMarket);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -400,6 +404,21 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-1000 ease-out"
                         style={{ width: `${completionPercentage}%` }}
                     />
+                </div>
+
+                <div className="mt-4 flex items-center gap-2">
+                    <Globe size={14} className="text-gray-400 flex-shrink-0" />
+                    <select
+                        value={activeMarket}
+                        onChange={(event) => setSelectedMarket(event.target.value as SupportedLaunchCountryCode)}
+                        className="bg-transparent text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                    >
+                        <option value={LAUNCH_COUNTRY_CODE}>India</option>
+                        <option value={UK_COUNTRY_CODE}>United Kingdom</option>
+                    </select>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        Verification requirements
+                    </span>
                 </div>
             </div>
 
