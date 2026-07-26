@@ -1,6 +1,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+
+// Load .env.e2e if present (dotenvx may intercept require('dotenv'), so parse directly)
+const envE2E = path.resolve(process.cwd(), '.env.e2e');
+if (fs.existsSync(envE2E)) {
+  fs.readFileSync(envE2E, 'utf8').split('\n').forEach((line) => {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  });
+}
 const {
   buildSelectionLabel,
   crashPattern,

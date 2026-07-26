@@ -8,11 +8,12 @@ import { SavedPropertiesProvider } from "@/contexts/SavedPropertiesContext";
 import { ApplicationsProvider } from "@/contexts/ApplicationsContext";
 import { UserProfileSummaryProvider } from "@/contexts/UserProfileSummaryContext";
 import { WorkspaceSyncProvider } from "@/contexts/WorkspaceSyncContext";
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, ScrollRestoration } from 'react-router-dom';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
+      <ScrollRestoration />
       <AuthProvider>
         <WorkspaceSyncProvider>
           <UserProfileSummaryProvider>

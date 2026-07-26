@@ -37,9 +37,11 @@ test('production security headers allow blob backed document previews', () => {
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
 });
 
-test('gcp dev exact login route serves the SPA with noindex headers', () => {
+test('gcp dev auth routes serve the SPA with noindex headers', () => {
   assert.match(gcpDevNginxSource, /location = \/login \{/);
-  assert.doesNotMatch(gcpDevNginxSource, /return 308 \/login\//);
+  assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
+  assert.match(gcpDevNginxSource, /return 308 \/login\//);
+  assert.match(gcpDevNginxSource, /location ~ \^\/\(login\|register\|forgot-password\|reset-password\|verify-email\)\/\?\$ \{/);
   assert.match(gcpDevNginxSource, /add_header X-Robots-Tag "noindex, nofollow, noarchive" always;/);
   assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
   assert.match(gcpDevNginxSource, /try_files \/index\.html =404;/);

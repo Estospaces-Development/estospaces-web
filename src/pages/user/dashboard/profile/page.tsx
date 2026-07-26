@@ -141,6 +141,17 @@ export default function ProfilePage() {
     };
 
     const handleSaveProfile = async () => {
+        const trimmedEmail = formData.email.trim();
+        if (!trimmedEmail) {
+            toast.error('Email address is required.');
+            return;
+        }
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(trimmedEmail)) {
+            toast.error('Please enter a valid email address.');
+            return;
+        }
+
         const fullNameError = validateFullName(formData.fullName);
         if (fullNameError) {
             setProfileValidationError(fullNameError);
