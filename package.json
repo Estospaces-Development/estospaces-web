@@ -62,7 +62,8 @@
     "react-hook-form": "^7.71.1",
     "react-leaflet": "^5.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.2.0",
+    "react-router": "^7.18.1",
+    "react-router-dom": "^7.18.1",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
@@ -85,6 +86,7 @@
     "vite": "^6.1.1"
   },
   "overrides": {
+    "brace-expansion": "5.0.8",
     "exceljs": {
       "uuid": "^14.0.0"
     },
