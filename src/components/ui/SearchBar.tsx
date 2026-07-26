@@ -12,6 +12,7 @@ import {
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
 import { useOptionalAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
 export interface SearchFilters {
     keyword: string;
@@ -100,6 +101,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [searchParams] = useSearchParams();
     const authContext = useOptionalAuth();
     const user = authContext?.user || null;
+    const toast = useToast();
     const [filters, setFilters] = useState<SearchFilters>({ ...defaultFilters, ...initialFilters });
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);

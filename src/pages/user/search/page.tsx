@@ -385,6 +385,16 @@ const PropertySearch = () => {
         }
     }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
+    // Deduplicate and memoize displayed properties to prevent duplicate cards
+    const displayedProperties = useMemo(() => {
+        const seen = new Set<string>();
+        return properties.filter((p) => {
+            if (seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+        });
+    }, [properties]);
+
     // Refetch when search dependencies change (debounced)
     useEffect(() => {
         const timer = setTimeout(() => {
