@@ -385,6 +385,16 @@ const PropertySearch = () => {
         }
     }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
+    // Deduplicate and memoize displayed properties to prevent duplicate cards
+    const displayedProperties = useMemo(() => {
+        const seen = new Set<string>();
+        return properties.filter((p) => {
+            if (seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+        });
+    }, [properties]);
+
     // Refetch when search dependencies change (debounced)
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -955,7 +965,7 @@ const PropertySearch = () => {
                         </div>
                     </div>
                 </div>
-            ) : properties.length === 0 ? (
+            ) : displayedProperties.length === 0 ? (
                 <div role="status" aria-live="polite" className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-12 text-center">
                     <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No properties found</h2>
@@ -963,7 +973,7 @@ const PropertySearch = () => {
                 </div>
             ) : (
                 <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-4'}>
-                    {properties.map(p => {
+                    {displayedProperties.map(p => {
                         const coverImg = getCoverImage(p);
                         const isSaved = isPropertySaved(p.id);
                         const isSavingProperty = savingPropertyId === p.id;

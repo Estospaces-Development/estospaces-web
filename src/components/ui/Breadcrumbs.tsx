@@ -28,6 +28,7 @@ const defaultLabels: Record<string, string> = {
     saved: 'Saved',
     profile: 'Profile',
     favorites: 'Favorites',
+    contracts: 'My homes',
     search: 'Search',
     clients: 'Clients',
     chat: 'Chat',

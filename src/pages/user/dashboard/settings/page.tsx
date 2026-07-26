@@ -14,11 +14,13 @@ import {
     MapPin,
     PoundSterling,
     BedDouble,
+    FileText,
+    ArrowRight,
 } from 'lucide-react';
 import { getPreferences, updatePreferences, type UserPreferences } from '@/services/authService';
 import { useToast } from '@/contexts/ToastContext';
 import Toggle from '@/components/ui/Toggle';
-import { type PreferencesValidationErrors, validateUserPreferences } from '@/lib/preferencesValidation';
+import { type PreferencesValidationErrors, validateUserPreferences, validateCityInput, hasNoSearchPreferences } from '@/lib/preferencesValidation';
 
 const defaultPreferences: UserPreferences = {
     preferred_city: '',
@@ -33,7 +35,7 @@ const defaultPreferences: UserPreferences = {
     onboarding_done: false,
 };
 
-type TabId = 'alerts' | 'search' | 'account';
+type TabId = 'alerts' | 'search' | 'account' | 'contracts';
 
 export default function SettingsPage() {
     const navigate = useNavigate();
@@ -45,6 +47,7 @@ export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('alerts');
     const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
     const [preferenceErrors, setPreferenceErrors] = useState<PreferencesValidationErrors>({});
+    const [originalPreferences, setOriginalPreferences] = useState<UserPreferences>(defaultPreferences);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -53,10 +56,9 @@ export default function SettingsPage() {
                 const { data, error } = await getPreferences();
                 if (error) throw new Error(error);
                 if (data) {
-                    setPreferences({
-                        ...defaultPreferences,
-                        ...data,
-                    });
+                    const prefs = { ...defaultPreferences, ...data };
+                    setPreferences(prefs);
+                    setOriginalPreferences(prefs);
                 }
             } catch (error: any) {
                 toast.error('Failed to load settings');
@@ -77,6 +79,13 @@ export default function SettingsPage() {
         setPreferences((prev) => ({ ...prev, [key]: value }));
         setPreferenceErrors((prev) => ({ ...prev, [key]: undefined }));
         setSaveSuccess(false);
+
+        if (key === 'preferred_city') {
+            const cityError = validateCityInput(value);
+            if (cityError) {
+                setPreferenceErrors((prev) => ({ ...prev, preferred_city: cityError }));
+            }
+        }
     };
 
     const handleNumberChange = (
@@ -99,12 +108,42 @@ export default function SettingsPage() {
             return;
         }
 
+        const cityError = validateCityInput(preferences.preferred_city);
+        if (cityError) {
+            setPreferenceErrors((prev) => ({ ...prev, preferred_city: cityError }));
+            toast.error('Please correct the highlighted preference fields.');
+            return;
+        }
+
+        if (hasNoSearchPreferences(preferences)) {
+            toast.error('Please enter at least one search preference before saving.');
+            return;
+        }
+
+        const hasChanges = Object.keys(preferences).some((key) => {
+            const prefKey = key as keyof UserPreferences;
+            const current = preferences[prefKey];
+            const original = originalPreferences[prefKey];
+            if (typeof current === 'boolean' && typeof original === 'boolean') {
+                return current !== original;
+            }
+            if (current === null && original === null) return false;
+            if (current === null || original === null) return true;
+            return current !== original;
+        });
+
+        if (!hasChanges) {
+            toast.info('No changes to save.');
+            return;
+        }
+
         try {
             setSaving(true);
             const { error } = await updatePreferences(preferences);
             if (error) throw new Error(error);
 
             setSaveSuccess(true);
+            setOriginalPreferences(preferences);
             toast.success('Settings updated successfully');
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error: any) {
@@ -133,6 +172,7 @@ export default function SettingsPage() {
         { id: 'alerts' as TabId, label: 'Alerts', icon: Bell },
         { id: 'search' as TabId, label: 'Search', icon: Search },
         { id: 'account' as TabId, label: 'Account', icon: ShieldAlert },
+        { id: 'contracts' as TabId, label: 'Contracts', icon: FileText },
     ];
 
     if (isLoading) {
@@ -270,10 +310,17 @@ export default function SettingsPage() {
                                                 type="text"
                                                 value={preferences.preferred_city}
                                                 onChange={(e) => handleTextChange('preferred_city', e.target.value)}
+                                                aria-invalid={preferenceErrors.preferred_city ? 'true' : 'false'}
+                                                aria-describedby={preferenceErrors.preferred_city ? 'user-preferred-city-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                                 placeholder="London"
                                             />
                                         </div>
+                                        {preferenceErrors.preferred_city && (
+                                            <p id="user-preferred-city-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.preferred_city}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
@@ -477,6 +524,23 @@ export default function SettingsPage() {
                                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Open the support centre with a prefilled pilot operations ticket.</p>
                                 </button>
                             </div>
+                        </div>
+                    )}
+                    {activeTab === 'contracts' && (
+                        <div className="rounded-3xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 p-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <FileText size={40} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Your Contracts</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                                View and manage your contracts, agreements, and signing history.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/user/dashboard/contracts')}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-orange-500/25"
+                            >
+                                View Contracts
+                                <ArrowRight size={18} />
+                            </button>
                         </div>
                     )}
                 </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   FileCheck2,
+  FileText,
   FolderLock,
   ListChecks,
   Loader2,
@@ -135,6 +136,7 @@ export function UserVirtualStoragePageContent({
   const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
   const [categoryName, setCategoryName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
@@ -237,6 +239,9 @@ export function UserVirtualStoragePageContent({
     }
     setDocuments((previous) => [result.data as UserDocument, ...previous]);
     setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     setStatusMessage("Document uploaded to Virtual Storage.");
   };
 
@@ -524,7 +529,13 @@ export function UserVirtualStoragePageContent({
                 <select
                   id="virtual-storage-category"
                   value={selectedCategoryId}
-                  onChange={(event) => setSelectedCategoryId(event.target.value)}
+                  onChange={(event) => {
+                    setSelectedCategoryId(event.target.value);
+                    setSelectedFile(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  }}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                 >
                   {categories.map((category) => (
@@ -538,11 +549,18 @@ export function UserVirtualStoragePageContent({
                 <span className="font-medium text-gray-700 dark:text-gray-300">File</span>
                 <input
                   id="virtual-storage-file"
+                  ref={fileInputRef}
                   type="file"
                   accept="application/pdf,image/*,.pdf"
                   onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 file:mr-3 file:rounded-xl file:border-0 file:bg-orange-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-orange-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:file:bg-orange-500/10 dark:file:text-orange-200"
                 />
+                {selectedFile ? (
+                  <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <FileCheck2 className="h-3.5 w-3.5" />
+                    {selectedFile.name}
+                  </p>
+                ) : null}
               </label>
               <button
                 type="button"

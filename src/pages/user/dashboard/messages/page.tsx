@@ -304,6 +304,7 @@ function MessagesContent() {
         }
     };
 
+    const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
     const activeThreadIssue = !selectedConversationId
         ? conversationThreadIssue ?? routeConversationIssue
         : null;
@@ -356,113 +357,121 @@ function MessagesContent() {
                 )}
 
                 <div className="grid min-h-[640px] grid-cols-1 gap-6 lg:grid-cols-12 lg:h-[700px]">
-                    <div className="lg:col-span-4 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden">
-                        {isLoading ? (
-                            <ConversationListSkeleton />
-                        ) : (
-                            <ConversationList
-                                onSelectConversation={setSelectedConversationId}
-                                selectedConversationId={selectedConversationId}
-                            />
-                        )}
-                    </div>
-
-                    <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col">
-                        {selectedConversationId ? (
-                            <>
-                                <ConversationThread conversationId={selectedConversationId} />
-                                <MessageInput
-                                    conversationId={selectedConversationId}
-                                    onSend={handleSend}
+                    {/* Conversation list panel — hidden on mobile when viewing a thread */}
+                    {mobileView === 'list' && (
+                        <div className="lg:col-span-4 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden">
+                            {isLoading ? (
+                                <ConversationListSkeleton />
+                            ) : (
+                                <ConversationList
+                                    onSelectConversation={(id) => {
+                                        setSelectedConversationId(id);
+                                        setMobileView('thread');
+                                    }}
+                                    selectedConversationId={selectedConversationId}
                                 />
-                            </>
-                        ) : isLoading && !hasLoadedConversations ? (
+                            )}
+                        </div>
+                    )}
+
+                    {/* Thread panel — shown on mobile when a conversation is selected, always shown on desktop */}
+                    {selectedConversationId ? (
+                        <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col">
+                            {/* Mobile back button */}
+                            <button
+                                type="button"
+                                onClick={() => setMobileView('list')}
+                                className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors border-b border-gray-100 dark:border-gray-700 lg:hidden"
+                            >
+                                <ArrowLeft size={16} />
+                                Back
+                            </button>
+                            <ConversationThread conversationId={selectedConversationId} />
+                            <MessageInput
+                                conversationId={selectedConversationId}
+                                onSend={handleSend}
+                            />
+                        </div>
+                    ) : mobileView === 'thread' && isLoading && !hasLoadedConversations ? (
+                        <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden">
                             <ConversationThreadSkeleton />
-                        ) : activeThreadIssue ? (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
-                                <div className="mb-6 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 w-20 h-20 rounded-full flex items-center justify-center">
-                                    <AlertCircle size={34} />
-                                </div>
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                                    {activeThreadIssue.title}
-                                </h2>
-                                <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                                    {activeThreadIssue.message}
-                                </p>
-                                <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => void handleRetryUnavailableThread()}
-                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold hover:border-orange-400 hover:text-orange-500 transition-colors"
-                                    >
-                                        <RefreshCw size={18} />
-                                        Retry
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleOpenNewEnquiry}
-                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all"
-                                    >
-                                        <PlusCircle size={18} />
-                                        Ask about a home
-                                    </button>
-                                </div>
+                        </div>
+                    ) : mobileView === 'thread' && activeThreadIssue ? (
+                        <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
+                            <div className="mb-6 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 w-20 h-20 rounded-full flex items-center justify-center">
+                                <AlertCircle size={34} />
                             </div>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
-                                <div className="mb-6 bg-white dark:bg-gray-800 w-24 h-24 rounded-full shadow-2xl flex items-center justify-center relative">
-                                    <MessageSquare size={40} className="text-orange-500" />
-                                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-100 rounded-full animate-ping"></div>
-                                </div>
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                                    Choose a conversation
-                                </h2>
-                                <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                                    Pick a chat on the left to read messages, updates, and replies.
-                                </p>
-
-                                {managerRecommendation ? (
-                                    <div className="mt-8 w-full max-w-md rounded-3xl border border-orange-100 bg-white p-4 text-left shadow-xl shadow-orange-100/60 dark:border-orange-500/20 dark:bg-gray-950 dark:shadow-none">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
-                                                <UserRound size={20} />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-bold text-gray-900 dark:text-white">
-                                                    Message {managerRecommendation.managerName}
-                                                </p>
-                                                <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
-                                                    {managerRecommendation.propertyTitle || managerRecommendation.managerAgency || 'Your assigned property manager'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => void handleOpenRecommendedManager()}
-                                            disabled={openingRecommendedConversation}
-                                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            {openingRecommendedConversation ? <Loader2 size={17} className="animate-spin" /> : <MessageSquare size={17} />}
-                                            {openingRecommendedConversation ? 'Opening chat' : 'Open manager chat'}
-                                        </button>
-                                    </div>
-                                ) : recommendationLoading ? (
-                                    <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
-                                        <Loader2 size={16} className="animate-spin" />
-                                        Checking assigned manager
-                                    </div>
-                                ) : null}
-
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                {activeThreadIssue.title}
+                            </h2>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                                {activeThreadIssue.message}
+                            </p>
+                            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => void handleRetryUnavailableThread()}
+                                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold hover:border-orange-400 hover:text-orange-500 transition-colors"
+                                >
+                                    <RefreshCw size={18} />
+                                    Retry
+                                </button>
                                 <button
                                     type="button"
                                     onClick={handleOpenNewEnquiry}
-                                    className="mt-6 px-8 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all shadow-lg shadow-orange-500/30"
+                                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all"
                                 >
+                                    <PlusCircle size={18} />
                                     Ask about a home
                                 </button>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
+                            <div className="mb-6 bg-white dark:bg-gray-800 w-24 h-24 rounded-full shadow-2xl flex items-center justify-center relative">
+                                <MessageSquare size={40} className="text-orange-500" />
+                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-100 rounded-full animate-ping"></div>
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                Choose a conversation
+                            </h2>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                                Pick a chat on the left to read messages, updates, and replies.
+                            </p>
+
+                            {managerRecommendation ? (
+                                <div className="mt-8 w-full max-w-md rounded-3xl border border-orange-100 bg-white p-4 text-left shadow-xl shadow-orange-100/60 dark:border-orange-500/20 dark:bg-gray-950 dark:shadow-none">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
+                                            <UserRound size={20} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                                Message {managerRecommendation.managerName}
+                                            </p>
+                                            <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
+                                                {managerRecommendation.propertyTitle || managerRecommendation.managerAgency || 'Your assigned property manager'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleOpenRecommendedManager()}
+                                        disabled={openingRecommendedConversation}
+                                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {openingRecommendedConversation ? <Loader2 size={17} className="animate-spin" /> : <MessageSquare size={17} />}
+                                        {openingRecommendedConversation ? 'Opening chat' : 'Open manager chat'}
+                                    </button>
+                                </div>
+                            ) : recommendationLoading ? (
+                                <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Checking assigned manager
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
