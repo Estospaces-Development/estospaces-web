@@ -45,41 +45,6 @@ export function formatLaunchCurrency(
   return `${symbol}${formatted}${codeSuffix}${suffix}`;
 }
 
-export function formatLaunchCurrencyForCountry(
-  amount: number | null | undefined,
-  options: {
-    countryCode?: string | null;
-    countryName?: string | null;
-    currencyCode?: string | null;
-    monthly?: boolean;
-    showCode?: boolean;
-  } = {},
-): string {
-  if (typeof amount !== "number" || !Number.isFinite(amount)) {
-    return "";
-  }
-
-  const country = getSupportedLaunchCountry(options.countryCode, options.countryName);
-  const requestedCurrency = String(options.currencyCode || "").trim().toUpperCase();
-  const currency = requestedCurrency || (country === UK_COUNTRY_CODE ? "GBP" : LAUNCH_CURRENCY_CODE);
-  const locale = currency === "GBP" ? "en-GB" : LAUNCH_LOCALE;
-  const suffix = options.monthly ? "/mo" : "";
-  const code = options.showCode ? ` ${currency}` : "";
-
-  try {
-    return `${new Intl.NumberFormat(locale, {
-      currency,
-      maximumFractionDigits: 0,
-      style: "currency",
-    }).format(amount)}${code}${suffix}`;
-  } catch {
-    return formatLaunchCurrency(amount, {
-      monthly: options.monthly,
-      showCode: options.showCode,
-      currencyCode: options.currencyCode || undefined,
-    });
-  }
-}
 
 export function formatLaunchCurrencyForCountry(
   amount: number | null | undefined,
