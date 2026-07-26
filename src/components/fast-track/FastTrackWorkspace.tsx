@@ -120,13 +120,9 @@ import {
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { formatLaunchCurrencyForCountry, getSupportedLaunchCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
-import {
-    getFastTrackDisplayTitle,
-    getFastTrackWorkspaceDisplayTitle,
-} from '@/lib/fastTrackDisplayTitle';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -1031,59 +1027,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
         [filteredCases, selectedCaseId],
     );
-    const selectedCaseDisplayTitle = selectedCase
-        ? getFastTrackWorkspaceDisplayTitle(selectedCase, role)
-        : '';
-    useEffect(() => {
-        setSelectedPropertyCountrySignal(null);
-
-        if (!selectedCase?.propertyId || selectedCase.propertyCountry) {
-            setSelectedPropertyCountryLoading(false);
-            return;
-        }
-
-        let cancelled = false;
-        setSelectedPropertyCountryLoading(true);
-
-        const loadSelectedPropertyCountry = async () => {
-            const result = await getPropertyById(selectedCase.propertyId, { suppressErrorToast: true });
-
-            if (cancelled) {
-                return;
-            }
-
-            setSelectedPropertyCountrySignal(result.data
-                ? {
-                    countryName: result.data.country,
-                    locationCode: result.data.postcode,
-                }
-                : null);
-            setSelectedPropertyCountryLoading(false);
-        };
-
-        void loadSelectedPropertyCountry();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedCase?.caseId, selectedCase?.propertyCountry, selectedCase?.propertyId]);
-
-    const selectedPropertyCountryName = selectedCase?.propertyCountry || selectedPropertyCountrySignal?.countryName;
-    const selectedPropertyLocationCode = selectedPropertyCountrySignal?.locationCode;
-    const geoMarket = useUserGeoMarket(user, {
-        countryName: selectedPropertyCountryName,
-        locationCode: selectedPropertyLocationCode,
-    });
-    const selectedPropertyMarket = getSupportedLaunchCountry(
-        selectedPropertyCountryName,
-        selectedPropertyCountryName,
-        selectedPropertyLocationCode,
-    );
-    const documentGuidance = getCountryDocumentGuidance(
-        selectedPropertyCountryLoading && !selectedCase?.propertyCountry
-            ? selectedPropertyMarket
-            : selectedPropertyMarket || geoMarket,
-    );
+    const geoMarket = useUserGeoMarket(user, { countryName: selectedCase?.propertyCountry });
+    const documentGuidance = getCountryDocumentGuidance(geoMarket);
 
     useEffect(() => {
         setPendingAdminOverrideAction(null);
@@ -1489,28 +1434,23 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (input) {
             input.value = '';
         }
-    // After a successful upload, keep the workspace on the Documents stage
-    // and focus the just-uploaded document so the user can continue with
-    // any remaining uploads without being redirected away.
-    setActiveStageOverride('documents');
-    setSearchParams((previous) => buildFastTrackStageSearchParams(previous, 'documents'));
-    updateLocalCase(data);
-    const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
-    if (uploadedItem) {
-        handleDocumentFocus(uploadedItem.id);
-    }
-    publishWorkspaceSync({
-        source: 'mutation',
-        tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
-        reason: 'Fast-track document uploaded',
-        ids: {
-            caseId: data.caseId,
-            leadId: data.leadId,
-            propertyId: data.propertyId,
-        },
-    });
-    toast.success(`${item.label} uploaded and visible to your manager.`);
-    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, setSearchParams, toast, updateLocalCase]);
+        updateLocalCase(data);
+        const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
+        if (uploadedItem) {
+            handleDocumentFocus(uploadedItem.id);
+        }
+        publishWorkspaceSync({
+            source: 'mutation',
+            tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
+            reason: 'Fast-track document uploaded',
+            ids: {
+                caseId: data.caseId,
+                leadId: data.leadId,
+                propertyId: data.propertyId,
+            },
+        });
+        toast.success(`${item.label} uploaded and visible to your manager.`);
+    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
@@ -1840,21 +1780,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             if (item.documentRecordId) {
                 const access = await getDocumentAccessUrl(item.documentRecordId);
                 if (access.error || !access.url) {
-                    // Fall back to the cached fileUrl if the document record is stale
-                    // (common for completed cases where the record may have been cleaned up)
-                    if (item.fileUrl) {
-                        releasePreviewObjectUrl();
-                        nextUrl = item.fileUrl;
-                        nextAccessUrl = item.fileUrl;
-                    } else {
-                        setPreviewUrl(null);
-                        setPreviewError(access.error || 'Preview is unavailable for this document.');
-                        closeExternalDocumentWindow();
-                        if (revealInViewport) {
-                            if (role === 'user') {
-                                setUserDetailsModalOpen(true);
-                            }
-                            revealPreviewSection();
+                    setPreviewUrl(null);
+                    setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    closeExternalDocumentWindow();
+                    if (revealInViewport) {
+                        if (role === 'user') {
+                            setUserDetailsOpen(true);
                         }
                         return null;
                     }
@@ -3702,18 +3633,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         const nextStage = stage as FastTrackStage;
-
         if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
-            setStageConfirmDialog({
-                open: true,
-                stage: nextStage,
-            });
+            setActiveStageOverride(nextStage);
+            setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
+            void runAction('start_documents', {}, 'Documents stage started.');
             return;
         }
 
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
-    }, [role, selectedCase, setSearchParams]);
+    }, [role, runAction, selectedCase, setSearchParams]);
 
     // Smoothly scroll to the stage content area when the visible stage changes,
     // preventing the browser from jumping the viewport abruptly.

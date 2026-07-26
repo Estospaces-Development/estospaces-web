@@ -330,7 +330,6 @@ ${contactForm.message}
                                 type="button"
                                 onClick={() => {
                                     setShowContactForm(false);
-                                    setContactForm(defaultContactForm);
                                     setContactErrors({ phone: '' });
                                 }}
                                 className="rounded-[1rem] border border-stone-200 px-4 py-3 font-medium text-gray-700 transition hover:bg-stone-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-950"

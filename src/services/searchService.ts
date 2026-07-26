@@ -249,6 +249,9 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     if (combinedSearch) {
         params.append('search', combinedSearch);
     }
+    if (normalizedLocation && !locationIsPostcode) {
+        params.append('city', normalizedLocation);
+    }
 
     if (hasFilterValue(filters.minPrice)) params.append('min_price', String(filters.minPrice));
     if (hasFilterValue(filters.maxPrice)) params.append('max_price', String(filters.maxPrice));
@@ -477,7 +480,6 @@ export interface SearchResult {
     city: string;
     postcode: string;
     country?: string;
-    countryCode?: string;
     bedrooms: number;
     bathrooms: number;
     square_feet: number;

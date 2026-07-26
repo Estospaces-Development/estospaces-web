@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import {
@@ -11,7 +11,6 @@ import {
 } from '@/lib/brokerRequestWorkspace';
 import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
 import {
-    formatLaunchLocationCodeSentenceLabel,
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     getLaunchLocationCodeErrorMessage,
@@ -116,7 +115,7 @@ const NearbyAgenciesList = () => {
     });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, effectivePostcode || postcodeInput);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, effectivePostcode || postcodeInput);
-    const sentenceLocationCodeLabel = formatLaunchLocationCodeSentenceLabel(locationCodeLabel);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
 
     const loadActiveRequest = useCallback(async (preferredRequestId?: string | null) => {
         const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
@@ -305,7 +304,7 @@ const NearbyAgenciesList = () => {
                             <p className="font-semibold text-gray-900 dark:text-white">{effectivePostcode}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {isManualSearchActive
-                                    ? `Showing property agents ranked nearest to this ${sentenceLocationCodeLabel}.`
+                                    ? `Showing property agents ranked nearest to this ${lowerLocationCodeLabel}.`
                                     : 'Showing property agents ranked for your active request.'}
                             </p>
                         </div>
@@ -362,7 +361,7 @@ const NearbyAgenciesList = () => {
             ) : visibleBrokers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
                     {effectivePostcode
-                        ? `No available property agents are ranked for this ${sentenceLocationCodeLabel} yet.`
+                        ? `No available property agents are ranked for this ${lowerLocationCodeLabel} yet.`
                         : 'Add a location code or request a nearby property agent to see ranked agents here.'}
                 </div>
             ) : (
@@ -386,7 +385,7 @@ const NearbyAgenciesList = () => {
                         <div>
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by {locationCodeLabel}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Enter a valid {sentenceLocationCodeLabel} to rank the nearest available property agents in that area.
+                                Enter a valid {lowerLocationCodeLabel} to rank the nearest available property agents in that area.
                             </p>
                         </div>
                         {liveRequestPostcode && (

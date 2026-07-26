@@ -30,7 +30,6 @@ import {
     normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
-import { getServiceUrl } from '@/lib/apiUtils';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -69,7 +68,7 @@ export default function ProfilePage() {
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [profileValidationError, setProfileValidationError] = useState('');
-    const geoMarket = useUserGeoMarket(currentUser, { countryName: formData.country || undefined, locationCode: formData.postcode || currentUser?.postcode });
+    const geoMarket = useUserGeoMarket(currentUser, { locationCode: formData.postcode || currentUser?.postcode });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
@@ -408,24 +407,6 @@ export default function ProfilePage() {
                                                 placeholder="+44 20 1234 5678"
                                             />
                                         </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label htmlFor="user-country" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Country</label>
-                                        <select
-                                            id="user-country"
-                                            name="country"
-                                            value={formData.country}
-                                            onChange={(e) => {
-                                                setFormData(prev => ({ ...prev, country: e.target.value, postcode: '' }));
-                                                setSaveSuccess(false);
-                                            }}
-                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
-                                        >
-                                            <option value="">Select country...</option>
-                                            <option value="India">India</option>
-                                            <option value="United Kingdom">United Kingdom</option>
-                                        </select>
                                     </div>
 
                                     <div className="space-y-2">

@@ -12,7 +12,6 @@ import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
     normalizeLaunchLocationCode,
-    formatLaunchPropertyLocation,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 

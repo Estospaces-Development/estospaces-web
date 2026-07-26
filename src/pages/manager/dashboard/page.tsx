@@ -475,50 +475,44 @@ function DashboardContent() {
       )}
 
       {/* KPI Cards */}
-      {canLoadOperationalDashboard ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="Live Fast Track"
-            value={stats.liveFastTrack}
-            change={stats.liveFastTrackChange}
-            icon={CalendarCheck}
-            iconColor="bg-emerald-500"
-            trendColor="text-emerald-700"
-            onClick={() => navigate('/manager/fast-track')}
-            loading={isLoading}
-          />
-          <StatCard
-            title="Active Listings"
-            value={stats.activeProperties}
-            change={stats.activeListingsChange}
-            icon={Building2}
-            iconColor="bg-blue-500"
-            trendColor="text-blue-600"
-            onClick={() => navigate(buildManagerActiveListingsPath())}
-            loading={isLoading}
-          />
-          <StatCard
-            title="Total Views"
-            value={stats.totalViews.toString()}
-            change={stats.totalViewsChange}
-            icon={Eye}
-            iconColor="bg-purple-500"
-            trendColor="text-purple-600"
-            onClick={() => navigate('/manager/analytics#manager-analytics-views')}
-            loading={isLoading}
-          />
-          <StatCard
-            title="Conversion Rate"
-            value={stats.conversionRate}
-            change={stats.conversionRateChange}
-            icon={UserCheck}
-            iconColor="bg-orange-500"
-            trendColor="text-orange-600"
-            onClick={() => navigate('/manager/analytics#manager-analytics-conversion')}
-            loading={isLoading}
-          />
-        </div>
-      ) : null}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Live Fast Track"
+          value={stats.liveFastTrack}
+          change={stats.liveFastTrackChange}
+          icon={CalendarCheck}
+          iconColor="bg-emerald-500"
+          trendColor="text-emerald-700"
+          onClick={() => navigate('/manager/fast-track')}
+        />
+        <StatCard
+          title="Active Listings"
+          value={stats.activeProperties}
+          change={stats.activeListingsChange}
+          icon={Building2}
+          iconColor="bg-blue-500"
+          trendColor="text-blue-600"
+          onClick={() => navigate(buildManagerActiveListingsPath())}
+        />
+        <StatCard
+          title="Total Views"
+          value={stats.totalViews.toString()}
+          change={stats.totalViewsChange}
+          icon={Eye}
+          iconColor="bg-purple-500"
+          trendColor="text-purple-600"
+          onClick={() => navigate('/manager/analytics')}
+        />
+        <StatCard
+          title="Conversion Rate"
+          value={stats.conversionRate}
+          change={stats.conversionRateChange}
+          icon={UserCheck}
+          iconColor="bg-orange-500"
+          trendColor="text-orange-600"
+          onClick={() => navigate('/manager/analytics')}
+        />
+      </div>
 
       {/* Tab Bar */}
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />

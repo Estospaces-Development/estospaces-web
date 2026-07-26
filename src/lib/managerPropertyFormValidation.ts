@@ -2,8 +2,6 @@ import type { ListingType } from "@/contexts/PropertyContext";
 import {
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
-  getLaunchStateCodeFromPinPrefix,
-  getLaunchCityFromPin,
   isLaunchIndiaCountry,
   isLaunchUKCountry,
   isValidLaunchLocationCodeForCountry,

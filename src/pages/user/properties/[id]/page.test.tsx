@@ -7,9 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   buildPropertyFastTrackStartRequest,
-  buildPropertyFastTrackDashboardPath,
   buildPropertyHeroSummary,
-  buildPropertySnapshotNarrative,
   formatPropertyDetailCurrency,
   getPropertyDetailLocationLabel,
   getPropertyBrokerRequestQuery,
@@ -91,17 +89,7 @@ test("property detail hero summary uses real listing data instead of gallery gui
   assert.match(summary, /750 sq ft/);
   assert.match(summary, /Highlights include Balcony, Near Metro\./);
   assert.doesNotMatch(propertyDetailSource, /Start with the lead image here/);
-  assert.doesNotMatch(propertyDetailSource, /Open the full-screen gallery for a closer look/);
   assert.doesNotMatch(summary, /full-screen gallery|curated photo set|distraction-free look/i);
-
-  const factsOnlySummary = buildPropertyHeroSummary({
-    property_type: "flat",
-    bedrooms: 1,
-    bathrooms: 1,
-  } as any, "London, UK");
-
-  assert.equal(factsOnlySummary, "This flat in London, UK offers 1 bedroom and 1 bathroom.");
-  assert.doesNotMatch(factsOnlySummary, /review|gallery|overview|next step/i);
 
   const describedSummary = buildPropertyHeroSummary({
     property_type: "house",
@@ -113,21 +101,6 @@ test("property detail hero summary uses real listing data instead of gallery gui
   assert.match(describedSummary, /house in Guwahati, India/);
   assert.match(describedSummary, /3 bedrooms and 2 bathrooms/);
   assert.match(describedSummary, /Bright home near the riverside\./);
-
-  const snapshotNarrative = buildPropertySnapshotNarrative({
-    property_type: "house",
-    listing_type: "sale",
-    condition: "well_maintained",
-    furnishing: "unfurnished",
-  } as any, "\u00a3700,000", "11 Apr 2026", "On request");
-
-  assert.match(snapshotNarrative, /sale house/);
-  assert.match(snapshotNarrative, /\u00a3700,000/);
-  assert.match(snapshotNarrative, /Availability is 11 Apr 2026/);
-  assert.match(snapshotNarrative, /Deposit is available on request/);
-  assert.doesNotMatch(propertyDetailSource, /users can move from interest to action/);
-  assert.doesNotMatch(propertyDetailSource, /The page keeps the gallery, decision data, and booking actions/);
-  assert.doesNotMatch(snapshotNarrative, /users|natural reading flow|engaged longer|act sooner/i);
 });
 
 test("property detail accepts broker request ids from dashboard and property links", () => {
@@ -207,38 +180,6 @@ test("broker-selected rental fast-track start sends the resolved manager while b
   assert.equal(request?.listing_type, "rent");
   assert.equal(request?.lead_id, undefined);
   assert.equal(request?.manager_id, "manager-stale-lead");
-});
-
-test("property detail fast-track continue opens the live workspace route directly", () => {
-  assert.equal(
-    buildPropertyFastTrackDashboardPath({
-      caseId: "case-active-1",
-      finalStatus: "in_progress",
-      stage: "documents",
-    }),
-    "/user/dashboard/fast-track?case=case-active-1&section=documents",
-  );
-  assert.equal(
-    buildPropertyFastTrackDashboardPath({
-      caseId: "case-done-1",
-      finalStatus: "completed",
-      stage: "handover",
-    }),
-    "/user/dashboard/fast-track?case=case-done-1&section=overview&celebrate=1",
-  );
-  assert.equal(
-    buildPropertyFastTrackDashboardPath(null, "case-from-query"),
-    "/user/dashboard/fast-track?case=case-from-query&section=documents",
-  );
-  assert.equal(buildPropertyFastTrackDashboardPath(null, ""), "/user/dashboard/fast-track");
-  assert.match(
-    propertyDetailSource,
-    /if \(startAction === 'resume_existing_case'\) \{\s*openFastTrackDashboard\(currentWorkspace\.fastTrackCase\);\s*return;\s*\}/,
-  );
-  assert.match(
-    propertyDetailSource,
-    /if \(recoveredWorkspace\.fastTrackCase\) \{\s*openFastTrackDashboard\(recoveredWorkspace\.fastTrackCase\);\s*\} else \{\s*setIsFastTrackModalOpen\(true\);\s*\}/,
-  );
 });
 
 test("sale offer amount input accepts ordinary round-pound offers", () => {
@@ -384,9 +325,4 @@ test("property detail fast-track CTA resumes active broker-request journeys inst
   assert.match(propertyDetailSource, /Continue 24-Hour Fast Track/);
   assert.match(propertyDetailSource, /fastTrackConciergeActionLabel/);
   assert.doesNotMatch(propertyDetailSource, /activeFastTrackCase\?\.workspaceFinalStatus === 'active' \|\| activeFastTrackCase\?\.finalStatus === 'in_progress'/);
-});
-
-test("property fast-track modal opens the selected case instead of passing the click event as a case", () => {
-  assert.match(propertyDetailSource, /onOpenDashboard=\{\(\) => openFastTrackDashboard\(\)\}/);
-  assert.doesNotMatch(propertyDetailSource, /onOpenDashboard=\{openFastTrackDashboard\}/);
 });

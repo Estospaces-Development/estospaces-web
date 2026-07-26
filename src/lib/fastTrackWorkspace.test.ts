@@ -426,7 +426,7 @@ test('fast-track document preview opens a modal only from explicit preview actio
     );
 });
 
-test('fast-track document open stays in the preview modal instead of navigating to raw media', () => {
+test('fast-track document open stays inside the in-app preview modal', () => {
     assert.match(
         fastTrackWorkspaceComponent,
         /const externalWindow = openInNewTab \? window\.open\('about:blank', '_blank'\) : null/,
@@ -466,10 +466,6 @@ test('fast-track document open stays in the preview modal instead of navigating 
     assert.match(
         fastTrackWorkspaceComponent,
         /onClick=\{\(\) => void handleRailOpen\(item\)\}\s*busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
-    );
-    assert.doesNotMatch(
-        fastTrackWorkspaceComponent,
-        /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,

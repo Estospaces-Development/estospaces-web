@@ -126,7 +126,7 @@ test("fast-track preview buttons open a modal with zoom controls", () => {
   assert.match(source, /aria-label="Zoom in document preview"/);
 });
 
-test("fast-track document open buttons stay in the preview modal instead of raw media", () => {
+test("fast-track document open buttons stay inside the in-app preview modal", () => {
   const source = workspaceSource();
 
   assert.match(source, /window\.open\('about:blank', '_blank'\)/);
@@ -168,27 +168,6 @@ test("fast-track identity upload copy names Indian identity documents", () => {
   assert.match(indiaGuidance.identityDetail, /Prefer masked Aadhaar/);
   assert.match(source, /application\/pdf,image\/jpeg,image\/png,image\/webp/);
   assert.match(source, /documentGuidance\.identityDetail/);
-});
-
-test("fast-track document guidance resolves missing case country from selected property", () => {
-  const source = workspaceSource();
-
-  assert.match(source, /getPropertyById\(selectedCase\.propertyId, \{ suppressErrorToast: true \}\)/);
-  assert.match(source, /selectedPropertyCountrySignal/);
-  assert.match(source, /locationCode: result\.data\.postcode/);
-  assert.match(source, /const selectedPropertyMarket = getSupportedLaunchCountry/);
-  assert.match(source, /selectedPropertyMarket \|\| geoMarket/);
-});
-
-test("fast-track workspace hides internal case titles across manager-facing surfaces", () => {
-  const source = workspaceSource();
-
-  assert.match(source, /getFastTrackWorkspaceDisplayTitle/);
-  assert.match(source, /const selectedCaseDisplayTitle = selectedCase/);
-  assert.match(source, /title=\{selectedCaseDisplayTitle\}/);
-  assert.match(source, /propertyTitle: selectedCaseDisplayTitle/);
-  assert.match(source, /Cancel the fast-track case for \{selectedCaseDisplayTitle\}/);
-  assert.doesNotMatch(source, /selectedCase\.propertyTitle/);
 });
 
 test("case chat timeout recovery only accepts a recent matching sender message", () => {

@@ -13,8 +13,7 @@ test("application modal uses property/user country context for search copy and m
 
   assert.match(source, /useUserGeoMarket\(user/);
   assert.match(source, /getLaunchLocationCodeLabel\(userGeoMarket/);
-  assert.match(source, /formatLaunchLocationCodeSentenceLabel\(locationCodeLabel\)/);
-  assert.match(source, /placeholder=\{`Search by name, city, or \$\{sentenceLocationCodeLabel\}\.\.\.`\}/);
+  assert.match(source, /placeholder=\{`Search by name, city, or \$\{lowerLocationCodeLabel\}\.\.\.`\}/);
   assert.match(source, /formatLaunchCurrencyForCountry\(property\?\.price/);
   assert.match(source, /Annual Income \(\{incomeCurrencyCode\}\)/);
   assert.match(source, /IncomeCurrencyIcon/);
@@ -46,9 +45,7 @@ test("shared search ranges and property cards format money by country context", 
   const managerPropertyCardSource = readSource("components/dashboard/ManagerPropertyCard.tsx");
 
   assert.match(searchBarSource, /buildSearchPriceRanges/);
-  assert.match(searchBarSource, /getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
-  assert.match(searchBarSource, /getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
-  assert.match(searchBarSource, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
+  assert.match(searchBarSource, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: geoMarket \}\)/);
   assert.doesNotMatch(searchBarSource, /new Intl\.NumberFormat\('en-GB'/);
   assert.doesNotMatch(searchBarSource, /formatLaunchCurrency\(/);
 

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown, ArrowLeft } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
 import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion, SearchHistoryEntry } from '../../../services/searchService';
@@ -30,7 +30,6 @@ import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSe
 import { buildSearchHistoryLabel, buildSearchHistoryMeta, buildSearchHistoryUrlParams } from '@/lib/searchHistory';
 import {
     formatLaunchCurrencyForCountry,
-    formatLaunchLocationCodeSentenceLabel,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     getLaunchLocationCodeLabel,
@@ -98,7 +97,7 @@ const PropertySearch = () => {
 
     const [properties, setProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [hasLoadedSearch, setHasLoadedSearch] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
@@ -125,9 +124,8 @@ const PropertySearch = () => {
     });
     const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
     const geoMarket = market || inferredGeoMarket || fallbackGeoMarket;
-    const searchCountry = market || geoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
-    const sentenceLocationCodeLabel = formatLaunchLocationCodeSentenceLabel(locationCodeLabel);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
     const formatSearchCurrency = useCallback((amount: number) => (
         formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
@@ -160,7 +158,7 @@ const PropertySearch = () => {
             chips.push({ label: 'Beds', value: `${bedrooms}+` });
         }
         if (baths) {
-            chips.push({ label: 'Bathrooms', value: `${baths}+` });
+            chips.push({ label: 'Baths', value: `${baths}+` });
         }
 
         return chips;
@@ -168,7 +166,7 @@ const PropertySearch = () => {
 
     const buildBroaderSearchAttempts = useCallback(() => {
         const baseFilters = {
-            country: searchCountry || undefined,
+            country: market || undefined,
             propertyType: propertyType || undefined,
             listingType: listingType || undefined,
             minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
@@ -199,7 +197,7 @@ const PropertySearch = () => {
         }
 
         return attempts;
-    }, [baths, bedrooms, listingType, location, maxPrice, minPrice, propertyType, searchCountry, sortBy]);
+    }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -327,7 +325,7 @@ const PropertySearch = () => {
                 query,
                 {
                     location: location || undefined,
-                    country: searchCountry || undefined,
+                    country: market || undefined,
                     propertyType: propertyType || undefined,
                     minPrice: minPrice ? parseInt(minPrice) : undefined,
                     maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
@@ -385,17 +383,7 @@ const PropertySearch = () => {
                 setHasLoadedSearch(true);
             }
         }
-    }, [query, location, searchCountry, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
-
-    // Deduplicate and memoize displayed properties to prevent duplicate cards
-    const displayedProperties = useMemo(() => {
-        const seen = new Set<string>();
-        return properties.filter((p) => {
-            if (seen.has(p.id)) return false;
-            seen.add(p.id);
-            return true;
-        });
-    }, [properties]);
+    }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Refetch when search dependencies change (debounced)
     useEffect(() => {
@@ -611,7 +599,7 @@ const PropertySearch = () => {
                             if (locationSuggestions.length > 0) setShowSuggestions(true);
                         }}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        placeholder={`Search by ${sentenceLocationCodeLabel}, city, property name...`}
+                        placeholder={`Search by ${lowerLocationCodeLabel}, city, property name...`}
                         className="w-full min-w-0 rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     />
                     {queryValidationMessage && (
@@ -838,7 +826,7 @@ const PropertySearch = () => {
                                 type="text"
                                 value={location}
                                 onChange={(e) => { setLocation(e.target.value); setPage(1); }}
-                                placeholder={`City or ${sentenceLocationCodeLabel}`}
+                                placeholder={`City or ${lowerLocationCodeLabel}`}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
@@ -856,7 +844,7 @@ const PropertySearch = () => {
                                     setPage(1);
                                 }}
                                 placeholder={filterOptions?.price_range?.min ? `Min: ${formatSearchCurrency(filterOptions.price_range.min)}` : "No min"}
-                                className="themed-number-input w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <div>
@@ -873,7 +861,7 @@ const PropertySearch = () => {
                                     setPage(1);
                                 }}
                                 placeholder={filterOptions?.price_range?.max ? `Max: ${formatSearchCurrency(filterOptions.price_range.max)}` : "No max"}
-                                className="themed-number-input w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <Select

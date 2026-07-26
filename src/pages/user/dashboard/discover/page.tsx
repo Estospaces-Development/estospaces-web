@@ -33,7 +33,6 @@ import {
 } from '@/lib/propertySearchControls';
 import {
     formatLaunchCurrencyForCountry,
-    formatLaunchLocationCodeSentenceLabel,
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
     formatLaunchPropertyLocation,
@@ -294,7 +293,6 @@ function DiscoverContent() {
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
     const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationQuery);
-    const sentenceLocationCodeLabel = formatLaunchLocationCodeSentenceLabel(locationCodeLabel);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationQuery);
     const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode: geoMarket,
@@ -577,7 +575,7 @@ function DiscoverContent() {
                                 <input
                                     id="discover-location"
                                     type="text"
-                                    placeholder={`City, town, or ${sentenceLocationCodeLabel}`}
+                                    placeholder={`City, town, or ${locationCodeLabel.toLowerCase()}`}
                                     value={locationQuery}
                                     onChange={(e) => {
                                         setLocationQuery(e.target.value);

@@ -62,7 +62,6 @@ export default function ManagerProfilePage() {
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [removingAvatar, setRemovingAvatar] = useState(false);
-    const [companyAddressError, setCompanyAddressError] = useState('');
     const [confirmingAvatarRemoval, setConfirmingAvatarRemoval] = useState(false);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -225,7 +224,7 @@ export default function ManagerProfilePage() {
     };
 
     const handleRemoveAvatar = async () => {
-        if (uploadingImage || removingAvatar || !(profileImagePreview || storedAvatarValue)) {
+        if (uploadingImage || removingAvatar || !(profileImagePreview || storedAvatarValue || selectedAvatarFile)) {
             return;
         }
 
@@ -407,8 +406,6 @@ export default function ManagerProfilePage() {
         !formData.firstName.trim() ? 'First name' : '',
         !formData.lastName.trim() ? 'Last name' : '',
         !formData.licenseNumber.trim() ? (managerProfile?.profile_type === 'company' ? 'Company registration number' : 'Broker license number') : '',
-        !formData.companyAddress.trim() ? 'Office / Company address' : '',
-        !formData.registeredOfficeAddress.trim() ? 'Registered office address' : '',
     ].filter(Boolean);
     const saveDisabledReason = missingRequiredFields.length > 0
         ? `Complete required fields: ${missingRequiredFields.join(', ')}.`
@@ -759,16 +756,6 @@ export default function ManagerProfilePage() {
                                         className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         Add exact PIN codes or postcodes, or area prefixes, for live requests.
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label htmlFor="manager-dispatch-pincodes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dispatch pincodes / postcodes</label>
-                                    <textarea id="manager-dispatch-pincodes" name="dispatchPincodes" value={formData.dispatchPincodes} onChange={handleChange} rows={2}
-                                        placeholder="SW1A 1AA, 600001"
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Exact pincodes or postcodes where you want to receive Fast Track leads first.
                                     </p>
                                 </div>
 

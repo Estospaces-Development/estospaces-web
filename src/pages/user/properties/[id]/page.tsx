@@ -534,30 +534,12 @@ export function buildPropertyHeroSummary(property: Property | null | undefined, 
         .slice(0, 3)
         .join(', ');
     const supportingText = description
-        || (featureText ? `Highlights include ${featureText}.` : '');
+        || (featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.');
 
     return [
         `This ${propertyType} in ${location} offers ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'} and ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}${sizeText}.`,
         supportingText,
         description && featureText ? `Highlights include ${featureText}.` : '',
-    ].filter(Boolean).join(' ');
-}
-
-export function buildPropertySnapshotNarrative(
-    property: Property | null | undefined,
-    priceLabel: string,
-    availabilityLabel: string,
-    depositLabel: string,
-) {
-    const propertyType = property?.property_type ? formatDetailLabel(property.property_type).toLowerCase() : 'property';
-    const listingLabel = property?.listing_type ? formatDetailLabel(property.listing_type).toLowerCase() : 'listing';
-    const conditionLabel = property?.condition ? formatDetailLabel(property.condition).toLowerCase() : 'well maintained';
-    const depositText = depositLabel !== 'On request' ? `Deposit is ${depositLabel}.` : 'Deposit is available on request.';
-
-    return [
-        `This ${listingLabel} ${propertyType} is listed at ${priceLabel} and is ${conditionLabel}.`,
-        `Availability is ${availabilityLabel}.`,
-        depositText,
     ].filter(Boolean).join(' ');
 }
 
@@ -1200,8 +1182,8 @@ const UserPropertyDetail = () => {
         { label: 'Market', value: listingLabel },
         { label: 'Condition', value: conditionLabel },
         { label: 'Availability', value: availableFromLabel },
-        { label: 'Deposit', value: depositLabel },
-    ], [availableFromLabel, conditionLabel, depositLabel, listingLabel]);
+        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },
+    ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
     const hasActiveFastTrackJourney = isActiveFastTrackCase(activeFastTrackCase);
     const fastTrackSidebarActionLabel = hasActiveFastTrackJourney ? 'Continue 24-hour journey' : '24-hour fast track';
     const fastTrackPrimaryActionLabel = hasActiveFastTrackJourney ? 'Continue 24-Hour Fast Track' : 'Start 24-Hour Fast Track';

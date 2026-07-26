@@ -24,8 +24,7 @@ test("user search autocomplete is tied to the search field", () => {
 });
 
 test("user search main input uses country-aware PIN or postcode copy", () => {
-  assert.match(searchPage, /formatLaunchLocationCodeSentenceLabel\(locationCodeLabel\)/);
-  assert.match(searchPage, /placeholder=\{`Search by \$\{sentenceLocationCodeLabel\}, city, property name\.\.\.`\}/);
+  assert.match(searchPage, /placeholder=\{`Search by \$\{lowerLocationCodeLabel\}, city, property name\.\.\.`\}/);
   assert.doesNotMatch(searchPage, /Search by location, property name/);
 });
 
@@ -56,7 +55,6 @@ test("public Search navbar preserves active filtered search URLs", () => {
   assert.doesNotMatch(publicHeader, /to=\{link\.href\}/);
 });
 test("user search keeps settled results stable while refreshed requests are in flight", () => {
-  assert.match(searchPage, /const \[loading, setLoading\] = useState\(true\);/);
   assert.match(searchPage, /const \[hasLoadedSearch, setHasLoadedSearch\] = useState\(false\);/);
   assert.match(searchPage, /const latestSearchRequestRef = useRef\(0\);/);
   assert.match(searchPage, /if \(requestId !== latestSearchRequestRef\.current\) \{/);
@@ -66,12 +64,6 @@ test("user search keeps settled results stable while refreshed requests are in f
   assert.match(searchPage, /Refreshing search results\./);
   assert.doesNotMatch(searchPage, /\{loading \? '\.\.\.' : total\}/);
   assert.doesNotMatch(searchPage, /\{loading \? \(/);
-});
-
-test("user search preserves country context during broader fallback searches", () => {
-  assert.match(searchPage, /const searchCountry = market \|\| geoMarket/);
-  assert.match(searchPage, /country: searchCountry \|\| undefined/);
-  assert.doesNotMatch(searchPage, /country: market \|\| undefined/);
 });
 
 test("property detail action and gallery controls expose stable button state", () => {

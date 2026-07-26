@@ -154,9 +154,9 @@ const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User
         phone: phone || undefined,
         address: rawUser.address || undefined,
         postcode: rawUser.postcode || undefined,
-        country: country,
-        countryCode: countryCode,
-        country_code: countryCode,
+        country: rawUser.country || metadata.country || undefined,
+        countryCode: rawUser.countryCode || rawUser.country_code || metadata.countryCode || metadata.country_code || undefined,
+        country_code: rawUser.country_code || rawUser.countryCode || metadata.country_code || metadata.countryCode || undefined,
         user_metadata: {
             ...metadata,
             country: country,

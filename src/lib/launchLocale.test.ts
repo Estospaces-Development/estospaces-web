@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import {
   formatLaunchCurrency,
   formatLaunchCurrencyForCountry,
-  formatLaunchLocationCodeSentenceLabel,
   formatLaunchLocationCode,
   formatLaunchPinCode,
   formatLaunchPropertyLocation,
