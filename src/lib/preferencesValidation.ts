@@ -1,4 +1,5 @@
 export interface PreferencesValidationInput {
+    preferred_city: string;
     preferred_type: string;
     min_budget: number | null;
     max_budget: number | null;
@@ -12,6 +13,7 @@ export type PreferencesValidationErrors = Partial<Record<keyof PreferencesValida
 const MAX_PREFERENCE_BUDGET = 100000000;
 const MAX_PREFERENCE_BEDROOMS = 20;
 const MAX_SEARCH_RADIUS_KM = 500;
+const MAX_CITY_LENGTH = 12;
 
 function addNonNegativeError(
     errors: PreferencesValidationErrors,
@@ -32,6 +34,18 @@ function addNonNegativeError(
     if (value !== null && maxValue !== undefined && value > maxValue) {
         errors[key] = `${label} must be ${maxLabel || `${maxValue} or less`}`;
     }
+}
+
+export function validateCityInput(city: string): string | undefined {
+    const trimmed = city.trim();
+    if (!trimmed) return undefined;
+    if (trimmed.length > MAX_CITY_LENGTH) {
+        return `City name must be ${MAX_CITY_LENGTH} characters or fewer`;
+    }
+    if (!/^[a-zA-Z\s\-']+$/.test(trimmed)) {
+        return 'City name can only contain letters, spaces, hyphens, and apostrophes';
+    }
+    return undefined;
 }
 
 export function validateUserPreferences(values: PreferencesValidationInput): PreferencesValidationErrors {
@@ -69,4 +83,16 @@ export function validateUserPreferences(values: PreferencesValidationInput): Pre
     }
 
     return errors;
+}
+
+export function hasNoSearchPreferences(values: PreferencesValidationInput): boolean {
+    return (
+        !values.preferred_city.trim() &&
+        !values.preferred_type.trim() &&
+        values.min_budget === null &&
+        values.max_budget === null &&
+        values.min_bedrooms === null &&
+        values.max_bedrooms === null &&
+        values.search_radius_km === null
+    );
 }

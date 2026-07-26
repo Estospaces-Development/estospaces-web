@@ -39,7 +39,7 @@ test('public user property detail stays readable from signed-out search results'
 });
 
 test('resolveProtectedRedirect sends signed-out users to login for protected pages', () => {
-    assert.equal(resolveProtectedRedirect('/manager/help', false, 'manager'), '/sessions/create');
+    assert.equal(resolveProtectedRedirect('/manager/help', false, 'manager'), '/login');
 });
 
 test('resolveProtectedRedirect sends wrong-role users back to their own workspace', () => {
@@ -57,7 +57,7 @@ test('resolveProtectedRedirect allows matching workspace access', () => {
 test('resolveAuthRecoveryRedirect sends signed-in users away from recovery forms', () => {
     assert.equal(resolveAuthRecoveryRedirect('/forgot-password', true, 'admin'), '/admin/dashboard');
     assert.equal(resolveAuthRecoveryRedirect('/reset-password', true, 'manager'), '/manager/dashboard');
-    assert.equal(resolveAuthRecoveryRedirect('/sessions/create', true, 'user'), null);
+    assert.equal(resolveAuthRecoveryRedirect('/login', true, 'user'), null);
     assert.equal(resolveAuthRecoveryRedirect('/forgot-password', false, 'admin'), null);
 });
 
@@ -123,8 +123,8 @@ test('getHostedLoginRedirectUrl targets the correct hosted login domain', () => 
     });
 
     try {
-        assert.equal(getHostedLoginRedirectUrl('admin'), 'https://admin.estospaces.com/sessions/create');
-        assert.equal(getHostedLoginRedirectUrl('manager'), 'https://app.estospaces.com/sessions/create');
+        assert.equal(getHostedLoginRedirectUrl('admin'), 'https://admin.estospaces.com/login');
+        assert.equal(getHostedLoginRedirectUrl('manager'), 'https://app.estospaces.com/login');
     } finally {
         if (originalWindow === undefined) {
             delete (globalThis as { window?: Window }).window;
@@ -138,9 +138,9 @@ test('getHostedLoginRedirectUrl targets the correct hosted login domain', () => 
 });
 
 test('login path avoids the Cloud Run reserved exact login route', () => {
-    assert.equal(getLoginPath('localhost'), '/sessions/create');
-    assert.equal(getLoginPath('127.0.0.1'), '/sessions/create');
-    assert.equal(getLoginPath('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/sessions/create/');
+    assert.equal(getLoginPath('localhost'), '/login');
+    assert.equal(getLoginPath('127.0.0.1'), '/login');
+    assert.equal(getLoginPath('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/login/');
 });
 
 test('shouldAwaitSessionResolution allows cached authenticated workspaces during refresh', () => {

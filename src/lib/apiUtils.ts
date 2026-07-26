@@ -344,7 +344,7 @@ export async function handleUnauthorizedResponse(
 
 export function getErrorMessage(error: unknown, fallback = SYSTEM_ERROR_MESSAGE): string {
     if (error instanceof ApiRequestError) {
-        return error.userMessage || error.message || fallback;
+        return error.message || error.userMessage || fallback;
     }
 
     if (error instanceof Error) {
@@ -363,7 +363,8 @@ export function getErrorStatus(error: unknown): number | undefined {
 }
 
 export function resolveManagerWorkflowErrorPresentation(error: unknown): ManagerWorkflowErrorPresentation | null {
-    const message = getErrorMessage(error, '').trim();
+    const apiError = error instanceof ApiRequestError ? error : null;
+    const message = (apiError?.userMessage || getErrorMessage(error, '')).trim();
     const status = getErrorStatus(error);
     if (!message) {
         return null;

@@ -5,6 +5,8 @@ import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Sh
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
+import { uploadMediaFile } from '@/services/mediaService';
+import { getServiceUrl } from '@/lib/apiUtils';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
     getLaunchLocationCodeLabel,
@@ -17,6 +19,15 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 export default function AdminProfilePage() {
     const { user, refreshUser } = useAuth();
     const { error: showToastError, success: showToastSuccess } = useToast();
+
+    const resolveUserImageUrl = (url?: string | null): string => {
+        if (!url || typeof url !== 'string') return '';
+        if (/^https?:\/\//i.test(url)) return url;
+        if (url.startsWith('/api/v1/media/')) {
+            return `${getServiceUrl('media').replace(/\/$/, '')}${url}`;
+        }
+        return url;
+    };
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
@@ -58,6 +69,9 @@ export default function AdminProfilePage() {
                 postcode: profileData.postcode || '',
                 bio: profileData.user_metadata?.bio || '',
             });
+            const existingAvatar = profileData.avatar_url || profileData.avatar || user.avatar_url || user.avatar || null;
+            const resolvedAvatar = resolveUserImageUrl(existingAvatar);
+            setAvatarPreview(resolvedAvatar);
         } catch {
             // fallback to auth context data
             const nameParts = (user.name || '').split(' ');
@@ -70,6 +84,8 @@ export default function AdminProfilePage() {
                 postcode: user.postcode || '',
                 bio: user.user_metadata?.bio || '',
             });
+            const existingAvatar = user.avatar_url || user.avatar || null;
+            setAvatarPreview(resolveUserImageUrl(existingAvatar));
             setProfileLoadError('Could not load profile details — showing cached data.');
         } finally {
             setIsInitialLoading(false);
@@ -106,8 +122,8 @@ export default function AdminProfilePage() {
         }
 
         setIsLoading(true);
-        
-        const payload = {
+
+        const payload: Record<string, unknown> = {
             first_name: formData.firstName,
             last_name: formData.lastName,
             phone: formData.phone,
@@ -119,12 +135,31 @@ export default function AdminProfilePage() {
             }
         };
 
+        if (selectedAvatarFile && user?.id) {
+            try {
+                const uploaded = await uploadMediaFile(
+                    selectedAvatarFile,
+                    'user',
+                    user.id,
+                    `${formData.firstName} ${formData.lastName} admin profile photo`,
+                    true,
+                );
+                payload.avatar_url = uploaded.file_url;
+                setAvatarPreview(uploaded.file_url);
+                setSelectedAvatarFile(null);
+            } catch {
+                showToastError('Failed to upload profile photo.');
+                setIsLoading(false);
+                return;
+            }
+        }
+
         const { data, error } = await userService.updateProfile(payload);
-        
+
         if (data) {
             await new Promise(resolve => setTimeout(resolve, 800));
             await refreshUser();
-            
+
             setIsSaved(true);
             showToastSuccess('Admin profile updated successfully');
             setTimeout(() => setIsSaved(false), 3000);
@@ -132,6 +167,28 @@ export default function AdminProfilePage() {
             showToastError('Failed to update admin profile: ' + (error || 'Unknown error'));
         }
         setIsLoading(false);
+    };
+
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showToastError('Please choose a valid image file.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showToastError('Profile picture must be smaller than 5 MB.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAvatarPreview(reader.result as string);
+            setSelectedAvatarFile(file);
+        };
+        reader.readAsDataURL(file);
     };
 
     if (isInitialLoading) {
@@ -174,10 +231,30 @@ export default function AdminProfilePage() {
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col items-center text-center">
                         <div className="relative mb-4 group">
                             <div className="w-32 h-32 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md overflow-hidden">
-                                <span className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-                                    {formData.firstName[0]}{formData.lastName[0]}
-                                </span>
+                                {avatarPreview ? (
+                                    <img src={avatarPreview} alt="Admin profile" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
+                                ) : (
+                                    <span className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+                                        {formData.firstName[0]}{formData.lastName[0]}
+                                    </span>
+                                )}
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => avatarInputRef.current?.click()}
+                                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
+                                aria-label="Change profile photo"
+                            >
+                                <Camera size={24} className="text-white" />
+                            </button>
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarChange}
+                                className="hidden"
+                                aria-label="Upload profile photo"
+                            />
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{formData.firstName} {formData.lastName}</h2>
                         <p className="text-blue-600 dark:text-blue-400 text-sm font-medium mb-4 uppercase tracking-wider">System Administrator</p>

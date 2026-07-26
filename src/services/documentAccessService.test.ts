@@ -114,5 +114,5 @@ test('document view closes the reserved tab when signed URL request fails', asyn
 
     assert.deepEqual(openCalls, ['about:blank']);
     assert.equal(fakeWindow.closed, true);
-    assert.match(result.error || '', /Document access URL|Invalid data provided/);
+    assert.match(result.error || '', /Document media not found|Document access URL|Invalid data/);
 });

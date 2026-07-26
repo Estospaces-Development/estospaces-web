@@ -540,6 +540,7 @@ export const PropertyProvider = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cacheKey, setCacheKey] = useState(0);
   const isAuthRoute = isAuthRoutePath(location.pathname);
   const syncTags = useMemo(() => {
     const tags: string[] = [WORKSPACE_SYNC_TAGS.PROPERTIES];
@@ -564,6 +565,11 @@ export const PropertyProvider = ({
     }
     return tags;
   }, [scope]);
+
+  // Invalidate property cache on route changes to prevent stale data
+  useEffect(() => {
+    setCacheKey((prev) => prev + 1);
+  }, [location.pathname, location.search]);
 
   // Mappers
   const parseStringArray = (val: any): string[] => {
@@ -913,8 +919,9 @@ export const PropertyProvider = ({
       limit: pagination.limit,
       sort_by: SORT_FIELD_MAP[sort.field],
       sort_order: sort.order,
+      _cache_key: cacheKey,
     }),
-    [filters, pagination.limit, pagination.page, sort.field, sort.order],
+    [filters, pagination.limit, pagination.page, sort.field, sort.order, cacheKey],
   );
 
   const fetchProperties = useCallback(async () => {

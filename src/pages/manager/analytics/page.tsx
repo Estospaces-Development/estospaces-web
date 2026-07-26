@@ -485,31 +485,43 @@ const Analytics = () => {
                 {/* Application Distribution */}
                 <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Application Insights</h2>
-                    <div className="flex flex-col items-center">
-                        <PieChart
-                            data={[
-                                { label: 'Approved', value: approvedApplications.length, color: '#10b981' },
-                                { label: 'Pending', value: pendingApplications.length, color: '#f59e0b' },
-                                { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: '#ef4444' },
-                            ].map(d => d.value === 0 ? { ...d, value: 1 } : d)} // Hack for empty pie
-                            size={240}
-                        />
-                        <div className="grid grid-cols-3 gap-8 mt-10 w-full">
-                            {[
-                                { label: 'Approved', value: approvedApplications.length, color: 'bg-green-500' },
-                                { label: 'Pending', value: pendingApplications.length, color: 'bg-orange-500' },
-                                { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: 'bg-red-500' }
-                            ].map((s, i) => (
-                                <div key={i} className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-1">
-                                        <div className={`w-3 h-3 rounded-full ${s.color}`}></div>
-                                        <span className="text-sm font-bold text-gray-900 dark:text-white">{s.value}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-                                </div>
-                            ))}
+                    {approvedApplications.length + pendingApplications.length + applicationsList.filter((app) => app.status === 'rejected').length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                                <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            </div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No applications yet</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Application data will appear here once you receive submissions.</p>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="flex flex-col items-center">
+                                <PieChart
+                                    data={[
+                                        { label: 'Approved', value: approvedApplications.length, color: '#10b981' },
+                                        { label: 'Pending', value: pendingApplications.length, color: '#f59e0b' },
+                                        { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: '#ef4444' },
+                                    ]}
+                                    size={240}
+                                />
+                                <div className="grid grid-cols-3 gap-8 mt-10 w-full">
+                                    {[
+                                        { label: 'Approved', value: approvedApplications.length, color: 'bg-green-500' },
+                                        { label: 'Pending', value: pendingApplications.length, color: 'bg-orange-500' },
+                                        { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: 'bg-red-500' }
+                                    ].map((s, i) => (
+                                        <div key={i} className="text-center">
+                                            <div className="flex items-center justify-center gap-2 mb-1">
+                                                <div className={`w-3 h-3 rounded-full ${s.color}`}></div>
+                                                <span className="text-sm font-bold text-gray-900 dark:text-white">{s.value}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Lead Status */}

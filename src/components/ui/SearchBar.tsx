@@ -13,6 +13,7 @@ import {
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
 import { useOptionalAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
 export interface SearchFilters {
     keyword: string;
@@ -101,6 +102,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [searchParams] = useSearchParams();
     const authContext = useOptionalAuth();
     const user = authContext?.user || null;
+    const toast = useToast();
     const [filters, setFilters] = useState<SearchFilters>({ ...defaultFilters, ...initialFilters });
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
@@ -217,8 +219,22 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const handleSearch = (e?: React.FormEvent, nextFilters = filters) => {
         if (e) e.preventDefault();
 
+        const trimmedKeyword = (nextFilters.keyword || '').trim();
+        if (trimmedKeyword.length > 0 && trimmedKeyword.length < 2) {
+            toast.error('Please enter at least 2 characters to search.');
+            return;
+        }
+        if (trimmedKeyword.length > 100) {
+            toast.error('Search term is too long. Please use fewer than 100 characters.');
+            return;
+        }
+        if (/[<>{}[\]\\|`~]/.test(trimmedKeyword)) {
+            toast.error('Please remove special characters from your search.');
+            return;
+        }
+
         const params = new URLSearchParams();
-        if (nextFilters.keyword) params.set('q', nextFilters.keyword);
+        if (trimmedKeyword) params.set('q', trimmedKeyword);
         if (nextFilters.location) params.set('location', nextFilters.location);
         if (nextFilters.listingType !== 'all') params.set('type', nextFilters.listingType);
         if (nextFilters.propertyType) params.set('propertyType', nextFilters.propertyType);

@@ -1073,6 +1073,8 @@ const UserPropertyDetail = () => {
         const resolvedImages = getPropertyImages(property);
         return resolvedImages.length > 0 ? resolvedImages : [PROPERTY_PLACEHOLDER_IMAGE];
     }, [property]);
+    const realImages = useMemo(() => getPropertyImages(property), [property]);
+    const realImageCount = realImages.length;
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
     const isSaved = id ? isPropertySaved(id) : false;
@@ -2379,7 +2381,7 @@ const UserPropertyDetail = () => {
                                     ) : (
                                         <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200">
                                             <ImageIcon size={15} className="text-orange-500" />
-                                            <span>1 curated photo available</span>
+                                            <span>{realImageCount === 1 ? '1 curated photo available' : `${realImageCount} curated photos available`}</span>
                                         </div>
                                     )}
                                 </div>
