@@ -5,6 +5,7 @@ import { isCurrentAuthRoute } from '@/lib/authUtils';
 import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/authToken';
+import { setProductAnalyticsIdentity, trackProductEvent } from '@/lib/productAnalytics';
 
 export interface User {
     id: string;
@@ -429,6 +430,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email, first_name, last_name, role };
             const userObj = buildStoredUser(userData, email);
+
+            setProductAnalyticsIdentity({
+                email: userObj.email,
+                firstName: userObj.first_name || first_name,
+                id: userObj.id,
+                lastName: userObj.last_name || last_name,
+                role: userObj.role,
+            });
+            trackProductEvent('registration_completed', {
+                outcome: 'success',
+                role: userObj.role,
+            });
 
             if (token) {
                 setAuthToken(token);

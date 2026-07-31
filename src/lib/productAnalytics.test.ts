@@ -28,6 +28,17 @@ test('SalesIQ actions keep only safe metadata and stay within the API limit', ()
     assert.equal(buildSalesIqAction('unknown_event', {}), null);
 });
 
+test('completed registration creates a CRM-safe qualification action', () => {
+    assert.equal(
+        buildSalesIqAction('registration_completed', {
+            email: 'private@example.com',
+            outcome: 'success',
+            role: 'user',
+        }),
+        'estospaces:registration_completed|outcome=success|role=user',
+    );
+});
+
 test('API activity classification removes record ids, queries, and payload data', () => {
     assert.deepEqual(
         classifyApiActivity('/__api/booking/api/v1/fast-track/2a40c71e-0c99-4446-8dda-264190733731/schedule', 'POST'),
@@ -52,10 +63,7 @@ test('product routes collapse dynamic screens into CRM-safe funnel areas', () =>
 
 test('Axios auth activity reaches SalesIQ without request contents', async () => {
     const actions: string[] = [];
-    const testGlobal = globalThis as typeof globalThis & {
-        localStorage?: { getItem: () => string };
-        window?: unknown;
-    };
+    const testGlobal = globalThis as unknown as Record<string, unknown>;
     testGlobal.localStorage = { getItem: () => 'accepted' };
     testGlobal.window = {
         $zoho: {
