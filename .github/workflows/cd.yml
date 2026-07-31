@@ -63,6 +63,10 @@ jobs:
             --image="$IMAGE" \
             --region="${REGION}" \
             --project="${PROJECT_ID}"
+          gcloud run services update-traffic "$SERVICE_TARGET" \
+            --to-latest \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}"
 
       - name: Health check
         run: |
