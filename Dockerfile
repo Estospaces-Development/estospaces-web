@@ -12,14 +12,16 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build-time env vars (baked into the Vite bundle)
-ARG VITE_CORE_SERVICE_URL
-ARG VITE_BOOKING_SERVICE_URL
-ARG VITE_PAYMENT_SERVICE_URL
-ARG VITE_NOTIFICATION_SERVICE_URL
-ARG VITE_SEARCH_SERVICE_URL
-ARG VITE_MEDIA_SERVICE_URL
-ARG VITE_MESSAGING_SERVICE_URL
+# Production build uses service-specific same-origin path prefixes.
+# Nginx strips the prefix and proxies /api/* to the correct backend.
+# ARG defaults match .env.production; CD pipeline overrides for dev/staging.
+ARG VITE_CORE_SERVICE_URL=/__api/core
+ARG VITE_BOOKING_SERVICE_URL=/__api/booking
+ARG VITE_PAYMENT_SERVICE_URL=/__api/payment
+ARG VITE_NOTIFICATION_SERVICE_URL=/__api/notification
+ARG VITE_SEARCH_SERVICE_URL=/__api/search
+ARG VITE_MEDIA_SERVICE_URL=/__api/media
+ARG VITE_MESSAGING_SERVICE_URL=/__api/messaging
 
 # Export build args so Vite can read them from process.env during the build.
 ENV VITE_CORE_SERVICE_URL=$VITE_CORE_SERVICE_URL
@@ -30,8 +32,8 @@ ENV VITE_SEARCH_SERVICE_URL=$VITE_SEARCH_SERVICE_URL
 ENV VITE_MEDIA_SERVICE_URL=$VITE_MEDIA_SERVICE_URL
 ENV VITE_MESSAGING_SERVICE_URL=$VITE_MESSAGING_SERVICE_URL
 
-# Build the Vite app
-RUN npm run build
+# Build the Vite app (production mode reads .env.production with relative URLs)
+RUN npm run build:prod
 
 # Production stage — serve static files with Nginx
 FROM nginx:alpine
