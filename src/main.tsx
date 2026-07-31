@@ -8,6 +8,7 @@ import { SavedPropertiesProvider } from "@/contexts/SavedPropertiesContext";
 import { ApplicationsProvider } from "@/contexts/ApplicationsContext";
 import { UserProfileSummaryProvider } from "@/contexts/UserProfileSummaryContext";
 import { WorkspaceSyncProvider } from "@/contexts/WorkspaceSyncContext";
+import ProductAnalyticsProvider from '@/components/analytics/ProductAnalyticsProvider';
 import { BrowserRouter, ScrollRestoration } from 'react-router-dom';
 
 if (typeof window !== 'undefined') {
@@ -24,17 +25,19 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <ScrollRestoration />
       <AuthProvider>
-        <WorkspaceSyncProvider>
-          <UserProfileSummaryProvider>
-            <SavedPropertiesProvider>
-              <ApplicationsProvider>
-                <ToastProvider>
-                  <App />
-                </ToastProvider>
-              </ApplicationsProvider>
-            </SavedPropertiesProvider>
-          </UserProfileSummaryProvider>
-        </WorkspaceSyncProvider>
+        <ProductAnalyticsProvider>
+          <WorkspaceSyncProvider>
+            <UserProfileSummaryProvider>
+              <SavedPropertiesProvider>
+                <ApplicationsProvider>
+                  <ToastProvider>
+                    <App />
+                  </ToastProvider>
+                </ApplicationsProvider>
+              </SavedPropertiesProvider>
+            </UserProfileSummaryProvider>
+          </WorkspaceSyncProvider>
+        </ProductAnalyticsProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

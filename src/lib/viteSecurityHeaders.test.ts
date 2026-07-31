@@ -29,6 +29,9 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /frame-src .*https:\/\/js\.stripe\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(viteConfigSource, /connect-src 'self' http: https: ws: wss:/);
+  assert.match(viteConfigSource, /script-src .*https:\/\/salesiq\.zoho\.in/);
+  assert.match(viteConfigSource, /style-src .*https:\/\/\*\.zohopublic\.in/);
+  assert.match(viteConfigSource, /frame-src .*https:\/\/\*\.zoho\.in/);
   assert.match(viteConfigSource, /headers: SECURITY_HEADERS/);
 });
 
@@ -39,6 +42,9 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
+  assert.match(nginxSecurityHeadersSource, /script-src .*https:\/\/salesiq\.zoho\.in/);
+  assert.match(nginxSecurityHeadersSource, /style-src .*https:\/\/\*\.zohopublic\.in/);
+  assert.match(nginxSecurityHeadersSource, /connect-src .*wss:\/\/\*\.zoho\.in/);
 });
 
 test('gcp dev auth routes serve the SPA with noindex headers', () => {
