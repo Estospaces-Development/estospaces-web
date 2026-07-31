@@ -12,6 +12,7 @@ import {
     syncAuthExpiryState,
 } from '@/lib/authExpiry';
 import { clearAuthToken, getAuthToken } from '@/lib/authToken';
+import { trackApiOutcome } from '@/lib/productAnalytics';
 
 const VITE_ENV = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env ?? {};
 
@@ -501,6 +502,7 @@ export async function apiFetchEnvelope<T>(
             }
         }
     } catch (error: any) {
+        trackApiOutcome(url, method, false, 'network');
         if (!suppressErrorToast && shouldEmitApiFailureToast(undefined, method)) {
             notifyApiFailure();
         }
@@ -540,6 +542,7 @@ export async function apiFetchEnvelope<T>(
         if (!suppressErrorToast && unauthorizedState === 'unhandled' && shouldEmitApiFailureToast(response.status, method)) {
             notifyApiFailure(response.status);
         }
+        trackApiOutcome(url, method, false, response.status);
         throw new ApiRequestError(
             errorMsg,
             unauthorizedState === 'session-expired' || unauthorizedState === 'cleared-on-auth-page'
@@ -557,6 +560,7 @@ export async function apiFetchEnvelope<T>(
     }
 
     if (json.success === false) {
+        trackApiOutcome(url, method, false, 'application');
         if (!suppressErrorToast && shouldEmitApiFailureToast(undefined, method)) {
             notifyApiFailure();
         }
@@ -568,6 +572,7 @@ export async function apiFetchEnvelope<T>(
         );
     }
 
+    trackApiOutcome(url, method, true, response.status);
     return json;
 }
 
