@@ -2,6 +2,7 @@
 
 import { Link, useNavigate } from 'react-router-dom';
 import { Cookie, ArrowLeft, Mail } from 'lucide-react';
+import { PRODUCT_ANALYTICS_PREFERENCES_EVENT } from '@/components/analytics/ProductAnalyticsProvider';
 
 export default function CookiePolicyPage() {
     const navigate = useNavigate();
@@ -83,6 +84,7 @@ export default function CookiePolicyPage() {
                         </p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4 mt-4">
                             <li><strong>Google Analytics:</strong> To analyse website traffic and usage patterns</li>
+                            <li><strong>Zoho SalesIQ:</strong> To provide live support and record consented product-funnel activity</li>
                             <li><strong>Authentication Services:</strong> For secure login and account management</li>
                             <li><strong>Payment Providers:</strong> To process secure payments</li>
                             <li><strong>Social Media Platforms:</strong> For sharing features and login options</li>
@@ -102,6 +104,13 @@ export default function CookiePolicyPage() {
                         <p className="text-gray-600 leading-relaxed mt-4">
                             Please note that blocking some types of cookies may impact your experience on our website.
                         </p>
+                        <button
+                            className="mt-5 rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white transition-colors hover:bg-orange-600 focus:outline-none focus:ring-4 focus:ring-orange-200"
+                            onClick={() => window.dispatchEvent(new Event(PRODUCT_ANALYTICS_PREFERENCES_EVENT))}
+                            type="button"
+                        >
+                            Open cookie preferences
+                        </button>
                     </section>
 
                     <section>
