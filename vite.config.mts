@@ -21,7 +21,7 @@ const SECURITY_HEADERS = {
     "font-src 'self' https://fonts.gstatic.com https://static.zohocdn.com data:",
     "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
     "connect-src 'self' http: https: ws: wss:",
-    "frame-src 'self' blob: https://storage.googleapis.com https://storage.cloud.google.com https://*.googleusercontent.com https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com https://cdn.pannellum.org https://*.zoho.in https://*.zohopublic.in",
+    "frame-src 'self' blob: https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com https://cdn.pannellum.org https://storage.googleapis.com https://storage.cloud.google.com https://*.googleusercontent.com https://*.zoho.in https://*.zohopublic.in",
     "media-src 'self' blob: https://*.zohopublic.in https://*.zohocdn.com",
     "form-action 'self'",
   ].join('; '),
