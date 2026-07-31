@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 const CONSENT_KEY = 'estospaces_cookie_consent';
 const SALESIQ_SCRIPT_ID = 'zsiqscript';
 const SALESIQ_WIDGET_URL =
@@ -7,6 +9,7 @@ const EVENT_NAMES = new Set([
     'api_operation_failed',
     'api_operation_succeeded',
     'product_route_viewed',
+    'registration_completed',
     'user_identified',
 ]);
 
@@ -184,7 +187,9 @@ function applyIdentity() {
     const visitor = salesIq()?.visitor;
     if (!visitor) return;
 
-    visitor.id?.(currentIdentity.id.slice(0, 100));
+    if (currentIdentity.id) {
+        visitor.id?.(currentIdentity.id.slice(0, 100));
+    }
     visitor.email?.(currentIdentity.email.slice(0, 160));
     visitor.name?.({
         firstname: currentIdentity.firstName.slice(0, 80),
@@ -349,4 +354,3 @@ export function classifyProductRoute(pathname: string) {
 }
 
 export { CONSENT_KEY as PRODUCT_ANALYTICS_CONSENT_KEY };
-import axios from 'axios';
