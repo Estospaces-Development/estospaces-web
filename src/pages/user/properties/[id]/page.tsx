@@ -534,13 +534,27 @@ export function buildPropertyHeroSummary(property: Property | null | undefined, 
         .slice(0, 3)
         .join(', ');
     const supportingText = description
-        || (featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.');
+        || (featureText ? `Highlights include ${featureText}.` : 'Key property facts and transaction options are available below.');
 
     return [
         `This ${propertyType} in ${location} offers ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'} and ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}${sizeText}.`,
         supportingText,
         description && featureText ? `Highlights include ${featureText}.` : '',
     ].filter(Boolean).join(' ');
+}
+
+export function buildPropertySnapshotNarrative(
+    property: Property | null | undefined,
+    priceLabel: string,
+    availableFromLabel: string,
+    depositLabel: string,
+) {
+    const propertyType = property?.property_type ? formatDetailLabel(property.property_type) : 'Property';
+    const listingType = property?.listing_type ? formatDetailLabel(property.listing_type) : 'listing';
+    const bedroomCount = Number(property?.bedrooms || 0);
+    const bathroomCount = Number(property?.bathrooms || 0);
+
+    return `${propertyType} ${listingType.toLowerCase()} at ${priceLabel}. ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'}, ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}. ${availableFromLabel}. Deposit: ${depositLabel}.`;
 }
 
 const formatLeadStage = (value?: string) => {

@@ -7,6 +7,7 @@ import { searchService, FilterOptions, AutocompleteSuggestion } from '../../serv
 import {
     formatLaunchCurrencyForCountry,
     getLaunchLocationCodeLabel,
+    getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
@@ -110,13 +111,20 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const usesDynamicFilters = variant !== 'compact';
     const geoMarket = useUserGeoMarket(user, { locationCode: filters.location || user?.postcode });
-    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, filters.location);
+    const locationContext = filters.location || locationContextCode || user?.postcode;
+    const userCountrySignal = user?.countryCode || user?.country_code || user?.country;
+    const countryNameContext = countryContextName || (!locationContext && !userCountrySignal ? fallbackCountryName : undefined);
+    const searchMarket = getSupportedLaunchCountry(undefined, undefined, locationContext)
+        || getSupportedLaunchCountry(undefined, countryNameContext)
+        || geoMarket;
+    const locationCodeLabel = getLaunchLocationCodeLabel(searchMarket, undefined, locationContext);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
-    const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
-    const CurrencyIcon = geoMarket === 'GB' ? PoundSterling : IndianRupee;
+    const sentenceLocationCodeLabel = locationCodeLabel === 'PIN code' ? locationCodeLabel : lowerLocationCodeLabel;
+    const currencySymbol = searchMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
+    const CurrencyIcon = searchMarket === 'GB' ? PoundSterling : IndianRupee;
     const formatSearchCurrency = useCallback((amount: number) => (
-        formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
-    ), [geoMarket]);
+        formatLaunchCurrencyForCountry(amount, { countryCode: searchMarket })
+    ), [searchMarket]);
 
     // Fetch dynamic filters
     useEffect(() => {
@@ -298,7 +306,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Location</label>
                         <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <MapPin size={18} className="text-primary mr-2" />
-                            <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder={`City or ${lowerLocationCodeLabel}...`} className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
+                            <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder={`City or ${sentenceLocationCodeLabel}...`} className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
                         </div>
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className={suggestionMenuClassName}>
@@ -487,7 +495,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
                     <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                        <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder={`City or ${lowerLocationCodeLabel}`} className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder={`City or ${sentenceLocationCodeLabel}`} className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className={suggestionMenuClassName}>
                                 {locationSuggestions.map((suggestion, index) => (

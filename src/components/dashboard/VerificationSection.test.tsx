@@ -18,8 +18,8 @@ test("profile verification uses country-aware identity and address guidance", ()
     "utf8",
   );
 
-  assert.ok(source.includes("useUserGeoMarket(currentUser)"));
-  assert.ok(source.includes("getCountryDocumentGuidance(geoMarket)"));
+  assert.ok(source.includes("useUserGeoMarket(currentUser, { locationCode: locationCodeOverride })"));
+  assert.ok(source.includes("getCountryDocumentGuidance(activeMarket)"));
   assert.ok(source.includes("Accepted identity documents: {verificationDocumentGuidance.identityShort}"));
   assert.ok(source.includes("description={verificationDocumentGuidance.identityDetail}"));
   assert.ok(source.includes("description={verificationDocumentGuidance.addressDetail}"));

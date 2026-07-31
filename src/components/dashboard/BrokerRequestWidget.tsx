@@ -673,6 +673,34 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
         }
     };
 
+    const handleOpenBrokerConversation = async (broker: LeadBrokerSummary) => {
+        if (!user) {
+            toast.error('Sign in to message this agent.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(broker.id, {
+                propertyTitle: `${formatRequestTypeLabel(requestType)} enquiry`,
+                propertyAddress: formatRequestArea(location, locationPostcode) || undefined,
+                listingType: requestType === 'buy' ? 'sale' : requestType,
+                senderName: displayName,
+                senderEmail: user.email || '',
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: broker.name,
+                recipientEmail: broker.email || '',
+                recipientPhone: broker.phone || '',
+                recipientAgency: broker.company_name || '',
+            });
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+        } finally {
+            setOpeningConversation(false);
+        }
+    };
+
     const handleStartAnotherRequest = useCallback(() => {
         setActiveRequest(null);
         setError(null);

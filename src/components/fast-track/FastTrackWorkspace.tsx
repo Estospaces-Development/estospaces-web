@@ -86,6 +86,7 @@ import {
     type ManagerReview,
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
+import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -299,6 +300,14 @@ export const buildAdminOverrideConfirmationMessage = (
 ) => (
     `You are about to act on behalf of the assigned manager for ${getFastTrackDisplayTitle(fastTrackCase.propertyTitle, 'Selected fast-track case')}. `
     + `Action: ${getAdminOverrideActionLabel(action)}. Continue?`
+);
+
+export const getFastTrackWorkspaceDisplayTitle = (
+    fastTrackCase: Pick<FastTrackCase, 'propertyTitle'>,
+    role: WorkspaceRole,
+) => getFastTrackDisplayTitle(
+    fastTrackCase.propertyTitle,
+    role === 'user' ? 'Your selected home' : 'Selected fast-track case',
 );
 
 export const isAdminOverrideActivityEntry = (
@@ -1027,6 +1036,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
         [filteredCases, selectedCaseId],
     );
+    const selectedCaseDisplayTitle = selectedCase
+        ? getFastTrackWorkspaceDisplayTitle(selectedCase, role)
+        : '';
     const geoMarket = useUserGeoMarket(user, { countryName: selectedCase?.propertyCountry });
     const documentGuidance = getCountryDocumentGuidance(geoMarket);
 
@@ -1785,7 +1797,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     closeExternalDocumentWindow();
                     if (revealInViewport) {
                         if (role === 'user') {
-                            setUserDetailsOpen(true);
+                            setUserDetailsModalOpen(true);
                         }
                         return null;
                     }

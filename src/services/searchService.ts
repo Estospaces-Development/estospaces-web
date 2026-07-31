@@ -240,9 +240,8 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     if (normalizedPostcode) {
         searchParts.push(normalizedPostcode);
     }
-    if (normalizedLocation) {
-        const locationForSearch = locationIsPostcode ? normalizedLocation : normalizedLocation.toLowerCase();
-        searchParts.push(locationForSearch);
+    if (normalizedLocation && locationIsPostcode) {
+        searchParts.push(normalizedLocation);
     }
     const combinedSearch = searchParts.join(' ').trim();
 
@@ -480,6 +479,7 @@ export interface SearchResult {
     city: string;
     postcode: string;
     country?: string;
+    countryCode?: string;
     bedrooms: number;
     bathrooms: number;
     square_feet: number;

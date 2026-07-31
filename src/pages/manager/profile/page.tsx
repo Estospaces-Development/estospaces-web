@@ -172,11 +172,12 @@ export default function ManagerProfilePage() {
 
         if (e.target.name === 'companyAddress') {
             const trimmed = nextValue.trim();
-            if (trimmed.length > 0) {
-                setCompanyAddressError('');
-            } else {
-                setCompanyAddressError('Please enter your office or company address.');
-            }
+            setFieldErrors(prev => ({
+                ...prev,
+                companyAddress: trimmed.length > 0
+                    ? undefined
+                    : 'Please enter your office or company address.',
+            }));
         }
     };
 
@@ -778,10 +779,10 @@ export default function ManagerProfilePage() {
                                         <textarea id="manager-company-address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
                                             required
                                             placeholder="1 Office Road, Chennai, 600001"
-                                            className={`w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border ${companyAddressError ? 'border-red-400 dark:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-orange-500'} rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-100 resize-none`} />
+                                            className={`w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border ${fieldErrors.companyAddress ? 'border-red-400 dark:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-orange-500'} rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-100 resize-none`} />
                                     </div>
-                                    {companyAddressError && (
-                                        <p role="alert" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{companyAddressError}</p>
+                                    {fieldErrors.companyAddress && (
+                                        <p role="alert" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{fieldErrors.companyAddress}</p>
                                     )}
                                 </div>
 

@@ -45,7 +45,7 @@ test("shared search ranges and property cards format money by country context", 
   const managerPropertyCardSource = readSource("components/dashboard/ManagerPropertyCard.tsx");
 
   assert.match(searchBarSource, /buildSearchPriceRanges/);
-  assert.match(searchBarSource, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: geoMarket \}\)/);
+  assert.match(searchBarSource, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
   assert.doesNotMatch(searchBarSource, /new Intl\.NumberFormat\('en-GB'/);
   assert.doesNotMatch(searchBarSource, /formatLaunchCurrency\(/);
 

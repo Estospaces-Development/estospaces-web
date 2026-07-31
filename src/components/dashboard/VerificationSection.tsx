@@ -26,6 +26,11 @@ import {
 import { leadsService, type UserDocument } from '@/services/leadsService';
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import {
+    LAUNCH_COUNTRY_CODE,
+    UK_COUNTRY_CODE,
+    type SupportedLaunchCountryCode,
+} from '@/lib/launchLocale';
 
 interface VerificationSectionProps {
     userId?: string;
@@ -65,9 +70,11 @@ const mapDocumentStatus = (status?: string): StepStatus => {
     }
 };
 
-const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser }) => {
-    const geoMarket = useUserGeoMarket(currentUser);
-    const verificationDocumentGuidance = getCountryDocumentGuidance(geoMarket);
+const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser, locationCodeOverride }) => {
+    const geoMarket = useUserGeoMarket(currentUser, { locationCode: locationCodeOverride });
+    const [selectedMarket, setSelectedMarket] = useState<SupportedLaunchCountryCode | null>(null);
+    const activeMarket = selectedMarket || geoMarket;
+    const verificationDocumentGuidance = getCountryDocumentGuidance(activeMarket);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);

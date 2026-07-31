@@ -5,6 +5,7 @@ import {
   formatLaunchCurrency,
   formatLaunchCurrencyForCountry,
   formatLaunchLocationCode,
+  formatLaunchLocationCodeSentenceLabel,
   formatLaunchPinCode,
   formatLaunchPropertyLocation,
   formatLaunchPropertyText,
