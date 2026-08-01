@@ -24,7 +24,7 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
 import { validateFullName } from '@/lib/profileValidation';
 import { getLoginPath } from '@/lib/authUtils';
-import { getServiceUrl } from '@/lib/apiUtils';
+import { resolveMediaUrl } from '@/lib/mediaUrls';
 import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
@@ -37,15 +37,6 @@ export default function ProfilePage() {
     const { user: currentUser, refreshUser, mergeCurrentUserProfile, loading: authLoading, isAuthenticated } = useAuth();
     const { savedCount } = useSavedProperties();
     const toast = useToast();
-
-    const resolveUserImageUrl = (url?: string | null): string => {
-        if (!url || typeof url !== 'string') return '';
-        if (/^https?:\/\//i.test(url)) return url;
-        if (url.startsWith('/api/v1/media/')) {
-            return `${getServiceUrl('media').replace(/\/$/, '')}${url}`;
-        }
-        return url;
-    };
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -108,7 +99,7 @@ export default function ProfilePage() {
             country: currentUser.country || '',
         });
         const existingAvatar = currentUser.avatar_url || currentUser.avatar || null;
-        const resolvedAvatar = resolveUserImageUrl(existingAvatar);
+        const resolvedAvatar = resolveMediaUrl(existingAvatar);
         setProfileImagePreview(resolvedAvatar);
         setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
@@ -209,15 +200,7 @@ export default function ProfilePage() {
                 mergeCurrentUserProfile(data);
             }
 
-            const nextAvatar = (() => {
-                const raw = avatarValue || prevPreview || '';
-                if (!raw || typeof raw !== 'string') return '';
-                if (/^https?:\/\//i.test(raw)) return raw;
-                if (raw.startsWith('/api/v1/media/')) {
-                    return `${getServiceUrl('media').replace(/\/$/, '')}${raw}`;
-                }
-                return raw;
-            })();
+            const nextAvatar = resolveMediaUrl(avatarValue || prevPreview || '');
             setProfileImagePreview(nextAvatar);
             setStoredAvatarValue(avatarValue || prevPreview || '');
             setSelectedAvatarFile(null);

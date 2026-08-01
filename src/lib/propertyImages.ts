@@ -1,4 +1,5 @@
 import { getServiceUrl } from '@/lib/apiUtils';
+import { resolveMediaUrl } from '@/lib/mediaUrls';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
@@ -63,7 +64,11 @@ export const resolvePropertyImageUrl = (image: string): string => {
 
     // Already absolute — no change needed
     if (/^https?:\/\//i.test(trimmed)) {
-        return trimmed;
+        return resolveMediaUrl(trimmed);
+    }
+
+    if (trimmed.startsWith('/uploads/')) {
+        return resolveMediaUrl(trimmed);
     }
 
     // Relative media path (/api/v1/media/...) — resolve against media service base URL

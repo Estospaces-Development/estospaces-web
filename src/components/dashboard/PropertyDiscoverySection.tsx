@@ -6,6 +6,7 @@ import { ArrowRight, TrendingUp, Star, Clock, Zap, Eye } from 'lucide-react';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 
 interface PropertyDiscoverySectionProps {
     title: string;
@@ -59,7 +60,9 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
             }
         }
 
-        const validImages = images.filter((img): img is string => typeof img === 'string');
+        const validImages = images
+            .filter((img): img is string => typeof img === 'string')
+            .map(resolvePropertyImageUrl);
 
         const locationParts = [
             property.address_line_1,

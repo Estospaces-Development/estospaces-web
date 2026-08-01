@@ -43,6 +43,7 @@ import {
 } from '@/lib/brokerRequestWorkspace';
 import { selectAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -126,13 +127,13 @@ const parsePropertyImage = (value?: string) => {
     try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed) && typeof parsed[0] === 'string' && parsed[0].trim().length > 0) {
-            return parsed[0];
+            return resolvePropertyImageUrl(parsed[0]);
         }
     } catch {
         // The API may already return a single URL string.
     }
 
-    return value;
+    return resolvePropertyImageUrl(value);
 };
 
 const formatPropertyPrice = (

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
 import { uploadMediaFile } from '@/services/mediaService';
-import { getServiceUrl } from '@/lib/apiUtils';
+import { resolveMediaUrl } from '@/lib/mediaUrls';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
     getLaunchLocationCodeLabel,
@@ -19,14 +19,6 @@ export default function AdminProfilePage() {
     const { user, refreshUser } = useAuth();
     const { error: showToastError, success: showToastSuccess } = useToast();
 
-    const resolveUserImageUrl = (url?: string | null): string => {
-        if (!url || typeof url !== 'string') return '';
-        if (/^https?:\/\//i.test(url)) return url;
-        if (url.startsWith('/api/v1/media/')) {
-            return `${getServiceUrl('media').replace(/\/$/, '')}${url}`;
-        }
-        return url;
-    };
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
@@ -69,7 +61,7 @@ export default function AdminProfilePage() {
                 bio: profileData.user_metadata?.bio || '',
             });
             const existingAvatar = profileData.avatar_url || profileData.avatar || user.avatar_url || user.avatar || null;
-            const resolvedAvatar = resolveUserImageUrl(existingAvatar);
+            const resolvedAvatar = resolveMediaUrl(existingAvatar);
             setAvatarPreview(resolvedAvatar);
         } catch {
             // fallback to auth context data
@@ -84,7 +76,7 @@ export default function AdminProfilePage() {
                 bio: user.user_metadata?.bio || '',
             });
             const existingAvatar = user.avatar_url || user.avatar || null;
-            setAvatarPreview(resolveUserImageUrl(existingAvatar));
+            setAvatarPreview(resolveMediaUrl(existingAvatar));
             setProfileLoadError('Could not load profile details — showing cached data.');
         } finally {
             setIsInitialLoading(false);
@@ -144,7 +136,7 @@ export default function AdminProfilePage() {
                     true,
                 );
                 payload.avatar_url = uploaded.file_url;
-                setAvatarPreview(uploaded.file_url);
+                setAvatarPreview(resolveMediaUrl(uploaded.file_url));
                 setSelectedAvatarFile(null);
             } catch {
                 showToastError('Failed to upload profile photo.');

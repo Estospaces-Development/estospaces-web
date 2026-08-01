@@ -2,6 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { getPrimaryPropertyImage, getPropertyImages } from './propertyImages';
+import { PUBLIC_MEDIA_CACHE_VERSION } from './mediaUrls';
+
+test('getPropertyImages versions public media-service URLs', () => {
+    const [image] = getPropertyImages({
+        image_urls: ['https://estospaces-media-service-dev-zaryfkxmeq-nw.a.run.app/uploads/property/property-1/image.jpg'],
+    });
+    const resolved = new URL(image);
+
+    assert.equal(resolved.searchParams.get('esto_media'), PUBLIC_MEDIA_CACHE_VERSION);
+});
 
 test('getPropertyImages normalizes nested image payload shapes', () => {
     const images = getPropertyImages({

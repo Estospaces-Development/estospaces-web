@@ -7,7 +7,7 @@ import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { normalizeManagerServiceAreas } from '@/services/managerVerificationService';
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
-import { getServiceUrl } from '@/lib/apiUtils';
+import { resolveMediaUrl } from '@/lib/mediaUrls';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
     formatLaunchLocationCode,
@@ -127,15 +127,7 @@ export default function ManagerProfilePage() {
             taxId: managerProfile?.tax_id || prev.taxId || '',
         }));
         const existingAvatar = user?.avatar_url || user?.avatar || null;
-        const resolvedAvatar = (() => {
-            const raw = existingAvatar;
-            if (!raw || typeof raw !== 'string') return null;
-            if (/^https?:\/\//i.test(raw)) return raw;
-            if (raw.startsWith('/api/v1/media/')) {
-                return `${getServiceUrl('media').replace(/\/$/, '')}${raw}`;
-            }
-            return raw;
-        })();
+        const resolvedAvatar = resolveMediaUrl(existingAvatar) || null;
         setProfileImagePreview(resolvedAvatar);
         setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
@@ -365,15 +357,7 @@ export default function ManagerProfilePage() {
             }
 
             const savedAvatar = avatarValue || (user?.avatar_url || user?.avatar || null) || null;
-            const resolvedSavedAvatar = (() => {
-                const raw = savedAvatar;
-                if (!raw || typeof raw !== 'string') return null;
-                if (/^https?:\/\//i.test(raw)) return raw;
-                if (raw.startsWith('/api/v1/media/')) {
-                    return `${getServiceUrl('media').replace(/\/$/, '')}${raw}`;
-                }
-                return raw;
-            })();
+            const resolvedSavedAvatar = resolveMediaUrl(savedAvatar) || null;
             setProfileImagePreview(resolvedSavedAvatar);
             setStoredAvatarValue(savedAvatar);
             setSelectedAvatarFile(null);

@@ -29,6 +29,7 @@ import {
 } from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 import { useToast } from '@/contexts/ToastContext';
 import {
     usePublishWorkspaceSync,
@@ -66,13 +67,13 @@ const parsePropertyImage = (value?: string) => {
     try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed) && typeof parsed[0] === 'string' && parsed[0].trim().length > 0) {
-            return parsed[0];
+            return resolvePropertyImageUrl(parsed[0]);
         }
     } catch {
         // The property may already expose a direct URL.
     }
 
-    return value;
+    return resolvePropertyImageUrl(value);
 };
 
 const formatPropertyPrice = (property?: {

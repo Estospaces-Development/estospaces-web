@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useUserProfileSummary } from '@/contexts/UserProfileSummaryContext';
+import { resolveMediaUrl } from '@/lib/mediaUrls';
 
 type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 type AvatarShape = 'circle' | 'rounded';
@@ -90,7 +91,7 @@ const Avatar: React.FC<AvatarProps> = ({
         () => summary?.display_name || name || alt || 'User',
         [alt, name, summary?.display_name],
     );
-    const resolvedSrc = src || summary?.avatar || '';
+    const resolvedSrc = resolveMediaUrl(src || summary?.avatar || '');
     const renderableSrc = isRenderableAvatarSrc(resolvedSrc) ? resolvedSrc : '';
 
     useEffect(() => {
