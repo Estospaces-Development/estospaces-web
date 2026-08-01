@@ -7,10 +7,10 @@ import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEve
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-    formatLaunchCurrencyForCountry,
     formatLaunchPropertyLocation,
     getLaunchLocationCodeLabel,
 } from '@/lib/launchLocale';
+import { formatMapPriceInRupees } from '@/lib/mapCurrency';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -57,39 +57,6 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
         * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return radiusKm * c;
-};
-
-const getPropertyCountryCode = (property: Property | null | undefined, fallbackMarket: string) => (
-    property?.countryCode || property?.country_code || property?.country || fallbackMarket
-);
-
-const formatPropertyPriceForMarket = (
-    property: Property | null | undefined,
-    fallbackMarket: string,
-    fallback = 'Price unavailable',
-) => {
-    if (typeof property?.price !== 'number' || !Number.isFinite(property.price) || property.price <= 0) {
-        return fallback;
-    }
-
-    return formatLaunchCurrencyForCountry(property.price, {
-        countryCode: getPropertyCountryCode(property, fallbackMarket),
-        countryName: property.country,
-        currencyCode: property.currency,
-    });
-};
-
-const formatCompactPrice = (property: Property, fallbackMarket: string) => {
-    if (typeof property.price !== 'number' || !Number.isFinite(property.price) || property.price <= 0) {
-        return 'View';
-    }
-
-    return formatLaunchCurrencyForCountry(property.price, {
-        countryCode: getPropertyCountryCode(property, fallbackMarket),
-        countryName: property.country,
-        currencyCode: property.currency,
-        showCode: false,
-    });
 };
 
 const createPropertyIcon = (label: string, color: string, selected: boolean) => L.divIcon({
@@ -226,7 +193,7 @@ const NearbyPropertiesMap = ({
     }, []);
 
     const formatPropertyPrice = (property?: Property | null) => (
-        formatPropertyPriceForMarket(property, geoMarket)
+        formatMapPriceInRupees(property?.price)
     );
 
     const propertiesWithDistance = useMemo(() => {
@@ -462,7 +429,7 @@ const NearbyPropertiesMap = ({
                         <Marker
                             key={property.id}
                             position={[property.latitude as number, property.longitude as number]}
-                            icon={createPropertyIcon(formatCompactPrice(property, geoMarket), getMarkerColor(property.category), isSelected)}
+                            icon={createPropertyIcon(formatMapPriceInRupees(property.price, 'View'), getMarkerColor(property.category), isSelected)}
                             eventHandlers={{
                                 click: () => {
                                     setIsSelectionDismissed(false);
