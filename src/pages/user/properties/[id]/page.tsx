@@ -143,6 +143,37 @@ export const mapFastTrackPropertyType = (listingType?: string) => {
     return null;
 };
 
+export type PropertyFastTrackLookupStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type PropertyFastTrackCtaState = 'checking' | 'start' | 'continue' | 'retry';
+
+export const resolvePropertyFastTrackCtaState = ({
+    isAuthenticated,
+    propertyId,
+    lookupPropertyId,
+    lookupStatus,
+    hasActiveJourney,
+}: {
+    isAuthenticated: boolean;
+    propertyId?: string;
+    lookupPropertyId: string | null;
+    lookupStatus: PropertyFastTrackLookupStatus;
+    hasActiveJourney: boolean;
+}): PropertyFastTrackCtaState => {
+    if (!isAuthenticated) {
+        return 'start';
+    }
+
+    if (!propertyId || lookupPropertyId !== propertyId || lookupStatus === 'idle' || lookupStatus === 'loading') {
+        return 'checking';
+    }
+
+    if (lookupStatus === 'error') {
+        return 'retry';
+    }
+
+    return hasActiveJourney ? 'continue' : 'start';
+};
+
 export const buildPropertyFastTrackStartRequest = ({
     property,
     lead,
@@ -939,6 +970,10 @@ const UserPropertyDetail = () => {
     const [isFastTrackPanelLoading, setIsFastTrackPanelLoading] = useState(false);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
     const [activeFastTrackCase, setActiveFastTrackCase] = useState<FastTrackCase | null>(null);
+    const [fastTrackWorkspaceLookup, setFastTrackWorkspaceLookup] = useState<{
+        propertyId: string | null;
+        status: PropertyFastTrackLookupStatus;
+    }>({ propertyId: null, status: 'idle' });
     const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
     const [uploadingFastTrackDocumentType, setUploadingFastTrackDocumentType] = useState<'identity' | 'address' | null>(null);
     const [liveWorkspaceLoaded, setLiveWorkspaceLoaded] = useState(false);
@@ -973,6 +1008,8 @@ const UserPropertyDetail = () => {
     const immersiveGalleryTriggerRef = useRef<HTMLElement | null>(null);
     const wasImmersiveGalleryOpenRef = useRef(false);
     const fastTrackTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const activePropertyIdRef = useRef<string | null>(property?.id || null);
+    activePropertyIdRef.current = property?.id || null;
     const viewingFormRef = useRef<HTMLFormElement | null>(null);
     const wasFastTrackModalOpenRef = useRef(false);
     const offerInFlightRef = useRef(false);
@@ -1198,11 +1235,43 @@ const UserPropertyDetail = () => {
         { label: 'Availability', value: availableFromLabel },
         { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },
     ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
-    const hasActiveFastTrackJourney = isActiveFastTrackCase(activeFastTrackCase);
-    const fastTrackSidebarActionLabel = hasActiveFastTrackJourney ? 'Continue 24-hour journey' : '24-hour fast track';
-    const fastTrackPrimaryActionLabel = hasActiveFastTrackJourney ? 'Continue 24-Hour Fast Track' : 'Start 24-Hour Fast Track';
-    const fastTrackBusyActionLabel = hasActiveFastTrackJourney ? 'Opening Fast-Track...' : 'Starting Fast-Track...';
-    const fastTrackConciergeActionLabel = hasActiveFastTrackJourney ? 'Continue your fast-track workspace' : '10-minute live broker response';
+    const propertyFastTrackCase = activeFastTrackCase?.propertyId === property?.id ? activeFastTrackCase : null;
+    const hasActiveFastTrackJourney = isActiveFastTrackCase(propertyFastTrackCase);
+    const fastTrackCtaState = resolvePropertyFastTrackCtaState({
+        isAuthenticated: Boolean(user),
+        propertyId: property?.id,
+        lookupPropertyId: fastTrackWorkspaceLookup.propertyId,
+        lookupStatus: fastTrackWorkspaceLookup.status,
+        hasActiveJourney: hasActiveFastTrackJourney,
+    });
+    const isFastTrackLookupPending = fastTrackCtaState === 'checking';
+    const isFastTrackCtaBusy = isStartingFastTrack || isFastTrackLookupPending;
+    const fastTrackSidebarActionLabel = fastTrackCtaState === 'continue'
+        ? 'Continue 24-hour journey'
+        : fastTrackCtaState === 'retry'
+            ? 'Check fast-track status'
+            : fastTrackCtaState === 'checking'
+                ? 'Checking fast-track status...'
+                : '24-hour fast track';
+    const fastTrackPrimaryActionLabel = fastTrackCtaState === 'continue'
+        ? 'Continue Fast Track'
+        : fastTrackCtaState === 'retry'
+            ? 'Check Fast Track Status'
+            : fastTrackCtaState === 'checking'
+                ? 'Checking Fast Track Status...'
+                : 'Start 24-Hour Fast Track';
+    const fastTrackBusyActionLabel = fastTrackCtaState === 'continue'
+        ? 'Opening Fast Track...'
+        : fastTrackCtaState === 'start'
+            ? 'Starting Fast Track...'
+            : 'Checking Fast Track Status...';
+    const fastTrackConciergeActionLabel = fastTrackCtaState === 'continue'
+        ? 'Continue your fast-track workspace'
+        : fastTrackCtaState === 'retry'
+            ? 'Check your fast-track status'
+            : fastTrackCtaState === 'checking'
+                ? 'Checking your fast-track status'
+                : '10-minute live broker response';
     const heroMetaItems = [
         { label: 'Condition', value: conditionLabel, icon: Sparkles },
         { label: 'Availability', value: availableFromLabel, icon: Clock },
@@ -1376,15 +1445,25 @@ const UserPropertyDetail = () => {
             });
             const reconciledCase = await reconcileFastTrackCaseContext(matchingCase, matchingLead);
 
-            setActiveLead(matchingLead);
-            setActiveFastTrackCase(reconciledCase);
-            setUserDocuments(workspaceDocuments);
+            if (activePropertyIdRef.current === property.id) {
+                setActiveLead(matchingLead);
+                setActiveFastTrackCase(reconciledCase);
+                setUserDocuments(workspaceDocuments);
+                setFastTrackWorkspaceLookup({ propertyId: property.id, status: 'ready' });
+            }
 
             return {
                 lead: matchingLead,
                 fastTrackCase: reconciledCase,
                 documents: workspaceDocuments,
             };
+        } catch (workspaceError) {
+            setFastTrackWorkspaceLookup((current) => (
+                current.propertyId === property.id && current.status === 'loading'
+                    ? { propertyId: property.id, status: 'error' }
+                    : current
+            ));
+            throw workspaceError;
         } finally {
             if (!options.silent) {
                 setIsFastTrackPanelLoading(false);
@@ -1583,10 +1662,19 @@ const UserPropertyDetail = () => {
         }
 
         let cancelled = false;
+        setFastTrackWorkspaceLookup({ propertyId: property.id, status: 'loading' });
         const refreshWorkspace = async (silent = false) => {
-            const workspace = await loadFastTrackWorkspace({ silent });
-            if (!cancelled) {
-                setLiveWorkspaceLoaded(Boolean(workspace.lead || workspace.fastTrackCase));
+            try {
+                const workspace = await loadFastTrackWorkspace({ silent });
+                if (!cancelled) {
+                    setLiveWorkspaceLoaded(Boolean(workspace.lead || workspace.fastTrackCase));
+                }
+            } catch {
+                if (!cancelled && !silent) {
+                    setActiveLead(null);
+                    setActiveFastTrackCase(null);
+                    setLiveWorkspaceLoaded(false);
+                }
             }
         };
 
@@ -2406,11 +2494,11 @@ const UserPropertyDetail = () => {
                                                     fastTrackTriggerRef.current = event.currentTarget;
                                                     void handleStartFastTrack();
                                                 }}
-                                                disabled={isStartingFastTrack}
+                                                disabled={isFastTrackCtaBusy}
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
                                             >
-                                                {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
-                                                <span>{isStartingFastTrack ? 'Checking live status...' : fastTrackSidebarActionLabel}</span>
+                                                {isFastTrackCtaBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
+                                                <span>{isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackSidebarActionLabel}</span>
                                             </button>
                                 </div>
                             </div>
@@ -2745,7 +2833,7 @@ const UserPropertyDetail = () => {
                                     const isResponseAction = item.label === 'Response window';
                                     const isMessageAction = item.label === 'Private access';
                                     const isTourAction = item.label === 'Tour booking';
-                                    const isBusy = (isResponseAction && isStartingFastTrack) || (isMessageAction && isCreatingConversation);
+                                    const isBusy = (isResponseAction && isFastTrackCtaBusy) || (isMessageAction && isCreatingConversation);
 
                                     return (
                                         <button
@@ -2789,7 +2877,7 @@ const UserPropertyDetail = () => {
                                     fastTrackTriggerRef.current = event.currentTarget;
                                     void handleStartFastTrack();
                                 }}
-                                disabled={isStartingFastTrack}
+                                disabled={isFastTrackCtaBusy}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackPrimaryActionLabel}

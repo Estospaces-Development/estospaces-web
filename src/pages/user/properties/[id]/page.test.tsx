@@ -13,6 +13,7 @@ import {
   getPropertyBrokerRequestQuery,
   getImmersiveGalleryDialogLabel,
   getPropertyDetailFallbackBackTarget,
+  resolvePropertyFastTrackCtaState,
   SaleOfferEntryCard,
   shouldLoadViewingAvailability,
   shouldUseBrowserHistoryForPropertyDetailBack,
@@ -320,9 +321,30 @@ test("viewing concierge highlight rows are actionable buttons", () => {
 });
 
 test("property detail fast-track CTA resumes active broker-request journeys instead of advertising a new start", () => {
-  assert.match(propertyDetailSource, /const hasActiveFastTrackJourney = isActiveFastTrackCase\(activeFastTrackCase\);/);
+  assert.match(propertyDetailSource, /const hasActiveFastTrackJourney = isActiveFastTrackCase\(propertyFastTrackCase\);/);
   assert.match(propertyDetailSource, /Continue 24-hour journey/);
-  assert.match(propertyDetailSource, /Continue 24-Hour Fast Track/);
+  assert.match(propertyDetailSource, /Continue Fast Track/);
   assert.match(propertyDetailSource, /fastTrackConciergeActionLabel/);
   assert.doesNotMatch(propertyDetailSource, /activeFastTrackCase\?\.workspaceFinalStatus === 'active' \|\| activeFastTrackCase\?\.finalStatus === 'in_progress'/);
+});
+
+test("property detail fast-track CTA never advertises a fresh start before status lookup resolves", () => {
+  const base = {
+    isAuthenticated: true,
+    propertyId: "property-1",
+    lookupPropertyId: "property-1",
+    hasActiveJourney: false,
+  } as const;
+
+  assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupPropertyId: null, lookupStatus: "idle" }), "checking");
+  assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupStatus: "loading" }), "checking");
+  assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupStatus: "ready" }), "start");
+  assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupStatus: "ready", hasActiveJourney: true }), "continue");
+  assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupStatus: "error" }), "retry");
+  assert.equal(resolvePropertyFastTrackCtaState({ ...base, isAuthenticated: false, lookupStatus: "idle" }), "start");
+
+  assert.match(propertyDetailSource, /disabled=\{isFastTrackCtaBusy\}/);
+  assert.match(propertyDetailSource, /Checking Fast Track Status/);
+  assert.match(propertyDetailSource, /Check Fast Track Status/);
+  assert.match(propertyDetailSource, /activePropertyIdRef\.current === property\.id/);
 });
