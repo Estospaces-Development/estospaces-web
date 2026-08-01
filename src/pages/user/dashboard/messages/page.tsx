@@ -358,25 +358,23 @@ function MessagesContent() {
 
                 <div className="grid min-h-[640px] grid-cols-1 gap-6 lg:grid-cols-12 lg:h-[700px]">
                     {/* Conversation list panel — hidden on mobile when viewing a thread */}
-                    {mobileView === 'list' && (
-                        <div className="lg:col-span-4 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden">
-                            {isLoading ? (
-                                <ConversationListSkeleton />
-                            ) : (
-                                <ConversationList
-                                    onSelectConversation={(id) => {
-                                        setSelectedConversationId(id);
-                                        setMobileView('thread');
-                                    }}
-                                    selectedConversationId={selectedConversationId}
-                                />
-                            )}
-                        </div>
-                    )}
+                    <div className={`${mobileView === 'thread' ? 'hidden lg:block' : ''} min-w-0 overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-gray-800 lg:col-span-4`}>
+                        {isLoading ? (
+                            <ConversationListSkeleton />
+                        ) : (
+                            <ConversationList
+                                onSelectConversation={(id) => {
+                                    setSelectedConversationId(id);
+                                    setMobileView('thread');
+                                }}
+                                selectedConversationId={selectedConversationId}
+                            />
+                        )}
+                    </div>
 
                     {/* Thread panel — shown on mobile when a conversation is selected, always shown on desktop */}
                     {selectedConversationId ? (
-                        <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col">
+                        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} min-w-0 flex-col overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-gray-800 lg:col-span-8`}>
                             {/* Mobile back button */}
                             <button
                                 type="button"
@@ -427,7 +425,7 @@ function MessagesContent() {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
+                        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} min-w-0 flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 text-center shadow-xl dark:bg-gray-800 lg:col-span-8`}>
                             <div className="mb-6 bg-white dark:bg-gray-800 w-24 h-24 rounded-full shadow-2xl flex items-center justify-center relative">
                                 <MessageSquare size={40} className="text-orange-500" />
                                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-100 rounded-full animate-ping"></div>
