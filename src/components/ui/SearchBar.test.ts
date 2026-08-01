@@ -47,6 +47,8 @@ test('discover property type dropdown uses the shared global filter options', ()
 });
 
 test('location suggestions keep long dashboard results contained', () => {
+    assert.match(source, /setLocationSuggestions\(selectLocationSuggestions\(suggestions\)\)/);
+    assert.doesNotMatch(source, /suggestion\.type === 'property'/);
     assert.match(source, /const suggestionMenuClassName = .*min-w-\[min\(22rem,calc\(100vw-2rem\)\)\]/);
     assert.match(source, /const suggestionOptionClassName = .*min-w-0/);
     assert.match(source, /const suggestionLabelClassName = .*min-w-0 flex-1/);

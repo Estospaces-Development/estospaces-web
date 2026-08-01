@@ -12,6 +12,7 @@ import {
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
+import { selectLocationSuggestions } from '@/lib/locationSuggestions';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -189,7 +190,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
         try {
             const suggestions = await searchService.autocomplete(query);
-            setLocationSuggestions(suggestions.slice(0, 10));
+            setLocationSuggestions(selectLocationSuggestions(suggestions));
         } catch {
             setLocationSuggestions([]);
         }
@@ -316,17 +317,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
                                         type="button"
                                         onClick={(e) => {
                                             e.preventDefault();
-                                            if (suggestion.type === 'property' && suggestion.id) {
-                                                navigate(`/user/properties/${suggestion.id}`);
-                                            } else {
-                                                handleInputChange('location', suggestion.text);
-                                            }
+                                            handleInputChange('location', suggestion.text);
                                             setShowSuggestions(false);
                                         }}
                                         className={suggestionOptionClassName}
                                     >
                                         <div className={suggestionLabelClassName}>
-                                            {suggestion.type === 'property' ? <Home size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
+                                            <MapPin size={14} className="text-primary" />
                                             <span className={suggestionTextClassName}>{suggestion.text}</span>
                                         </div>
                                         <span className={suggestionTypeClassName}>{suggestion.type}</span>
@@ -503,17 +500,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
                                         key={index}
                                         type="button"
                                         onClick={() => {
-                                            if (suggestion.type === 'property' && suggestion.id) {
-                                                navigate(`/user/properties/${suggestion.id}`);
-                                            } else {
-                                                handleInputChange('location', suggestion.text);
-                                            }
+                                            handleInputChange('location', suggestion.text);
                                             setShowSuggestions(false);
                                         }}
                                         className={suggestionOptionClassName}
                                     >
                                         <div className={suggestionLabelClassName}>
-                                            {suggestion.type === 'property' ? <Home size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
+                                            <MapPin size={14} className="text-primary" />
                                             <span className={suggestionTextClassName}>{suggestion.text}</span>
                                         </div>
                                         <span className={suggestionTypeClassName}>{suggestion.type}</span>
