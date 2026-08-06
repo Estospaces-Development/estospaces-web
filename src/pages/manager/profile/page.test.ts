@@ -26,3 +26,12 @@ test('manager profile makes save-blocking fields visibly required', () => {
     assert.match(source, /<RequiredFieldLabel>License \/ Reg Number<\/RequiredFieldLabel>/);
     assert.match(source, /aria-describedby=\{requiredHelpId\}/);
 });
+
+test('manager profile saves professional fields through the canonical verification profile', () => {
+    assert.match(source, /createProfile: createManagerProfile/);
+    assert.match(source, /updateProfile: syncManagerProfile/);
+    assert.match(source, /buildManagerProfileSyncPayload/);
+    assert.match(source, /if \(!managerProfile\) \{\s*const \{ error: createManagerProfileError \} = await createManagerProfile\(managerProfileType\)/);
+    assert.match(source, /await syncManagerProfile\(managerProfilePayload\)/);
+    assert.doesNotMatch(source, /payload\.broker_settings/);
+});

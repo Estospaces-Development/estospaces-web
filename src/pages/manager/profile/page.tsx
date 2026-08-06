@@ -8,6 +8,7 @@ import { normalizeManagerServiceAreas } from '@/services/managerVerificationServ
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 import { resolveMediaUrl } from '@/lib/mediaUrls';
+import { buildManagerProfileSyncPayload } from '@/lib/managerProfileSync';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
     formatLaunchLocationCode,
@@ -52,6 +53,8 @@ export default function ManagerProfilePage() {
         isVerified,
         propertySubmissionBlocker,
         isPropertySubmissionReady,
+        createProfile: createManagerProfile,
+        updateProfile: syncManagerProfile,
         refetch: refetchManagerData,
     } = useManagerVerification();
     const [isLoading, setIsLoading] = useState(false);
@@ -296,9 +299,30 @@ export default function ManagerProfilePage() {
             const businessPhone = formData.businessPhone.trim();
             const companyAddress = formData.companyAddress.trim();
             const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
-            const serviceAreas = normalizeManagerServiceAreas(formData.serviceAreas);
-            const dispatchPincodes = formData.dispatchPincodes.split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean);
-            const isBrokerProfile = managerProfile?.profile_type !== 'company';
+            const managerProfileType = managerProfile?.profile_type || 'company';
+            const managerProfilePayload = isManager
+                ? buildManagerProfileSyncPayload({
+                    profileType: managerProfileType,
+                    fallbackFullName: fullName,
+                    companyName,
+                    branchName: formData.branchName,
+                    bio: formData.bio,
+                    licenseNumber: formData.licenseNumber,
+                    businessPhone,
+                    personalPhone: formData.phone,
+                    companyAddress,
+                    personalAddress: formData.address,
+                    registeredOfficeAddress,
+                    serviceAreas: formData.serviceAreas,
+                    dispatchPincodes: formData.dispatchPincodes,
+                    complaintsContact: formData.complaintsContact,
+                    redressSchemeName: formData.redressSchemeName,
+                    redressMembershipNumber: formData.redressMembershipNumber,
+                    cmpProvider: formData.cmpProvider,
+                    cmpCertificateUrl: formData.cmpCertificateUrl,
+                    taxId: formData.taxId,
+                })
+                : null;
             let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
 
             if (selectedAvatarFile && user?.id) {
@@ -326,24 +350,18 @@ export default function ManagerProfilePage() {
                 }
             };
 
-            if (isManager) {
-                payload.broker_settings = {
-                    company_name: companyName || (isBrokerProfile ? fullName : ''),
-                    branch_name: formData.branchName,
-                    company_description: formData.bio,
-                    company_reg_number: formData.licenseNumber,
-                    business_phone: businessPhone || formData.phone.trim(),
-                    company_address: companyAddress || formData.address.trim(),
-                    registered_office_address: registeredOfficeAddress || companyAddress || formData.address.trim(),
-                    service_areas: JSON.stringify(serviceAreas),
-                    dispatch_pincodes: JSON.stringify(Array.isArray(formData.dispatchPincodes) ? formData.dispatchPincodes : []),
-                    complaints_contact: formData.complaintsContact,
-                    redress_scheme_name: formData.redressSchemeName,
-                    redress_membership_number: formData.redressMembershipNumber,
-                    cmp_provider: formData.cmpProvider,
-                    cmp_certificate_url: formData.cmpCertificateUrl,
-                    tax_id: formData.taxId,
-                };
+            if (managerProfilePayload) {
+                if (!managerProfile) {
+                    const { error: createManagerProfileError } = await createManagerProfile(managerProfileType);
+                    if (createManagerProfileError) {
+                        throw new Error(createManagerProfileError);
+                    }
+                }
+
+                const { error: managerProfileError } = await syncManagerProfile(managerProfilePayload);
+                if (managerProfileError) {
+                    throw new Error(managerProfileError);
+                }
             }
 
             const { data, error } = await userService.updateProfile(payload);
