@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, CircleHelp, LifeBuoy, Loader2, RefreshCw, Ticket } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -148,6 +148,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const clearSupportFilters = useCallback(() => {
         setFilters({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
     }, []);
+    // Guard against duplicate / concurrent fetches that fire when filters change
+    // (every `fetchTickets` identity change re-triggers the load useEffect). This
+    // also prevents multiple "Request timed out" toasts when the API is slow.
+    const fetchingRef = useRef(false);
     const adminQueueTabs = useMemo(() => ADMIN_QUEUE_TABS.map((tab) => {
         const tabFilters: SupportFilterState = {
             search: filters.search,
@@ -181,6 +185,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
     }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setSearchParams, user?.id]);
 
     const fetchTickets = useCallback(async (silent = false) => {
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
         if (!silent) setLoading(true);
         try {
             const data = isAdmin
@@ -220,6 +226,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
         } catch (error: any) {
             toast.error(error.message || 'Failed to load support tickets');
         } finally {
+            fetchingRef.current = false;
             if (!silent) setLoading(false);
         }
     }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
@@ -576,7 +583,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <button onClick={() => void fetchTickets()} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 dark:border-orange-500/20 dark:text-orange-200" aria-label="Refresh support tickets"><RefreshCw className="h-4 w-4" /></button>
                         </div>
                     </div>
-                    {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
+                    {loading && tickets.length === 0 ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
                         const ticket = tickets.find((item) => item.id === ticketId);
                         const next = new URLSearchParams({ ticket: ticketId });
                         if (ticket?.conversation_id) {
@@ -584,6 +591,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
                         }
                         setSearchParams(next, { replace: true });
                     }} emptyLabel={hasActiveFilters ? 'No tickets match these filters' : (isAdmin ? 'No tickets in this queue' : 'No support tickets yet')} emptyDescription={hasActiveFilters ? 'The active search, status, priority, requester, or assignee filters removed every ticket from this view.' : undefined} emptyActionLabel={hasActiveFilters ? 'Clear filters' : undefined} onEmptyAction={hasActiveFilters ? clearSupportFilters : undefined} />}
+
+                    {loading && tickets.length > 0 && (
+                        <div className="flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-sm text-gray-600 dark:border-orange-500/15 dark:bg-gray-900/60 dark:text-gray-300" aria-live="polite">
+                            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                            <span>Refreshing tickets…</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-5">

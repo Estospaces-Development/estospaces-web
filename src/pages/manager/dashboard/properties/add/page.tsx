@@ -365,16 +365,16 @@ interface FormData {
   longitude: string;
 
   // Property Details
-  totalArea: number;
-  carpetArea: number;
+  totalArea: number | undefined;
+  carpetArea: number | undefined;
   areaUnit: AreaUnit;
-  bedrooms: number;
-  bathrooms: number;
-  balconies: number;
-  parkingSpaces: number;
-  floors: number;
-  floorNumber: number;
-  totalFloors: number;
+  bedrooms: number | undefined;
+  bathrooms: number | undefined;
+  balconies: number | undefined;
+  parkingSpaces: number | undefined;
+  floors: number | undefined;
+  floorNumber: number | undefined;
+  totalFloors: number | undefined;
 
   // Features
   yearBuilt: number;
@@ -447,16 +447,16 @@ const initialFormData: FormData = {
   latitude: "",
   longitude: "",
 
-  totalArea: 0,
-  carpetArea: 0,
+  totalArea: undefined,
+  carpetArea: undefined,
   areaUnit: "sqft",
-  bedrooms: 1,
-  bathrooms: 1,
-  balconies: 0,
-  parkingSpaces: 0,
-  floors: 1,
-  floorNumber: 0,
-  totalFloors: 1,
+  bedrooms: undefined,
+  bathrooms: undefined,
+  balconies: undefined,
+  parkingSpaces: undefined,
+  floors: undefined,
+  floorNumber: undefined,
+  totalFloors: undefined,
 
   yearBuilt: new Date().getFullYear(),
   furnishing: "unfurnished",
@@ -1349,10 +1349,10 @@ export default function AddPropertyPage() {
   const handleNumericChange = (
     field: keyof FormData,
     value: string,
-    defaultValue: number = 0,
+    _defaultValue: number,
   ) => {
     if (value === "" || value === null || value === undefined) {
-      handleInputChange(field, defaultValue as any);
+      handleInputChange(field, undefined as any);
     } else {
       const numValue = parseFloat(value);
       if (!isNaN(numValue) && numValue >= 0) {
@@ -1362,7 +1362,7 @@ export default function AddPropertyPage() {
   };
 
   const getNumericDisplayValue = (value: number | undefined): string => {
-    if (value === undefined || value === null || value === 0) {
+    if (value === undefined || value === null) {
       return "";
     }
     return value.toString();
@@ -1587,7 +1587,7 @@ export default function AddPropertyPage() {
         ? undefined
         : parseFloat(formData.longitude);
     const carpetArea =
-      formData.carpetArea > 0 ? formData.carpetArea : undefined;
+      (formData.carpetArea ?? 0) > 0 ? formData.carpetArea : undefined;
     const deposit = formData.deposit > 0 ? formData.deposit : undefined;
     const maintenanceCharges =
       formData.maintenanceCharges > 0 ? formData.maintenanceCharges : undefined;
@@ -2095,7 +2095,7 @@ export default function AddPropertyPage() {
   const currentStepTitle =
     steps.find((step) => step.number === currentStep)?.title || "Property form";
   const auditActorName =
-    managerProfile?.company_name ||
+    user?.name ||
     managerProfile?.authorized_representative_name ||
     "Current manager";
   const auditSummary = getManagerPropertyAuditSummary({

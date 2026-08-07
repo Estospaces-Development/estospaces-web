@@ -133,7 +133,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     }, [documents]);
 
     const completedSteps = Object.values(verificationSteps).filter(
-        (step) => step.status === 'verified' || step.status === 'submitted',
+        (step) => step.status === 'verified',
     ).length;
     const totalSteps = Object.keys(verificationSteps).length;
     const completionPercentage = Math.round((completedSteps / totalSteps) * 100);

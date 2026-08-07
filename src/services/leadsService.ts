@@ -645,6 +645,7 @@ export const syncBrokerRequestPropertyShares = async (
       {
         method: "PUT",
         body: JSON.stringify({ properties }),
+        suppressErrorToast: true,
       },
     );
     return { data, error: null };
@@ -983,6 +984,55 @@ export const reassignLead = async (
   }
 };
 
+/** Maximum document upload size: 10 MB. */
+export const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Magic-byte signatures for the file types we accept. The browser-reported
+ * MIME type can be spoofed; these bytes are what the file actually starts
+ * with on disk and are far more trustworthy.
+ */
+const DOCUMENT_MAGIC_SIGNATURES: Array<{
+  ext: string;
+  mimes: readonly string[];
+  bytes: readonly number[];
+}> = [
+  { ext: "pdf", mimes: ["application/pdf"], bytes: [0x25, 0x50, 0x44, 0x46] },
+  { ext: "png", mimes: ["image/png"], bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { ext: "jpg", mimes: ["image/jpeg", "image/jpg"], bytes: [0xff, 0xd8, 0xff] },
+];
+
+const readFileSliceAsArrayBuffer = (file: File, start: number, end: number): Promise<ArrayBuffer> =>
+  file.slice(start, end).arrayBuffer();
+
+/**
+ * Validates a document upload. Rejects oversized files, files with
+ * disallowed MIME types, and files whose leading bytes do not match the
+ * declared MIME type. Returns the matched extension on success.
+ */
+export const validateDocumentUpload = async (file: File): Promise<string> => {
+  if (!file) throw new Error("No file selected. Please choose a document to upload.");
+  if (typeof file.size === "number" && file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    const sizeMb = (MAX_DOCUMENT_SIZE_BYTES / (1024 * 1024)).toFixed(0);
+    throw new Error(`File is too large. Maximum size is ${sizeMb} MB.`);
+  }
+  const declaredMime = (file.type || "").toLowerCase();
+  const candidate = DOCUMENT_MAGIC_SIGNATURES.find((sig) => sig.mimes.includes(declaredMime));
+  if (!candidate) {
+    throw new Error("Only PDF, PNG, and JPEG files are supported.");
+  }
+  const head = await readFileSliceAsArrayBuffer(file, 0, candidate.bytes.length);
+  const headBytes = new Uint8Array(head);
+  for (let i = 0; i < candidate.bytes.length; i += 1) {
+    if (headBytes[i] !== candidate.bytes[i]) {
+      throw new Error(
+        `File contents do not match the declared type (${declaredMime}). The upload was rejected.`,
+      );
+    }
+  }
+  return candidate.ext;
+};
+
 /**
  * Upload a document for verification
  * POST /api/v1/documents (core-service)
@@ -997,6 +1047,7 @@ export const uploadDocument = async (
   error: string | null;
 }> => {
   try {
+    await validateDocumentUpload(file);
     const mapping = DOCUMENT_UPLOAD_TYPES[type];
     const resolvedDocumentType = options.documentType || mapping?.document_type;
     const resolvedDocumentCategory =

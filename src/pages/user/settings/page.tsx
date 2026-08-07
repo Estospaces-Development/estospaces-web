@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { getPreferences, updatePreferences, type UserPreferences } from '../../../services/authService';
 import { useToast } from '../../../contexts/ToastContext';
-import { type PreferencesValidationErrors, validateUserPreferences } from '@/lib/preferencesValidation';
+import { type PreferencesValidationErrors, validateUserPreferences, validateCityInput, hasNoSearchPreferences } from '@/lib/preferencesValidation';
 
 const defaultPreferences: UserPreferences = {
     preferred_city: '',
@@ -69,6 +69,25 @@ export default function UserSettingsPage() {
     };
 
     const handleTextChange = (key: 'preferred_city' | 'preferred_type', value: string) => {
+        if (key === 'preferred_city') {
+            // Strip any character that is not a letter, space, hyphen, or apostrophe
+            const sanitized = value.replace(/[^a-zA-Z\s\-']/g, '');
+            // Enforce max length of 12 characters (matches validateCityInput)
+            const truncated = sanitized.slice(0, 12);
+            setSettings((prev) => ({
+                ...prev,
+                preferred_city: truncated,
+            }));
+            const cityError = validateCityInput(truncated);
+            if (cityError) {
+                setPreferenceErrors((prev) => ({ ...prev, preferred_city: cityError }));
+            } else {
+                setPreferenceErrors((prev) => ({ ...prev, preferred_city: undefined }));
+            }
+            setIsSaved(false);
+            return;
+        }
+
         setSettings((prev) => ({
             ...prev,
             [key]: value,
@@ -94,6 +113,19 @@ export default function UserSettingsPage() {
         if (Object.keys(errors).length > 0) {
             setPreferenceErrors(errors);
             toast.error('Please correct the highlighted preference fields.');
+            return;
+        }
+
+        const cityError = validateCityInput(settings.preferred_city);
+        if (cityError) {
+            setPreferenceErrors((prev) => ({ ...prev, preferred_city: cityError }));
+            toast.error('Please correct the highlighted preference fields.');
+            return;
+        }
+
+        if (hasNoSearchPreferences(settings)) {
+            setPreferenceErrors({});
+            toast.error('Please enter at least one search preference before saving.');
             return;
         }
 
@@ -221,10 +253,17 @@ export default function UserSettingsPage() {
                                     type="text"
                                     value={settings.preferred_city}
                                     onChange={(e) => handleTextChange('preferred_city', e.target.value)}
+                                    aria-invalid={preferenceErrors.preferred_city ? 'true' : 'false'}
+                                    aria-describedby={preferenceErrors.preferred_city ? 'settings-preferred-city-error' : undefined}
                                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                                     placeholder="Chennai"
                                 />
                             </div>
+                            {preferenceErrors.preferred_city && (
+                                <p id="settings-preferred-city-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.preferred_city}
+                                </p>
+                            )}
                         </div>
 
                         <div>

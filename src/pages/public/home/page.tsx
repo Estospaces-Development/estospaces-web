@@ -1,8 +1,9 @@
 "use client";
 
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgeCheck, Building2, Clock3, Search, ShieldCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, Building2, Clock3, ShieldCheck } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import SearchBar from "@/components/ui/SearchBar";
 
 const stats = [
   { label: "Verified listings", value: "1,200+" },
@@ -36,17 +37,11 @@ export default function HomePage() {
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/82 sm:text-lg">
               Estospaces connects public property discovery with fast-track booking, evidence review, messaging, contracts, and manager operations.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                to={searchHref}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-950/20 transition-colors hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-white"
-              >
-                <Search className="h-4 w-4" />
-                Search properties
-              </Link>
+            <div className="mt-8 flex flex-col gap-3">
+              <SearchBar variant="hero" className="max-w-3xl" />
               <Link
                 to="/contact"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/18 focus:outline-none focus:ring-2 focus:ring-white"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/18 focus:outline-none focus:ring-2 focus:ring-white"
               >
                 List your property
                 <ArrowRight className="h-4 w-4" />

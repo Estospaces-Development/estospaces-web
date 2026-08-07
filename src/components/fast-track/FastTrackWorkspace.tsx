@@ -783,6 +783,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const filteredCases = useMemo(() => {
         return cases.filter((item) => {
+            if (role === 'manager' && user?.id) {
+                const caseManagerId = String(item.managerId || '').trim();
+                const currentManagerId = String(user.id).trim();
+                if (caseManagerId && caseManagerId !== currentManagerId) {
+                    return false;
+                }
+            }
             if (!isFastTrackCaseVisibleForFilter(item, filter)) {
                 return false;
             }
@@ -792,7 +799,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
             return fastTrackCaseMatchesQuery(item, query);
         });
-    }, [cases, filter, query]);
+    }, [cases, filter, query, role, user?.id]);
 
     useEffect(() => {
         setCurrentCasePage(1);

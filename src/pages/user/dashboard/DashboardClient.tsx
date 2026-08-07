@@ -41,6 +41,7 @@ import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/user
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
+import { extractPostcodeFromAddress } from '@/services/locationService';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
@@ -923,12 +924,14 @@ const DashboardClient = () => {
             </div>
           </div>
 
-          <RoleDocsPreviewCard
-            title="User dashboard guide"
-            subtitle="Open the exact docs sections for search, broker requests, bookings, viewings, documents, support, and recovery."
-            hrefBase="/user/dashboard/docs"
-            docsDocument={userDocs.document}
-          />
+          {user?.role === 'admin' && (
+            <RoleDocsPreviewCard
+              title="User dashboard guide"
+              subtitle="Open the exact docs sections for search, broker requests, bookings, viewings, documents, support, and recovery."
+              hrefBase="/user/dashboard/docs"
+              docsDocument={userDocs.document}
+            />
+          )}
         </>
       )}
 
@@ -1089,7 +1092,15 @@ const DashboardClient = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/user/dashboard/discover')}
+              onClick={() => {
+                const params = new URLSearchParams();
+                const userPostcode = user?.postcode || extractPostcodeFromAddress(user?.address || '');
+                if (userPostcode) {
+                  params.set('location', userPostcode);
+                }
+                const queryString = params.toString();
+                navigate(`/user/dashboard/discover${queryString ? `?${queryString}` : ''}`);
+              }}
               className="flex items-center gap-2 px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 text-sm font-medium transition-colors"
             >
               <span>Browse All Properties</span>

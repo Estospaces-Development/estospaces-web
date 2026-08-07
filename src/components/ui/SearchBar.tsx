@@ -10,6 +10,7 @@ import {
     getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
+import { normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
 import { selectLocationSuggestions } from '@/lib/locationSuggestions';
@@ -206,23 +207,37 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }, [filters.location, fetchLocationSuggestions]);
 
     const handleInputChange = (field: keyof SearchFilters, value: string | number | null) => {
+        if (field === 'keyword' && typeof value === 'string') {
+            // Strip disallowed characters on input (allow letters, numbers, spaces, common punctuation)
+            const sanitized = value.replace(/[<>{}[\]\\|`~]/g, '');
+            const normalized = normalizeSearchQueryInput(sanitized);
+            setFilters((prev) => ({ ...prev, keyword: normalized }));
+            return;
+        }
         setFilters((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleSearch = (e?: React.FormEvent, nextFilters = filters) => {
         if (e) e.preventDefault();
 
-        const trimmedKeyword = (nextFilters.keyword || '').trim();
-        if (trimmedKeyword.length > 0 && trimmedKeyword.length < 2) {
-            toast.error('Please enter at least 2 characters to search.');
+        const rawKeyword = (nextFilters.keyword || '').trim();
+        if (rawKeyword.length > 0 && rawKeyword.length < 3) {
+            toast.error('Please enter at least 3 characters to search.');
             return;
         }
-        if (trimmedKeyword.length > 100) {
-            toast.error('Search term is too long. Please use fewer than 100 characters.');
+        const trimmedKeyword = normalizeSearchQueryInput(rawKeyword);
+        if (trimmedKeyword.length > 120) {
+            toast.error('Search term is too long. Please use fewer than 120 characters.');
             return;
         }
-        if (/[<>{}[\]\\|`~]/.test(trimmedKeyword)) {
+        if (/[<>{}[\]\\|`~]/.test(rawKeyword)) {
             toast.error('Please remove special characters from your search.');
+            return;
+        }
+
+        // Enforce a minimum-length on the keyword itself (after sanitization) when provided.
+        if (trimmedKeyword.length > 0 && trimmedKeyword.length < 3) {
+            toast.error('Please enter at least 3 characters to search.');
             return;
         }
 
@@ -299,7 +314,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Keyword</label>
                         <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <Search size={18} className="text-primary mr-2" />
-                            <input type="text" value={filters.keyword} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Enter Keyword..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
+                            <input type="text" value={filters.keyword} maxLength={120} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Enter Keyword..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
                         </div>
                     </div>
 

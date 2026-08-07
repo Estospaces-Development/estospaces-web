@@ -22,7 +22,7 @@ import { bookingsService } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
-import { validateFullName } from '@/lib/profileValidation';
+import { validateFullName, validatePhoneInput } from '@/lib/profileValidation';
 import { getLoginPath } from '@/lib/authUtils';
 import { resolveMediaUrl } from '@/lib/mediaUrls';
 import {
@@ -60,6 +60,8 @@ export default function ProfilePage() {
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [profileValidationError, setProfileValidationError] = useState('');
+    const [phoneError, setPhoneError] = useState('');
+    const [emailError, setEmailError] = useState('');
     const geoMarket = useUserGeoMarket(currentUser, { locationCode: formData.postcode || currentUser?.postcode });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
@@ -108,10 +110,28 @@ export default function ProfilePage() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+
+        if (name === 'phone') {
+            // Strip non-phone characters on the fly (numeric-only + formatting chars)
+            const sanitized = value.replace(/[^0-9 ()+\-]/g, '');
+            if (sanitized !== value) {
+                // Reconstruct the value after stripping invalid characters
+                setFormData(prev => ({ ...prev, phone: sanitized }));
+            } else {
+                setFormData(prev => ({ ...prev, phone: value }));
+            }
+            setPhoneError('');
+            setSaveSuccess(false);
+            return;
+        }
+
         setFormData(prev => ({ ...prev, [name]: name === 'postcode' ? normalizeLaunchLocationCode(value) : value }));
         setSaveSuccess(false);
         if (name === 'fullName') {
             setProfileValidationError('');
+        }
+        if (name === 'email') {
+            setEmailError('');
         }
     };
 
@@ -148,11 +168,13 @@ export default function ProfilePage() {
     const handleSaveProfile = async () => {
         const trimmedEmail = formData.email.trim();
         if (!trimmedEmail) {
+            setEmailError('Email address is required.');
             toast.error('Email address is required.');
             return;
         }
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailPattern.test(trimmedEmail)) {
+            setEmailError('Please enter a valid email address.');
             toast.error('Please enter a valid email address.');
             return;
         }
@@ -161,6 +183,13 @@ export default function ProfilePage() {
         if (fullNameError) {
             setProfileValidationError(fullNameError);
             toast.error(fullNameError);
+            return;
+        }
+
+        const phoneValidationError = validatePhoneInput(formData.phone);
+        if (phoneValidationError) {
+            setPhoneError(phoneValidationError);
+            toast.error(phoneValidationError);
             return;
         }
 
@@ -372,9 +401,17 @@ export default function ProfilePage() {
                                             type="email"
                                             name="email"
                                             value={formData.email}
-                                            disabled
-                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none font-medium text-gray-500 opacity-70 cursor-not-allowed"
+                                            onChange={handleInputChange}
+                                            aria-invalid={emailError ? 'true' : 'false'}
+                                            aria-describedby={emailError ? 'user-email-error' : undefined}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                            placeholder="you@example.com"
                                         />
+                                        {emailError && (
+                                            <p id="user-email-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {emailError}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
@@ -387,10 +424,18 @@ export default function ProfilePage() {
                                                     name="phone"
                                                 value={formData.phone}
                                                 onChange={handleInputChange}
+                                                maxLength={20}
+                                                aria-invalid={phoneError ? 'true' : 'false'}
+                                                aria-describedby={phoneError ? 'user-phone-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
-                                                placeholder="+44 20 1234 5678"
+                                                placeholder={geoMarket === 'GB' ? '+44 20 1234 5678' : '+91 98765 43210'}
                                             />
                                         </div>
+                                        {phoneError && (
+                                            <p id="user-phone-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {phoneError}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">

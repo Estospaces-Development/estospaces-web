@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     useProperties,
@@ -176,8 +176,14 @@ function PropertiesContent() {
         [searchParams],
     );
     const isLiveListingsPreset = searchParams.get('view') === MANAGER_LIVE_LISTINGS_VIEW;
+    const isApplyingFilters = useRef(false);
 
     useEffect(() => {
+        if (isApplyingFilters.current) {
+            isApplyingFilters.current = false;
+            return;
+        }
+
         if (isLiveListingsPreset) {
             const presetStatuses = searchParamStatuses.length > 0
                 ? searchParamStatuses
@@ -221,10 +227,10 @@ function PropertiesContent() {
             return;
         }
 
-        if (selectedStatuses.length > 0) {
+        if (selectedStatuses.length > 0 && !isApplyingFilters.current) {
             setSelectedStatuses([]);
         }
-        if ((filters.status?.length ?? 0) > 0) {
+        if ((filters.status?.length ?? 0) > 0 && !isApplyingFilters.current) {
             setFilters({
                 ...filters,
                 status: undefined,
@@ -258,6 +264,9 @@ function PropertiesContent() {
     const handleApplyFilters = () => {
         const priceRange = priceRanges[selectedPriceRange];
         const normalizedStatuses = normalizeManagerPropertyStatusFilters(selectedStatuses);
+
+        isApplyingFilters.current = true;
+        setTimeout(() => { isApplyingFilters.current = false; }, 0);
 
         setSearchParams(
             buildManagerPropertySearchParams(searchParams, normalizedStatuses),
@@ -587,6 +596,7 @@ function PropertiesContent() {
                                                 <button
                                                     key={option.value}
                                                     onClick={() => {
+                                                        isApplyingFilters.current = true;
                                                         if (selectedStatuses.includes(option.value as PropertyStatus | string)) {
                                                             setSelectedStatuses(selectedStatuses.filter(s => s !== option.value));
                                                         } else {

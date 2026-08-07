@@ -90,9 +90,12 @@ export default function AdminProfilePage() {
     }, [user, loadAdminProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const nextValue = e.target.name === 'postcode'
+            ? e.target.value.toUpperCase().replace(/\s+/g, ' ').slice(0, 8)
+            : e.target.value;
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.name === 'postcode' ? normalizeLaunchLocationCode(e.target.value) : e.target.value
+            [e.target.name]: nextValue
         }));
         if (e.target.name === 'firstName' || e.target.name === 'lastName') {
             setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));

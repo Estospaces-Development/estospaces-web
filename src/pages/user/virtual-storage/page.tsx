@@ -22,6 +22,7 @@ import { useAuth, type User } from "@/contexts/AuthContext";
 import { getLoginPath, getRedirectPath } from "@/lib/authUtils";
 import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
 import { useUserGeoMarket } from "@/lib/useGeoMarket";
+import { deduplicateDocuments, isDuplicateDocument } from "@/lib/documentDedup";
 import {
   describeFastTrackWorkspaceFocus,
   describeFastTrackWorkspaceStatus,
@@ -235,7 +236,8 @@ export function UserVirtualStoragePageContent({
       setRequiredSubmitted(categoryResult.data.required_documents_submitted || {});
     }
     if (documentResult.data) {
-      setDocuments(documentResult.data.documents || []);
+      const rawDocs = documentResult.data.documents || [];
+      setDocuments(deduplicateDocuments(rawDocs));
     }
     setLoading(false);
   };
@@ -286,9 +288,18 @@ export function UserVirtualStoragePageContent({
     setSavingKey("upload");
     setErrorMessage("");
     const isStoredCategory = selectedCategory.source !== "system";
+
+    // Prevent duplicate uploads within the same category (issue #334)
+    const docCategory = categoryDocumentCategory(selectedCategory);
+    if (isDuplicateDocument(documents, selectedFile, docCategory)) {
+      setErrorMessage(`A document with the same name and size already exists in ${formatLabel(docCategory)}.`);
+      setSavingKey(null);
+      return;
+    }
+
     const result = await uploadDocument(categoryUploadType(selectedCategory), selectedFile, {
       categoryId: isStoredCategory ? selectedCategory.id : "",
-      documentCategory: categoryDocumentCategory(selectedCategory),
+      documentCategory: docCategory,
       virtualStorageState: "saved",
       reusable: true,
     });
@@ -576,7 +587,7 @@ export function UserVirtualStoragePageContent({
               <Upload className="h-5 w-5 text-orange-500" />
               <h2 className="text-lg font-semibold">Upload to Virtual Storage</h2>
             </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+            <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start">
               <p className="md:col-span-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
                 {selectedCategory?.slug === "identity"
                   ? documentGuidance.identityDetail

@@ -97,9 +97,9 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
 
   const userMenuItems = [
     { icon: Search, label: "Explore", path: "/user/dashboard" },
-    { icon: Heart, label: "Saved", path: "/user/saved" },
-    { icon: FileText, label: "Applications", path: "/user/applications" },
-    { icon: BookOpen, label: "Virtual Storage", path: "/user/virtual-storage" },
+    { icon: Heart, label: "Saved", path: "/user/dashboard/saved" },
+    { icon: FileText, label: "Applications", path: "/user/dashboard/applications" },
+    { icon: BookOpen, label: "Virtual Storage", path: "/user/dashboard/virtual-storage" },
     {
       icon: MessageSquare,
       label: "Messages",

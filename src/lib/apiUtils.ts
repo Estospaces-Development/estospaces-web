@@ -343,17 +343,27 @@ export async function handleUnauthorizedResponse(
     }) ? 'session-expired' : 'unhandled';
 }
 
+const GO_VALIDATION_PATTERN = /Validation failed:\s*Key:\s*['"].*?['"]\s*Error:.*?(?:failed on the\s+'[^']+'\s+tag|required|min|max|eq|ne|lt|gt|len|oneof)/i;
+
+function sanitizeGoValidationMessage(message: string): string {
+    if (GO_VALIDATION_PATTERN.test(message)) {
+        return 'Invalid credentials. Please check your email and password.';
+    }
+    return message;
+}
+
 export function getErrorMessage(error: unknown, fallback = SYSTEM_ERROR_MESSAGE): string {
     if (error instanceof ApiRequestError) {
-        return error.message || error.userMessage || fallback;
+        const rawMessage = error.message || error.userMessage || fallback;
+        return sanitizeGoValidationMessage(rawMessage);
     }
 
     if (error instanceof Error) {
-        return error.message || fallback;
+        return sanitizeGoValidationMessage(error.message || fallback);
     }
 
     if (typeof error === 'string' && error.trim()) {
-        return error;
+        return sanitizeGoValidationMessage(error.trim());
     }
 
     return fallback;

@@ -13,7 +13,7 @@ const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-vi
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, loading: authLoading, getRole, login, signOut, user: authUser } = useAuth();
+  const { isAuthenticated, loading: authLoading, getRole, login, signOut, user: authUser, hasRoleConflict, getExistingRole } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
+  const [roleConflictWarning, setRoleConflictWarning] = useState<string | null>(null);
 
   const validateEmail = (value: string) => {
     if (!value) return 'Email is required';
@@ -56,8 +57,17 @@ export default function LoginPage() {
     setEmailError(emailErr);
     setPasswordError(passErr);
     setGeneralError('');
+    setRoleConflictWarning(null);
 
     if (emailErr || passErr) return;
+
+    // Detect role conflict when a different role is already signed in
+    const existingRole = getExistingRole();
+    if (existingRole && hasRoleConflict(existingRole)) {
+      setRoleConflictWarning(
+        `You are currently signed in as a ${existingRole}. Signing in here will switch this browser session to a different account and other tabs will need to be signed in again. Continue?`,
+      );
+    }
 
     setLoading(true);
 
@@ -224,6 +234,16 @@ export default function LoginPage() {
                     Forgot Password?
                 </Link>
                 </div>
+
+                {roleConflictWarning && (
+                  <div
+                    role="alert"
+                    className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30"
+                  >
+                    <AlertCircle className="flex-shrink-0 text-amber-600 dark:text-amber-400" size={18} />
+                    <p className="min-w-0 break-words text-sm text-amber-800 dark:text-amber-200">{roleConflictWarning}</p>
+                  </div>
+                )}
 
                 <button
                 type="submit"

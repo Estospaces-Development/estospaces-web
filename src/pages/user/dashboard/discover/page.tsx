@@ -464,7 +464,13 @@ function DiscoverContent() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Back Button */}
                 <button
-                    onClick={() => navigate('/user/dashboard')}
+                    onClick={() => {
+                        if (window.history.length > 1) {
+                            navigate(-1);
+                        } else {
+                            navigate('/user/dashboard');
+                        }
+                    }}
                     className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-orange-400 dark:focus:ring-offset-gray-900 group"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -484,6 +490,39 @@ function DiscoverContent() {
                                         ? 'Showing properties for rent'
                                         : 'Find your next home across India'}
                         </p>
+                    </div>
+
+                    <div className="flex gap-2 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('all')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === 'all'
+                                ? 'bg-orange-500 text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                        >
+                            All
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('buy')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === 'buy'
+                                ? 'bg-orange-500 text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                        >
+                            Buy
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('rent')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === 'rent'
+                                ? 'bg-orange-500 text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                        >
+                            Rent
+                        </button>
                     </div>
 
                     <div className="flex gap-2 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">

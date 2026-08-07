@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash, Trash2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import { useToast } from '@/contexts/ToastContext';
 import { normalizeManagerServiceAreas } from '@/services/managerVerificationService';
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
@@ -47,6 +48,7 @@ function RequiredFieldLabel({ children }: { children: React.ReactNode }) {
 
 export default function ManagerProfilePage() {
     const { user, refreshUser, mergeCurrentUserProfile } = useAuth();
+    const { showToast } = useToast();
     const {
         managerProfile,
         verificationStatus,
@@ -141,7 +143,9 @@ export default function ManagerProfilePage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const nextValue = (() => {
             if (e.target.name === 'postcode') {
-                return normalizeLaunchLocationCode(e.target.value);
+                // Preserve spaces while typing (UK postcodes need them, e.g. "SW1A 1AA").
+                // Uppercase + collapse runs of whitespace without stripping the space character.
+                return e.target.value.toUpperCase().replace(/\s+/g, ' ').slice(0, 8);
             }
 
             if (e.target.name === 'branchName') {
@@ -380,15 +384,18 @@ export default function ManagerProfilePage() {
             setStoredAvatarValue(savedAvatar);
             setSelectedAvatarFile(null);
             setIsSaved(true);
+            showToast('Profile updated successfully.', { type: 'success' });
             setTimeout(() => {
                 void refreshUser();
                 if (isManager) {
                     void refetchManagerData();
                 }
             }, 0);
-            setTimeout(() => setIsSaved(false), 3000);
+            setTimeout(() => setIsSaved(false), 5000);
         } catch (err) {
-            setSaveError((err as Error).message || 'Failed to update your profile.');
+            const message = (err as Error).message || 'Failed to update your profile.';
+            setSaveError(message);
+            showToast(message, { type: 'error' });
         } finally {
             setIsLoading(false);
         }

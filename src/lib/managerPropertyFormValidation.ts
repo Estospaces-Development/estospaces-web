@@ -89,14 +89,14 @@ export interface ManagerPropertyValidationValues {
   postalCode: string;
   latitude: string;
   longitude: string;
-  totalArea: number;
-  carpetArea: number;
-  bedrooms: number;
-  bathrooms: number;
-  balconies: number;
-  parkingSpaces: number;
-  floorNumber: number;
-  totalFloors: number;
+  totalArea: number | undefined;
+  carpetArea: number | undefined;
+  bedrooms: number | undefined;
+  bathrooms: number | undefined;
+  balconies: number | undefined;
+  parkingSpaces: number | undefined;
+  floorNumber: number | undefined;
+  totalFloors: number | undefined;
   yearBuilt: number;
   facing?: string;
   description: string;
@@ -180,47 +180,50 @@ export function validateManagerPropertyField(
         PROPERTY_NUMERIC_LIMITS.areaScale,
         true,
       );
-    case "carpetArea":
-      if (values.carpetArea < 0) {
+    case "carpetArea": {
+      const carpetArea = values.carpetArea ?? 0;
+      if (carpetArea < 0) {
         return "Carpet area cannot be negative";
       }
-      if (values.carpetArea === 0) {
+      if (carpetArea === 0) {
         return null;
       }
-      if (values.carpetArea > values.totalArea && values.totalArea > 0) {
+      const totalArea = values.totalArea ?? 0;
+      if (carpetArea > totalArea && totalArea > 0) {
         return "Carpet area cannot exceed total area";
       }
-      return validateScaledPositiveDecimal(
-        values.carpetArea,
-        "Carpet area",
-        PROPERTY_NUMERIC_LIMITS.areaMax,
-        PROPERTY_NUMERIC_LIMITS.areaScale,
-        false,
-      );
+      return null;
+    }
     case "bedrooms":
-      return validateWholeNumber(values.bedrooms, "Bedrooms");
+      return validateWholeNumber(values.bedrooms, "Bedrooms", true);
     case "bathrooms":
-      return validateWholeNumber(values.bathrooms, "Bathrooms");
+      return validateWholeNumber(values.bathrooms, "Bathrooms", true);
     case "balconies":
-      return validateWholeNumber(values.balconies, "Balconies");
+      return validateWholeNumber(values.balconies, "Balconies", true);
     case "parkingSpaces":
-      return validateWholeNumber(values.parkingSpaces, "Parking spaces");
-    case "floorNumber":
-      if (!Number.isInteger(values.floorNumber) || values.floorNumber < 0) {
+      return validateWholeNumber(values.parkingSpaces, "Parking spaces", true);
+    case "floorNumber": {
+      const floorNumber = values.floorNumber ?? 0;
+      const totalFloors = values.totalFloors ?? 0;
+      if (!Number.isInteger(floorNumber) || floorNumber < 0) {
         return "Floor number must be a whole number";
       }
-      if (values.totalFloors > 0 && values.floorNumber > values.totalFloors) {
+      if (totalFloors > 0 && floorNumber > totalFloors) {
         return "Floor number cannot exceed total floors";
       }
       return null;
-    case "totalFloors":
-      if (!Number.isInteger(values.totalFloors) || values.totalFloors < 1) {
+    }
+    case "totalFloors": {
+      const totalFloors = values.totalFloors ?? 0;
+      const floorNumber = values.floorNumber ?? 0;
+      if (!Number.isInteger(totalFloors) || totalFloors < 1) {
         return "Total floors must be at least 1";
       }
-      if (values.floorNumber > values.totalFloors) {
+      if (floorNumber > totalFloors) {
         return "Total floors must be greater than or equal to floor number";
       }
       return null;
+    }
     case "yearBuilt":
       if (!values.yearBuilt) {
         return null;
@@ -332,12 +335,15 @@ function validateFields(
 }
 
 function validateScaledPositiveDecimal(
-  value: number,
+  value: number | undefined,
   label: string,
   max: number,
   scale: number,
   required: boolean,
 ): string | null {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return required ? `${label} is required` : null;
+  }
   if (!Number.isFinite(value)) {
     return `${label} must be a valid number`;
   }
@@ -359,7 +365,10 @@ function validateScaledPositiveDecimal(
   return null;
 }
 
-function validateWholeNumber(value: number, label: string): string | null {
+function validateWholeNumber(value: number | undefined, label: string, required: boolean = true): string | null {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return required ? `${label} is required` : null;
+  }
   if (!Number.isInteger(value) || value < 0) {
     return `${label} must be a whole number`;
   }

@@ -49,12 +49,34 @@ interface AuthContextType {
     mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
     getRole: () => string;
     getDisplayName: () => string;
+    /** Returns the role of the currently cached session, or null if none. */
+    getExistingRole: () => string | null;
+    /** Returns true when a different role is already signed in. */
+    hasRoleConflict: (role: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CORE_SERVICE_URL = () => getServiceUrl('core');
-const AUTH_STORAGE_KEY = 'esto_user';
+
+/**
+ * Shared across all roles today, but each role's session must live in its own
+ * localStorage slot so an admin login in another tab does not silently replace
+ * the user/manager session in the current tab (issue #356 cross-tab overwrite).
+ */
+const AUTH_STORAGE_BASE_KEY = 'esto_user';
+
+const roleStorageKey = (role?: string | null) => {
+    const safeRole = String(role || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    return safeRole ? `${AUTH_STORAGE_BASE_KEY}:${safeRole}` : AUTH_STORAGE_BASE_KEY;
+};
+
+let AUTH_STORAGE_KEY = AUTH_STORAGE_BASE_KEY;
+
+const refreshAuthStorageKey = (role?: string | null) => {
+    AUTH_STORAGE_KEY = roleStorageKey(role);
+    return AUTH_STORAGE_KEY;
+};
 
 const parseMetadata = (value: unknown): Record<string, any> => {
     if (!value) {
@@ -174,16 +196,35 @@ function getCachedUser(): User | null {
         return null;
     }
 
-    const rawUser = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!rawUser) {
-        return null;
+    const keysToCheck = new Set<string>([AUTH_STORAGE_BASE_KEY]);
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`)) {
+                keysToCheck.add(key);
+            }
+        }
+    } catch {
+        // localStorage iteration may throw in some envs; fall back to base key
     }
 
-    try {
-        return JSON.parse(rawUser) as User;
-    } catch {
-        return null;
+    for (const key of keysToCheck) {
+        const rawUser = localStorage.getItem(key);
+        if (!rawUser) {
+            continue;
+        }
+        try {
+            const parsed = JSON.parse(rawUser) as User;
+            if (parsed && (parsed.isAuthenticated || parsed.role)) {
+                refreshAuthStorageKey(parsed.role);
+                return parsed;
+            }
+        } catch {
+            // ignore malformed entries
+        }
     }
+
+    return null;
 }
 
 const persistUser = (nextUser: User | null) => {
@@ -192,7 +233,19 @@ const persistUser = (nextUser: User | null) => {
     }
 
     if (!nextUser) {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+        // Clear every role-scoped slot so the next login doesn't inherit a stale role.
+        try {
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key === AUTH_STORAGE_BASE_KEY || key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach((key) => localStorage.removeItem(key));
+        } catch {
+            localStorage.removeItem(AUTH_STORAGE_BASE_KEY);
+        }
         return;
     }
 
@@ -211,7 +264,8 @@ const persistUser = (nextUser: User | null) => {
         country_code: nextUser.country_code,
     };
 
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedUser));
+    const targetKey = refreshAuthStorageKey(nextUser.role);
+    localStorage.setItem(targetKey, JSON.stringify(storedUser));
 };
 
 const clearStoredAuth = () => {
@@ -220,7 +274,18 @@ const clearStoredAuth = () => {
         return;
     }
 
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key === AUTH_STORAGE_BASE_KEY || key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`))) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+        localStorage.removeItem(AUTH_STORAGE_BASE_KEY);
+    }
 };
 
 const resolveSignedOutError = () => {
@@ -343,7 +408,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            if (event.key !== AUTH_STORAGE_KEY) {
+            // Only react to storage events for THIS role's slot (or the legacy
+            // shared `esto_user` key, so upgrades from older tabs still work).
+            const isThisRoleKey = event.key === AUTH_STORAGE_KEY;
+            const isLegacySharedKey = event.key === AUTH_STORAGE_BASE_KEY;
+            if (!isThisRoleKey && !isLegacySharedKey) {
                 return;
             }
 
@@ -353,9 +422,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            if (event.key === AUTH_STORAGE_KEY && event.newValue !== event.oldValue) {
+            if (event.newValue !== event.oldValue) {
                 const cachedUser = getCachedUser();
-                if (cachedUser?.isAuthenticated) {
+                if (cachedUser?.isAuthenticated && cachedUser.role === user?.role) {
                     setUser(cachedUser);
                     setError(null);
                 }
@@ -364,8 +433,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [applySignedOutState, refreshUser]);
+    }, [applySignedOutState, refreshUser, user?.role]);
 
+    const getExistingRole = useCallback((): string | null => {
+        const cached = getCachedUser();
+        return cached?.isAuthenticated ? cached.role : null;
+    }, []);
+
+    const hasRoleConflict = useCallback((nextRole: string) => {
+        const existing = getExistingRole();
+        if (!existing || !nextRole) {
+            return false;
+        }
+        return existing !== nextRole;
+    }, [getExistingRole]);
+
+    // Cross-role session detection: detects when a different role is already signed in
+    // (e.g., admin tab followed by manager/user login in another tab). The shared
+    // AUTH_STORAGE_KEY + session-token storage mean a new login silently replaces the
+    // existing session in every other open tab. The role-mismatch guard below warns
+    // before persist so user/manager/admin sessions don't trample each other.
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
         try {
@@ -386,6 +473,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email };
             const userObj = buildStoredUser(userData, email);
+
+            if (hasRoleConflict(userObj.role)) {
+                const errMsg = 'Your session has a different active role. Please sign out before switching accounts.';
+                setError(errMsg);
+                return { success: false, error: errMsg };
+            }
 
             if (!token) {
                 const errMsg = 'Login failed. Please try again.';
@@ -408,7 +501,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setError(errMsg);
             return { success: false, error: errMsg };
         }
-    }, [refreshUser]);
+    }, [refreshUser, hasRoleConflict]);
 
 const sanitizeRegistrationError = (err: unknown): string => {
     const raw = getErrorMessage(err, '').toLowerCase();
@@ -542,6 +635,8 @@ const sanitizeRegistrationError = (err: unknown): string => {
             mergeCurrentUserProfile,
             getRole,
             getDisplayName,
+            getExistingRole,
+            hasRoleConflict,
         }}>
             {children}
         </AuthContext.Provider>

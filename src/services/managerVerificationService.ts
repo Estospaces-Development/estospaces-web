@@ -370,7 +370,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
     return {
         id: data.user_id || data.id || '',
         profile_type: normalizeProfileType(data.profile_type),
-        company_name: data.company_name || undefined,
+        company_name: isPlaceholderManagerCompanyName(data.company_name) ? undefined : (data.company_name || undefined),
         branch_name: data.branch_name || undefined,
         company_description: data.company_description || undefined,
         business_phone: data.business_phone || undefined,
@@ -544,7 +544,7 @@ export const getManagerVerificationSummary = async (userId: string): Promise<{ d
 };
 
 const buildCreateManagerProfilePayload = (data: Partial<ManagerProfile>) => ({
-    company_name: data.company_name || (data.profile_type === 'company' ? 'Pending Company Profile' : 'Pending Broker Profile'),
+    company_name: data.company_name || '',
     branch_name: data.branch_name || '',
     company_description: data.company_description || '',
     company_reg_number: data.company_registration_number || data.license_number || '',

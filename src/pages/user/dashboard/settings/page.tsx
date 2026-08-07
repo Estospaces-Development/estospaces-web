@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Bell,
@@ -100,6 +100,25 @@ export default function SettingsPage() {
         setSaveSuccess(false);
     };
 
+    const placeCursorAtEnd = (input: HTMLInputElement) => {
+        const len = input.value.length;
+        try { input.setSelectionRange(len, len); } catch { /* noop */ }
+    };
+
+    const hasChanges = useMemo(() => {
+        return Object.keys(preferences).some((key) => {
+            const prefKey = key as keyof UserPreferences;
+            const current = preferences[prefKey];
+            const original = originalPreferences[prefKey];
+            if (typeof current === 'boolean' && typeof original === 'boolean') {
+                return current !== original;
+            }
+            if (current === null && original === null) return false;
+            if (current === null || original === null) return true;
+            return current !== original;
+        });
+    }, [preferences, originalPreferences]);
+
     const handleSave = async () => {
         const errors = validateUserPreferences(preferences);
         if (Object.keys(errors).length > 0) {
@@ -120,23 +139,6 @@ export default function SettingsPage() {
             return;
         }
 
-        const hasChanges = Object.keys(preferences).some((key) => {
-            const prefKey = key as keyof UserPreferences;
-            const current = preferences[prefKey];
-            const original = originalPreferences[prefKey];
-            if (typeof current === 'boolean' && typeof original === 'boolean') {
-                return current !== original;
-            }
-            if (current === null && original === null) return false;
-            if (current === null || original === null) return true;
-            return current !== original;
-        });
-
-        if (!hasChanges) {
-            toast.info('No changes to save.');
-            return;
-        }
-
         try {
             setSaving(true);
             const { error } = await updatePreferences(preferences);
@@ -151,6 +153,21 @@ export default function SettingsPage() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleResetSearchDefaults = () => {
+        setPreferences((prev) => ({
+            ...prev,
+            preferred_city: '',
+            preferred_type: '',
+            min_budget: null,
+            max_budget: null,
+            min_bedrooms: null,
+            max_bedrooms: null,
+            search_radius_km: null,
+        }));
+        setPreferenceErrors({});
+        setSaveSuccess(false);
     };
 
     const handleSaveKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -209,7 +226,7 @@ export default function SettingsPage() {
                             type="button"
                             onClick={handleSave}
                             onKeyDown={handleSaveKeyDown}
-                            disabled={saving}
+                            disabled={saving || !hasChanges}
                             aria-label="Save user preference changes"
                             className="px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-all flex items-center gap-3"
                         >
@@ -292,12 +309,21 @@ export default function SettingsPage() {
                     {activeTab === 'search' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8">
-                                <div className="flex items-center gap-4 mb-10">
-                                    <SlidersHorizontal size={28} className="text-orange-500" />
-                                    <div>
-                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Search Defaults</h2>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Set the default filters stored in your profile.</p>
+                                <div className="flex items-center justify-between mb-10">
+                                    <div className="flex items-center gap-4">
+                                        <SlidersHorizontal size={28} className="text-orange-500" />
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Search Defaults</h2>
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Set the default filters stored in your profile.</p>
+                                        </div>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetSearchDefaults}
+                                        className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors px-4 py-2 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                    >
+                                        Reset
+                                    </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -354,6 +380,7 @@ export default function SettingsPage() {
                                                 min="0"
                                                 value={preferences.min_budget ?? ''}
                                                 onChange={(e) => handleNumberChange('min_budget', e.target.value)}
+                                                onFocus={(e) => placeCursorAtEnd(e.currentTarget)}
                                                 aria-invalid={preferenceErrors.min_budget ? 'true' : 'false'}
                                                 aria-describedby={preferenceErrors.min_budget ? 'user-min-budget-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
@@ -377,6 +404,7 @@ export default function SettingsPage() {
                                                 min="0"
                                                 value={preferences.max_budget ?? ''}
                                                 onChange={(e) => handleNumberChange('max_budget', e.target.value)}
+                                                onFocus={(e) => placeCursorAtEnd(e.currentTarget)}
                                                 aria-invalid={preferenceErrors.max_budget ? 'true' : 'false'}
                                                 aria-describedby={preferenceErrors.max_budget ? 'user-max-budget-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
@@ -400,6 +428,7 @@ export default function SettingsPage() {
                                                 min="0"
                                                 value={preferences.min_bedrooms ?? ''}
                                                 onChange={(e) => handleNumberChange('min_bedrooms', e.target.value)}
+                                                onFocus={(e) => placeCursorAtEnd(e.currentTarget)}
                                                 aria-invalid={preferenceErrors.min_bedrooms ? 'true' : 'false'}
                                                 aria-describedby={preferenceErrors.min_bedrooms ? 'user-min-bedrooms-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
@@ -423,6 +452,7 @@ export default function SettingsPage() {
                                                 min="0"
                                                 value={preferences.max_bedrooms ?? ''}
                                                 onChange={(e) => handleNumberChange('max_bedrooms', e.target.value)}
+                                                onFocus={(e) => placeCursorAtEnd(e.currentTarget)}
                                                 aria-invalid={preferenceErrors.max_bedrooms ? 'true' : 'false'}
                                                 aria-describedby={preferenceErrors.max_bedrooms ? 'user-max-bedrooms-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
@@ -444,6 +474,7 @@ export default function SettingsPage() {
                                             min="0"
                                             value={preferences.search_radius_km ?? ''}
                                             onChange={(e) => handleNumberChange('search_radius_km', e.target.value)}
+                                            onFocus={(e) => placeCursorAtEnd(e.currentTarget)}
                                             aria-invalid={preferenceErrors.search_radius_km ? 'true' : 'false'}
                                             aria-describedby={preferenceErrors.search_radius_km ? 'user-search-radius-error' : undefined}
                                             className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"

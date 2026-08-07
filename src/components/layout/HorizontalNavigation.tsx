@@ -58,14 +58,18 @@ const HorizontalNavigation = ({
     {
       icon: FolderKanban,
       label: "My Activity",
-      path: "/user/saved",
+      path: "/user/dashboard/saved",
       activePaths: [
+        "/user/dashboard/saved",
+        "/user/dashboard/applications",
+        "/user/dashboard/virtual-storage",
+        "/user/dashboard/docs",
+        "/user/dashboard/viewings",
+        "/user/dashboard/contracts",
         "/user/saved",
         "/user/applications",
         "/user/virtual-storage",
         "/user/docs",
-        "/user/dashboard/viewings",
-        "/user/dashboard/contracts",
       ],
     },
   ];

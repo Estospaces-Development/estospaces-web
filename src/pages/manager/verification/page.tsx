@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ManagerDocument, ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
-import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
+import { getManagerDocumentTypeName, isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import { getDocumentAccessUrl, openDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     getMissingVerificationBundleFileKeys,
@@ -51,6 +51,14 @@ export default function VerificationPage() {
     const [selectedDocumentPreview, setSelectedDocumentPreview] = useState<ManagerDocumentPreview | null>(null);
     const [showFirstTimeUploadModal, setShowFirstTimeUploadModal] = useState(false);
     const [firstTimeUploadFiles, setFirstTimeUploadFiles] = useState<Partial<Record<ManagerDocumentType, File | null>>>({});
+    const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+
+    // Refresh "Last updated" stamp whenever managerProfile.updated_at changes
+    useEffect(() => {
+        if (managerProfile?.updated_at) {
+            setLastUpdatedAt(managerProfile.updated_at);
+        }
+    }, [managerProfile?.updated_at]);
 
     // Restore missing functions
     const handleInitialRegistration = async () => {
@@ -107,7 +115,7 @@ export default function VerificationPage() {
         const companyName = (managerProfile.company_name || '').trim().toLowerCase();
         const licenseNumber = (managerProfile.company_registration_number || managerProfile.license_number || '').trim();
 
-        if (!companyName || companyName === 'pending broker profile' || companyName === 'pending company profile') {
+        if (!companyName || isPlaceholderManagerCompanyName(managerProfile.company_name)) {
             missing.push('company name');
         }
         if (!(managerProfile.business_phone || '').trim()) {
@@ -184,6 +192,8 @@ export default function VerificationPage() {
             if (result && result.error) {
                 setActionError(result.error);
             } else {
+                // Update local timestamp so the "Last updated" line reflects the upload immediately
+                setLastUpdatedAt(new Date().toISOString());
                 // Refresh to show the new document
                 await refetch();
             }
@@ -216,6 +226,7 @@ export default function VerificationPage() {
 
             setFirstTimeUploadFiles({});
             setShowFirstTimeUploadModal(false);
+            setLastUpdatedAt(new Date().toISOString());
             await refetch();
         } finally {
             setIsSubmitting(false);
@@ -629,7 +640,7 @@ export default function VerificationPage() {
                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-gray-100 dark:border-gray-800">
                     <div className="flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500 font-medium">
                         <Clock className="w-4 h-4" />
-                        <span>Last updated: {new Date(managerProfile.updated_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        <span>Last updated: {new Date(lastUpdatedAt || managerProfile?.updated_at || new Date()).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </div>
 
                     {!effectiveIsVerified && (canRequestReview || profileNeedsCompletion) ? (

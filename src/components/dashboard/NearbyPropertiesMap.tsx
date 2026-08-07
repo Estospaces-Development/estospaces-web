@@ -283,12 +283,21 @@ const NearbyPropertiesMap = ({
     const initialView = useMemo(() => {
         const points: [number, number][] = [];
 
-        if (typeof userLocation?.latitude === 'number' && typeof userLocation?.longitude === 'number') {
+        if (
+            typeof userLocation?.latitude === 'number' &&
+            typeof userLocation?.longitude === 'number' &&
+            // Skip the (0, 0) sentinel returned by locationService when geocoding fails.
+            !(userLocation.latitude === 0 && userLocation.longitude === 0)
+        ) {
             points.push([userLocation.latitude, userLocation.longitude]);
         }
 
         for (const property of propertiesWithCoords) {
-            if (typeof property.latitude === 'number' && typeof property.longitude === 'number') {
+            if (
+                typeof property.latitude === 'number' &&
+                typeof property.longitude === 'number' &&
+                !(property.latitude === 0 && property.longitude === 0)
+            ) {
                 points.push([property.latitude, property.longitude]);
             }
         }

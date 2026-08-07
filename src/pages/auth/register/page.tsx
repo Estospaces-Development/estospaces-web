@@ -466,9 +466,10 @@ export default function RegisterPage() {
         e.preventDefault();
 
         const nextFirstNameError = validateRegisterName(firstName, 'First name');
+        const nextLastNameError = lastName.trim() ? (validateRegisterName(lastName, 'Last name') || '') : 'Last name is required.';
         const nextEmailError = validateRegisterEmail(email);
         setFirstNameError(nextFirstNameError || '');
-        setLastNameError(lastName.trim() ? (validateRegisterName(lastName, 'Last name') || '') : 'Please enter your last name');
+        setLastNameError(nextLastNameError);
         setEmailError(nextEmailError || '');
 
         const nextCountryError = role === 'manager' && !country ? 'Please select your country' : '';
@@ -478,8 +479,8 @@ export default function RegisterPage() {
             setError(nextFirstNameError);
             return;
         }
-        if (!firstName.trim() && !lastName.trim()) {
-            setError('Please enter your name');
+        if (nextLastNameError) {
+            setError(nextLastNameError);
             return;
         }
         if (nextCountryError) {
@@ -744,7 +745,6 @@ export default function RegisterPage() {
                                 name="lastName"
                                 type="text"
                                 autoComplete="family-name"
-                                required
                                 placeholder="Enter your last name"
                                 value={lastName}
                                 onChange={(e) => handleLastNameChange(e.target.value)}

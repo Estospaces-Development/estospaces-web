@@ -134,14 +134,11 @@ const ManagerVerification = lazyPage(() => import('./pages/manager/verification/
 const UserDashboard = lazyPage(() => import('./pages/user/dashboard/page'));
 const UserApplications = lazyPage(() => import('./pages/user/applications/page'));
 const UserBookings = lazyPage(() => import('./pages/user/bookings/page'));
-const UserDocs = lazyPage(() => import('./pages/user/docs/page'));
-const UserFavorites = lazyPage(() => import('./pages/user/favorites/page'));
 const UserProfile = lazyPage(() => import('./pages/user/dashboard/profile/page'));
 const UserSaved = lazyPage(() => import('./pages/user/saved/page'));
 const UserVirtualStorage = lazyPage(() => import('./pages/user/virtual-storage/page'));
 const UserSearch = lazyPage(() => import('./pages/user/search/page'));
 const UserPropertyDetail = lazyPage(() => import('./pages/user/properties/[id]/page'));
-const UserSettings = lazyPage(() => import('./pages/user/settings/page'));
 
 // Nested User Dashboard pages
 const UserContracts = lazyPage(() => import('./pages/user/dashboard/contracts/page'));
@@ -283,7 +280,7 @@ const App: React.FC = () => {
             <Route path="billing/*" element={<Navigate to="/manager/contracts" replace />} />
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<ManagerCommunity />} />
-            <Route path="fast-track" element={<ManagerFastTrack />} />
+            <Route path="fast-track" element={<VerifiedManagerRoute><ManagerFastTrack /></VerifiedManagerRoute>} />
             <Route path="help" element={<ManagerHelp />} />
             <Route path="leads" element={<ManagerLeads />} />
             <Route path="messages" element={<ManagerMessages />} />
@@ -297,6 +294,8 @@ const App: React.FC = () => {
           <Route path="/user" element={<UserLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<UserDashboard />} />
+            <Route path="dashboard/applications" element={<UserApplications />} />
+            <Route path="dashboard/bookings" element={<UserBookings />} />
             <Route path="dashboard/contracts" element={<UserContracts />} />
             <Route path="dashboard/case-file" element={<UserCaseFile />} />
             <Route path="dashboard/docs" element={<UserDashboardDocs />} />
@@ -309,20 +308,24 @@ const App: React.FC = () => {
             <Route path="dashboard/payments/*" element={<Navigate to="/user/dashboard/contracts" replace />} />
             <Route path="dashboard/profile" element={<UserProfile />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
+            <Route path="dashboard/saved" element={<UserSaved />} />
             <Route path="dashboard/settings" element={<UserSettingsDash />} />
             <Route path="dashboard/viewings" element={<UserViewings />} />
-            <Route path="applications" element={<UserApplications />} />
-            <Route path="bookings" element={<UserBookings />} />
-            <Route path="docs" element={<UserDocs />} />
-            <Route path="favorites" element={<UserFavorites />} />
-            <Route path="profile" element={<UserProfile />} />
-            <Route path="saved" element={<UserSaved />} />
-            <Route path="virtual-storage" element={<UserVirtualStorage />} />
-            <Route path="search" element={<UserSearch />} />
+            <Route path="dashboard/virtual-storage" element={<UserVirtualStorage />} />
+            <Route path="dashboard/search" element={<UserSearch />} />
             <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />
             <Route path="dashboard/properties/:id" element={<UserPropertyDetail />} />
-            <Route path="properties/:id" element={<UserPropertyDetail />} />
-            <Route path="settings" element={<UserSettings />} />
+            {/* Backward-compatible top-level routes redirect to nested dashboard counterparts */}
+            <Route path="applications" element={<Navigate to="/user/dashboard/applications" replace />} />
+            <Route path="bookings" element={<Navigate to="/user/dashboard/bookings" replace />} />
+            <Route path="docs" element={<Navigate to="/user/dashboard/docs" replace />} />
+            <Route path="favorites" element={<Navigate to="/user/dashboard/saved" replace />} />
+            <Route path="profile" element={<Navigate to="/user/dashboard/profile" replace />} />
+            <Route path="saved" element={<Navigate to="/user/dashboard/saved" replace />} />
+            <Route path="virtual-storage" element={<Navigate to="/user/dashboard/virtual-storage" replace />} />
+            <Route path="search" element={<Navigate to="/user/dashboard/search" replace />} />
+            <Route path="properties/:id" element={<Navigate to="/user/dashboard/properties/:id" replace />} />
+            <Route path="settings" element={<Navigate to="/user/dashboard/settings" replace />} />
           </Route>
 
           {/* Fallback */}
