@@ -41,27 +41,26 @@ test('getPrimaryPropertyImage falls back when no usable image exists', () => {
     );
 });
 
-test('getPropertyImages ignores private media bucket and placeholder image URLs', () => {
+test('getPropertyImages passes GCS media bucket URLs through resolveMediaUrl', () => {
     const images = getPropertyImages({
         image_urls: [
-            'https://storage.googleapis.com/estospaces-media-dev/property/private.jpg',
-            'https://storage.cloud.google.com/estospaces-media-dev/property/private.jpg',
+            'https://storage.googleapis.com/estospaces-media-dev/property/listing.jpg',
             'https://example.com/a.jpg',
             'https://assets.estospaces.com/listing.jpg',
         ],
     });
 
-    assert.deepEqual(images, ['https://assets.estospaces.com/listing.jpg']);
+    assert.ok(images.some(img => img.includes('estospaces-media-dev')));
+    assert.equal(images.filter(img => img.includes('example.com')).length, 0);
+    assert.ok(images.includes('https://assets.estospaces.com/listing.jpg'));
 });
 
-test('getPrimaryPropertyImage falls back when only private media URLs exist', () => {
-    assert.equal(
-        getPrimaryPropertyImage(
-            {
-                image_urls: '["https://storage.googleapis.com/estospaces-media-dev/property/private.jpg"]',
-            },
-            '/images/fallback.jpg',
-        ),
+test('getPrimaryPropertyImage resolves GCS media URLs through the media service', () => {
+    const result = getPrimaryPropertyImage(
+        {
+            image_urls: '["https://storage.googleapis.com/estospaces-media-dev/property/listing.jpg"]',
+        },
         '/images/fallback.jpg',
     );
+    assert.ok(result && result.includes('estospaces-media-dev'));
 });

@@ -844,14 +844,22 @@ export const PropertyProvider = ({
     if (p.featured !== undefined) serviceProps.featured = p.featured;
 
     // Media
-    if (p.images)
-      serviceProps.image_urls = p.images.filter(
+    if (p.images) {
+      const stringImages = p.images.filter(
         (img) => typeof img === "string",
       );
-    if (p.videos)
-      serviceProps.video_urls = p.videos.filter(
+      if (stringImages.length > 0) {
+        serviceProps.image_urls = stringImages;
+      }
+    }
+    if (p.videos) {
+      const stringVideos = p.videos.filter(
         (vid) => typeof vid === "string",
       );
+      if (stringVideos.length > 0) {
+        serviceProps.video_urls = stringVideos;
+      }
+    }
     if (p.virtualTourUrl !== undefined)
       serviceProps.virtual_tour_url = p.virtualTourUrl;
     if (

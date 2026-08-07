@@ -101,7 +101,6 @@ const isUsableImage = (image: string) => {
     const trimmed = image.trim();
     return trimmed.length > 0
         && trimmed !== '[]'
-        && !isPrivateMediaBucketUrl(trimmed)
         && !isPlaceholderUrl(trimmed);
 };
 

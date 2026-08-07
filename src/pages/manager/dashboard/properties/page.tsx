@@ -177,10 +177,16 @@ function PropertiesContent() {
     );
     const isLiveListingsPreset = searchParams.get('view') === MANAGER_LIVE_LISTINGS_VIEW;
     const isApplyingFilters = useRef(false);
+    const userHasSetFilters = useRef(false);
 
     useEffect(() => {
         if (isApplyingFilters.current) {
             isApplyingFilters.current = false;
+            return;
+        }
+
+        // Do not override filters the user just applied via handleApplyFilters.
+        if (userHasSetFilters.current) {
             return;
         }
 
@@ -266,6 +272,7 @@ function PropertiesContent() {
         const normalizedStatuses = normalizeManagerPropertyStatusFilters(selectedStatuses);
 
         isApplyingFilters.current = true;
+        userHasSetFilters.current = true;
         setTimeout(() => { isApplyingFilters.current = false; }, 0);
 
         setSearchParams(
@@ -285,6 +292,7 @@ function PropertiesContent() {
     };
 
     const handleClearFilters = () => {
+        userHasSetFilters.current = false;
         setSearchQuery('');
         setSelectedPriceRange(0);
         setSelectedBedrooms(undefined);
