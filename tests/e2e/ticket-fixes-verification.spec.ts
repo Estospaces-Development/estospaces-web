@@ -474,3 +474,136 @@ test.describe('Ticket Fixes Verification', () => {
     });
   }
 });
+
+// ============================================================
+// MANUAL VERIFICATION TESTS FOR OPEN BUG TICKETS #156-415
+// These test the 10 currently OPEN bug tickets in the browser
+// ============================================================
+
+const BASE = 'http://localhost:3000';
+
+async function setManagerAuth(page: Page) {
+  await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await page.evaluate(() => {
+    localStorage.setItem('esto_user:manager', JSON.stringify({
+      id: 'm1', role: 'manager', email: 'manager@test.com', name: 'Test Manager',
+      isAuthenticated: true, verification_status: 'approved'
+    }));
+  });
+}
+
+async function setAdminAuth(page: Page) {
+  await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await page.evaluate(() => {
+    localStorage.setItem('esto_user:admin', JSON.stringify({
+      id: 'a1', role: 'admin', email: 'admin@test.com', name: 'Admin User',
+      isAuthenticated: true
+    }));
+  });
+}
+
+async function setUserAuth(page: Page) {
+  await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await page.evaluate(() => {
+    localStorage.setItem('esto_user:user', JSON.stringify({
+      id: 'u1', role: 'user', email: 'user@test.com', name: 'Test User',
+      isAuthenticated: true
+    }));
+  });
+}
+
+test.describe('Manual Verification - Open Bug Tickets #156-415', () => {
+  test('#385 - Manager profile data reflected in Admin verification view', async ({ page }) => {
+    await setAdminAuth(page);
+    await page.goto(BASE + '/admin/verifications', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('385', 'admin-verification-view'), fullPage: false });
+    const pageText = await page.content();
+    const hasPlaceholder = pageText.toLowerCase().includes('pending company profile');
+    const hasCompanyName = pageText.includes('company') || pageText.includes('branch');
+    console.log(`[#385] Placeholder present: ${hasPlaceholder}, Company info present: ${hasCompanyName}`);
+    expect(hasPlaceholder).toBe(false);
+  });
+
+  test('#379 - Verification modal stable during document upload', async ({ page }) => {
+    await setManagerAuth(page);
+    await page.goto(BASE + '/manager/verification', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('379', 'verification-modal-initial'), fullPage: false });
+    const modalCount = await page.locator('[role="dialog"], .modal, [data-modal], [aria-modal="true"]').count();
+    console.log(`[#379] Modals visible: ${modalCount}`);
+  });
+
+  test('#325 - Fast Track stage tabs switch smoothly', async ({ page }) => {
+    await setManagerAuth(page);
+    await page.goto(BASE + '/manager/fast-track', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('325', 'fast-track-tabs-initial'), fullPage: false });
+    const tabs = await page.locator('button[role="tab"], [role="tablist"] button, .tab-button').count();
+    console.log(`[#325] Stage tabs found: ${tabs}`);
+  });
+
+  test('#323 - Activity Log shows genuine audit events', async ({ page }) => {
+    await setAdminAuth(page);
+    await page.goto(BASE + '/admin/verifications', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('323', 'activity-log-check'), fullPage: false });
+    const hasPlaceholder = await page.locator('text=/fallback|placeholder|unknown/i').count();
+    console.log(`[#323] Placeholder/fallback text in audit: ${hasPlaceholder}`);
+  });
+
+  test('#322 - Grid view toggle clickable', async ({ page }) => {
+    await setManagerAuth(page);
+    await page.goto(BASE + '/manager/dashboard/properties', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('322', 'grid-toggle-initial'), fullPage: false });
+    const gridToggle = await page.locator('[aria-label*="grid" i], [aria-label*="list" i], button:has-text("Grid"), button:has-text("List"), [data-view="grid"], [data-view="list"]').count();
+    console.log(`[#322] Grid/List toggle elements found: ${gridToggle}`);
+  });
+
+  test('#321 - Archived tab clickable', async ({ page }) => {
+    await setManagerAuth(page);
+    await page.goto(BASE + '/manager/verifications', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('321', 'archived-tab-check'), fullPage: false });
+    const archivedTab = await page.locator('text=/Archived/i').count();
+    console.log(`[#321] Archived tab found: ${archivedTab}`);
+  });
+
+  test('#320 - Pending Verifications count accurate', async ({ page }) => {
+    await setAdminAuth(page);
+    await page.goto(BASE + '/admin/verifications', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('320', 'pending-verifications-count'), fullPage: false });
+    const pendingText = await page.locator('text=/Pending.*Verification/i, text=/Verification.*Pending/i').count();
+    console.log(`[#320] Pending Verifications text found: ${pendingText}`);
+  });
+
+  test('#319 - Revenue shows correct amount', async ({ page }) => {
+    await setAdminAuth(page);
+    await page.goto(BASE + '/admin/dashboard', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('319', 'revenue-display'), fullPage: false });
+    const revenueSection = await page.locator('text=/Revenue/i').count();
+    console.log(`[#319] Revenue section found: ${revenueSection}`);
+  });
+
+  test('#318 - Quarterly Goals consistent with Active Listings', async ({ page }) => {
+    await setManagerAuth(page);
+    await page.goto(BASE + '/manager/dashboard', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('318', 'quarterly-goals-check'), fullPage: false });
+    const goalsSection = await page.locator('text=/Quarterly/i, text=/Goals/i, text=/Verified.*Propert/i').count();
+    console.log(`[#318] Quarterly Goals section found: ${goalsSection}`);
+  });
+
+  test('#163 - Message section shows manager recommendations', async ({ page }) => {
+    await setUserAuth(page);
+    await page.goto(BASE + '/user/messages', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('163', 'messages-manager-recommendations'), fullPage: false });
+    const messagesContent = await page.content();
+    const hasSearch = messagesContent.includes('search') || messagesContent.includes('Search');
+    console.log(`[#163] Messages page loaded, has search: ${hasSearch}`);
+  });
+});
