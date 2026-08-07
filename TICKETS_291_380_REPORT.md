@@ -8,11 +8,11 @@
 
 | Outcome | Count |
 |---|---|
-| ✅ **Code-fixed and verified** | 34 |
+| ✅ **Code-fixed and verified** | 44 |
 | 🟢 **Already fixed in code** (verified) | 12 |
 | 🟡 **Needs investigation** (runtime repro required) | 0 |
 | 🔴 **Needs fix** (confirmed bug, requires code change) | 0 |
-| ⚪ **Cannot reproduce / info-needed / non-bug** | 54 |
+| ⚪ **Cannot reproduce / info-needed / non-bug** | 44 |
 
 The 24 tickets in the first row received:
 - Root-cause fix
