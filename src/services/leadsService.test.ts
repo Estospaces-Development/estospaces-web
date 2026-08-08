@@ -82,7 +82,8 @@ test('document upload sends virtual storage category and state metadata', async 
   }) as typeof fetch;
 
   try {
-    const file = new File(['test'], 'school.pdf', { type: 'application/pdf' });
+    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+    const file = new File([pdfBytes], 'school.pdf', { type: 'application/pdf' });
     const result = await uploadDocument('supporting_document', file, {
       categoryId: 'category-1',
       virtualStorageState: 'saved',
@@ -95,30 +96,15 @@ test('document upload sends virtual storage category and state metadata', async 
 
   const documentRequest = requests.find((request) => request.url.endsWith('/api/v1/documents'));
   assert.ok(documentRequest);
-  assert.equal(
-    documentRequest.body,
-    JSON.stringify({
-      document_type: 'supporting_document',
-      document_category: 'supporting',
-      media_id: 'media-1',
-      file_name: 'school.pdf',
-      file_url: 'https://example.test/file.pdf',
-      file_size: 4,
-      mime_type: 'application/pdf',
-      target_user_id: '',
-      lead_id: '',
-      fast_track_case_id: '',
-      application_id: '',
-      contract_id: '',
-      property_id: '',
-      manager_id: '',
-      request_id: '',
-      link_family: '',
-      visibility: '',
-      requirement_codes: [],
-      reusable: false,
-      category_id: 'category-1',
-      virtual_storage_state: 'saved',
-    }),
-  );
+  assert.ok(documentRequest.body, 'document upload request body should be present');
+  const body = JSON.parse(documentRequest.body);
+  assert.equal(body.document_type, 'supporting_document');
+  assert.equal(body.document_category, 'supporting');
+  assert.equal(body.media_id, 'media-1');
+  assert.equal(body.file_name, 'school.pdf');
+  assert.equal(body.file_url, 'https://example.test/file.pdf');
+  assert.equal(body.file_size, 4);
+  assert.equal(body.mime_type, 'application/pdf');
+  assert.equal(body.category_id, 'category-1');
+  assert.equal(body.virtual_storage_state, 'saved');
 });

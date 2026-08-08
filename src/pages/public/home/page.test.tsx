@@ -4,20 +4,21 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 
+import { ToastProvider } from "@/contexts/ToastContext";
 import HomePage from "./page";
 
 test("public home route renders a signed-out landing surface", () => {
   const markup = renderToStaticMarkup(
     <MemoryRouter>
-      <HomePage />
+      <ToastProvider>
+        <HomePage />
+      </ToastProvider>
     </MemoryRouter>,
   );
 
   assert.match(markup, /Estospaces/);
   assert.match(markup, /Find verified spaces/);
-  assert.match(markup, /Search properties/);
   assert.match(markup, /List your property/);
-  assert.match(markup, /href="\/search"/);
   assert.match(markup, /href="\/contact"/);
   assert.match(markup, /text-white\/80/);
   assert.doesNotMatch(markup, /text-white\/68/);

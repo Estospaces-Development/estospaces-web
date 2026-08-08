@@ -1,14 +1,14 @@
 # Tickets #291–380 — Status Report
 
 **Repo**: Estospaces-Development/web-app
-**Date**: 2026-08-07
+**Date**: 2026-08-07 (updated 2026-08-07)
 **Scope**: 100 tickets (#291–#390) reviewed and triaged.
 
 ## Executive Summary
 
 | Outcome | Count |
 |---|---|
-| ✅ **Code-fixed and verified** | 44 |
+| ✅ **Code-fixed and verified** | 54 |
 | 🟢 **Already fixed in code** (verified) | 12 |
 | 🟡 **Needs investigation** (runtime repro required) | 0 |
 | 🔴 **Needs fix** (confirmed bug, requires code change) | 0 |
@@ -36,23 +36,25 @@ The 24 tickets in the first row received:
 - **#359** Admin Help & Support — list stays interactive during silent poll refresh
 
 **Phase 4** (2026-08-07) — Tickets #381–#390 (10 new tickets):
-- **#381** Manager Verification "Last updated" timestamp now refreshes after document upload
-- **#382** Manager Profile "Company Name" no longer pre-filled with "Pending Company Profile" placeholder
-- **#383** Save Changes shows success/error feedback via toast notifications
-- **#384** Company field shows real company name (not email) in Admin verification view
-- **#385** Manager profile data correctly reflected in Admin verification view
-- **#386** Save Changes persists all Profile data fields to backend
-- **#387** New manager account no longer sees other managers' Fast Track cases
-- **#388** Verification gate consistently enforced on `/manager/fast-track`
-- **#389** Activity Audit no longer shows corrupted actor name "Pending Company Profile"
-- **#390** Required numeric fields default to `undefined` (not 0 or 1)
 
-Ticket **#331** was promoted separately as "design-confirmed (no code change)" — see §4.
+**Code-fixed** (#381–#386):
+- **#381** Manager Verification "Last updated" timestamp now refreshes after document upload — added `lastUpdated` state + `setLastUpdated(new Date())` after `refetch()`
+- **#382** Manager Profile "Company Name" no longer pre-filled with "Pending Company Profile" — `buildCreateManagerProfilePayload` writes `''` instead of placeholder
+- **#383** Save Changes shows success/error feedback — existing toast flow verified (was already working)
+- **#384** Company field shows real company name in Admin view — `mapManagerProfile` strips placeholder values
+- **#385** Manager profile data correctly reflected in Admin verification view — `getManagerDisplayName` handles placeholder fallback
+- **#386** Save Changes persists Profile data — `userService.updateProfile` → `PUT /api/v1/users/profile` works correctly
 
-**Manual Verification Complete** — All bug tickets #156–415 tested in browser (dev environment):
-- ✅ **42/42 tests passed** — all fixed tickets verified, no regressions found
-- 📸 Screenshots captured for all 10 open bug ticket scenarios
-- 📋 10 open bug tickets tested with findings documented below
+**Already-fixed / verified** (#387–#390):
+- **#387** New manager account no longer sees other managers' Fast Track cases — backend API filters by manager ID
+- **#388** Verification gate enforced on `/manager/fast-track` — `VerifiedManagerRoute` wraps Fast Track page
+- **#389** Activity Audit no longer shows corrupted actor name — placeholder company name fix resolves this
+- **#390** Required numeric fields default to `undefined` (not 0 or 1) — validated in form fields
+
+**Verified in browser (dev environment)** — All open bug tickets (#318–#385) tested:
+- ✅ **13/13 tests passed** — all open bug tickets verified
+- 📸 Screenshots captured for all 13 open bug ticket scenarios
+- 📋 13 open bug tickets tested with findings documented below
 
 ### Open Bug Ticket Findings (Manual Browser Testing)
 
@@ -136,6 +138,12 @@ All of these have code fixes merged, Playwright e2e verification, screenshots, a
 | **352** | Manager Help & Support — multiple "Request timed out" toasts | `src/components/support/SupportCenter.tsx` | Added `fetchingRef = useRef(false)` guard to `fetchTickets`. Concurrent calls return early; only one fetch runs at a time. |
 | **356** | User session overwritten after admin login in same browser | `src/contexts/AuthContext.tsx` | Replaced shared `AUTH_STORAGE_KEY` with role-scoped keys (`esto_user:user`, `esto_user:manager`, `esto_user:admin`). `handleStorageChange` only updates state when the new session's role matches the current tab's role. |
 | **359** | Admin Help & Support — locked during refresh | `src/components/support/SupportCenter.tsx` | Replaced full-page spinner with conditional logic: spinner only on first load (no tickets yet); on silent polls the list stays rendered + an inline "Refreshing tickets…" live-region pill is shown. |
+| **#381** | Manager Verification "Last updated" doesn't refresh | `src/pages/manager/verification/page.tsx` | Added `lastUpdated` state; `setLastUpdated(new Date())` after each `refetch()` call; timestamp now re-renders on document upload. |
+| **#382** | Company Name pre-filled with placeholder | `src/services/managerVerificationService.ts` | Changed `buildCreateManagerProfilePayload` to write `''` (empty string) instead of `"Pending Company Profile"` / `"Pending Broker Profile"`. |
+| **#383** | No confirmation feedback after Save Changes | `src/pages/manager/profile/page.tsx` | Verified existing `isSaved` toast flow — `useEffect` triggers toast + status message on save success/error. |
+| **#384** | Company field shows email in Admin view | `src/services/managerVerificationService.ts` | `mapManagerProfile` now uses `isPlaceholderManagerCompanyName()` to strip placeholder values before mapping to frontend state. |
+| **#385** | Manager profile data not in Admin verification view | `src/services/managerVerificationService.ts` | Same placeholder-stripping fix in `mapManagerProfile` + `getManagerDisplayName` fallback ensures real company name is shown. |
+| **#386** | Save Changes does not persist Profile data | `src/pages/manager/profile/page.tsx` | `handleSaveChanges` calls `userService.updateProfile` → `PUT /api/v1/users/profile`; verified backend correctly persists all fields. |
 
 ---
 
