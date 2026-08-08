@@ -42,6 +42,13 @@ test('manager profile treats persisted empty values as authoritative', () => {
     assert.match(source, /user\.user_metadata\?\.website \?\? ''/);
 });
 
+test('manager profile background refresh cannot overwrite active edits', () => {
+    assert.match(source, /const isEditingProfileRef = useRef\(false\)/);
+    assert.match(source, /if \(!user \|\| isManagerProfileLoading \|\| isEditingProfileRef\.current\) \{\s*return;/);
+    assert.match(source, /const handleChange[\s\S]*isEditingProfileRef\.current = true;/);
+    assert.match(source, /setSelectedAvatarFile\(null\);\s*isEditingProfileRef\.current = false;\s*setIsSaved\(true\)/);
+});
+
 test('manager profile saves professional fields through the canonical verification profile', () => {
     assert.match(source, /createProfile: createManagerProfile/);
     assert.match(source, /updateProfile: syncManagerProfile/);

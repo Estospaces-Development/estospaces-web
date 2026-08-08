@@ -71,6 +71,7 @@ export default function ManagerProfilePage() {
     const [confirmingAvatarRemoval, setConfirmingAvatarRemoval] = useState(false);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const isEditingProfileRef = useRef(false);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -102,6 +103,10 @@ export default function ManagerProfilePage() {
 
     // Populate form from auth user + broker profile
     useEffect(() => {
+        if (!user || isManagerProfileLoading || isEditingProfileRef.current) {
+            return;
+        }
+
         const nameParts = (user?.name || '').split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
@@ -148,6 +153,7 @@ export default function ManagerProfilePage() {
     }, [user, managerProfile, isManagerProfileLoading]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        isEditingProfileRef.current = true;
         const nextValue = (() => {
             if (e.target.name === 'postcode') {
                 // Preserve spaces while typing (UK postcodes need them, e.g. "SW1A 1AA").
@@ -388,6 +394,7 @@ export default function ManagerProfilePage() {
             setProfileImagePreview(resolvedSavedAvatar);
             setStoredAvatarValue(savedAvatar);
             setSelectedAvatarFile(null);
+            isEditingProfileRef.current = false;
             setIsSaved(true);
             showToast('Profile updated successfully.', { type: 'success' });
             setTimeout(() => {
