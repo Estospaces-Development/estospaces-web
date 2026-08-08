@@ -42,6 +42,7 @@ test('builds the canonical manager profile payload used by admin verification', 
         redress_membership_number: 'PRS-385',
         cmp_provider: 'Example CMP',
         cmp_certificate_url: 'https://example.com/cmp.pdf',
+        has_client_money: true,
         tax_id: 'GST-385',
     });
 });
@@ -74,4 +75,5 @@ test('falls back to manager contact data without removing spaces from branch nam
     assert.equal(payload.business_phone, '+91 90000 00000');
     assert.equal(payload.company_address, '1 Main Street');
     assert.equal(payload.registered_office_address, '1 Main Street');
+    assert.equal(payload.has_client_money, false);
 });

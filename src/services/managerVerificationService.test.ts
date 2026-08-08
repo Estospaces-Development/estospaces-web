@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   getManagerApprovalBlocker,
+  mapManagerProfile,
   normalizeManagerServiceAreas,
   type ManagerDocument,
   type ManagerProfile,
@@ -93,4 +94,25 @@ test('manager service areas normalize json, csv, and duplicate entries', () => {
     normalizeManagerServiceAreas('600001, 600\nbt9 7gg'),
     ['600001', '600', 'BT9 7GG'],
   );
+});
+
+test('manager profile mapping preserves the website and derives client money handling from saved evidence', () => {
+  const profile = mapManagerProfile(
+    {
+      user_id: 'manager-1',
+      profile_type: 'broker',
+      cmp_provider: 'Example CMP',
+      cmp_certificate_url: 'https://example.com/cmp.pdf',
+      dispatch_pincodes: '["600001","400001"]',
+      verification_status: 'submitted',
+    },
+    {
+      email: 'manager@example.com',
+      metadata: { website: ' https://estospaces.in ' },
+    },
+  );
+
+  assert.equal(profile.website, 'https://estospaces.in');
+  assert.equal(profile.has_client_money, true);
+  assert.deepEqual(profile.dispatch_pincodes, ['600001', '400001']);
 });

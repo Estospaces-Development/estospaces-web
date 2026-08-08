@@ -18,6 +18,9 @@ import {
     Calendar,
     Hash,
     Mail,
+    MapPin,
+    Phone,
+    Globe,
     ChevronDown,
     ChevronUp,
     History,
@@ -60,6 +63,81 @@ const MANAGER_REVIEW_NOTES_MAX_LENGTH = 1000;
 const MANAGER_REVIEW_REASON_MAX_LENGTH = 500;
 export const MANAGER_REVIEW_REASON_MIN_LENGTH = 20;
 export const MANAGER_REVIEW_REASON_MIN_WORDS = 4;
+
+interface ManagerProfessionalDetail {
+    icon: LucideIcon;
+    label: string;
+    value?: string | null;
+    href?: string;
+}
+
+const formatProfileList = (values?: string[]): string | undefined => {
+    const normalizedValues = values?.map((value) => value.trim()).filter(Boolean) ?? [];
+    return normalizedValues.length > 0 ? normalizedValues.join(', ') : undefined;
+};
+
+const getSafeProfileUrl = (value?: string): string | undefined => {
+    if (!value) return undefined;
+
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
+export const getManagerProfessionalDetails = (
+    profile: ManagerProfile,
+): ManagerProfessionalDetail[] => {
+    const certificateUrl = getSafeProfileUrl(profile.cmp_certificate_url);
+    const websiteUrl = getSafeProfileUrl(profile.website);
+    const handlesClientMoney = Boolean(
+        profile.has_client_money
+        || profile.cmp_provider?.trim()
+        || profile.cmp_certificate_url?.trim(),
+    );
+    const certificateValue = !handlesClientMoney
+        ? 'Not applicable'
+        : certificateUrl
+            ? 'View certificate'
+            : profile.cmp_certificate_url
+                ? 'Invalid certificate link'
+                : undefined;
+
+    return [
+        { icon: Building2, label: 'Company Name', value: profile.company_name },
+        { icon: Briefcase, label: 'Branch Name', value: profile.branch_name },
+        { icon: Phone, label: 'Business Phone', value: profile.business_phone },
+        {
+            icon: Globe,
+            label: 'Website',
+            value: websiteUrl ? 'Visit website' : profile.website ? 'Invalid website link' : undefined,
+            href: websiteUrl,
+        },
+        { icon: Hash, label: 'Tax ID', value: profile.tax_id },
+        { icon: MapPin, label: 'Company Address', value: profile.company_address },
+        { icon: MapPin, label: 'Registered Office Address', value: profile.registered_office_address },
+        { icon: Mail, label: 'Complaints Contact', value: profile.complaints_contact },
+        { icon: Shield, label: 'Redress Scheme', value: profile.redress_scheme_name },
+        { icon: Hash, label: 'Redress Membership Number', value: profile.redress_membership_number },
+        { icon: FileText, label: 'Company Description', value: profile.company_description },
+        { icon: MapPin, label: 'Service Areas', value: formatProfileList(profile.service_areas) },
+        { icon: Hash, label: 'Dispatch PIN Codes', value: formatProfileList(profile.dispatch_pincodes) },
+        { icon: Shield, label: 'Handles Client Money', value: handlesClientMoney ? 'Yes' : 'No' },
+        {
+            icon: Shield,
+            label: 'Client Money Protection Provider',
+            value: handlesClientMoney ? profile.cmp_provider : 'Not applicable',
+        },
+        {
+            icon: FileText,
+            label: 'Client Money Protection Certificate',
+            value: certificateValue,
+            href: certificateUrl,
+        },
+    ];
+};
 
 export const getManagerReviewReasonError = (
     reason: string,
@@ -492,7 +570,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         ) : (
                             <>
                                 <InfoItem icon={Hash} label="Registration Number" value={profile.company_registration_number} />
-                                <InfoItem icon={Hash} label="Tax ID" value={profile.tax_id} />
                                 <InfoItem icon={User} label="Representative" value={profile.authorized_representative_name} />
                                 <InfoItem icon={Mail} label="Representative Email" value={profile.authorized_representative_email} />
                             </>
@@ -504,6 +581,27 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 month: 'short', day: 'numeric', year: 'numeric'
                             }) : undefined}
                         />
+                    </div>
+                </div>
+
+                {/* Professional Details Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 p-5">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <div className="p-1.5 bg-gray-900 rounded-lg">
+                            <Briefcase size={14} className="text-white" />
+                        </div>
+                        Professional Details
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        {getManagerProfessionalDetails(profile).map((detail) => (
+                            <InfoItem
+                                key={detail.label}
+                                icon={detail.icon}
+                                label={detail.label}
+                                value={detail.value}
+                                href={detail.href}
+                            />
+                        ))}
                     </div>
                 </div>
 
@@ -842,16 +940,29 @@ const InfoItem: React.FC<{
     icon: LucideIcon;
     label: string;
     value?: string | null;
-}> = ({ icon: Icon, label, value }) => (
+    href?: string;
+}> = ({ icon: Icon, label, value, href }) => (
     <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-100">
         <div className="p-2 bg-gray-100 rounded-lg">
             <Icon size={14} className="text-gray-600" />
         </div>
         <div className="min-w-0 flex-1">
             <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-            <p className="text-sm font-medium text-gray-900 break-words [overflow-wrap:anywhere]">
-                {value || <span className="text-gray-400 italic font-normal">Not provided</span>}
-            </p>
+            {href && value ? (
+                <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 hover:underline"
+                >
+                    {value}
+                    <Eye size={14} aria-hidden="true" />
+                </a>
+            ) : (
+                <p className="text-sm font-medium text-gray-900 break-words [overflow-wrap:anywhere]">
+                    {value || <span className="text-gray-400 italic font-normal">Not provided</span>}
+                </p>
+            )}
         </div>
     </div>
 );

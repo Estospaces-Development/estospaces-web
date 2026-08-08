@@ -69,6 +69,7 @@ export const buildManagerProfileSyncPayload = ({
         redress_membership_number: trimmed(redressMembershipNumber),
         cmp_provider: trimmed(cmpProvider),
         cmp_certificate_url: trimmed(cmpCertificateUrl),
+        has_client_money: Boolean(trimmed(cmpProvider) || trimmed(cmpCertificateUrl)),
         tax_id: trimmed(taxId),
     };
 };

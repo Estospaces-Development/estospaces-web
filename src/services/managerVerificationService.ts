@@ -40,6 +40,7 @@ export interface ManagerProfile {
     company_name?: string;
     branch_name?: string;
     company_description?: string;
+    website?: string;
     business_phone?: string;
     license_number?: string;
     license_expiry_date?: string;
@@ -116,7 +117,7 @@ export interface ManagerVerificationDetails {
     profile: ManagerProfile | null;
     documents: ManagerDocument[];
     auditLog: AuditLogEntry[];
-    userInfo: { email?: string; full_name?: string } | null;
+    userInfo: { email?: string; full_name?: string; website?: string } | null;
 }
 
 const PLACEHOLDER_MANAGER_COMPANY_NAMES = new Set([
@@ -363,7 +364,17 @@ const mapUserFullName = (user: any): string | undefined => {
     return combined || undefined;
 };
 
-const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
+const mapUserWebsite = (user: any): string | undefined => {
+    const website = String(
+        user?.user_metadata?.website
+        || user?.metadata?.website
+        || user?.website
+        || '',
+    ).trim();
+    return website || undefined;
+};
+
+export const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
     const backendVerificationStatus = String(data.verification_status || '').trim();
     const submittedStatuses = new Set(['pending', 'submitted', 'documents_submitted', 'under_review']);
 
@@ -373,6 +384,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         company_name: isPlaceholderManagerCompanyName(data.company_name) ? undefined : (data.company_name || undefined),
         branch_name: data.branch_name || undefined,
         company_description: data.company_description || undefined,
+        website: mapUserWebsite(userInfo),
         business_phone: data.business_phone || undefined,
         license_number: data.company_reg_number || data.license_number || undefined,
         license_expiry_date: data.license_expiry_date || undefined,
@@ -382,7 +394,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         company_address: data.company_address || undefined,
         registered_office_address: data.registered_office_address || undefined,
         service_areas: normalizeManagerServiceAreas(data.service_areas),
-        dispatch_pincodes: Array.isArray(data.dispatch_pincodes) ? data.dispatch_pincodes : [],
+        dispatch_pincodes: normalizeManagerServiceAreas(data.dispatch_pincodes),
         complaints_contact: data.complaints_contact || undefined,
         redress_scheme_name: data.redress_scheme_name || undefined,
         redress_membership_number: data.redress_membership_number || undefined,
@@ -392,7 +404,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         authorized_representative_email: userInfo?.email || data.authorized_representative_email || undefined,
         has_ombudsman: Boolean(data.has_ombudsman),
         has_insurance: Boolean(data.has_insurance),
-        has_client_money: Boolean(data.has_client_money),
+        has_client_money: Boolean(data.has_client_money || data.cmp_provider || data.cmp_certificate_url),
         arla_member: Boolean(data.arla_member),
         naea_member: Boolean(data.naea_member),
         rics_member: Boolean(data.rics_member),
@@ -718,6 +730,7 @@ export const getManagerVerificationDetails = async (userId: string): Promise<{ d
             ? {
                 email: data.user_info.email,
                 full_name: mapUserFullName(data.user_info),
+                website: mapUserWebsite(data.user_info),
             }
             : null;
 
