@@ -1,6 +1,7 @@
 import { useState, ReactNode } from 'react';
 import Sidebar from '../layout/Sidebar';
 import Header from '../layout/Header';
+import LakshmiAssistant from '../dashboard/LakshmiAssistant';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -24,6 +25,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           &copy; {new Date().getFullYear()} Estospaces. All rights reserved.
         </footer>
       </div>
+      <LakshmiAssistant />
     </div>
   );
 };

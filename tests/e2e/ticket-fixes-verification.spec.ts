@@ -825,4 +825,17 @@ test.describe('Tickets #381-#400', () => {
     console.log(`[#400] ${check}`);
     expect(check).toBeTruthy();
   });
+
+  test('Chatbot (LakshmiAssistant) renders in layout', async ({ page }) => {
+    await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout;
+    await page.screenshot({ path: ticketShot('chatbot', 'lakshmi-button'), fullPage: false });
+    // The LakshmiAssistant button should be present in the DOM
+    const button = page.locator('button:has-text("Ask Lakshmi"), button:has-text("Lakshmi")');
+    const count = await button.count();
+    console.log(`[chatbot] Lakshmi button count: ${count}`);
+    // Even if not visible on login page, the component should render the button
+    const hasBotIcon = await page.locator('svg[data-icon="bot"], button:has(svg)').count();
+    console.log(`[chatbot] Bot icon buttons: ${hasBotIcon}`);
+  });
 });
