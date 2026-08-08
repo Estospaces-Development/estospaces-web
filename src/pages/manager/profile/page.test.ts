@@ -27,6 +27,21 @@ test('manager profile makes save-blocking fields visibly required', () => {
     assert.match(source, /aria-describedby=\{requiredHelpId\}/);
 });
 
+test('manager profile keeps Save actionable so validation failures are visible', () => {
+    assert.match(source, /const saveDisabled = isLoading\s*\|\| uploadingImage\s*\|\| removingAvatar;/);
+    assert.match(source, /showToast\(validationMessage, \{ type: 'error' \}\)/);
+    assert.match(source, /!formData\.companyAddress\.trim\(\) \? \(managerProfile\?\.profile_type/);
+    assert.doesNotMatch(source, /!registeredOfficeAddressTrimmed/);
+});
+
+test('manager profile treats persisted empty values as authoritative', () => {
+    assert.match(source, /managerProfile\?\.company_description \?\? user\?\.user_metadata\?\.bio \?\? ''/);
+    assert.match(source, /managerProfile\?\.complaints_contact \?\? ''/);
+    assert.match(source, /managerProfile\?\.cmp_certificate_url \?\? ''/);
+    assert.match(source, /user\.phone \?\? ''/);
+    assert.match(source, /user\.user_metadata\?\.website \?\? ''/);
+});
+
 test('manager profile saves professional fields through the canonical verification profile', () => {
     assert.match(source, /createProfile: createManagerProfile/);
     assert.match(source, /updateProfile: syncManagerProfile/);

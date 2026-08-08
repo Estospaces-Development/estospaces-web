@@ -116,3 +116,20 @@ test('manager profile mapping preserves the website and derives client money han
   assert.equal(profile.has_client_money, true);
   assert.deepEqual(profile.dispatch_pincodes, ['600001', '400001']);
 });
+
+test('manager profile mapping preserves intentional empty values after an update', () => {
+  const profile = mapManagerProfile({
+    user_id: 'manager-1',
+    profile_type: 'broker',
+    company_description: '',
+    complaints_contact: '',
+    cmp_provider: '',
+    cmp_certificate_url: '',
+    verification_status: 'submitted',
+  });
+
+  assert.equal(profile.company_description, '');
+  assert.equal(profile.complaints_contact, '');
+  assert.equal(profile.cmp_provider, '');
+  assert.equal(profile.cmp_certificate_url, '');
+});

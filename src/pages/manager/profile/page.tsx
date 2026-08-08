@@ -51,6 +51,7 @@ export default function ManagerProfilePage() {
     const { showToast } = useToast();
     const {
         managerProfile,
+        isLoading: isManagerProfileLoading,
         verificationStatus,
         isVerified,
         propertySubmissionBlocker,
@@ -107,29 +108,35 @@ export default function ManagerProfilePage() {
 
         setFormData(prev => ({
             ...prev,
-            firstName,
-            lastName,
-            email: user?.email || '',
-            phone: user?.phone || prev.phone || '',
-            address: formatOptionalLaunchPropertyLocation(user?.address || prev.address || ''),
-            postcode: formatLaunchLocationCode(user?.postcode || prev.postcode || ''),
-            bio: managerProfile?.company_description || user?.user_metadata?.bio || prev.bio || '',
-            website: user?.user_metadata?.website || prev.website || '',
+            firstName: user ? firstName : prev.firstName,
+            lastName: user ? lastName : prev.lastName,
+            email: user ? (user.email || '') : prev.email,
+            phone: user ? (user.phone ?? '') : prev.phone,
+            address: user ? formatOptionalLaunchPropertyLocation(user.address ?? '') : prev.address,
+            postcode: user ? formatLaunchLocationCode(user.postcode ?? '') : prev.postcode,
+            bio: isManagerProfileLoading
+                ? prev.bio
+                : (managerProfile?.company_description ?? user?.user_metadata?.bio ?? ''),
+            website: user ? (user.user_metadata?.website ?? '') : prev.website,
             // Broker / manager fields
-            companyName: managerProfile?.company_name || prev.companyName || '',
-            branchName: formatLaunchPropertyText(managerProfile?.branch_name || prev.branchName || '', ''),
-            serviceAreas: normalizeManagerServiceAreas(managerProfile?.service_areas).join(', ') || prev.serviceAreas || '',
-            dispatchPincodes: Array.isArray(managerProfile?.dispatch_pincodes) ? managerProfile.dispatch_pincodes.join(', ') : prev.dispatchPincodes || '',
-            businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
-            companyAddress: formatOptionalLaunchPropertyLocation(managerProfile?.company_address || prev.companyAddress || ''),
-            registeredOfficeAddress: formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address || prev.registeredOfficeAddress || ''),
-            complaintsContact: managerProfile?.complaints_contact || prev.complaintsContact || '',
-            redressSchemeName: managerProfile?.redress_scheme_name || prev.redressSchemeName || '',
-            redressMembershipNumber: managerProfile?.redress_membership_number || prev.redressMembershipNumber || '',
-            cmpProvider: managerProfile?.cmp_provider || prev.cmpProvider || '',
-            cmpCertificateUrl: managerProfile?.cmp_certificate_url || prev.cmpCertificateUrl || '',
-            licenseNumber: managerProfile?.company_registration_number || managerProfile?.license_number || prev.licenseNumber || '',
-            taxId: managerProfile?.tax_id || prev.taxId || '',
+            companyName: isManagerProfileLoading ? prev.companyName : (managerProfile?.company_name ?? ''),
+            branchName: isManagerProfileLoading ? prev.branchName : formatLaunchPropertyText(managerProfile?.branch_name ?? '', ''),
+            serviceAreas: isManagerProfileLoading ? prev.serviceAreas : normalizeManagerServiceAreas(managerProfile?.service_areas).join(', '),
+            dispatchPincodes: isManagerProfileLoading
+                ? prev.dispatchPincodes
+                : (Array.isArray(managerProfile?.dispatch_pincodes) ? managerProfile.dispatch_pincodes.join(', ') : ''),
+            businessPhone: isManagerProfileLoading ? prev.businessPhone : (managerProfile?.business_phone ?? ''),
+            companyAddress: isManagerProfileLoading ? prev.companyAddress : formatOptionalLaunchPropertyLocation(managerProfile?.company_address ?? ''),
+            registeredOfficeAddress: isManagerProfileLoading ? prev.registeredOfficeAddress : formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address ?? ''),
+            complaintsContact: isManagerProfileLoading ? prev.complaintsContact : (managerProfile?.complaints_contact ?? ''),
+            redressSchemeName: isManagerProfileLoading ? prev.redressSchemeName : (managerProfile?.redress_scheme_name ?? ''),
+            redressMembershipNumber: isManagerProfileLoading ? prev.redressMembershipNumber : (managerProfile?.redress_membership_number ?? ''),
+            cmpProvider: isManagerProfileLoading ? prev.cmpProvider : (managerProfile?.cmp_provider ?? ''),
+            cmpCertificateUrl: isManagerProfileLoading ? prev.cmpCertificateUrl : (managerProfile?.cmp_certificate_url ?? ''),
+            licenseNumber: isManagerProfileLoading
+                ? prev.licenseNumber
+                : (managerProfile?.company_registration_number ?? managerProfile?.license_number ?? ''),
+            taxId: isManagerProfileLoading ? prev.taxId : (managerProfile?.tax_id ?? ''),
         }));
         const existingAvatar = user?.avatar_url || user?.avatar || null;
         const resolvedAvatar = resolveMediaUrl(existingAvatar) || null;
@@ -138,7 +145,7 @@ export default function ManagerProfilePage() {
         setSelectedAvatarFile(null);
         setRemovingAvatar(false);
         setConfirmingAvatarRemoval(false);
-    }, [user, managerProfile]);
+    }, [user, managerProfile, isManagerProfileLoading]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const nextValue = (() => {
@@ -278,18 +285,16 @@ export default function ManagerProfilePage() {
             nextFieldErrors.licenseNumber = 'License number must start with a letter or number and contain only letters, numbers, spaces, dots, slashes, hyphens, and underscores';
         }
         const companyAddressTrimmed = formData.companyAddress.trim();
-        const registeredOfficeAddressTrimmed = formData.registeredOfficeAddress.trim();
         if (!companyAddressTrimmed) {
             nextFieldErrors.companyAddress = managerProfile?.profile_type === 'company'
                 ? 'Company address is required'
                 : 'Office address is required';
         }
-        if (!registeredOfficeAddressTrimmed) {
-            nextFieldErrors.registeredOfficeAddress = 'Registered office address is required';
-        }
         if (Object.keys(nextFieldErrors).length > 0) {
             setFieldErrors(nextFieldErrors);
-            setSaveError('Please correct the highlighted profile fields.');
+            const validationMessage = 'Please correct the highlighted profile fields.';
+            setSaveError(validationMessage);
+            showToast(validationMessage, { type: 'error' });
             return;
         }
 
@@ -416,6 +421,7 @@ export default function ManagerProfilePage() {
         !formData.firstName.trim() ? 'First name' : '',
         !formData.lastName.trim() ? 'Last name' : '',
         !formData.licenseNumber.trim() ? (managerProfile?.profile_type === 'company' ? 'Company registration number' : 'Broker license number') : '',
+        !formData.companyAddress.trim() ? (managerProfile?.profile_type === 'company' ? 'Company address' : 'Office address') : '',
     ].filter(Boolean);
     const saveDisabledReason = missingRequiredFields.length > 0
         ? `Complete required fields: ${missingRequiredFields.join(', ')}.`
@@ -428,12 +434,7 @@ export default function ManagerProfilePage() {
     const getRequiredDescribedBy = (errorId?: string) => [errorId, requiredHelpId].filter(Boolean).join(' ') || undefined;
     const saveDisabled = isLoading
         || uploadingImage
-        || removingAvatar
-        || !formData.firstName.trim()
-        || !formData.lastName.trim()
-        || !formData.licenseNumber.trim()
-        || !formData.companyAddress.trim()
-        || !formData.registeredOfficeAddress.trim();
+        || removingAvatar;
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
