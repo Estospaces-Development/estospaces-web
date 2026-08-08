@@ -8,7 +8,6 @@ import {
     getOfferReadinessBlockers,
     getOfferReadinessRequirements,
     getPropertyComplianceStatusLabel,
-    getPropertyCompliancePublishBlockerMessage,
     isPropertyOfferReady,
     isPropertyContractReady,
     normalizePropertyComplianceEvidenceList,
@@ -204,35 +203,4 @@ test('contract readiness only unlocks when the property pack is contract-ready o
     assert.equal(isPropertyContractReady({ status: 'move_in_ready' } as any), true);
     assert.equal(isPropertyContractReady({ status: 'offer_ready' } as any), false);
     assert.equal(isPropertyContractReady(null), false);
-});
-
-test('publish blocker message is readiness-specific and deduped', () => {
-    const readiness = {
-        status: 'attention_required',
-        blockers: [
-            {
-                code: 'epc',
-                scope: 'marketing',
-                title: 'EPC is still required',
-                description: 'Track the current EPC before the property is treated as fully market-ready.',
-            },
-            {
-                code: 'epc',
-                scope: 'marketing',
-                title: 'EPC is still required',
-                description: 'Track the current EPC before the property is treated as fully market-ready.',
-            },
-            {
-                code: 'gas_safety_record',
-                scope: 'move_in',
-                title: 'Gas safety record is still required',
-                description: 'Track the current gas safety evidence where gas appliances exist.',
-            },
-        ],
-    };
-
-    assert.equal(
-        getPropertyCompliancePublishBlockerMessage(readiness as any),
-        'Resolve compliance readiness before publishing: EPC is still required; Gas safety record is still required.',
-    );
 });

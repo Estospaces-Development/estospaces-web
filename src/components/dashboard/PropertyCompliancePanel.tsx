@@ -153,7 +153,7 @@ export default function PropertyCompliancePanel({
                     >
                         {loading
                             ? 'Loading compliance readiness.'
-                            : `Status: ${statusLabel}. ${readiness?.status_reason || 'Review required evidence before publishing.'}`}
+                            : `Status: ${statusLabel}. ${readiness?.status_reason || 'Review readiness evidence before progressing an offer or contract.'}`}
                     </p>
                 </div>
                 {loading && (

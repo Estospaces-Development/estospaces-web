@@ -15,8 +15,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import PropertyCompliancePanel from '@/components/dashboard/PropertyCompliancePanel';
 import { getPropertyMapState } from '@/lib/propertyMaps';
-import { getPropertyCompliancePublishBlockerMessage } from '@/lib/propertyCompliance';
-import type { PropertyComplianceReadiness } from '@/services/propertyService';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 // Helper for currency formatting
@@ -47,7 +45,6 @@ export default function PropertyDetailPage() {
     const [showImageModal, setShowImageModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [publishing, setPublishing] = useState(false);
-    const [complianceReadiness, setComplianceReadiness] = useState<PropertyComplianceReadiness | null>(null);
     const [activeTab, setActiveTab] = useState<'details' | 'location'>('details');
 
     // Toast state
@@ -62,8 +59,6 @@ export default function PropertyDetailPage() {
 
     const property = id ? getProperty(id) : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
-    const compliancePublishBlocker = getPropertyCompliancePublishBlockerMessage(complianceReadiness);
-    const compliancePublishBlockerId = compliancePublishBlocker ? 'manager-property-publish-compliance-blocker' : undefined;
 
     // Increment views on mount - only once per session per property
     useEffect(() => {
@@ -125,14 +120,6 @@ export default function PropertyDetailPage() {
 
     const handlePublish = async () => {
         if (!id || !property) return;
-        if (compliancePublishBlocker) {
-            setToast({
-                message: compliancePublishBlocker,
-                type: 'error',
-                visible: true,
-            });
-            return;
-        }
 
         setPublishing(true);
         try {
@@ -558,7 +545,6 @@ export default function PropertyDetailPage() {
                     <div className="lg:col-span-1 space-y-6">
                         <PropertyCompliancePanel
                             propertyId={property.id}
-                            onReadinessChange={setComplianceReadiness}
                         />
 
                         {/* Quick Actions */}
@@ -573,21 +559,12 @@ export default function PropertyDetailPage() {
                                 {(property.status === 'draft' || property.draft === true) && (
                                     <button
                                         onClick={handlePublish}
-                                        disabled={publishing || !!compliancePublishBlocker}
-                                        aria-describedby={compliancePublishBlockerId}
+                                        disabled={publishing}
                                         className="w-full py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                                     >
                                         <Send className="w-5 h-5" />
                                         {publishing ? 'Publishing...' : 'Publish Property'}
                                     </button>
-                                )}
-                                {compliancePublishBlocker && (
-                                    <p
-                                        id={compliancePublishBlockerId}
-                                        className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
-                                    >
-                                        {compliancePublishBlocker}
-                                    </p>
                                 )}
 
                                 <button
