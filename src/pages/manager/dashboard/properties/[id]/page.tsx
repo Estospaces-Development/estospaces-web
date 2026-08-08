@@ -13,7 +13,6 @@ import { useProperties } from '@/contexts/PropertyContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
-import PropertyCompliancePanel from '@/components/dashboard/PropertyCompliancePanel';
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
@@ -543,10 +542,6 @@ export default function PropertyDetailPage() {
 
                     {/* Right Column - Sidebar */}
                     <div className="lg:col-span-1 space-y-6">
-                        <PropertyCompliancePanel
-                            propertyId={property.id}
-                        />
-
                         {/* Quick Actions */}
                         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">

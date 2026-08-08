@@ -8,19 +8,14 @@ const managerPropertyDetailPage = readFileSync(
     'utf8',
 );
 
-test('ticket 421 keeps compliance evidence separate from listing publication', () => {
-    assert.match(managerPropertyDetailPage, /<PropertyCompliancePanel[\s\S]*?propertyId=\{property\.id\}[\s\S]*?\/>/);
+const managerPropertyEditorPage = readFileSync(
+    resolve(process.cwd(), 'src/pages/manager/dashboard/properties/add/page.tsx'),
+    'utf8',
+);
+
+test('ticket 421 removes the undocumented compliance panel from manager property screens', () => {
+    assert.doesNotMatch(managerPropertyDetailPage, /PropertyCompliancePanel/);
+    assert.doesNotMatch(managerPropertyEditorPage, /PropertyCompliancePanel/);
     assert.match(managerPropertyDetailPage, /onClick=\{handlePublish\}[\s\S]*?disabled=\{publishing\}/);
-    assert.doesNotMatch(managerPropertyDetailPage, /compliancePublishBlocker/);
-    assert.doesNotMatch(managerPropertyDetailPage, /Resolve compliance readiness before publishing/);
-});
-
-test('compliance panel copy does not present evidence as a publication prerequisite', () => {
-    const compliancePanel = readFileSync(
-        resolve(process.cwd(), 'src/components/dashboard/PropertyCompliancePanel.tsx'),
-        'utf8',
-    );
-
-    assert.doesNotMatch(compliancePanel, /before publishing/i);
-    assert.match(compliancePanel, /before progressing an offer or contract/);
+    assert.match(managerPropertyEditorPage, /Submit for Approval/);
 });

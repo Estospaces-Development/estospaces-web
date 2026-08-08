@@ -53,7 +53,6 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import DateField from "@/components/ui/DateField";
-import PropertyCompliancePanel from "@/components/dashboard/PropertyCompliancePanel";
 import AddressSection, {
   AddressFormData,
 } from "@/components/ui/AddressSection";
@@ -3696,12 +3695,6 @@ export default function AddPropertyPage() {
           )}
         </div>
       </form>
-
-      {isEditMode && idValue && (
-        <div className="mt-6">
-          <PropertyCompliancePanel propertyId={idValue} />
-        </div>
-      )}
 
       {pendingUnsavedNavigation !== null && (
         <div
