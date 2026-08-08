@@ -48,7 +48,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     onStartFastTrack,
     onClick,
     showStatusBadge = false,
-    showSaveAction = true,
+    showSaveAction = false,
 }) => {
     const navigate = useNavigate();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);

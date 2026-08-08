@@ -183,15 +183,15 @@ export default function BookingsPage() {
     const getStatusStyles = (status: string) => {
         switch (status.toLowerCase()) {
             case 'confirmed':
-                return 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:border-green-800';
+                return 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-200 dark:border-green-800';
             case 'pending':
-                return 'bg-yellow-50 text-yellow-800 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-800';
+                return 'bg-yellow-50 text-yellow-800 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-200 dark:border-yellow-800';
             case 'cancelled':
-                return 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:border-red-800';
+                return 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-200 dark:border-red-800';
             case 'completed':
-                return 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800';
+                return 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800';
             default:
-                return 'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:border-gray-700';
+                return 'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
         }
     };
 

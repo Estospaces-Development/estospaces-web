@@ -247,6 +247,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                                 key={property.id}
                                 property={property}
                                 onViewDetails={(prop: any) => navigate(`/user/properties/${prop.id}`)}
+                                showSaveAction
                             />
                         ))}
                     </div>

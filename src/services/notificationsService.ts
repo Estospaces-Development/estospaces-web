@@ -87,6 +87,7 @@ export interface Notification {
     data: NotificationData | null;
     is_read: boolean;
     read_at?: string;
+    is_archived?: boolean;
     channel: string;
     created_at: string;
 }
@@ -157,6 +158,7 @@ const normalizeNotification = (notification: any): Notification => ({
     data: parseNotificationData(notification.data),
     is_read: Boolean(notification.is_read),
     read_at: notification.read_at,
+    is_archived: Boolean(notification.is_archived),
     channel: notification.channel,
     created_at: notification.created_at,
 });

@@ -499,11 +499,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                         <p className="mt-3 text-base text-gray-600 dark:text-gray-300">{ROLE_COPY[role].subtitle}</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
+                        {!isAdmin && <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200"><BookOpen className="h-4 w-4" /> Docs</Link>}
+                        {!isAdmin && <Link to={`${ROLE_COPY[role].docsPath}#faq`} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200"><CircleHelp className="h-4 w-4" /> FAQ</Link>}
                         {!isAdmin && resumableTicket && (
                             <button onClick={() => setSearchParams(new URLSearchParams({ ticket: resumableTicket.id }), { replace: true })} className="rounded-full bg-orange-700 px-5 py-3 text-sm font-bold text-white">Resume live support</button>
                         )}
-                        {!isAdmin && <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200"><BookOpen className="h-4 w-4" /> Docs</Link>}
-                        {!isAdmin && <Link to={`${ROLE_COPY[role].docsPath}#faq`} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200"><CircleHelp className="h-4 w-4" /> FAQ</Link>}
                     </div>
                 </div>
             </section>

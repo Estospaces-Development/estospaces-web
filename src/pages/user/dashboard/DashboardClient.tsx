@@ -996,6 +996,7 @@ const DashboardClient = () => {
                   property={property}
                   onViewDetails={openPropertyFromDashboard}
                   onStartFastTrack={openFastTrackFromDashboard}
+                  showSaveAction
                 />
               ))}
             </div>

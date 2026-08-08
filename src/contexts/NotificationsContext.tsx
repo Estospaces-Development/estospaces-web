@@ -199,8 +199,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
             previousUnreadIDsRef.current = nextUnreadIDs;
             hasHydratedRef.current = true;
-            setNotifications(nextNotifications);
-            setUnreadCount(result.unread_count || 0);
+            const visibleNotifications = nextNotifications.filter((n: any) => !n.is_archived);
+            setNotifications(visibleNotifications);
+            setUnreadCount(visibleNotifications.filter((n) => !n.is_read).length);
         } catch {
             // Keep the current state if polling fails.
         } finally {

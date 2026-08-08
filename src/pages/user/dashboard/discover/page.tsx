@@ -821,6 +821,7 @@ function DiscoverContent() {
                                         key={property.id}
                                         property={property}
                                         onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                                        showSaveAction
                                     />
                                 ))}
                             </div>
