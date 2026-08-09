@@ -205,27 +205,87 @@ function flushActions() {
 }
 
 export function startProductAnalytics() {
-    // Zoho SalesIQ chatbot removed from the application.
-    // The built-in messaging system is used instead.
-    // Consent is still recorded for cookie preference management.
-    return false;
+    const analyticsWindow = getAnalyticsWindow();
+    if (!analyticsWindow || getProductAnalyticsConsent() !== 'accepted') return false;
+
+    if (salesIqInitialized) {
+        applyIdentity();
+        flushActions();
+        return true;
+    }
+
+    salesIqInitialized = true;
+
+    // Zoho SalesIQ chatbot script removed from the application.
+    // Analytics consent and event tracking are still active.
+    // The built-in messaging system is used for chat/support instead.
+
+    return true;
 }
 
 export function startAxiosProductAnalytics() {
-    // Zoho SalesIQ removed — no API event tracking.
+    if (axiosResponseInterceptor !== null) return;
+
+    axiosResponseInterceptor = axios.interceptors.response.use(
+        (response) => {
+            if (response.config?.url) {
+                trackApiOutcome(
+                    response.config.url,
+                    response.config.method || 'GET',
+                    true,
+                    response.status,
+                );
+            }
+            return response;
+        },
+        (error) => {
+            if (axios.isAxiosError(error) && error.config?.url) {
+                trackApiOutcome(
+                    error.config.url,
+                    error.config.method || 'GET',
+                    false,
+                    error.response?.status || 'network',
+                );
+            }
+            return Promise.reject(error);
+        },
+    );
 }
 
-export function setProductAnalyticsIdentity(_identity: ProductAnalyticsIdentity) {
-    // Zoho SalesIQ removed — identity is no longer pushed to the widget.
+export function setProductAnalyticsIdentity(identity: ProductAnalyticsIdentity) {
+    currentIdentity = {
+        email: identity.email.trim(),
+        firstName: identity.firstName.trim(),
+        id: identity.id.trim(),
+        lastName: identity.lastName.trim(),
+        role: identity.role.trim(),
+    };
+    applyIdentity();
 }
 
 export function resetProductAnalyticsIdentity() {
-    // Zoho SalesIQ removed — nothing to reset.
+    currentIdentity = null;
+    salesIq()?.reset?.();
 }
 
-export function trackProductEvent(_name: string, _properties: Record<string, unknown> = {}): boolean {
-    // Zoho SalesIQ removed — events are no longer sent to the widget.
-    return false;
+export function trackProductEvent(name: string, properties: Record<string, unknown> = {}) {
+    if (getProductAnalyticsConsent() !== 'accepted') return false;
+    const action = buildSalesIqAction(name, properties);
+    if (!action) return false;
+
+    const now = Date.now();
+    if (now - (recentEvents.get(action) || 0) < 750) return false;
+    recentEvents.set(action, now);
+
+    const send = salesIq()?.visitor?.customaction;
+    if (typeof send === 'function') {
+        send(action);
+        return true;
+    }
+
+    if (queuedActions.length >= 100) queuedActions.shift();
+    queuedActions.push(action);
+    return true;
 }
 
 function serviceFromUrl(url: URL) {
