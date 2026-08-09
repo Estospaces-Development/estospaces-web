@@ -55,9 +55,12 @@ export interface Viewing {
     user_notes?: string;
     manager_notes?: string;
     cancellation_reason?: string;
+    confirmed_at?: string | null;
+    response_deadline_at?: string | null;
     workflow_locked?: boolean;
     workflow_lock_reason?: string;
     created_at: string;
+    updated_at?: string;
 }
 
 export interface CreateBookingRequest {

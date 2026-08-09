@@ -17,6 +17,7 @@ import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
+import ViewingResponseCountdown from '@/components/viewings/ViewingResponseCountdown';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
@@ -112,7 +113,7 @@ export default function ViewingsPage() {
             setViewings(mappedViewings);
             setFastTrackCases(fastTrackCasesResult.data || []);
             setLoadError(null);
-        } catch (err: any) {
+        } catch {
             if (!silent) {
                 setViewings([]);
                 setFastTrackCases([]);
@@ -329,7 +330,7 @@ export default function ViewingsPage() {
             setViewingToCancel(null);
             setCancelReason('');
             setCancelReasonError(null);
-        } catch (err) {
+        } catch {
             toast.error('Failed to cancel viewing. Please try again.');
         } finally {
             cancelInFlightRef.current = false;
@@ -530,6 +531,10 @@ export default function ViewingsPage() {
                                             <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
                                                 <MapPin size={16} className="text-orange-500" />
                                                 <span className="line-clamp-1">{viewing.propertyAddress}</span>
+                                            </div>
+
+                                            <div className="mb-4">
+                                                <ViewingResponseCountdown viewing={viewing} />
                                             </div>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

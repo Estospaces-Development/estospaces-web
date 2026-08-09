@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
@@ -10,6 +10,7 @@ import Avatar from '@/components/ui/Avatar';
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
+import ViewingResponseCountdown from '@/components/viewings/ViewingResponseCountdown';
 import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import {
@@ -247,7 +248,7 @@ export default function ManagerAppointmentsPage() {
                 setError(fetchError?.message || 'Failed to load appointments');
                 setAppointments([]);
             } else {
-                console.error('Failed to refresh appointments', fetchError);
+                toast.error('Unable to refresh appointments. Showing the last loaded information.');
             }
         } finally {
             if (shouldBlockForLoad) {
@@ -255,7 +256,7 @@ export default function ManagerAppointmentsPage() {
             }
             setIsRefreshing(false);
         }
-    }, []);
+    }, [toast]);
 
     useEffect(() => {
         void fetchAppointments();
@@ -413,8 +414,9 @@ export default function ManagerAppointmentsPage() {
             if (!previous[field]) {
                 return previous;
             }
-            const { [field]: _removedError, ...remainingErrors } = previous;
-            return remainingErrors;
+            const nextErrors = { ...previous };
+            delete nextErrors[field];
+            return nextErrors;
         });
     };
 
@@ -658,6 +660,8 @@ export default function ManagerAppointmentsPage() {
                                                     {appointment.status}
                                                 </span>
                                             </div>
+
+                                            <ViewingResponseCountdown viewing={appointment} />
 
                                             <div className="grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
                                                 <div>
