@@ -332,7 +332,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            const data = await apiFetch<any>(`${CORE_SERVICE_URL()}/api/v1/auth/me`, { suppressErrorToast: true });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            const data = await apiFetch<any>(`${CORE_SERVICE_URL()}/api/v1/auth/me`, {
+                suppressErrorToast: true,
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
             const userData = data.user || data.data || data;
             const userObj = buildStoredUser(userData, userData?.email);
 
@@ -342,11 +350,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
             if (err instanceof ApiRequestError && err.status === 401) {
                 applySignedOutState();
+                return;
+            }
+
+            const cachedUser = getCachedUser();
+            if (cachedUser?.isAuthenticated) {
+                setUser(cachedUser);
+                setError(null);
             } else {
-                const cachedUser = getCachedUser();
-                if (cachedUser?.isAuthenticated) {
-                    setUser(cachedUser);
-                }
+                applySignedOutState();
             }
         } finally {
             setLoading(false);

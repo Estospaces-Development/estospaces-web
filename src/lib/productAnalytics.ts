@@ -229,11 +229,23 @@ export function startProductAnalytics() {
     };
 
     if (!document.getElementById(SALESIQ_SCRIPT_ID)) {
-        const script = document.createElement('script');
-        script.defer = true;
-        script.id = SALESIQ_SCRIPT_ID;
-        script.src = SALESIQ_WIDGET_URL;
-        document.head.appendChild(script);
+        // Defer SalesIQ loading until after the app has rendered to avoid
+        // blocking the initial page load with the widget's own spinner.
+        const idle = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback;
+        const scheduleLoad = () => {
+            const script = document.createElement('script');
+            script.defer = true;
+            script.async = true;
+            script.id = SALESIQ_SCRIPT_ID;
+            script.src = SALESIQ_WIDGET_URL;
+            document.head.appendChild(script);
+        };
+
+        if (typeof idle === 'function') {
+            idle(scheduleLoad, { timeout: 2000 });
+        } else {
+            setTimeout(scheduleLoad, 100);
+        }
     } else {
         applyIdentity();
         flushActions();
