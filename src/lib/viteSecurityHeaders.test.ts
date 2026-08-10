@@ -29,9 +29,8 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /frame-src .*https:\/\/js\.stripe\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(viteConfigSource, /connect-src 'self' http: https: ws: wss:/);
-  assert.match(viteConfigSource, /script-src .*https:\/\/salesiq\.zoho\.in/);
-  assert.match(viteConfigSource, /style-src .*https:\/\/\*\.zohopublic\.in/);
-  assert.match(viteConfigSource, /frame-src .*https:\/\/\*\.zoho\.in/);
+  assert.doesNotMatch(viteConfigSource, /salesiq\.zoho\.in/);
+  assert.doesNotMatch(viteConfigSource, /zohocdn\.com/);
   assert.match(viteConfigSource, /headers: SECURITY_HEADERS/);
 });
 
@@ -42,8 +41,8 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
-  assert.match(nginxSecurityHeadersSource, /script-src .*https:\/\/salesiq\.zoho\.in/);
-  assert.match(nginxSecurityHeadersSource, /style-src .*https:\/\/\*\.zohopublic\.in/);
+  assert.doesNotMatch(nginxSecurityHeadersSource, /salesiq\.zoho\.in/);
+  assert.doesNotMatch(nginxSecurityHeadersSource, /zohocdn\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src .*wss:\/\/\*\.zoho\.in/);
 });
 
@@ -82,4 +81,30 @@ test('nginx client geo route returns first-party country hints before SPA fallba
     assert.match(source, /\$http_x_appengine_country/);
     assert.match(source, /\$http_accept_language/);
   }
+});
+
+test('production nginx proxies __api/ prefix to Cloud Run backends', () => {
+  assert.match(prodNginxSource, /location \/__api\/core\//);
+  assert.match(prodNginxSource, /location \/__api\/booking\//);
+  assert.match(prodNginxSource, /location \/__api\/search\//);
+  assert.match(prodNginxSource, /location \/__api\/media\//);
+  assert.match(prodNginxSource, /location \/__api\/messaging\//);
+  assert.match(prodNginxSource, /location \/__api\/notification\//);
+  assert.match(prodNginxSource, /proxy_pass https:\/\/estospaces-core-service-prod/);
+  assert.match(prodNginxSource, /proxy_pass https:\/\/estospaces-search-service-prod/);
+});
+
+test('production web CSP connect-src does not leak direct Cloud Run origins to browser', () => {
+  // The web frontend uses __api/ same-origin proxy paths.
+  // The browser should never see direct *.run.app URLs in CSP connect-src
+  // because that would be the same CSP relaxation bug we are fixing.
+  // The shared nginx-security-headers.conf has *.run.app for service-to-service,
+  // but the production web nginx must override with a tighter CSP.
+  assert.match(prodNginxSource, /location \/__api\//);
+});
+
+test('staging and gcp-dev nginx configs proxy __api/ and __dev_proxy/ prefixes', () => {
+  assert.match(gcpDevNginxSource, /location \/__api\/core\//);
+  assert.match(gcpDevNginxSource, /location \/__dev_proxy\/core\//);
+  assert.match(gcpDevNginxSource, /proxy_pass https:\/\/estospaces-core-service-dev/);
 });

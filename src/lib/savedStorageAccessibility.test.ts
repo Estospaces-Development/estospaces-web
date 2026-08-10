@@ -16,10 +16,10 @@ test("saved page exposes tab state and stable button behavior", () => {
 });
 
 test("saved page renders one remove action per saved card", () => {
-  assert.match(propertyCard, /showSaveAction\?: boolean/);
-  assert.match(propertyCard, /showSaveAction = true/);
-  assert.match(propertyCard, /\{showSaveAction && \(/);
-  assert.match(savedPage, /<PropertyCard property=\{property\} showSaveAction=\{false\} \/>/);
+  assert.match(propertyCard, /showSaveAction\?:\s*boolean/);
+  assert.match(propertyCard, /showSaveAction\s*=\s*false/);
+  assert.match(propertyCard, /\{showSaveAction\s*&&\s*\(/);
+  assert.match(savedPage, /<PropertyCard\s+property=\{property\}\s+showSaveAction=\{false\}\s*\/>/);
 });
 
 test("saved page keeps properties and searches headings below the page title", () => {

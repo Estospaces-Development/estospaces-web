@@ -224,6 +224,7 @@ export function startProductAnalytics() {
 }
 
 export function startAxiosProductAnalytics() {
+    if (!getAnalyticsWindow()?.$zoho?.salesiq) return;
     if (axiosResponseInterceptor !== null) return;
 
     axiosResponseInterceptor = axios.interceptors.response.use(
