@@ -404,7 +404,7 @@ export default function RegisterPage() {
         }
 
         saveRegisterDraft({ firstName, lastName, email, role, country });
-    }, [email, firstName, lastName, role, success]);
+    }, [country, email, firstName, lastName, role, success]);
 
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);

@@ -77,7 +77,7 @@ export default function ProfilePage() {
                 leads: leadsData.data?.length || 0,
                 viewings: Array.isArray(viewingsData) ? viewingsData.length : 0
             });
-        } catch (error) {
+        } catch (_error) {
         }
     }, [savedCount]);
 

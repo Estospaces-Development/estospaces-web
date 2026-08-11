@@ -12,10 +12,18 @@ import {
 } from "@/lib/geoMarket";
 
 export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
+  const { countryCode, countryName, locationCode, acceptLanguage, timeZone } = signals;
+  const stableSignals = useMemo<GeoMarketSignals>(() => ({
+    countryCode,
+    countryName,
+    locationCode,
+    acceptLanguage,
+    timeZone,
+  }), [acceptLanguage, countryCode, countryName, locationCode, timeZone]);
   const initialMarket = useMemo(() => resolveGeoMarket({
     ...getBrowserGeoMarketSignals(),
-    ...signals,
-  }), [signals.countryCode, signals.countryName, signals.locationCode]);
+    ...stableSignals,
+  }), [stableSignals]);
   const [market, setMarket] = useState<GeoMarketCode>(initialMarket);
 
   useEffect(() => {
@@ -25,7 +33,7 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
       const browserSignals = getBrowserGeoMarketSignals();
       const fallbackSignals = {
         ...browserSignals,
-        ...signals,
+        ...stableSignals,
       };
       const hint = await fetchClientGeoHint();
       const nextMarket = resolveGeoMarketFromClientHint(hint, fallbackSignals);
@@ -41,7 +49,7 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
     return () => {
       cancelled = true;
     };
-  }, [initialMarket, signals.countryCode, signals.countryName, signals.locationCode]);
+  }, [initialMarket, stableSignals]);
 
   return market;
 };

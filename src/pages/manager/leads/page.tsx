@@ -553,7 +553,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, navigate, sendLeadMessage, statusFilter, toast]);
+    }, [fetchLeads, navigate, publishWorkspaceSync, sendLeadMessage, statusFilter, toast]);
 
     const openScheduleViewing = useCallback((lead: Lead) => {
         setScheduleLead(lead);
@@ -679,7 +679,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, statusFilter, toast]);
 
     const handleLifecycleUpdate = useCallback(async (lead: Lead, nextOutcome: 'completed' | 'rejected') => {
         const closingAsWon = nextOutcome === 'completed';

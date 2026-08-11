@@ -60,7 +60,7 @@ export default function SettingsPage() {
                     setPreferences(prefs);
                     setOriginalPreferences(prefs);
                 }
-            } catch (error: any) {
+            } catch (_error: any) {
                 toast.error('Failed to load settings');
             } finally {
                 setIsLoading(false);
@@ -148,7 +148,7 @@ export default function SettingsPage() {
             setOriginalPreferences(preferences);
             toast.success('Settings updated successfully');
             setTimeout(() => setSaveSuccess(false), 3000);
-        } catch (error: any) {
+        } catch (_error: any) {
             toast.error('Failed to save settings');
         } finally {
             setSaving(false);

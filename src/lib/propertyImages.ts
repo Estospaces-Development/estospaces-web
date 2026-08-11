@@ -42,7 +42,7 @@ const normalizeImageValue = (value: unknown): string[] => {
     return [];
 };
 
-const isPrivateMediaBucketUrl = (image: string) => {
+const _isPrivateMediaBucketUrl = (image: string) => {
     try {
         const url = new URL(image);
         const isGoogleStorageHost = url.hostname === 'storage.googleapis.com' || url.hostname === 'storage.cloud.google.com';

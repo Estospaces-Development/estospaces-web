@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Bot, ArrowRight, Mic, MicOff, Loader2, MapPin, Home, TrendingUp, Eye, Heart, FileText, Map as MapIcon, Sparkles, User } from 'lucide-react';
+import {  X, Send, Bot, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 // import { useProperties } from '@/contexts/PropertiesContext'; // Use new PropertyContext
@@ -9,24 +9,24 @@ import { useUserLocation } from '@/contexts/LocationContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 
 const LakshmiAssistant = () => {
-    const navigate = useNavigate();
+    const _navigate = useNavigate();
     const { user } = useAuth();
-    const { activeLocation } = useUserLocation();
-    const { savedProperties } = useSavedProperties();
+    const { activeLocation: _activeLocation } = useUserLocation();
+    const { savedProperties: _savedProperties } = useSavedProperties();
 
     // Local history state
-    const viewedProperties: any[] = [];
-    const appliedProperties: any[] = [];
+    const _viewedProperties: any[] = [];
+    const _appliedProperties: any[] = [];
 
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
-    const [isListening, setIsListening] = useState(false);
-    const [showOnboarding, setShowOnboarding] = useState(true);
-    const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-    const [smartSuggestions, setSmartSuggestions] = useState<any[]>([]);
-    const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(false);
+    const [_isListening, _setIsListening] = useState(false);
+    const [_showOnboarding, setShowOnboarding] = useState(true);
+    const [_onboardingCompleted, setOnboardingCompleted] = useState(false);
+    const [_smartSuggestions, _setSmartSuggestions] = useState<any[]>([]);
+    const [_showWelcomeAnimation, _setShowWelcomeAnimation] = useState(false);
 
     // Draggable button state
     const [buttonPosition, setButtonPosition] = useState<{ x: number | null, y: number | null }>({ x: null, y: null });
@@ -73,7 +73,7 @@ const LakshmiAssistant = () => {
             };
             setMessages([welcomeMessage]);
         }
-    }, [isOpen]); // user in dep array causing loop if not careful? No, user is stable from context ideally.
+    }, [isOpen, messages.length, user?.name]); // user in dep array causing loop if not careful? No, user is stable from context ideally.
 
     // Drag handlers
     const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {

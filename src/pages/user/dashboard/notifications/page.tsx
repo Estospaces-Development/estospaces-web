@@ -17,7 +17,6 @@ import {
     Clock,
     Search,
     X,
-    Inbox,
     ArrowLeft,
     Settings,
     Zap

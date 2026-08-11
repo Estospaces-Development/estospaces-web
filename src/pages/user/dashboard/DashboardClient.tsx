@@ -249,7 +249,7 @@ const DashboardClient = () => {
   const [filteredTotalPages, setFilteredTotalPages] = useState(0);
   const [currentFilteredPage, setCurrentFilteredPage] = useState(() => parsePositivePage(searchParams.get('page')));
   const [nearbyProperties, setNearbyProperties] = useState<SearchResult[]>([]);
-  const [nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
+  const [_nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
   const [showFastTrackCelebration, setShowFastTrackCelebration] = useState(false);
   const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
   const [activeBrokerRequest, setActiveBrokerRequest] = useState<BrokerRequestRecord | null>(null);

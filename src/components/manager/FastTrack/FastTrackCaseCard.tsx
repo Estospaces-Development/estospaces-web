@@ -15,7 +15,7 @@ interface FastTrackCaseCardProps {
 
 const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
     caseData,
-    onUpdate,
+    onUpdate: _onUpdate,
     verificationSummary,
     leadStatusLabel,
 }) => {

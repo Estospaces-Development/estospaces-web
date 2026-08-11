@@ -724,7 +724,7 @@ const ApplicationTimelineWidget = () => {
                     }));
                 setListings(mappedProps);
 
-            } catch (error) {
+            } catch (_error) {
             } finally {
                 setLoading(false);
             }

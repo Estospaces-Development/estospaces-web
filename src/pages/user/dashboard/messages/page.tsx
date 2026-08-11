@@ -15,7 +15,7 @@ import { getApplications } from '@/services/applicationsService';
 import { getUserLeads } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
 import {
-    createUnavailableConversationThreadIssue,
+
     resolveConversationQuerySelection,
     type ConversationThreadIssue,
 } from '@/lib/messagesInbox';
@@ -73,7 +73,7 @@ function MessagesContent() {
     const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
     const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
     const {
-        conversations,
+        conversations: _conversations,
         allConversations,
         isLoading,
         hasLoadedConversations,
@@ -250,7 +250,7 @@ function MessagesContent() {
         try {
             await sendMessage(conversationId, text, attachments);
             setError(null);
-        } catch (err) {
+        } catch (_err) {
             setError('Failed to send message. Please try again.');
         }
     };

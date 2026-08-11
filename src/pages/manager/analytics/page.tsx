@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Filter, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
-import BarChart from '@/components/ui/BarChart';
+import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 import PieChart from '@/components/ui/PieChart';
-import LineChart from '@/components/ui/LineChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useLeads } from '@/contexts/LeadContext';

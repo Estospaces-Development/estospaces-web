@@ -14,7 +14,7 @@ interface UserHeaderProps {
     useSubdomain?: boolean;
 }
 
-const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
+const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) => {
     const navigate = useNavigate();
     const { user, signOut, getDisplayName } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -36,7 +36,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
         try {
             await signOut();
             navigate(getLoginPath());
-        } catch (error) {
+        } catch (_error) {
             setIsSigningOut(false);
         }
     };

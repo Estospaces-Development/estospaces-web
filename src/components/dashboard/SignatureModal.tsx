@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Check, RotateCcw, Loader2 } from 'lucide-react';
+import { X, Check, RotateCcw } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
 interface Contract {

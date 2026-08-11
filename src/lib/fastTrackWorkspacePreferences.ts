@@ -124,7 +124,7 @@ const normalizeDensity = (
     : 'compact';
 
 const normalizeLayoutMode = (
-  value: string | null | undefined,
+  _value: string | null | undefined,
 ): FastTrackWorkspaceLayoutMode => 'balanced_compact';
 
 const normalizeRole = (value: string | null | undefined): FastTrackWorkspaceRole => {

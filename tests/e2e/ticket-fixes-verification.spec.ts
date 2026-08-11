@@ -87,7 +87,7 @@ const ticketChecks: readonly TicketCheck[] = [
       const check = await page.evaluate(() => {
         // Verify the service file passes suppressErrorToast: true
         try {
-          const meta = document.querySelector('meta[name="playwright"]');
+          const _meta = document.querySelector('meta[name="playwright"]');
           return 'syncBrokerRequestPropertyShares uses suppressErrorToast=true — verified by code review: leadsService.ts calls apiFetch with suppressErrorToast:true so the single catch-block toast is shown.';
         } catch {
           return 'verified by code review';

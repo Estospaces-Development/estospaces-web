@@ -148,7 +148,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 } else {
                     setRecentProperties([]);
                 }
-            } catch (err) {
+            } catch (_err) {
                 setRecentProperties([]);
             } finally {
                 setLoadingRecent(false);
@@ -185,7 +185,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 } else {
                     setProperties([]);
                 }
-            } catch (err) {
+            } catch (_err) {
                 setProperties([]);
             } finally {
                 setLoadingProperties(false);
@@ -373,7 +373,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             const validImage = images.filter(img => img && typeof img === 'string')[0];
             return validImage || fallbackImage;
-        } catch (e) {
+        } catch (_e) {
             return fallbackImage;
         }
     };

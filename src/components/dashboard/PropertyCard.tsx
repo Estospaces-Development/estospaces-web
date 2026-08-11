@@ -68,7 +68,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     const applicationStatus = existingApplication?.status || property.application_status || null;
     const viewCount = property.view_count || 0;
     const statusBadge = getManagerPropertyStatusBadge(property.status);
-    const isPending = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
+    const _isPending = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
 
     // #176/#225/#302: Only show "Awaiting Manager Submission" for pending submission statuses, not all properties
     const isPendingSubmission = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';

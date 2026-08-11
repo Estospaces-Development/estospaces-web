@@ -4,7 +4,6 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
     createWorkspaceRefreshController,
     type PublishWorkspaceSyncInput,
-    type WorkspaceRefreshControllerOptions,
     type WorkspaceSyncEvent,
     WORKSPACE_SYNC_INTERVALS,
     WorkspaceSyncBus,

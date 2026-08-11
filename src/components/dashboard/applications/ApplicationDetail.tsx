@@ -61,7 +61,7 @@ interface ApplicationDetailProps {
 
 const ApplicationDetail = ({ applicationId, application: initialApplication, onClose, onUpdateStatus }: ApplicationDetailProps) => {
     const navigate = useNavigate();
-    const { allApplications, withdrawApplication, updateApplicationStatus } = useApplications();
+    const { allApplications, withdrawApplication, updateApplicationStatus: _updateApplicationStatus } = useApplications();
     const { user } = useAuth();
     const toast = useToast();
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
@@ -96,7 +96,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         if (application) {
             fetchContract();
         }
-    }, [application?.status, application?.propertyId]);
+    }, [application]);
 
     if (!application) {
         return (

@@ -36,7 +36,7 @@ const getFallbackDisplayName = (user: ReturnType<typeof useAuth>['user']) => {
 
 export const UserProfileSummaryProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
-    const [cacheVersion, setCacheVersion] = useState(0);
+    const [_cacheVersion, setCacheVersion] = useState(0);
     const cacheRef = useRef<SummaryCache>({});
     const fetchedAtRef = useRef<Record<string, number>>({});
     const pendingIdsRef = useRef<Set<string>>(new Set());
@@ -209,7 +209,7 @@ export const UserProfileSummaryProvider = ({ children }: { children: React.React
         ensureSummaries,
         getSummary,
         mergeSummary,
-    }), [cacheVersion, ensureSummaries, getSummary, mergeSummary]);
+    }), [ensureSummaries, getSummary, mergeSummary]);
 
     return (
         <UserProfileSummaryContext.Provider value={value}>

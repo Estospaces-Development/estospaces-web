@@ -3,10 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    UserPlus, Clock, CheckCircle, XCircle, Users, Plus,
-    Filter, Search, MoreVertical, Eye, Edit, Trash2,
-    Mail, Phone, Download, Share2, FileDown, FileSpreadsheet,
-    Star, Shield, TrendingUp, UserCheck, Loader2, Power, RefreshCw
+    UserPlus, Users,
+    Filter, Search, Eye, Download, Shield, TrendingUp, UserCheck, Loader2, Power, RefreshCw
 } from 'lucide-react';
 
 import { userService } from '@/services/userService';

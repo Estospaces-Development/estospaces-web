@@ -4,8 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Building2,
     MapPin,
-    Search,
-    Filter,
     Plus,
     LayoutGrid,
     List,
@@ -14,7 +12,6 @@ import {
     Clock,
     CheckCircle,
     Bell,
-    Inbox,
     X,
     XCircle,
     AlertCircle,
@@ -22,7 +19,6 @@ import {
     User,
     Phone,
     Mail,
-    ChevronRight,
     Upload,
     Loader2,
     MessageSquare
@@ -149,7 +145,7 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
     const [withdrawReasonError, setWithdrawReasonError] = useState('');
     const [isWithdrawing, setIsWithdrawing] = useState(false);
     const withdrawInFlightRef = useRef(false);
-    const isSaleProgression = isSaleProgressionRecord(application);
+    const _isSaleProgression = isSaleProgressionRecord(application);
     const canWithdraw = canWithdrawApplicationRecord(application);
     const saleDisplayStage = resolveSaleJourneyDisplayStage(application);
     const showsSaleJourney = application.listingType !== 'rent' && Boolean(saleDisplayStage);

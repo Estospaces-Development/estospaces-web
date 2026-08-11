@@ -10,7 +10,7 @@ interface ToastProps extends Omit<ToastMessage, 'isVisible'> {
     onClose: () => void;
 }
 
-const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose, duration = 5000, position = 'top-right' }: ToastProps) => {
+const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose, duration = 5000, position: _position = 'top-right' }: ToastProps) => {
     useEffect(() => {
         if (isVisible && duration > 0) {
             const timer = setTimeout(() => {
@@ -47,7 +47,7 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
         },
     };
 
-    const positionClasses = {
+    const _positionClasses = {
         'top-right': 'top-4 right-4',
         'top-left': 'top-4 left-4',
         'top-center': 'top-4 left-1/2 -translate-x-1/2',

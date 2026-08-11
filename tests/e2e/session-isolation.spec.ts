@@ -8,7 +8,7 @@ async function dismissCookieBanner(page: any) {
     if (await acceptButton.count() > 0) {
       await acceptButton.click({ timeout: 3000 });
     }
-  } catch (e) {
+  } catch (_e) {
     // Ignore if banner not found
   }
 }

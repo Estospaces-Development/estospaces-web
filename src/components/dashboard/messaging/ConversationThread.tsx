@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, LifeBuoy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
@@ -15,7 +15,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     const navigate = useNavigate();
     const { getConversation, isLoading, loadOlderMessages, muteConversation, unmuteConversation } = useMessages();
     const conversation = getConversation(conversationId);
-    const messages = conversation?.messages || [];
+    const messages = useMemo(() => conversation?.messages || [], [conversation?.messages]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
     const [isSavingPreference, setIsSavingPreference] = useState(false);

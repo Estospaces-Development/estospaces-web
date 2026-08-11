@@ -7,7 +7,7 @@
  * 2. Testing against https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app
  */
 
-import { test, expect, type Page, type Locator } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // ============================================================
 // CONFIGURATION
@@ -18,7 +18,7 @@ const SCREENSHOT_DIR = 'test-results/screenshots';
 // ============================================================
 // HELPERS
 // ============================================================
-async function loginAs(page: Page, email: string, password: string): Promise<void> {
+async function _loginAs(page: Page, email: string, password: string): Promise<void> {
   await page.goto(`${BASE_URL}/login`);
   await page.waitForLoadState('networkidle');
 
@@ -32,7 +32,7 @@ async function loginAs(page: Page, email: string, password: string): Promise<voi
   await page.waitForLoadState('networkidle');
 }
 
-async function takeScreenshot(page: Page, name: string): Promise<void> {
+async function _takeScreenshot(page: Page, name: string): Promise<void> {
   try {
     await page.screenshot({ path: `${SCREENSHOT_DIR}/${name}.png`, fullPage: true });
   } catch {

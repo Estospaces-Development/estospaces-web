@@ -11,7 +11,6 @@ import {
     ChevronLeft,
     ChevronRight,
     MessageSquare,
-    Activity,
     Star,
     BarChart3,
     Zap,
@@ -28,7 +27,7 @@ interface AdminSidebarProps {
     useSubdomain?: boolean;
 }
 
-const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSidebarProps) => {
+const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = false }: AdminSidebarProps) => {
     const { pathname } = useLocation();
     const { signOut } = useAuth();
     const navigate = useNavigate();

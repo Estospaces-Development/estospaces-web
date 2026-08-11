@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock3,
   FileCheck2,
-  FileText,
   FolderLock,
   ListChecks,
   Loader2,

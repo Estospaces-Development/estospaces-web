@@ -37,7 +37,8 @@ jobs:
           else
             echo "Skipping tests because package.json has no test script."
           fi
-      - run: npm run lint -- .
+      - run: npm run lint -- . --max-warnings=0
+      - run: npm run typecheck
       - run: npm run build
       - name: Build hardened Docker image
         run: |

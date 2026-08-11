@@ -103,11 +103,11 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         () => pathname.startsWith('/manager'),
         [pathname],
     );
-    const syncTags = [
+    const syncTags = useMemo(() => [
         WORKSPACE_SYNC_TAGS.VERIFICATIONS,
         WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,
         WORKSPACE_SYNC_TAGS.MANAGER_PROPERTIES,
-    ];
+    ], []);
 
     // ========================================================================
     // Fetch Data
@@ -221,7 +221,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
     const uploadDocument = useCallback(async (
         file: File,
         documentType: ManagerDocumentType,
-        metadata?: { documentNumber?: string; expiryDate?: string }
+        _metadata?: { documentNumber?: string; expiryDate?: string }
     ): Promise<{ error: string | null }> => {
         if (!user?.id) return { error: 'Not authenticated' };
         const result = await managerVerificationService.uploadManagerDocument(file, user.id, documentType);

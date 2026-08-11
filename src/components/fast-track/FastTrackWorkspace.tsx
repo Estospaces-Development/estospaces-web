@@ -71,7 +71,6 @@ import {
     getFastTrackCases,
     performFastTrackAction,
 } from '@/services/fastTrackService';
-import { getPropertyById } from '@/services/propertyService';
 import { uploadDocument } from '@/services/leadsService';
 import {
     Conversation,
@@ -538,11 +537,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [managerReviewRating, setManagerReviewRating] = useState(0);
     const [managerReviewComment, setManagerReviewComment] = useState('');
     const [managerReviewError, setManagerReviewError] = useState<string | null>(null);
-    const [selectedPropertyCountrySignal, setSelectedPropertyCountrySignal] = useState<{
+    const [_selectedPropertyCountrySignal, _setSelectedPropertyCountrySignal] = useState<{
         countryName?: string | null;
         locationCode?: string | null;
     } | null>(null);
-    const [selectedPropertyCountryLoading, setSelectedPropertyCountryLoading] = useState(false);
+    const [_selectedPropertyCountryLoading, _setSelectedPropertyCountryLoading] = useState(false);
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
         caseId: string;
@@ -1064,7 +1063,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => selectedCase
             ? buildFastTrackDocumentDraftStorageKey(role, selectedCase.caseId)
             : '',
-        [role, selectedCase?.caseId],
+        [role, selectedCase],
     );
     const isManagerReviewEligible = role === 'user'
         && isFastTrackManagerReviewEligible(selectedCase);
@@ -1120,7 +1119,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setActiveStageOverride(null);
-    }, [requestedStageParam, selectedCase?.caseId, selectedCase?.stage]);
+    }, [requestedStageParam, selectedCase]);
 
     useEffect(() => {
         if (!isManagerReviewEligible || !selectedCase) {
@@ -1162,7 +1161,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         return () => {
             cancelled = true;
         };
-    }, [isManagerReviewEligible, selectedCase?.caseId]);
+    }, [isManagerReviewEligible, selectedCase]);
 
     const openManagerReviewForm = useCallback(() => {
         if (!isManagerReviewEligible) {
@@ -1328,7 +1327,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
-    }, [publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
+    }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase, user?.id]);
 
     const runAction = useCallback((
         action: string,
@@ -1533,7 +1532,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
             return null;
         });
-    }, [requestedDocumentId, role, selectedCase?.caseId]);
+    }, [requestedDocumentId, role, selectedCase]);
 
     useEffect(() => {
         if (utilityModules.length === 0) {
@@ -1553,7 +1552,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (orderedVisibleUtilityModules.includes(workspacePreferences.defaultActiveModule)) {
             setActiveUtilityModule(workspacePreferences.defaultActiveModule);
         }
-    }, [orderedVisibleUtilityModules, selectedCase?.caseId, workspacePreferences.defaultActiveModule]);
+    }, [orderedVisibleUtilityModules, selectedCase, workspacePreferences.defaultActiveModule]);
 
     useEffect(() => {
         if (!selectedCase) {
@@ -1921,7 +1920,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
         void ensureDocumentPreview(previewItem);
-    }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl, selectedFiles]);
+    }, [ensureDocumentPreview, previewItem, previewItemId, releasePreviewObjectUrl, selectedFiles]);
 
     useEffect(() => {
         if (previewModalOpen) {
@@ -2000,7 +1999,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         return () => {
             cancelled = true;
         };
-    }, [activeUtilityModule, role, selectedCase?.caseId, selectedCase?.clientName, selectedCaseDisplayTitle, threadRecipientId, user]);
+    }, [activeUtilityModule, role, selectedCase, selectedCaseDisplayTitle, threadRecipientId, user]);
 
     const handleSendThreadMessage = useCallback(async () => {
         if (!selectedCase || !user || !threadRecipientId || !threadDraft.trim()) {

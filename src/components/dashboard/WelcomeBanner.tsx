@@ -24,7 +24,7 @@ const WelcomeBanner = ({
 }: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
+    const _location = useLocation();
     const [stats, setStats] = useState({
         activeProperties: 0,
         activeLeads: 0,

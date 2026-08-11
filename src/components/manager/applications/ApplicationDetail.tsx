@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -7,7 +7,6 @@ import {
   MessageSquare,
   XCircle,
   CheckCircle,
-  Calendar,
   Clock,
   Phone,
   Mail,
@@ -358,14 +357,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [
-    application?.fastTrackCase,
-    application?.fastTrackCaseId,
-    application?.id,
-    application?.leadId,
-    application?.propertyId,
-    application?.source,
-  ]);
+  }, [application]);
 
   const linkedApplication = application
     ? attachLinkedFastTrackCase(
@@ -377,7 +369,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       )
     : null;
 
-  const managerWorkflowRequestOptions = { suppressErrorToast: true } as const;
+  const managerWorkflowRequestOptions = useMemo(
+    () => ({ suppressErrorToast: true }) as const,
+    [],
+  );
 
   const resetManagedPurchaseWorkflowState = () => {
     setBuyerQualification(null);
@@ -496,7 +491,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     return () => window.cancelAnimationFrame(frame);
   }, [activeTab, isPurchaseApplication, overviewFocus]);
 
-  const loadManagedPurchaseWorkflow = async (
+  const loadManagedPurchaseWorkflow = useCallback(async (
     targetApplication: Application,
   ) => {
     const compliancePromise = targetApplication.propertyId
@@ -553,9 +548,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     });
     setAmlReviewError("");
     setPurchaseWorkflowError(null);
-  };
+  }, [managerWorkflowRequestOptions]);
 
-  const loadRentWorkflow = async (targetApplication: Application) => {
+  const loadRentWorkflow = useCallback(async (targetApplication: Application) => {
     const caseFilePromise = targetApplication.fastTrackCaseId
       ? getCaseFile(targetApplication.fastTrackCaseId, managerWorkflowRequestOptions)
       : Promise.resolve({ data: null, error: null });
@@ -591,7 +586,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     setReferencingError("");
     setRightToRentError("");
     setRentWorkflowError(null);
-  };
+  }, [managerWorkflowRequestOptions]);
 
   useEffect(() => {
     if (!application || !supportsManagedPurchaseWorkflow) {
@@ -629,7 +624,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [application?.id, supportsManagedPurchaseWorkflow]);
+  }, [application, loadManagedPurchaseWorkflow, supportsManagedPurchaseWorkflow]);
 
   useEffect(() => {
     if (!application || !isRentApplication) {
@@ -666,7 +661,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [application?.id, application?.fastTrackCaseId, isRentApplication]);
+  }, [application, isRentApplication, loadRentWorkflow]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
