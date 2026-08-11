@@ -7,6 +7,7 @@ DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy-cloud-run.sh"
 run_case() {
   local scenario="$1"
   local expected_exit="$2"
+  local run_attempt="${3:-1}"
   local sandbox
   sandbox="$(mktemp -d)"
   trap 'rm -rf "$sandbox"' RETURN
@@ -80,13 +81,13 @@ MOCK
   export MOCK_LOG="$sandbox/gcloud.log"
   export EVENT_LOG="$sandbox/events.log"
   export DESCRIBE_COUNT="$sandbox/describe-count"
-  export SERVICE_NAME=service
+  export SERVICE_NAME=estospaces-notification-service
   export TARGET_ENV=prod
   export REGION=europe-west2
   export PROJECT_ID=project
   export IMAGE_TAG=registry.test/service:tag
-  export GITHUB_RUN_ID=10
-  export GITHUB_RUN_ATTEMPT=1
+  export GITHUB_RUN_ID=31461798217
+  export GITHUB_RUN_ATTEMPT="$run_attempt"
   export GITHUB_OUTPUT="$sandbox/output"
 
   set +e
@@ -98,6 +99,11 @@ MOCK
     cat "$sandbox/stdout" "$sandbox/stderr" >&2
     return 1
   fi
+  expected_tag="c$(printf '%s' "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" | sha256sum | cut -c1-9)"
+  [[ "${#expected_tag}" == "10" ]]
+  combined_length=$((${#SERVICE_NAME} + 1 + ${#TARGET_ENV} + ${#expected_tag}))
+  [[ "$combined_length" -le 46 ]]
+  grep -q -- "--tag=${expected_tag}" "$sandbox/gcloud.log"
 
   case "$scenario" in
     pre_promotion_failure)
@@ -115,8 +121,8 @@ MOCK
   esac
 }
 
-run_case pre_promotion_failure 1
-run_case post_promotion_failure 22
-run_case cancellation 143
-run_case rollback_failure 22
+run_case pre_promotion_failure 1 1
+run_case post_promotion_failure 22 10
+run_case cancellation 143 999999
+run_case rollback_failure 22 123456789
 echo "Deployment failure and rollback scenarios passed."
