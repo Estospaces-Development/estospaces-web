@@ -73,6 +73,7 @@ export interface FastTrackStepperItem {
   active: boolean;
   complete: boolean;
   current?: boolean;
+  locked?: boolean;
 }
 
 interface FastTrackWorkspaceHeaderProps {
@@ -461,11 +462,14 @@ export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepper
               data-fast-track-stage-tab={item.key}
               onClick={() => onSelect?.(item.key)}
               aria-pressed={item.active}
-              title={item.current && !item.active ? 'Current workflow stage' : undefined}
+              title={item.locked ? 'Complete the current stage first' : item.current && !item.active ? 'Current workflow stage' : undefined}
+              disabled={item.locked}
               className={cn(
                 'inline-flex min-w-[96px] items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-colors',
                 fastTrackFocusRing,
-                onSelect ? 'cursor-pointer hover:border-orange-200 hover:bg-orange-50/70' : 'cursor-default',
+                item.locked
+                  ? 'cursor-not-allowed opacity-50'
+                  : onSelect ? 'cursor-pointer hover:border-orange-200 hover:bg-orange-50/70' : 'cursor-default',
                 item.active
                   ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
                   : item.complete

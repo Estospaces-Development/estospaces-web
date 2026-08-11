@@ -426,3 +426,23 @@ test("fast-track viewing response actions are mutually exclusive", () => {
   assert.ok(source.includes("disabled={confirmViewingDisabled}"));
   assert.ok(source.includes("disabled={requestViewingChangeDisabled}"));
 });
+
+test("fast-track stage navigation only allows current, previous, or next stage", () => {
+  const source = workspaceSource();
+
+  assert.ok(source.includes('canNavigateToStage'), 'should define a canNavigateToStage guard');
+  assert.ok(source.includes("setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage)"),
+    'should allow overriding to the same stage or next stage');
+  assert.ok(source.includes("toast.info('Complete the current stage before moving to the next one.')"),
+    'should show toast when user tries to skip ahead');
+});
+
+test("fast-track stepper disables locked future stages", () => {
+  const layoutSource = workspaceLayoutSource();
+
+  assert.ok(layoutSource.includes('item.locked'), 'stepper items should carry a locked flag');
+  assert.ok(layoutSource.includes('disabled={item.locked}'), 'locked stepper buttons should be disabled');
+  assert.ok(layoutSource.includes('cursor-not-allowed'), 'locked stepper buttons should show not-allowed cursor');
+  assert.ok(layoutSource.includes("'Complete the current stage first'"),
+    'locked stepper buttons should have an explanatory title');
+});

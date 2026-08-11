@@ -3645,12 +3645,45 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [caseRailDrawerOpen, compactCaseRailViewport, customizationOpen, workspacePreferences.caseRailCollapsed],
     );
 
+    const canNavigateToStage = useCallback((targetStage: FastTrackStage): boolean => {
+        if (!selectedCase) {
+            return false;
+        }
+
+        if (selectedCase.workspaceFinalStatus === 'completed') {
+            return true;
+        }
+
+        const currentIndex = STAGES.indexOf(selectedCase.stage);
+        const targetIndex = STAGES.indexOf(targetStage);
+
+        if (targetIndex < currentIndex) {
+            return true;
+        }
+
+        if (targetIndex === currentIndex) {
+            return true;
+        }
+
+        if (targetIndex === currentIndex + 1) {
+            return true;
+        }
+
+        return false;
+    }, [selectedCase]);
+
     const handleStageSelect = useCallback((stage: string) => {
         if (!selectedCase || !STAGES.includes(stage as FastTrackStage)) {
             return;
         }
 
         const nextStage = stage as FastTrackStage;
+
+        if (!canNavigateToStage(nextStage)) {
+            toast.info('Complete the current stage before moving to the next one.');
+            return;
+        }
+
         if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
             setActiveStageOverride(nextStage);
             setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
@@ -3660,7 +3693,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
-    }, [role, runAction, selectedCase, setSearchParams]);
+    }, [canNavigateToStage, role, runAction, selectedCase, setSearchParams, toast]);
 
     // Smoothly scroll to the stage content area when the visible stage changes,
     // preventing the browser from jumping the viewport abruptly.
@@ -3683,6 +3716,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const stepperItems = useMemo(
         () => STAGES.map((stage, index) => {
             const Icon = STAGE_ICONS[stage];
+            const isLocked = selectedCase
+                && selectedCase.workspaceFinalStatus !== 'completed'
+                && index > stageIndex + 1;
             return {
                 key: stage,
                 label: selectedCase
@@ -3692,6 +3728,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 active: effectiveVisibleStage === stage,
                 complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
                 current: selectedCase?.stage === stage,
+                locked: isLocked,
             };
         }),
         [role, selectedCase, stageIndex, effectiveVisibleStage],
