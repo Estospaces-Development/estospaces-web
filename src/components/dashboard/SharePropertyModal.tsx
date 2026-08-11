@@ -42,7 +42,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
         ? `${property.location.city || ''}${property.location.city && property.location.state ? ', ' : ''}${property.location.state || ''}`
         : property.address || '';
 
-    const description = property.description?.slice(0, 200) || `${property.title} - ${price}`;
+    const _description = property.description?.slice(0, 200) || `${property.title} - ${price}`;
 
     const sharePlatforms = [
         {
@@ -168,7 +168,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
                     break;
                 }
             }
-        } catch (error: any) {
+        } catch (_error: any) {
             showToast('Failed to share', 'error');
         }
     };

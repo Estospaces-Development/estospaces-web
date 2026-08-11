@@ -3,14 +3,10 @@
 import React, { useState, Suspense, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    FileText, Clock, CheckCircle, XCircle, FileCheck, Plus, Filter,
-    Search, Eye, Edit, Trash2, Mail, Phone, Download, Share2,
-    FileDown, FileSpreadsheet, Loader2, MoreVertical, ChevronRight,
-    ArrowUpRight, TrendingUp, Users, Calendar, AlertCircle
+    FileText, Clock, CheckCircle, Plus, Download, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import * as applicationsService from '@/services/applicationsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
@@ -72,7 +68,7 @@ function buildManagerApplicationsCsv(applications: Application[]) {
 function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps) {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { user } = useAuth();
+    const { user: _user } = useAuth();
     const toast = useToast();
     const {
         applications: filteredApplications,

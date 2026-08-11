@@ -158,7 +158,7 @@ export default function ManagerNotificationsPage() {
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return '';
             return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } catch (e) {
+        } catch (_e) {
             return '';
         }
     };
@@ -169,7 +169,7 @@ export default function ManagerNotificationsPage() {
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return 'Recent';
             return d.toLocaleDateString();
-        } catch (e) {
+        } catch (_e) {
             return 'Recent';
         }
     };

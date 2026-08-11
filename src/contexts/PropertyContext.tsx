@@ -578,7 +578,7 @@ export const PropertyProvider = ({
       try {
         const parsed = JSON.parse(val);
         if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
+      } catch (_e) {
         if (val.trim() === "") return [];
         if (val.includes(",")) return val.split(",").map((s) => s.trim());
         return [val];
@@ -587,7 +587,7 @@ export const PropertyProvider = ({
     return [];
   };
 
-  const mapServiceToContextProperty = (
+  const mapServiceToContextProperty = useCallback((
     p: propertyService.Property,
   ): Property => {
     const imageList = parseStringArray(p.image_urls);
@@ -769,7 +769,7 @@ export const PropertyProvider = ({
       featured: p.featured,
       verified: p.is_verified,
     };
-  };
+  }, []);
 
   const mapContextToServiceProperty = (
     p: Partial<Property>,
@@ -995,7 +995,7 @@ export const PropertyProvider = ({
     } finally {
       setLoading(false);
     }
-  }, [buildPropertyQuery, enabled, isAuthRoute, pagination.limit, pagination.page, scope]);
+  }, [buildPropertyQuery, enabled, isAuthRoute, mapServiceToContextProperty, pagination.limit, pagination.page, scope]);
 
   useEffect(() => {
     fetchProperties();
@@ -1190,8 +1190,8 @@ export const PropertyProvider = ({
           try {
             const {
               id: _,
-              createdAt,
-              updatedAt,
+              createdAt: _createdAt,
+              updatedAt: _updatedAt,
               ...rest
             } = propertyToDuplicate;
             const newPropertyData = {

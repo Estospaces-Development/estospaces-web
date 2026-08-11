@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Shield, Upload, Trash2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
@@ -11,7 +11,6 @@ import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profile
 import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
-    normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -26,8 +25,8 @@ export default function AdminProfilePage() {
     const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
-    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-    const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+    const [_isUploadingAvatar, _setIsUploadingAvatar] = useState(false);
+    const [_isRemovingAvatar, _setIsRemovingAvatar] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({

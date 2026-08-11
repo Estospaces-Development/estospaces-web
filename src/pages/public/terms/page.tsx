@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, useNavigate } from 'react-router-dom';
+import {  useNavigate } from 'react-router-dom';
 import { FileText, ArrowLeft, Mail } from 'lucide-react';
 import TermsDocument, { TERMS_LAST_UPDATED } from '@/components/legal/TermsDocument';
 

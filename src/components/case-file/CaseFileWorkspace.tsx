@@ -818,7 +818,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
         setLoading(false);
       }
     },
-    [caseRouteReference.error, resolvedCaseId],
+    [caseRouteReference.error, embedded, navigate, resolvedCaseId, role, toast],
   );
 
   useEffect(() => {

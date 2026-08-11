@@ -250,7 +250,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         } finally {
             setLoading(false);
         }
-    }, [managerId, user?.id]);
+    }, [managerId]);
 
     useEffect(() => {
         fetchDetails();

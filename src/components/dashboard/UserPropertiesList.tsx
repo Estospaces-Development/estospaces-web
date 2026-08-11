@@ -87,7 +87,7 @@ const UserPropertiesList = () => {
                 setProperties(result.data || []);
                 setPagination(result.pagination);
             }
-        } catch (err) {
+        } catch (_err) {
             setError({ message: 'Failed to load properties' });
             setProperties([]);
             setPagination(null);

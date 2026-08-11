@@ -6,13 +6,11 @@ import {
     useProperties,
     PropertyStatus,
     PropertyType,
-    ListingType,
     SortField,
     SortOrder,
     Property
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
-import BackButton from '@/components/ui/BackButton';
 import PaginationBar from '@/components/ui/PaginationBar';
 import {
     MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
@@ -30,8 +28,8 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
 import {
-    Plus, Edit, Trash2, Filter, Download, Search, Grid, List, Map as MapIcon,
-    ChevronDown, X, Settings, ArrowUpDown, Heart, FileText, FileJson, File as FileIcon, Share2
+    Plus, Edit, Trash2, Filter, Search, Grid, List,
+    ChevronDown, X, ArrowUpDown, Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 type ViewMode = 'grid' | 'list' | 'map';
@@ -126,18 +124,18 @@ function PropertiesContent() {
     const geoMarket = useUserGeoMarket(user);
     const {
         filteredProperties,
-        properties,
+        properties: _properties,
         selectedProperties,
         filters,
         sort,
         pagination,
         loading,
         deleteProperty,
-        deleteProperties,
-        duplicateProperty,
-        updateProperty,
-        selectProperty,
-        deselectProperty,
+        deleteProperties: _deleteProperties,
+        duplicateProperty: _duplicateProperty,
+        updateProperty: _updateProperty,
+        selectProperty: _selectProperty,
+        deselectProperty: _deselectProperty,
         clearSelection,
         bulkUpdateStatus,
         setFilters,
@@ -151,19 +149,19 @@ function PropertiesContent() {
 
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
-    const [activeTab, setActiveTab] = useState<TabType>('all');
+    const [activeTab, _setActiveTab] = useState<TabType>('all');
     const [showFilters, setShowFilters] = useState(false);
-    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [_showExportMenu, setShowExportMenu] = useState(false);
     const [showSortMenu, setShowSortMenu] = useState(false);
-    const [showBulkActions, setShowBulkActions] = useState(false);
-    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+    const [_showBulkActions, setShowBulkActions] = useState(false);
+    const [_showBulkDeleteConfirm, _setShowBulkDeleteConfirm] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [selectedPropertyForShare, setSelectedPropertyForShare] = useState<Property | null>(null);
     const [pendingDeleteProperty, setPendingDeleteProperty] = useState<Property | null>(null);
     const priceRanges = useMemo(() => buildPriceRanges(geoMarket), [geoMarket]);
 
     // Stats
-    const stats = useMemo(() => getPropertyStats(), [properties, getPropertyStats]);
+    const stats = useMemo(() => getPropertyStats(), [getPropertyStats]);
 
     // Local filter state
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
@@ -312,13 +310,13 @@ function PropertiesContent() {
         return count;
     }, [filters]);
 
-    const handleExport = (format: 'csv' | 'json' | 'pdf') => {
+    const _handleExport = (format: 'csv' | 'json' | 'pdf') => {
         const ids = selectedProperties.length > 0 ? selectedProperties : undefined;
         exportProperties(format, ids);
         setShowExportMenu(false);
     };
 
-    const handleBulkStatusChange = async (status: PropertyStatus | string) => {
+    const _handleBulkStatusChange = async (status: PropertyStatus | string) => {
         await bulkUpdateStatus(selectedProperties, status as PropertyStatus);
         clearSelection();
         setShowBulkActions(false);

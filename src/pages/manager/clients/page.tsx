@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Users, Search, Plus, Filter, Loader2 } from 'lucide-react';
+import { Users, Search, Plus, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserCard from '../../../components/dashboard/UserCard';
 import Select from '../../../components/ui/Select';

@@ -59,7 +59,7 @@ export const LeadProvider = ({ children, enabled = true }: { children: ReactNode
                     propertyInterested: lead.propertyInterested || lead.property_name || lead.property?.title || 'Property enquiry',
                 })));
             }
-        } catch (error) {
+        } catch (_error) {
         } finally {
             setIsInitialized(true);
         }
@@ -146,7 +146,7 @@ export const LeadProvider = ({ children, enabled = true }: { children: ReactNode
                 });
             } else {
             }
-        } catch (error) {
+        } catch (_error) {
         }
     };
 
@@ -164,7 +164,7 @@ export const LeadProvider = ({ children, enabled = true }: { children: ReactNode
                 });
             } else {
             }
-        } catch (error) {
+        } catch (_error) {
         }
     };
 

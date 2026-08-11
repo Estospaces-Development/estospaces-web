@@ -18,7 +18,6 @@ import {
     MessageCircle,
     Clock,
     Sparkles,
-    CheckCircle2,
     ExternalLink,
     Upload,
     X,
@@ -350,7 +349,7 @@ const getAvailableViewingTimeSlots = (
     bookedSlotsByDate: Record<string, Set<string>>,
 ) => VIEWING_TIME_SLOTS.filter((slot) => !isViewingTimeSlotUnavailable(dateValue, slot.value, bookedSlotsByDate));
 
-const findNextAvailableViewingSelection = (
+const _findNextAvailableViewingSelection = (
     minimumDateValue: string,
     bookedSlotsByDate: Record<string, Set<string>>,
 ) => {
@@ -1338,12 +1337,12 @@ const UserPropertyDetail = () => {
             requested_time: undefined,
         }));
     };
-    const showPreviousImage = () => {
+    const showPreviousImage = useCallback(() => {
         setSelectedImageIndex((previous) => (previous === 0 ? images.length - 1 : previous - 1));
-    };
-    const showNextImage = () => {
+    }, [images.length]);
+    const showNextImage = useCallback(() => {
         setSelectedImageIndex((previous) => (previous === images.length - 1 ? 0 : previous + 1));
-    };
+    }, [images.length]);
     const openGallery = (index = selectedImageIndex, trigger?: HTMLElement | null) => {
         immersiveGalleryTriggerRef.current = trigger || (document.activeElement as HTMLElement | null);
         setSelectedImageIndex(index);
@@ -1371,7 +1370,7 @@ const UserPropertyDetail = () => {
         setIsImmersiveZoomActive(false);
         setImmersiveZoomPoint(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
     };
-    const reconcileFastTrackCaseContext = async (
+    const reconcileFastTrackCaseContext = useCallback(async (
         fastTrackCase: FastTrackCase | null,
         lead: Lead | null,
     ): Promise<FastTrackCase | null> => {
@@ -1401,8 +1400,8 @@ const UserPropertyDetail = () => {
         }
 
         return data;
-    };
-    const loadFastTrackWorkspace = async (options: { silent?: boolean } = {}) => {
+    }, [property?.manager_id]);
+    const loadFastTrackWorkspace = useCallback(async (options: { silent?: boolean } = {}) => {
         if (!property || !user) {
             return {
                 lead: null,
@@ -1469,7 +1468,7 @@ const UserPropertyDetail = () => {
                 setIsFastTrackPanelLoading(false);
             }
         }
-    };
+    }, [brokerRequestQuery, property, reconcileFastTrackCaseContext, requestedCaseId, user]);
 
     useEffect(() => {
         setSelectedImageIndex(0);
@@ -1515,7 +1514,7 @@ const UserPropertyDetail = () => {
         return () => {
             window.removeEventListener('keydown', handleGalleryKeyDown);
         };
-    }, [images.length, isGalleryOpen]);
+    }, [images.length, isGalleryOpen, showNextImage, showPreviousImage]);
 
     useEffect(() => {
         if (isGalleryOpen) {
@@ -1690,7 +1689,7 @@ const UserPropertyDetail = () => {
             cancelled = true;
             window.clearInterval(interval);
         };
-    }, [fastTrackQuery, property, user]);
+    }, [fastTrackQuery, loadFastTrackWorkspace, property, user]);
 
     useEffect(() => {
         if (!property || !user || !isFastTrackModalOpen) {
@@ -1712,7 +1711,7 @@ const UserPropertyDetail = () => {
             cancelled = true;
             window.clearInterval(interval);
         };
-    }, [isFastTrackModalOpen, property, user]);
+    }, [isFastTrackModalOpen, loadFastTrackWorkspace, property, user]);
 
     const resolveWorkflowManagerId = (
         lead: Lead | null = activeLead,

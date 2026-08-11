@@ -16,8 +16,6 @@ import {
     buildAdminAnalyticsMetricCards,
     createAdminAnalyticsExportDeduper,
     type AdminAnalyticsIconKey,
-    getAdminTotalProperties,
-    getAdminActiveListings,
 } from '@/lib/adminPlatformAnalytics';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
@@ -101,7 +99,7 @@ function AnalyticsContent() {
     };
     const analyticsRows = buildAdminAnalyticsExportRows(data, analyticsTableOptions);
 
-    const handleExportReport = useCallback(() => {
+    const handleExportReport = () => {
         const rows = analyticsRows;
         if (rows.length === 0) {
             setExportStatus('No analytics rows match the current export filters.');
@@ -123,7 +121,7 @@ function AnalyticsContent() {
         link.click();
         window.URL.revokeObjectURL(downloadUrl);
         setExportStatus(`Exported ${rows.length} analytics row${rows.length === 1 ? '' : 's'} to CSV.`);
-    }, [analyticsRows, analyticsTableOptions, data]);
+    };
 
     const stats = buildAdminAnalyticsMetricCards(data);
 

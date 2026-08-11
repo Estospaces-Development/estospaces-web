@@ -20,7 +20,6 @@ import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGat
 import {
     attachLinkedFastTrackCase,
     applicationStatusToFastTrackDecisionOutcome,
-    describeFastTrackStageLabel,
     findLinkedFastTrackCase,
     syncFastTrackCompanionAction,
 } from '@/lib/fastTrackCompanion';
@@ -525,7 +524,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     ], []);
     const registerConsumer = useCallback(() => () => {}, []);
 
-    const fetchApplications = async () => {
+    const fetchApplications = useCallback(async () => {
         if (!user) {
             setApplications([]);
             setIsLoading(false);
@@ -644,7 +643,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 ),
         );
         setIsLoading(false);
-    };
+    }, [user]);
 
     useEffect(() => {
         if (!user) {
@@ -654,7 +653,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         fetchApplications();
-    }, [user]);
+    }, [fetchApplications, user]);
 
     useWorkspaceRefresh({
         tags: syncTags,
@@ -958,7 +957,8 @@ export const useApplications = () => {
         throw new Error('useApplications must be used within an ApplicationsProvider');
     }
 
-    useEffect(() => context.registerConsumer(), [context.registerConsumer]);
+    const { registerConsumer } = context;
+    useEffect(() => registerConsumer(), [registerConsumer]);
 
     return context;
 };

@@ -42,7 +42,6 @@ import {
   Camera,
   Video,
   Phone,
-  Mail,
   User,
   FileText,
   Settings,
@@ -540,12 +539,12 @@ export default function AddPropertyPage() {
     addProperty,
     updateProperty,
     getProperty,
-    formatPrice,
-    formatArea,
+    formatPrice: _formatPrice,
+    formatArea: _formatArea,
     uploadImages,
     uploadVideos,
     fetchProperties,
-    loading: contextLoading,
+    loading: _contextLoading,
   } = useProperties();
   const {
     managerProfile,
@@ -564,7 +563,7 @@ export default function AddPropertyPage() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [originalFormData, setOriginalFormData] = useState<FormData | null>(
+  const [_originalFormData, setOriginalFormData] = useState<FormData | null>(
     null,
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -572,7 +571,7 @@ export default function AddPropertyPage() {
   const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [mediaListLoading, setMediaListLoading] = useState(false);
-  const [mediaAttachMessage, setMediaAttachMessage] = useState("");
+  const [_mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [pendingUnsavedNavigation, setPendingUnsavedNavigation] =
     useState<PendingNavigationTarget | null>(null);
@@ -940,7 +939,7 @@ export default function AddPropertyPage() {
   );
 
   // Custom navigation wrapper that warns about unsaved changes
-  const safeNavigate = useCallback(
+  const _safeNavigate = useCallback(
     (path: string) => {
       if (isDirty && !saving) {
         setPendingUnsavedNavigation(path);
@@ -1767,7 +1766,7 @@ export default function AddPropertyPage() {
     }
   };
 
-  const handleAttachStagedMedia = async () => {
+  const _handleAttachStagedMedia = async () => {
     const sourceEntityId = draftMediaEntityIdRef.current;
     if (!idValue || sourceEntityId === idValue) {
       setMediaAttachMessage("No staged media is waiting to be attached.");
@@ -2077,13 +2076,13 @@ export default function AddPropertyPage() {
   ].filter(Boolean).join(" ");
   const videoUploadDescription = videoUploadHelpId;
   const mediaSourceEntityId = draftMediaEntityIdRef.current;
-  const mediaTargetEntityId = idValue || "Created property after save";
+  const _mediaTargetEntityId = idValue || "Created property after save";
   const displayCurrency = getCurrencySymbol(formData.currency);
   const coordinatePlaceholder = formData.countryCode === UK_COUNTRY_CODE
     ? { latitude: "e.g. 51.5074", longitude: "e.g. -0.1278" }
     : { latitude: "e.g. 13.0827", longitude: "e.g. 80.2707" };
-  const canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
-  const selectedStagedUploadCount = [
+  const _canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
+  const _selectedStagedUploadCount = [
     ...formData.images,
     ...formData.videos,
   ].filter((entry) => typeof entry !== "string").length;

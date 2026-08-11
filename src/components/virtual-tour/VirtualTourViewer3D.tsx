@@ -16,7 +16,7 @@ interface VirtualTourViewer3DProps {
 const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
     scene,
     onHotspotClick,
-    initialRotation = { x: 0, y: 0 }
+    initialRotation: _initialRotation = { x: 0, y: 0 }
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -27,7 +27,8 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!containerRef.current) return;
+        const container = containerRef.current;
+        if (!container) return;
 
         // Initialize Scene
         const scene3D = new THREE.Scene();
@@ -36,7 +37,7 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
         // Initialize Camera
         const camera = new THREE.PerspectiveCamera(
             75,
-            containerRef.current.clientWidth / containerRef.current.clientHeight,
+            container.clientWidth / container.clientHeight,
             0.1,
             1000
         );
@@ -45,12 +46,12 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
 
         // Initialize Renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+        renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         // Important for EXR (HDR)
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.0;
-        containerRef.current.appendChild(renderer.domElement);
+        container.appendChild(renderer.domElement);
         rendererRef.current = renderer;
 
         // Initialize Controls
@@ -88,8 +89,8 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
 
         return () => {
             window.removeEventListener('resize', handleResize);
-            if (containerRef.current && rendererRef.current) {
-                containerRef.current.removeChild(rendererRef.current.domElement);
+            if (renderer.domElement.parentNode === container) {
+                container.removeChild(renderer.domElement);
             }
             renderer.dispose();
             controls.dispose();
@@ -127,7 +128,7 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
                         setLoading(false);
 
                     },
-                    (xhr) => {
+                    (_xhr) => {
                     },
                     (err) => {
                         console.error('An error occurred loading EXR', err);

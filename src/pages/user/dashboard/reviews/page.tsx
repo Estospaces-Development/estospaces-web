@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, MessageSquare, ArrowLeft, Loader2, Calendar, Trash2, Plus, X, Search } from 'lucide-react';
 import { reviewsService, type Review } from '@/services/reviewsService';
@@ -24,22 +24,22 @@ export default function ReviewsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const reviewCommentHelpId = 'review-comment-length';
 
-    const fetchReviews = async () => {
+    const fetchReviews = useCallback(async () => {
         try {
             setIsLoading(true);
             const result = await reviewsService.getUserReviews();
             if (result.error) throw new Error(result.error);
             if (result.data) setReviews(result.data);
-        } catch (error: any) {
+        } catch (_error: any) {
             toast.error('Failed to load reviews');
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         fetchReviews();
-    }, []);
+    }, [fetchReviews]);
 
     const filteredReviews = React.useMemo(() => {
         const query = searchQuery.trim().toLowerCase();

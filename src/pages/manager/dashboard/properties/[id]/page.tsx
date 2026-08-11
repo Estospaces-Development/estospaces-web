@@ -3,10 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-    ArrowLeft, Edit, Trash2, MapPin, Home, Calendar, Copy, Share2, Heart,
-    Bed, Bath, Car, Maximize, Building, DollarSign, CheckCircle, X,
-    Phone, Mail, Globe, Shield, Star, TrendingUp, Eye, MessageCircle,
-    ChevronLeft, ChevronRight, Clock, User, FileText, Verified, Settings,
+    ArrowLeft, Edit, Trash2, MapPin, Home, Copy, Share2, Heart,
+    Bed, Bath, Car, Maximize, CheckCircle, Globe, TrendingUp, Eye, MessageCircle,
+    ChevronLeft, ChevronRight, Settings,
     Send, Video, ExternalLink
 } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
@@ -37,11 +36,11 @@ export default function PropertyDetailPage() {
 
     const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementViews } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
-    const { user } = useAuth();
+    const { user: _user } = useAuth();
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [showImageModal, setShowImageModal] = useState(false);
+    const [_showImageModal, setShowImageModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [activeTab, setActiveTab] = useState<'details' | 'location'>('details');
@@ -185,7 +184,7 @@ export default function PropertyDetailPage() {
                     visible: true
                 });
             }
-        } catch (err) {
+        } catch (_err) {
             setToast({
                 message: 'An error occurred. Please try again.',
                 type: 'error',

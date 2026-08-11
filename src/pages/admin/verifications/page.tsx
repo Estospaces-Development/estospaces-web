@@ -3,15 +3,15 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Shield, Clock, CheckCircle, XCircle, User, Building2,
-  Search, RefreshCw, Eye, AlertCircle, TrendingUp, Sparkles,
-  ArrowRight, Filter, Briefcase, ChevronRight, LayoutGrid, List, Loader2
+  Shield, Clock, CheckCircle, XCircle,
+  Search, RefreshCw, Eye, Sparkles,
+  ArrowRight, LayoutGrid, List, Loader2
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import Avatar from '@/components/ui/Avatar';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
-import { useWorkflowWorkspaceRefresh, useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import {  useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -40,7 +40,7 @@ function VerificationsContent() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [showArchived, setShowArchived] = useState(false);
-  const [archivedManagers, setArchivedManagers] = useState<ManagerProfile[]>([]);
+  const [_archivedManagers, setArchivedManagers] = useState<ManagerProfile[]>([]);
 
   const fetchManagers = useCallback(async () => {
     try {

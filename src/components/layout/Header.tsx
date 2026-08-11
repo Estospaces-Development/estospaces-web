@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings, BookOpen } from 'lucide-react';
+import { Search, User, Shield, CheckCircle, AlertCircle, Menu, LogOut, Settings, BookOpen } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,7 +19,7 @@ interface HeaderProps {
 const Header = ({ onMenuToggle }: HeaderProps) => {
     const navigate = useNavigate();
     const { user, signOut, getDisplayName, getRole } = useAuth();
-    const { notifications, unreadCount } = useNotifications();
+    const { notifications: _notifications, unreadCount: _unreadCount } = useNotifications();
     const {
         verificationStatus,
         isLoading: isVerificationLoading,
@@ -63,7 +63,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
         try {
             await signOut();
             navigate(getLoginPath());
-        } catch (error) {
+        } catch (_error) {
         }
     };
 

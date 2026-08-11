@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import {
     Search,
     MapPin,
@@ -8,8 +8,7 @@ import {
     Grid,
     Map as MapIcon,
     ArrowLeft,
-    AlertCircle,
-    Plus
+    AlertCircle
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -351,7 +350,7 @@ function DiscoverContent() {
         setCurrentPage(parsePositivePage(searchParams.get('page')));
     }, [searchParams]);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -401,7 +400,7 @@ function DiscoverContent() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, baths, beds, currentPage, dashboardFilter, geoMarket, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {
@@ -409,7 +408,7 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, geoMarket]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, geoMarket, fetchData]);
 
     // Autocomplete location suggestions
     useEffect(() => {

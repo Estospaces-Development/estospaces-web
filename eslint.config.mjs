@@ -29,9 +29,23 @@ export default defineConfig([
       "react-hooks": reactHooksPlugin,
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": "warn",
-      "no-console": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "no-console": ["warn", { allow: ["warn", "error"] }],
       "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
+    files: ["scripts/**/*.ts", "scripts/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
+    rules: {
+      "no-console": "off",
     },
   },
 ]);

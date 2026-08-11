@@ -50,7 +50,7 @@ export default function UserSettingsPage() {
                         ...data,
                     });
                 }
-            } catch (error: any) {
+            } catch (_error: any) {
                 toast.error('Failed to load settings');
             } finally {
                 setIsLoading(false);
@@ -137,7 +137,7 @@ export default function UserSettingsPage() {
             setIsSaved(true);
             toast.success('Settings saved successfully');
             setTimeout(() => setIsSaved(false), 3000);
-        } catch (error: any) {
+        } catch (_error: any) {
             toast.error('Failed to save settings');
         } finally {
             setIsSaving(false);

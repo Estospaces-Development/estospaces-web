@@ -25,7 +25,7 @@ interface ManagerDocumentPreview {
 }
 
 export default function VerificationPage() {
-    const { user } = useAuth();
+    const { user: _user } = useAuth();
     const navigate = useNavigate();
     const { 
         managerProfile, 

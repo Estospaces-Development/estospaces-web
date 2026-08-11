@@ -8,7 +8,6 @@ import {
   Settings,
   HelpCircle,
   FileText,
-  PieChart,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -16,12 +15,9 @@ import {
   Home,
   Heart,
   Search,
-  MapPin,
-  Briefcase,
   Zap,
   Calendar,
   BarChart3,
-  Activity,
   UserCircle,
   BookOpen,
   AlertCircle,
@@ -38,7 +34,7 @@ interface SidebarProps {
   useSubdomain?: boolean;
 }
 
-const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
+const Sidebar = ({ isOpen, onToggle, useSubdomain: _useSubdomain = false }: SidebarProps) => {
   const { pathname } = useLocation();
   const { user, getDisplayName, signOut, getRole } = useAuth();
   const {
@@ -52,7 +48,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     try {
       await signOut();
       navigate(getLoginPath());
-    } catch (error) {}
+    } catch (_error) {}
   };
 
   const getLinkPath = (path: string) => path;

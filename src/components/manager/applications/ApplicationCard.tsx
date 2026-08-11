@@ -13,7 +13,6 @@ import {
     Upload,
     MessageSquare,
     Calendar,
-    Home,
     Building2,
     TrendingUp
 } from 'lucide-react';

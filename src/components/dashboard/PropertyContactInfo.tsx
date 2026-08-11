@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Mail, Phone, Building, MapPin, Calendar, MessageCircle, Loader2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, MessageCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';

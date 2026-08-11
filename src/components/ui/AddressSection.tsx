@@ -314,7 +314,7 @@ const AddressSection = ({
         if (countries.length > 0 && value.countryId) {
             loadStates();
         }
-    }, [value.countryId, countries.length]);
+    }, [value.countryId, countries.length, countries, value.stateId, value.cityId, states.length, initialLoadComplete, cities.length]);
 
     // Load cities when state changes (including when initialized with ID)
     useEffect(() => {
@@ -374,7 +374,7 @@ const AddressSection = ({
         return () => {
             isMounted = false;
         };
-    }, [value.stateId, states.length]);
+    }, [value.stateId, states.length, states, cities.length]);
 
     // Handlers
     const handleCountryChange = useCallback(async (countryId: string) => {

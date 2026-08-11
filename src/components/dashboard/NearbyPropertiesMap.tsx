@@ -102,7 +102,7 @@ const createPropertyIcon = (label: string, color: string, selected: boolean) => 
 function MapAutoFit({
     userLocation,
     properties,
-    fitSignal,
+    fitSignal: _fitSignal,
 }: {
     userLocation: UserLocation | null;
     properties: Property[];

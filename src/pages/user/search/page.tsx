@@ -468,7 +468,7 @@ const PropertySearch = () => {
             } else {
                 showToastError('Error saving search: ' + (res.error || 'Unknown error'));
             }
-        } catch (error) {
+        } catch (_error) {
             showToastError('Failed to save search');
         } finally {
             setIsSaving(false);

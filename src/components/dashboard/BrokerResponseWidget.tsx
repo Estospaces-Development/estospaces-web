@@ -310,7 +310,7 @@ const BrokerResponseWidget: React.FC = () => {
             })));
             setAvailableForFastResponse(Boolean(availabilityResult.data?.available_for_fast_response));
             setAvailabilityBlockedReason(availabilityResult.data?.blocked_reason || null);
-        } catch (error) {
+        } catch (_error) {
         } finally {
             if (!silent) {
                 setLoading(false);
@@ -438,7 +438,7 @@ const BrokerResponseWidget: React.FC = () => {
                 });
                 await fetchRequests(true);
             }
-        } catch (error) {
+        } catch (_error) {
         }
     };
 

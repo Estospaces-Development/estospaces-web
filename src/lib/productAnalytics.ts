@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const CONSENT_KEY = 'estospaces_cookie_consent';
-const SALESIQ_SCRIPT_ID = 'zsiqscript';
-const SALESIQ_WIDGET_URL =
+const _SALESIQ_SCRIPT_ID = 'zsiqscript';
+const _SALESIQ_WIDGET_URL =
     'https://salesiq.zoho.in/widget?wc=siq338477be5e895c804b660f4765d048440ae1b20b437769a0cdecedd3b5619524';
 
 const EVENT_NAMES = new Set([
@@ -312,7 +312,7 @@ export function classifyApiActivity(input: string, method = 'GET'): ApiActivity 
     };
 }
 
-function statusClass(status: number | 'application' | 'network') {
+function _statusClass(status: number | 'application' | 'network') {
     return typeof status === 'number' ? `${Math.floor(status / 100)}xx` : status;
 }
 

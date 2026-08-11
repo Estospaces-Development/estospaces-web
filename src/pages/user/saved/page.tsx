@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
     Heart,
     MapPin,
@@ -38,7 +38,10 @@ const SAVED_PROPERTY_SORT_OPTIONS: Array<{ value: SavedPropertySortOption; label
 
 export default function SavedPage() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const readActiveTab = () => searchParams.get('tab') === 'searches' ? 'searches' : 'properties';
+    const readActiveTab = useCallback(
+        () => searchParams.get('tab') === 'searches' ? 'searches' : 'properties',
+        [searchParams],
+    );
     const [activeTab, setActiveTab] = useState<'properties' | 'searches'>(readActiveTab);
     const [savedPropertyStatusMessage, setSavedPropertyStatusMessage] = useState('');
     const propertyFilter = searchParams.get('filter') || '';
@@ -58,7 +61,7 @@ export default function SavedPage() {
 
     useEffect(() => {
         setActiveTab(readActiveTab());
-    }, [searchParams]);
+    }, [readActiveTab, searchParams]);
 
     const selectTab = (tab: 'properties' | 'searches') => {
         setActiveTab(tab);
@@ -325,7 +328,7 @@ function SavedSearchesTab() {
         try {
             const data = await searchService.getSavedSearches();
             setSearches(data);
-        } catch (err) {
+        } catch (_err) {
             setError('Failed to load saved searches');
         } finally {
             setLoading(false);

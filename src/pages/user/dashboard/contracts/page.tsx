@@ -132,7 +132,7 @@ export default function ContractsPage() {
           ).then((nextSaleProgressions) => {
             setSaleProgressions(nextSaleProgressions);
           });
-        } catch (error: any) {
+        } catch (_error: any) {
           toast.error("Failed to load contracts");
         } finally {
           if (isFirstLoad) {

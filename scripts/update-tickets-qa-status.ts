@@ -6,7 +6,7 @@
 //  - STATUS_FIELD_ID env var (PVTSSF_lADODiN4lM4BP7T6zg-MZE0)
 //  - QA_TESTING_OPTION_ID env var (3772cc16)
 
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO_OWNER = 'Estospaces-Development';

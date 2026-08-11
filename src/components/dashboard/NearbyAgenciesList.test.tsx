@@ -4,7 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 
-import NearbyAgenciesList, { NearbyBrokerCard } from './NearbyAgenciesList';
+import  { NearbyBrokerCard } from './NearbyAgenciesList';
 import {
   limitNearestAgenciesForDashboard,
   USER_DASHBOARD_NEAREST_AGENCY_LIMIT,
@@ -65,9 +65,7 @@ test('[SCENARIO 2 - empty] empty broker list shows empty state without link', ()
   // Confirm the source contains the empty-state copy for users that the
   // NearbyAgenciesList falls through to. This locks in the copy.
   // @ts-ignore - reading source for assertion only
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fs = require('node:fs');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const path = require('node:path');
   const source = fs.readFileSync(
     path.resolve(__dirname, 'NearbyAgenciesList.tsx'),

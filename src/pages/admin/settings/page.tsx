@@ -26,7 +26,7 @@ export default function AdminSettingsPage() {
                 setSettings(launchSettings);
                 setSavedSettings(launchSettings);
                 setStats(statsData);
-            } catch (error: any) {
+            } catch (_error: any) {
                 toast.error('Failed to load system settings');
             } finally {
                 setIsLoading(false);
@@ -48,7 +48,7 @@ export default function AdminSettingsPage() {
             await adminService.updateSettings(settings);
             setSavedSettings(settings);
             toast.success('Settings updated successfully');
-        } catch (error: any) {
+        } catch (_error: any) {
             toast.error('Failed to update settings');
         } finally {
             setIsSaving(false);

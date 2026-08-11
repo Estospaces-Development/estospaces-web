@@ -14,7 +14,7 @@ const stats = [
 export default function HomePage() {
   const location = useLocation();
   const marketParam = new URLSearchParams(location.search).get("market");
-  const searchHref = marketParam ? `/search?market=${encodeURIComponent(marketParam)}` : "/search";
+  const _searchHref = marketParam ? `/search?market=${encodeURIComponent(marketParam)}` : "/search";
 
   return (
     <div className="bg-white text-gray-950">

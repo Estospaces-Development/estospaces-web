@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {  useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
     ArrowRight,
@@ -809,7 +809,10 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
     const matchedExperienceSteps = requestIsMatched && activeRequest ? getMatchedExperienceSteps(activeRequest) : [];
-    const sharedProperties = activeRequest?.property_shares || [];
+    const sharedProperties = useMemo(
+        () => activeRequest?.property_shares || [],
+        [activeRequest?.property_shares],
+    );
     const availableSharedProperties = useMemo(
         () => sharedProperties.filter((share) => Boolean(share.property)),
         [sharedProperties],

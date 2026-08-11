@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, ArrowLeft, Loader2, Search, Plus } from 'lucide-react';
+import { Calendar, MapPin, ArrowLeft, Loader2, Search, Plus } from 'lucide-react';
 import { bookingsService, type Booking } from '../../../services/bookingsService';
 import { useToast } from '../../../contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
@@ -160,7 +160,7 @@ export default function BookingsPage() {
                 setIsLoading(true);
                 const result = await bookingsService.getBookings();
                 setBookings(result || []);
-            } catch (error: any) {
+            } catch (_error: any) {
                 toast.error('Failed to load bookings');
             } finally {
                 setIsLoading(false);

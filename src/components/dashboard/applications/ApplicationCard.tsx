@@ -321,7 +321,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         return Home;
     };
 
-    const PropertyTypeIcon = getPropertyTypeIcon();
+    const _PropertyTypeIcon = getPropertyTypeIcon();
     const formattedPropertyPrice = formatLaunchCurrencyForCountry(application.propertyPrice || 0, {
         countryCode: application.propertyCountry,
         countryName: application.propertyCountry,

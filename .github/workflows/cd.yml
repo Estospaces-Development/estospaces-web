@@ -2,27 +2,45 @@ name: CD - Build and Deploy to Cloud Run
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop]
   workflow_dispatch:
+    inputs:
+      target_environment:
+        description: Deployment target
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+      confirm_production:
+        description: Confirm this production deployment is explicitly approved
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: estospaces-web-${{ github.ref_name }}
-  cancel-in-progress: true
+  group: estospaces-web-${{ github.event_name == 'workflow_dispatch' && inputs.target_environment || 'dev' }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    if: github.ref_name == 'develop' || github.ref_name == 'main'
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.target_environment == 'dev') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target_environment == 'prod' && inputs.confirm_production && github.ref_name == 'main')
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'dev' }}
+    timeout-minutes: 45
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target_environment == 'prod' && 'production' || 'dev' }}
     env:
       SERVICE_NAME: estospaces-web
       REGION: europe-west2
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      TARGET_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      TARGET_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.target_environment == 'prod' && 'prod' || 'dev' }}
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -55,18 +73,12 @@ jobs:
             -t "$IMAGE" .
           docker push "$IMAGE"
 
-      - name: Deploy to Cloud Run
+      - name: Deploy verified candidate to Cloud Run
+        id: deploy
+        shell: bash
         run: |
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
-          SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
-          gcloud run services update "$SERVICE_TARGET" \
-            --image="$IMAGE" \
-            --region="${REGION}" \
-            --project="${PROJECT_ID}"
-          gcloud run services update-traffic "$SERVICE_TARGET" \
-            --to-latest \
-            --region="${REGION}" \
-            --project="${PROJECT_ID}"
+          export IMAGE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          bash ".github/scripts/deploy-cloud-run.sh"
 
       - name: Health check
         run: |
@@ -77,11 +89,19 @@ jobs:
               "https://admin.estospaces.com/health"
             )
           else
-            SERVICE_URL="$(gcloud run services describe "$SERVICE_TARGET" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
+            SERVICE_URL="${{ steps.deploy.outputs.service_url }}"
             HEALTH_URLS=("${SERVICE_URL}/health")
           fi
           for HEALTH_URL in "${HEALTH_URLS[@]}"; do
-            RESPONSE="$(curl --fail --show-error --silent --location "${HEALTH_URL}")"
+            RESPONSE="$(curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "${HEALTH_URL}")"
             echo "${RESPONSE}" | grep -q '"status":"ok"'
             echo "${RESPONSE}" | grep -q '"service":"estospaces-web"'
           done
+
+      - name: Roll back after post-deploy failure
+        if: ${{ failure() && steps.deploy.outputs.previous_revision != '' }}
+        run: |
+          gcloud run services update-traffic "${SERVICE_NAME}-${TARGET_ENV}" \
+            --to-revisions="${{ steps.deploy.outputs.previous_revision }}=100" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}"

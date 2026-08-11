@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FileText, Download, X } from 'lucide-react';
 
 interface Contract {
@@ -18,7 +18,7 @@ interface ContractViewerProps {
 }
 
 const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, _setIsLoading] = useState(false);
 
     const currentDate = new Date().toLocaleDateString('en-GB', {
         day: 'numeric',

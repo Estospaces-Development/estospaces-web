@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { notifyPropertySaved } from '../services/notificationsService';
 import { useAuth } from './AuthContext';
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 import type { Property } from './PropertyContext';

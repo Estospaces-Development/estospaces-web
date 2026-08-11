@@ -11,7 +11,6 @@ import {
     Layers,
     Loader2,
     MapPin,
-    Maximize,
     Plus,
     Search,
     Trash2,
