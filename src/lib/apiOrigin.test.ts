@@ -8,23 +8,7 @@ import assert from 'node:assert';
  * and that CSP headers would allow the origins actually needed at runtime.
  */
 
-const APPROVED_API_DASE_PREFIX = '__api';
-const APPROVED_ORIGINS = [
-  'self',
-  'https://app.estospaces.com',
-  'https://admin.estospaces.com',
-  'https://storage.googleapis.com',
-];
-
-const CANONICAL_API_DOMAINS = [
-  'core-api.estospaces.com',
-  'booking-api.estospaces.com',
-  'search-api.estospaces.com',
-  'media-api.estospaces.com',
-  'messaging-api.estospaces.com',
-  'notification-api.estospaces.com',
-  'payment-api.estospaces.com',
-];
+const APPROVED_API_BASE_PREFIX = '/__api/';
 
 // Direct Cloud Run origins (used internally between services)
 const INTERNAL_CLOUD_RUN_PATTERN = /^https:\/\/estospaces-[a-z-]+-prod-\d+\.europe-west2\.run\.app$/;
@@ -64,13 +48,15 @@ test('API base URLs use __api/ prefix, not direct Cloud Run origins', () => {
   envOverrides['VITE_NOTIFICATION_API'] = '/__api/notification';
 
   // No API URL should be a direct Cloud Run origin
-  for (const [key, value] of Object.entries(envOverrides)) {
+  for (const key of apiUrlEnvKeys) {
+    const value = envOverrides[key];
+    assert.ok(value, `${key} must have an API URL override`);
     assert.ok(
       !INTERNAL_CLOUD_RUN_PATTERN.test(value),
       `${key} should not be a direct Cloud Run origin (got: ${value})`
     );
     assert.ok(
-      value.startsWith('/__api/'),
+      value.startsWith(APPROVED_API_BASE_PREFIX),
       `${key} should use __api/ prefix (got: ${value})`
     );
   }
