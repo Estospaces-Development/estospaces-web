@@ -188,6 +188,21 @@ export const resolveFastTrackDocumentSearchParam = (
     return match || null;
 };
 
+export const resolveFastTrackDocumentFocusAfterRefresh = (
+    params: URLSearchParams,
+    previousFocusId: string | null,
+    validDocumentIds: string[],
+) => {
+    const requestedDocumentId = resolveFastTrackDocumentSearchParam(params, validDocumentIds);
+    if (requestedDocumentId) {
+        return requestedDocumentId;
+    }
+    if (previousFocusId && validDocumentIds.includes(previousFocusId)) {
+        return previousFocusId;
+    }
+    return validDocumentIds[0] || null;
+};
+
 export const buildFastTrackDocumentSearchParams = (
     current: URLSearchParams,
     documentId: string,

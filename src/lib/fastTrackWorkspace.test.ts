@@ -20,6 +20,7 @@ import {
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
     resolveFastTrackDocumentSearchParam,
+    resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
@@ -517,12 +518,11 @@ test('document row focus is single-click and does not reset scroll position', ()
     assert.match(fastTrackWorkspaceComponent, /window\.setTimeout\(restore, 80\)/);
     assert.match(
         fastTrackWorkspaceComponent,
-        /buildFastTrackDocumentSearchParams\(\s*new URLSearchParams\(window\.location\.search\),\s*documentId,/,
+        /setSearchParams\(\s*\(previous\) => buildFastTrackDocumentSearchParams\(previous, documentId\),\s*\{ replace: true, preventScrollReset: true \},/,
     );
-    assert.match(fastTrackWorkspaceComponent, /window\.history\.replaceState\(window\.history\.state, '', nextUrl\)/);
+    assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.history\.replaceState/);
     assert.match(focusHandler, /replaceDocumentFocusUrl\(documentId\)/);
     assert.match(focusHandler, /restoreDocumentFocusScroll\(previousScrollX, previousScrollY\)/);
-    assert.doesNotMatch(focusHandler, /setSearchParams\(/);
     assert.match(
         fastTrackWorkspaceComponent,
         /data-fast-track-document-focus-trigger/,
@@ -543,5 +543,43 @@ test('document row focus is single-click and does not reset scroll position', ()
 
 test('fast-track cancel case uses an in-app confirmation dialog', () => {
     assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.confirm/);
-    assert.match(fastTrackWorkspaceComponent, /aria-label="Cancel fast-track case confirmation"/);
+    assert.match(fastTrackWorkspaceComponent, /aria-label="Close fast-track case confirmation"/);
+    assert.match(fastTrackWorkspaceComponent, /Closing retains the case history and uploaded documents/);
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /role !== 'user' && selectedCase\.workspaceFinalStatus === 'active'/,
+    );
+});
+
+test('document focus remains switchable after upload refresh and polling replacements', () => {
+    const uploadedAddressParams = new URLSearchParams('case=case-1&document=address');
+    let focus = resolveFastTrackDocumentFocusAfterRefresh(
+        uploadedAddressParams,
+        null,
+        ['identity', 'address'],
+    );
+    assert.equal(focus, 'address');
+
+    const clickedIdentityParams = buildFastTrackDocumentSearchParams(uploadedAddressParams, 'identity');
+    focus = resolveFastTrackDocumentFocusAfterRefresh(
+        clickedIdentityParams,
+        focus,
+        ['identity', 'address'],
+    );
+    assert.equal(focus, 'identity');
+
+    focus = resolveFastTrackDocumentFocusAfterRefresh(
+        clickedIdentityParams,
+        focus,
+        [...['identity', 'address']],
+    );
+    assert.equal(focus, 'identity');
+
+    const clickedAddressAgain = buildFastTrackDocumentSearchParams(clickedIdentityParams, 'address');
+    focus = resolveFastTrackDocumentFocusAfterRefresh(
+        clickedAddressAgain,
+        focus,
+        [...['identity', 'address']],
+    );
+    assert.equal(focus, 'address');
 });

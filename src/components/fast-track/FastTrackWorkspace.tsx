@@ -47,6 +47,7 @@ import {
     isFastTrackCaseCompleteForRole,
     isFastTrackManagerReviewEligible,
     resolveFastTrackDocumentSearchParam,
+    resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
@@ -596,14 +597,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, []);
 
     const replaceDocumentFocusUrl = useCallback((documentId: string) => {
-        const nextSearchParams = buildFastTrackDocumentSearchParams(
-            new URLSearchParams(window.location.search),
-            documentId,
+        setSearchParams(
+            (previous) => buildFastTrackDocumentSearchParams(previous, documentId),
+            { replace: true, preventScrollReset: true },
         );
-        const nextSearch = nextSearchParams.toString();
-        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
-        window.history.replaceState(window.history.state, '', nextUrl);
-    }, []);
+    }, [setSearchParams]);
 
     const restoreDocumentFocusScroll = useCallback((scrollX: number, scrollY: number) => {
         const restore = () => {
@@ -1366,8 +1364,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setCancelCaseDialogOpen(false);
         void runAction(
             'cancel_case',
-            { reason: 'Cancelled from manager workspace.' },
-            'Case cancelled.',
+            { reason: 'Closed from manager workspace.' },
+            'Fast Track closed. Its records remain available in Closed cases.',
         );
     }, [runAction]);
 
@@ -1518,13 +1516,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ])),
         );
         setDocumentFocusId((previous) => {
-            if (requestedDocumentId) {
-                return requestedDocumentId;
-            }
-            if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
-                return previous;
-            }
-            return selectedCase.documents.items[0]?.id || null;
+            return resolveFastTrackDocumentFocusAfterRefresh(
+                selectionParams,
+                previous,
+                selectedCase.documents.items.map((item) => item.id),
+            );
         });
         setPreviewItemId((previous) => {
             if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
@@ -1532,7 +1528,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
             return null;
         });
-    }, [requestedDocumentId, role, selectedCase]);
+    }, [requestedDocumentId, role, selectedCase, selectionParams]);
 
     useEffect(() => {
         if (utilityModules.length === 0) {
@@ -2561,15 +2557,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         >
                             Start documents
                         </ActionButton>
-                        {selectedCase.workspaceFinalStatus === 'active' ? (
-                            <ActionButton
-                                tone="danger"
-                                onClick={() => setCancelCaseDialogOpen(true)}
-                                busy={activeAction === 'cancel_case'}
-                            >
-                                Cancel case
-                            </ActionButton>
-                        ) : null}
                     </div>
                 ) : (
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
@@ -3955,6 +3942,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 onOpenCustomize={handleOpenCustomization}
                             />
 
+                            {role !== 'user' && selectedCase.workspaceFinalStatus === 'active' ? (
+                                <div className="flex justify-end">
+                                    <ActionButton
+                                        tone="danger"
+                                        onClick={() => setCancelCaseDialogOpen(true)}
+                                        busy={activeAction === 'cancel_case'}
+                                    >
+                                        Close Fast Track
+                                    </ActionButton>
+                                </div>
+                            ) : null}
+
                             <FastTrackStageStepper items={stepperItems} onSelect={handleStageSelect} />
 
                             <div className={cn(
@@ -4233,15 +4232,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div
                         role="dialog"
                         aria-modal="true"
-                        aria-label="Cancel fast-track case confirmation"
+                        aria-label="Close fast-track case confirmation"
                         className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-950"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                            Cancel fast-track case
+                            Close Fast Track
                         </h2>
                         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                            Cancel the fast-track case for {selectedCaseDisplayTitle}? This will stop the active journey for the connected client.
+                            Close the Fast Track for {selectedCaseDisplayTitle}? This releases this user/property combination for a future journey. Closing retains the case history and uploaded documents for review.
                         </p>
                         <div className="mt-6 flex justify-end gap-3">
                             <button
@@ -4250,7 +4249,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 disabled={activeAction === 'cancel_case'}
                                 className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
                             >
-                                Keep case
+                                Keep active
                             </button>
                             <button
                                 type="button"
@@ -4258,7 +4257,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 disabled={activeAction === 'cancel_case'}
                                 className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {activeAction === 'cancel_case' ? 'Cancelling...' : 'Cancel case'}
+                                {activeAction === 'cancel_case' ? 'Closing...' : 'Close Fast Track'}
                             </button>
                         </div>
                     </div>
