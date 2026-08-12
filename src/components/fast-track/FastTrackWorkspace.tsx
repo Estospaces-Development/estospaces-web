@@ -918,8 +918,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             !normalizedRequestedCaseParam
             || loading
             || requestedCaseIsAvailable
-            || requestedCaseLookupPending
-            || requestedCaseLookupMissed
         ) {
             return undefined;
         }
@@ -957,8 +955,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         loading,
         normalizedRequestedCaseParam,
         requestedCaseIsAvailable,
-        requestedCaseLookupMissed,
-        requestedCaseLookupPending,
     ]);
 
     useEffect(() => {
