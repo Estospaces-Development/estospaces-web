@@ -403,6 +403,15 @@ test("fast-track notification deep links load the requested case before stale-li
     source.indexOf("getFastTrackCaseById(normalizedRequestedCaseParam") <
       source.indexOf("setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' })"),
   );
+
+  const lookupEffectStart = source.indexOf("const loadRequestedCase = async () => {");
+  const staleLinkEffectStart = source.indexOf("if (!shouldRemoveFastTrackStaleCaseLink({", lookupEffectStart);
+  assert.ok(lookupEffectStart >= 0 && staleLinkEffectStart > lookupEffectStart);
+  assert.doesNotMatch(
+    source.slice(lookupEffectStart, staleLinkEffectStart),
+    /\n\s*requestedCaseLookup(?:Pending|Missed),/,
+    "lookup state must not cancel its own in-flight request before a miss can clean the URL",
+  );
 });
 
 test("compact case rail drawer sits above manager chrome without blurring the workspace", () => {
