@@ -3716,9 +3716,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const stepperItems = useMemo(
         () => STAGES.map((stage, index) => {
             const Icon = STAGE_ICONS[stage];
-            const isLocked = selectedCase
+            const isLocked = Boolean(
+                selectedCase
                 && selectedCase.workspaceFinalStatus !== 'completed'
-                && index > stageIndex + 1;
+                && index > stageIndex + 1
+            );
             return {
                 key: stage,
                 label: selectedCase

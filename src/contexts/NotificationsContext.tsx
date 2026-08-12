@@ -24,6 +24,11 @@ import {
     getNotificationToastDedupeKey,
     shouldPersistNotificationToastDedupeKey,
 } from '@/lib/notificationToastDedupe';
+import {
+    playFastTrackAlertSound,
+    primeFastTrackAlertSound,
+    shouldPlayFastTrackAlertSound,
+} from '@/lib/fastTrackNotificationSound';
 
 interface NotificationsContextType {
     notifications: Notification[];
@@ -58,6 +63,7 @@ const HIGH_PRIORITY_NOTIFICATION_TYPES = new Set([
     NOTIFICATION_TYPE_VALUES.FAST_TRACK_STARTED,
     NOTIFICATION_TYPE_VALUES.FAST_TRACK_UPDATED,
     NOTIFICATION_TYPE_VALUES.FAST_TRACK_COMPLETED,
+    NOTIFICATION_TYPE_VALUES.PROPERTY_SELECTED,
     NOTIFICATION_TYPE_VALUES.SYSTEM,
 ]);
 
@@ -184,6 +190,10 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                             duration: isHighPriority ? 9000 : 5000,
                             position: 'top-right',
                         });
+                    }
+
+                    if (shouldPlayFastTrackAlertSound(notification.type)) {
+                        playFastTrackAlertSound();
                     }
 
                     showBrowserNotification(notification, user?.role || 'user');
@@ -338,6 +348,29 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             window.removeEventListener('click', requestPermission);
             window.removeEventListener('keydown', requestPermission);
             window.removeEventListener('touchstart', requestPermission);
+        };
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        const primeAlertSound = () => {
+            primeFastTrackAlertSound();
+            window.removeEventListener('click', primeAlertSound);
+            window.removeEventListener('keydown', primeAlertSound);
+            window.removeEventListener('touchstart', primeAlertSound);
+        };
+
+        window.addEventListener('click', primeAlertSound, { once: true, passive: true });
+        window.addEventListener('keydown', primeAlertSound, { once: true });
+        window.addEventListener('touchstart', primeAlertSound, { once: true, passive: true });
+
+        return () => {
+            window.removeEventListener('click', primeAlertSound);
+            window.removeEventListener('keydown', primeAlertSound);
+            window.removeEventListener('touchstart', primeAlertSound);
         };
     }, [user]);
 
