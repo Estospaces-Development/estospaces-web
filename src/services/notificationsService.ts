@@ -37,6 +37,11 @@ export const NOTIFICATION_TYPES = {
     CASE_FILE_DOCUMENT_REVIEWED: 'case_file_document_reviewed',
     CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED: 'case_file_document_reupload_requested',
 
+    // Broker requests
+    BROKER_REQUEST_MATCHED: 'broker_request_matched',
+    BROKER_REQUEST_PORTFOLIO_SHARED: 'portfolio_shared',
+    BROKER_REQUEST_REMATCH: 'broker_request_rematch',
+
     // Verification
     DOCUMENT_VERIFIED: 'document_verified',
     PROFILE_VERIFIED: 'profile_verified',

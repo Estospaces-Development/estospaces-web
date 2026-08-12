@@ -14,7 +14,6 @@ import { useToast } from './ToastContext';
 import * as notificationsService from '../services/notificationsService';
 import {
     getNotificationNavigationPath,
-    NOTIFICATION_TYPES as NOTIFICATION_TYPE_VALUES,
     type Notification,
 } from '../services/notificationsService';
 import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
@@ -25,10 +24,12 @@ import {
     shouldPersistNotificationToastDedupeKey,
 } from '@/lib/notificationToastDedupe';
 import {
-    playFastTrackAlertSound,
-    primeFastTrackAlertSound,
-    shouldPlayFastTrackAlertSound,
-} from '@/lib/fastTrackNotificationSound';
+    buildNotificationAlertBatch,
+    hasImportantNotification,
+    isImportantNotification,
+    playImportantNotificationSound,
+    primeImportantNotificationSound,
+} from '@/lib/importantNotificationSound';
 
 interface NotificationsContextType {
     notifications: Notification[];
@@ -44,28 +45,6 @@ interface NotificationsContextType {
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
 export { NOTIFICATION_TYPES } from '../services/notificationsService';
-
-const HIGH_PRIORITY_NOTIFICATION_TYPES = new Set([
-    NOTIFICATION_TYPE_VALUES.VIEWING_BOOKED,
-    NOTIFICATION_TYPE_VALUES.VIEWING_CONFIRMED,
-    NOTIFICATION_TYPE_VALUES.VIEWING_COMPLETED,
-    NOTIFICATION_TYPE_VALUES.VIEWING_RESCHEDULED,
-    NOTIFICATION_TYPE_VALUES.VIEWING_CANCELLED,
-    NOTIFICATION_TYPE_VALUES.APPOINTMENT_REMINDER,
-    NOTIFICATION_TYPE_VALUES.MESSAGE_RECEIVED,
-    NOTIFICATION_TYPE_VALUES.DOCUMENTS_REQUESTED,
-    NOTIFICATION_TYPE_VALUES.CASE_FILE_DOCUMENT_REQUESTED,
-    NOTIFICATION_TYPE_VALUES.CASE_FILE_DOCUMENT_UPLOADED,
-    NOTIFICATION_TYPE_VALUES.CASE_FILE_DOCUMENT_REVIEWED,
-    NOTIFICATION_TYPE_VALUES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED,
-    NOTIFICATION_TYPE_VALUES.SALE_JOURNEY_UPDATED,
-    NOTIFICATION_TYPE_VALUES.SALE_JOURNEY_COMPLETED,
-    NOTIFICATION_TYPE_VALUES.FAST_TRACK_STARTED,
-    NOTIFICATION_TYPE_VALUES.FAST_TRACK_UPDATED,
-    NOTIFICATION_TYPE_VALUES.FAST_TRACK_COMPLETED,
-    NOTIFICATION_TYPE_VALUES.PROPERTY_SELECTED,
-    NOTIFICATION_TYPE_VALUES.SYSTEM,
-]);
 
 const BROWSER_NOTIFICATION_ICON = '/images/logo-icon.png';
 const TOAST_DEDUPE_STORAGE_PREFIX = 'estospaces:notification-toast-dedupe:';
@@ -83,7 +62,7 @@ const showBrowserNotification = (notification: Notification, role: string) => {
         icon: BROWSER_NOTIFICATION_ICON,
         badge: BROWSER_NOTIFICATION_ICON,
         tag: `estospaces-${notification.id}`,
-        requireInteraction: HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any),
+        requireInteraction: isImportantNotification(notification),
     });
 
     browserNotification.onclick = () => {
@@ -95,7 +74,7 @@ const showBrowserNotification = (notification: Notification, role: string) => {
         browserNotification.close();
     };
 
-    if (!HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any)) {
+    if (!isImportantNotification(notification)) {
         window.setTimeout(() => browserNotification.close(), 10000);
     }
 };
@@ -166,11 +145,12 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                 typeof document !== 'undefined' && document.visibilityState === 'hidden';
 
             if (hasHydratedRef.current) {
-                const freshNotifications = nextNotifications
-                    .filter((notification) => !notification.is_read && !previousUnreadIDsRef.current.has(notification.id))
-                    .slice(0, 3);
+                const { freshNotifications, visibleNotifications: visibleFreshNotifications } = buildNotificationAlertBatch(
+                    nextNotifications,
+                    previousUnreadIDsRef.current,
+                );
 
-                freshNotifications.forEach((notification) => {
+                visibleFreshNotifications.forEach((notification) => {
                     const toastDedupeKey = getNotificationToastDedupeKey(notification);
                     if (shownToastDedupeKeysRef.current.has(toastDedupeKey)) {
                         return;
@@ -181,7 +161,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                         writeStoredToastDedupeKeys(user.id, shownToastDedupeKeysRef.current);
                     }
 
-                    const isHighPriority = HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any);
+                    const isHighPriority = isImportantNotification(notification);
                     if (!isDocumentHidden) {
                         const toastMethod = isHighPriority ? toast.warning : toast.info;
 
@@ -192,12 +172,12 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                         });
                     }
 
-                    if (shouldPlayFastTrackAlertSound(notification.type)) {
-                        playFastTrackAlertSound();
-                    }
-
                     showBrowserNotification(notification, user?.role || 'user');
                 });
+
+                if (hasImportantNotification(freshNotifications)) {
+                    playImportantNotificationSound();
+                }
 
                 const syncEvents = freshNotifications
                     .map((notification) => normalizeNotificationToWorkspaceSyncEvent(notification, user?.role || 'user'))
@@ -357,7 +337,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         }
 
         const primeAlertSound = () => {
-            primeFastTrackAlertSound();
+            primeImportantNotificationSound();
             window.removeEventListener('click', primeAlertSound);
             window.removeEventListener('keydown', primeAlertSound);
             window.removeEventListener('touchstart', primeAlertSound);
