@@ -394,6 +394,7 @@ test("fast-track notification deep links load the requested case before stale-li
   assert.match(source, /setCases\(\(previous\) => sortFastTrackWorkspaceCases\(\[/);
   assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'miss' \}\)/);
   assert.match(source, /&& requestedCaseLookupMissed/);
+  assert.match(source, /shouldDeferFastTrackSelectionURLSync\(\{/);
   assert.match(source, /const recoveredCase = cases\.find\(\(item\) => \(/);
   assert.match(source, /item\.caseId\.trim\(\)\.toLowerCase\(\) === recoveredCaseLink\.trim\(\)\.toLowerCase\(\)/);
   assert.match(source, /setRecoveredCaseLink\(null\);\s*pendingSelectedCaseIdRef\.current = recoveredCase\.caseId;/);
@@ -464,12 +465,14 @@ test("fast-track viewing response actions are mutually exclusive", () => {
   assert.ok(source.includes("disabled={requestViewingChangeDisabled}"));
 });
 
-test("fast-track stage navigation only allows current, previous, or next stage", () => {
+test("fast-track stage navigation uses workflow readiness instead of current plus one", () => {
   const source = workspaceSource();
 
   assert.ok(source.includes('canNavigateToStage'), 'should define a canNavigateToStage guard');
+  assert.ok(source.includes('isFastTrackStageUnlocked(selectedCase, targetStage)'),
+    'should resolve navigation from authoritative workflow readiness');
   assert.ok(source.includes("setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage)"),
-    'should allow overriding to the same stage or next stage');
+    'should preserve an explicitly selected unlocked historical stage');
   assert.ok(source.includes("toast.info('Complete the current stage before moving to the next one.')"),
     'should show toast when user tries to skip ahead');
 });
@@ -482,4 +485,25 @@ test("fast-track stepper disables locked future stages", () => {
   assert.ok(layoutSource.includes('cursor-not-allowed'), 'locked stepper buttons should show not-allowed cursor');
   assert.ok(layoutSource.includes("'Complete the current stage first'"),
     'locked stepper buttons should have an explanatory title');
+});
+
+test("fast-track polls workflow changes promptly for users and managers", () => {
+    const source = workspaceSource();
+
+    assert.match(
+        source,
+        /intervalMs:\s*WORKSPACE_SYNC_INTERVALS\.WORKFLOW/,
+        "cross-role workflow changes should refresh on the workflow cadence",
+    );
+    assert.doesNotMatch(source, /role === ['"]user['"] \? 60000/);
+});
+
+test("fast-track preserves deep-linked stage while the requested case changes", () => {
+    const source = workspaceSource();
+
+    assert.ok(source.includes('shouldDeferFastTrackStageResolution(requestedCaseForStageNavigation, selectedCase.caseId)'));
+    assert.ok(source.includes("'mark_payment_received'"), 'legacy payment holds should expose a recovery action');
+    assert.ok(source.includes('Confirm previous payment'));
+    assert.ok(source.includes('shouldRemoveFastTrackStaleCaseLink({'),
+        'stale-link recovery must use the deferred lookup state machine');
 });

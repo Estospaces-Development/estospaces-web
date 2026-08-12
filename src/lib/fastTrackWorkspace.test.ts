@@ -22,12 +22,17 @@ import {
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
+    isFastTrackStageUnlocked,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
+    resolveFastTrackStageNavigation,
     resolveFastTrackThreadRecipientId,
     resolveFastTrackVisibleStage,
+    shouldDeferFastTrackStageResolution,
+    shouldDeferFastTrackSelectionURLSync,
+    shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
 } from './fastTrackWorkspace';
 
@@ -553,6 +558,167 @@ test('fast-track cancel case uses an in-app confirmation dialog', () => {
         fastTrackWorkspaceComponent,
         /role !== 'user' && selectedCase\.workspaceFinalStatus === 'active'/,
     );
+});
+
+test('stage availability follows the exact Fast Track business events', () => {
+    const selected = buildCase();
+    assert.equal(isFastTrackStageUnlocked(selected, 'selected'), true);
+    assert.equal(isFastTrackStageUnlocked(selected, 'documents'), true);
+    assert.equal(isFastTrackStageUnlocked(selected, 'viewing'), false);
+
+    const partialDocuments = buildCase({
+        stage: 'documents',
+        documents: {
+            identityProof: 'verified',
+            addressProof: 'pending',
+            items: [],
+            allUploaded: false,
+            allApproved: false,
+        },
+    });
+    assert.equal(isFastTrackStageUnlocked(partialDocuments, 'viewing'), false);
+
+    const approvedDocuments = buildCase({
+        stage: 'viewing',
+        documents: {
+            identityProof: 'verified',
+            addressProof: 'verified',
+            items: [],
+            allUploaded: true,
+            allApproved: true,
+        },
+        viewing: { status: 'pending' },
+    });
+    assert.equal(isFastTrackStageUnlocked(approvedDocuments, 'viewing'), true);
+    assert.equal(isFastTrackStageUnlocked(approvedDocuments, 'decision'), false);
+
+    const scheduledViewing = buildCase({
+        stage: 'viewing',
+        viewingId: 'viewing-1',
+        viewing: { status: 'scheduled', scheduledAt: '2026-08-14T10:00:00Z' },
+    });
+    assert.equal(isFastTrackStageUnlocked(scheduledViewing, 'viewing'), true);
+    assert.equal(isFastTrackStageUnlocked(scheduledViewing, 'decision'), false);
+
+    for (const status of ['completed', 'skipped'] as const) {
+        const viewingFinished = buildCase({
+            stage: 'decision',
+            viewing: { status },
+        });
+        assert.equal(isFastTrackStageUnlocked(viewingFinished, 'decision'), true);
+        assert.equal(isFastTrackStageUnlocked(viewingFinished, 'agreement'), false);
+    }
+
+    const approvedDecision = buildCase({
+        stage: 'agreement',
+        viewing: { status: 'completed' },
+        decision: { mode: 'rent', status: 'approved' },
+    });
+    assert.equal(isFastTrackStageUnlocked(approvedDecision, 'agreement'), true);
+    assert.equal(isFastTrackStageUnlocked(approvedDecision, 'handover'), false);
+
+    const sentAgreement = buildCase({
+        stage: 'agreement',
+        decision: { mode: 'rent', status: 'approved' },
+        agreement: { status: 'sent', paymentStatus: 'not_requested' },
+    });
+    assert.equal(isFastTrackStageUnlocked(sentAgreement, 'handover'), false);
+
+    const acceptedAgreement = buildCase({
+        stage: 'handover',
+        decision: { mode: 'rent', status: 'approved' },
+        agreement: { status: 'accepted', paymentStatus: 'not_requested' },
+    });
+    assert.equal(isFastTrackStageUnlocked(acceptedAgreement, 'handover'), true);
+    assert.equal(isFastTrackStageUnlocked(acceptedAgreement, 'documents'), true);
+
+    const paymentOutstanding = buildCase({
+        stage: 'agreement',
+        decision: { mode: 'rent', status: 'approved' },
+        agreement: { status: 'accepted', paymentStatus: 'requested' },
+    });
+    assert.equal(isFastTrackStageUnlocked(paymentOutstanding, 'handover'), true);
+
+    const completed = buildCase({ workspaceFinalStatus: 'completed' });
+    assert.equal(isFastTrackStageUnlocked(completed, 'handover'), true);
+});
+
+test('stage resolution waits for a newly requested case instead of rewriting its section', () => {
+    assert.equal(shouldDeferFastTrackStageResolution('case-b', 'case-a'), true);
+    assert.equal(shouldDeferFastTrackStageResolution(' CASE-B ', 'case-b'), false);
+    assert.equal(shouldDeferFastTrackStageResolution(null, 'case-a'), false);
+});
+
+test('stale-case recovery preserves a deep link until deferred lookup has definitely missed', () => {
+    const unresolved = {
+        requestedCaseId: 'case-b',
+        loading: false,
+        requestedCaseIsAvailable: false,
+        requestedCaseLookupPending: false,
+        requestedCaseLookupMissed: false,
+    };
+    assert.equal(shouldRemoveFastTrackStaleCaseLink(unresolved), false);
+    assert.equal(shouldRemoveFastTrackStaleCaseLink({
+        ...unresolved,
+        requestedCaseLookupPending: true,
+    }), false);
+    assert.equal(shouldRemoveFastTrackStaleCaseLink({
+        ...unresolved,
+        requestedCaseIsAvailable: true,
+    }), false);
+    assert.equal(shouldRemoveFastTrackStaleCaseLink({
+        ...unresolved,
+        requestedCaseLookupMissed: true,
+    }), true);
+});
+
+test('case URL synchronization waits for a deferred deep-link lookup', () => {
+    const unresolved = {
+        requestedCaseId: 'case-b',
+        requestedCaseIsAvailable: false,
+        requestedCaseLookupMissed: false,
+    };
+    assert.equal(shouldDeferFastTrackSelectionURLSync(unresolved), true);
+    assert.equal(shouldDeferFastTrackSelectionURLSync({
+        ...unresolved,
+        requestedCaseIsAvailable: true,
+    }), false);
+    assert.equal(shouldDeferFastTrackSelectionURLSync({
+        ...unresolved,
+        requestedCaseLookupMissed: true,
+    }), false);
+    assert.equal(shouldDeferFastTrackSelectionURLSync({
+        ...unresolved,
+        requestedCaseId: null,
+    }), false);
+});
+
+test('stage navigation clamps future URLs and follows a polled backend progression', () => {
+    const selected = buildCase({ stage: 'selected' });
+    assert.deepEqual(resolveFastTrackStageNavigation(selected, 'agreement'), {
+        visibleStage: 'selected',
+        shouldReplaceStageParam: true,
+    });
+
+    const documents = buildCase({ stage: 'documents' });
+    assert.deepEqual(resolveFastTrackStageNavigation(documents, 'documents', 'selected'), {
+        visibleStage: 'documents',
+        shouldReplaceStageParam: false,
+    });
+
+    const appointmentScheduled = buildCase({
+        stage: 'viewing',
+        viewingId: 'viewing-1',
+        viewing: { status: 'scheduled', scheduledAt: '2026-08-14T10:00:00Z' },
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentScheduled, 'documents', 'documents'), {
+        visibleStage: 'viewing',
+        shouldReplaceStageParam: true,
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentScheduled, 'selected', 'documents'), {
+        visibleStage: 'selected',
+        shouldReplaceStageParam: false,
+    });
 });
 
 test('user can open and prepare documents before manager review starts', () => {
