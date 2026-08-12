@@ -8,7 +8,9 @@ import { dirname, join } from "node:path";
 
 import {
   buildAdminOverrideConfirmationMessage,
+  FastTrackDocumentReviewControls,
   FastTrackDocumentFileChooser,
+  FastTrackUserDocumentPreparationCallout,
   findRecoveredThreadMessage,
   formatFastTrackCaseDeadline,
   formatFastTrackCaseStage,
@@ -101,6 +103,41 @@ test("fast-track user document upload copy makes uploaded and reupload states vi
       statusMessage: "Reupload requested. Choose a replacement file and submit it here.",
     },
   );
+});
+
+test("selected-stage guidance lets users prepare documents before manager review", () => {
+  const markup = renderToStaticMarkup(<FastTrackUserDocumentPreparationCallout />);
+
+  assert.match(markup, /Open Share your documents now/);
+  assert.match(markup, /switch between Identity and Address/);
+  assert.doesNotMatch(markup, /Once that happens, you can upload/);
+});
+
+test("approved fast-track documents cannot be approved twice", () => {
+  const approvedMarkup = renderToStaticMarkup(
+    <FastTrackDocumentReviewControls
+      item={{ id: "identity", label: "Identity", status: "approved" }}
+      hasAttachedFile
+      busy={false}
+      onReview={() => {}}
+    />,
+  );
+
+  assert.doesNotMatch(approvedMarkup, /aria-label="Approve Identity"/);
+  assert.match(approvedMarkup, /Approved\. No further approval is needed\./);
+  assert.match(approvedMarkup, /aria-label="Request replacement for Identity"/);
+
+  const uploadedMarkup = renderToStaticMarkup(
+    <FastTrackDocumentReviewControls
+      item={{ id: "address", label: "Address", status: "uploaded" }}
+      hasAttachedFile
+      busy={false}
+      onReview={() => {}}
+    />,
+  );
+
+  assert.match(uploadedMarkup, /aria-label="Approve Address"/);
+  assert.match(uploadedMarkup, /aria-label="Request replacement for Address"/);
 });
 
 const workspaceSource = () => readFileSync(

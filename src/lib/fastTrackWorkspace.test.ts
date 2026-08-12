@@ -11,11 +11,14 @@ import {
     buildFastTrackDocumentSearchParams,
     buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
+    canStartFastTrackDocumentUpload,
+    canUserPrepareFastTrackDocuments,
     canUserConfirmFastTrackHandover,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
     getFastTrackDecisionGuard,
+    getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
@@ -24,6 +27,7 @@ import {
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
+    resolveFastTrackVisibleStage,
     shouldStartDocumentsWhenSelectingStage,
 } from './fastTrackWorkspace';
 
@@ -548,6 +552,72 @@ test('fast-track cancel case uses an in-app confirmation dialog', () => {
     assert.match(
         fastTrackWorkspaceComponent,
         /role !== 'user' && selectedCase\.workspaceFinalStatus === 'active'/,
+    );
+});
+
+test('user can open and prepare documents before manager review starts', () => {
+    const unassignedCase = buildCase({
+        stage: 'selected',
+        workspaceFinalStatus: 'active',
+        managerId: undefined,
+        activity: [],
+    });
+
+    assert.equal(resolveFastTrackVisibleStage(unassignedCase, null), 'selected');
+    assert.equal(resolveFastTrackVisibleStage(unassignedCase, 'documents'), 'documents');
+    assert.equal(canUserPrepareFastTrackDocuments(unassignedCase), true);
+    assert.equal(
+        resolveFastTrackVisibleStage(
+            buildCase({ stage: 'documents', managerId: undefined, activity: [] }),
+            null,
+        ),
+        'documents',
+    );
+    assert.equal(
+        canUserPrepareFastTrackDocuments(buildCase({ workspaceFinalStatus: 'cancelled' })),
+        false,
+    );
+    assert.equal(
+        canUserPrepareFastTrackDocuments(buildCase({ workspaceFinalStatus: 'completed' })),
+        false,
+    );
+});
+
+test('manager document actions do not offer duplicate approval', () => {
+    assert.deepEqual(getFastTrackDocumentReviewActions('uploaded', true), {
+        canApprove: true,
+        canRequestReplacement: true,
+    });
+    assert.deepEqual(getFastTrackDocumentReviewActions('approved', true), {
+        canApprove: false,
+        canRequestReplacement: true,
+    });
+    assert.deepEqual(getFastTrackDocumentReviewActions('reupload_needed', true), {
+        canApprove: false,
+        canRequestReplacement: false,
+    });
+    assert.deepEqual(getFastTrackDocumentReviewActions('pending', false), {
+        canApprove: false,
+        canRequestReplacement: false,
+    });
+});
+
+test('replacement document upload accepts a corrected file with the original filename', () => {
+    const requestedReplacement = {
+        documentRecordId: 'document-record-1',
+        fileUrl: 'https://media.example/documents/address-old.pdf',
+        fileName: 'address.pdf',
+        status: 'reupload_needed' as const,
+    };
+    const correctedScan = { name: 'address.pdf', size: 4096, lastModified: 1786543200000 };
+
+    assert.equal(
+        canStartFastTrackDocumentUpload(requestedReplacement, correctedScan, false),
+        true,
+    );
+    assert.equal(
+        canStartFastTrackDocumentUpload(requestedReplacement, correctedScan, true),
+        false,
     );
 });
 

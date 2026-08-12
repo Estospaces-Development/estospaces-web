@@ -37,11 +37,14 @@ import {
     buildFastTrackSelectionSearchParams,
     buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
+    canStartFastTrackDocumentUpload,
+    canUserPrepareFastTrackDocuments,
     canUserConfirmFastTrackHandover,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
     getFastTrackDecisionGuard,
+    getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
     isFastTrackCaseCompleteForRole,
@@ -51,6 +54,7 @@ import {
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
+    resolveFastTrackVisibleStage,
     shouldStartDocumentsWhenSelectingStage,
 } from '@/lib/fastTrackWorkspace';
 import {
@@ -446,6 +450,66 @@ const ActionButton = ({
     );
 };
 
+interface FastTrackDocumentReviewControlsProps {
+    item: Pick<FastTrackDocumentItem, 'id' | 'label' | 'status'>;
+    hasAttachedFile: boolean;
+    busy: boolean;
+    onReview: (outcome: 'approved' | 'reupload_needed') => void;
+}
+
+export const FastTrackDocumentReviewControls = ({
+    item,
+    hasAttachedFile,
+    busy,
+    onReview,
+}: FastTrackDocumentReviewControlsProps) => {
+    const actions = getFastTrackDocumentReviewActions(item.status, hasAttachedFile);
+
+    return (
+        <div className="mt-3 flex flex-wrap gap-2">
+            {actions.canApprove ? (
+                <ActionButton
+                    onClick={() => onReview('approved')}
+                    busy={busy}
+                    ariaLabel={`Approve ${item.label}`}
+                    className="flex-1 px-3 py-2 text-xs"
+                >
+                    Approve
+                </ActionButton>
+            ) : item.status === 'approved' ? (
+                <p className="flex-1 rounded-2xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300">
+                    Approved. No further approval is needed.
+                </p>
+            ) : item.status === 'reupload_needed' ? (
+                <p className="flex-1 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+                    Waiting for the replacement upload.
+                </p>
+            ) : (
+                <p className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                    Waiting for the user to upload this file.
+                </p>
+            )}
+            {actions.canRequestReplacement ? (
+                <ActionButton
+                    tone="secondary"
+                    onClick={() => onReview('reupload_needed')}
+                    busy={busy}
+                    ariaLabel={`Request replacement for ${item.label}`}
+                    className="flex-1 px-3 py-2 text-xs"
+                >
+                    Request replacement
+                </ActionButton>
+            ) : null}
+        </div>
+    );
+};
+
+export const FastTrackUserDocumentPreparationCallout = () => (
+    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
+        Open Share your documents now to upload and switch between Identity and Address. Your manager can review them when ready.
+    </div>
+);
+
 interface FastTrackDocumentFileChooserProps {
     documentId: string;
     label: string;
@@ -515,6 +579,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [requestChangeNote, setRequestChangeNote] = useState('');
     const [documentNotes, setDocumentNotes] = useState<Record<string, string>>({});
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+    const documentUploadsInFlightRef = useRef(new Set<string>());
     const [documentFocusId, setDocumentFocusId] = useState<string | null>(null);
     const [previewItemId, setPreviewItemId] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -1056,7 +1121,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : null,
         [selectedCase, selectionParams],
     );
-    const visibleStage = activeStageOverride ?? selectedCase?.stage ?? 'selected';
+    const effectiveVisibleStage = resolveFastTrackVisibleStage(selectedCase, activeStageOverride);
     const documentDraftStorageKey = useMemo(
         () => selectedCase
             ? buildFastTrackDocumentDraftStorageKey(role, selectedCase.caseId)
@@ -1065,11 +1130,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     );
     const isManagerReviewEligible = role === 'user'
         && isFastTrackManagerReviewEligible(selectedCase);
-    const shouldHoldUserDocumentsUntilManagerResponse = role === 'user'
-        && selectedCase?.stage === 'documents'
-        && !isFastTrackManagerReviewEligible(selectedCase);
-    const effectiveVisibleStage = shouldHoldUserDocumentsUntilManagerResponse ? 'selected' : visibleStage;
-
     useEffect(() => {
         if (!documentDraftStorageKey) {
             setDocumentNotes({});
@@ -1185,29 +1245,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [role, toast]);
 
     const workspaceFocus = useMemo(
-        () => {
-            if (!selectedCase) {
-                return '';
-            }
-            if (shouldHoldUserDocumentsUntilManagerResponse) {
-                return 'Waiting for manager response';
-            }
-            return describeFastTrackWorkspaceFocus(selectedCase, role);
-        },
-        [role, selectedCase, shouldHoldUserDocumentsUntilManagerResponse],
+        () => selectedCase ? describeFastTrackWorkspaceFocus(selectedCase, role) : '',
+        [role, selectedCase],
     );
 
     const workspaceStatus = useMemo(
-        () => {
-            if (!selectedCase) {
-                return '';
-            }
-            if (shouldHoldUserDocumentsUntilManagerResponse) {
-                return 'Your manager will request documents here after they respond. You do not need to upload files yet.';
-            }
-            return describeFastTrackWorkspaceStatus(selectedCase, role);
-        },
-        [role, selectedCase, shouldHoldUserDocumentsUntilManagerResponse],
+        () => selectedCase ? describeFastTrackWorkspaceStatus(selectedCase, role) : '',
+        [role, selectedCase],
     );
 
     const updateLocalCase = useCallback((nextCase: FastTrackCase) => {
@@ -1392,80 +1436,89 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        const existingUploaded = (item.documentRecordId || item.fileUrl);
-        if (existingUploaded && file.size > 0) {
-            toast.info('This file has already been uploaded.');
-            return;
-        }
-
-        setActiveAction(`upload-${item.id}`);
-        const uploadResult = await uploadDocument(
-            item.id === 'identity' ? 'identity' : 'address',
+        if (!canStartFastTrackDocumentUpload(
+            item,
             file,
-            {
-                targetUserId: selectedCase.clientId,
-                leadId: selectedCase.leadId,
-                fastTrackCaseId: selectedCase.caseId,
-                propertyId: selectedCase.propertyId,
-                managerId: selectedCase.managerId,
-            },
-        );
-
-        if (!uploadResult.success || !uploadResult.data) {
-            setActiveAction(null);
-            toast.error(uploadResult.error || 'Upload failed.');
+            documentUploadsInFlightRef.current.has(item.id),
+        )) {
+            toast.info('This document upload is already in progress.');
             return;
         }
 
-        const { data, error: actionError } = await performFastTrackAction(
-            selectedCase.id,
-            {
-                action: 'upload_document',
-                payload: {
-                    document_id: item.id,
-                    document_record_id: uploadResult.data.id,
-                    file_name: uploadResult.data.file_name,
-                    file_url: uploadResult.data.file_url,
-                    mime_type: uploadResult.data.mime_type,
-                    note: documentNotes[item.id] || '',
-                    uploaded_at: uploadResult.data.created_at,
+        documentUploadsInFlightRef.current.add(item.id);
+        setActiveAction(`upload-${item.id}`);
+        try {
+            const uploadResult = await uploadDocument(
+                item.id === 'identity' ? 'identity' : 'address',
+                file,
+                {
+                    targetUserId: selectedCase.clientId,
+                    leadId: selectedCase.leadId,
+                    fastTrackCaseId: selectedCase.caseId,
+                    propertyId: selectedCase.propertyId,
+                    managerId: selectedCase.managerId,
                 },
-            },
-            { suppressErrorToast: true },
-        );
-        setActiveAction(null);
+            );
 
-        if (actionError || !data) {
-            toast.error(actionError || 'Upload saved, but the workspace did not refresh.');
-            return;
-        }
+            if (!uploadResult.success || !uploadResult.data) {
+                toast.error(uploadResult.error || 'Upload failed.');
+                return;
+            }
 
-        setSelectedFiles((previous) => ({ ...previous, [item.id]: null }));
-        setDocumentNotes((previous) => {
-            const next = { ...previous };
-            delete next[item.id];
-            return next;
-        });
-        const input = fileInputRefs.current[item.id];
-        if (input) {
-            input.value = '';
+            const { data, error: actionError } = await performFastTrackAction(
+                selectedCase.id,
+                {
+                    action: 'upload_document',
+                    payload: {
+                        document_id: item.id,
+                        document_record_id: uploadResult.data.id,
+                        file_name: uploadResult.data.file_name,
+                        file_url: uploadResult.data.file_url,
+                        mime_type: uploadResult.data.mime_type,
+                        note: documentNotes[item.id] || '',
+                        uploaded_at: uploadResult.data.created_at,
+                    },
+                },
+                { suppressErrorToast: true },
+            );
+
+            if (actionError || !data) {
+                toast.error(actionError || 'Upload saved, but the workspace did not refresh.');
+                return;
+            }
+
+            setSelectedFiles((previous) => ({ ...previous, [item.id]: null }));
+            setDocumentNotes((previous) => {
+                const next = { ...previous };
+                delete next[item.id];
+                return next;
+            });
+            const input = fileInputRefs.current[item.id];
+            if (input) {
+                input.value = '';
+            }
+            updateLocalCase(data);
+            const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
+            if (uploadedItem) {
+                handleDocumentFocus(uploadedItem.id);
+            }
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
+                reason: 'Fast-track document uploaded',
+                ids: {
+                    caseId: data.caseId,
+                    leadId: data.leadId,
+                    propertyId: data.propertyId,
+                },
+            });
+            toast.success(`${item.label} uploaded and visible to your manager.`);
+        } catch {
+            toast.error('Upload failed. Please try again.');
+        } finally {
+            documentUploadsInFlightRef.current.delete(item.id);
+            setActiveAction(null);
         }
-        updateLocalCase(data);
-        const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
-        if (uploadedItem) {
-            handleDocumentFocus(uploadedItem.id);
-        }
-        publishWorkspaceSync({
-            source: 'mutation',
-            tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
-            reason: 'Fast-track document uploaded',
-            ids: {
-                caseId: data.caseId,
-                leadId: data.leadId,
-                propertyId: data.propertyId,
-            },
-        });
-        toast.success(`${item.label} uploaded and visible to your manager.`);
     }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
@@ -2559,9 +2612,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                     </div>
                 ) : (
-                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                        The team will open the document step here. Once that happens, you can upload what is needed on this page.
-                    </div>
+                    <FastTrackUserDocumentPreparationCallout />
                 )}
             </SectionShell>
         );
@@ -2604,7 +2655,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item, itemIndex) => {
-                        const canUpload = role === 'user' && Boolean(selectedCase.managerId);
+                        const canUpload = role === 'user' && canUserPrepareFastTrackDocuments(selectedCase);
                         const busyKey = `upload-${item.id}`;
                         const selectedFile = selectedFiles[item.id] || null;
                         const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
@@ -2766,10 +2817,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                         fileInputRefs.current[item.id] = node;
                                                     }}
                                                     onFileSelected={(file) => {
-                                                        if (file && item.fileUrl && file.name === (item.fileName || '')) {
-                                                            toast.info('This file has already been uploaded.');
-                                                            return;
-                                                        }
                                                         setSelectedFiles((previous) => ({
                                                             ...previous,
                                                             [item.id]: file,
@@ -2796,43 +2843,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             </ActionButton>
                                         </div>
                                     ) : (
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            <ActionButton
-                                                onClick={() => void runAction(
-                                                    'review_document',
-                                                    {
-                                                        document_id: item.id,
-                                                        outcome: 'approved',
-                                                        note: documentNotes[item.id] || '',
-                                                    },
-                                                    `${item.label} approved.`,
-                                                )}
-                                                busy={activeAction === 'review_document'}
-                                                disabled={!canPreview}
-                                                ariaLabel={`Approve ${item.label}`}
-                                                className="flex-1 px-3 py-2 text-xs"
-                                            >
-                                                Approve
-                                            </ActionButton>
-                                            <ActionButton
-                                                tone="secondary"
-                                                onClick={() => void runAction(
-                                                    'review_document',
-                                                    {
-                                                        document_id: item.id,
-                                                        outcome: 'reupload_needed',
-                                                        note: documentNotes[item.id] || '',
-                                                    },
-                                                    `${item.label} marked for replacement.`,
-                                                )}
-                                                busy={activeAction === 'review_document'}
-                                                disabled={!canPreview}
-                                                ariaLabel={`Request replacement for ${item.label}`}
-                                                className="flex-1 px-3 py-2 text-xs"
-                                            >
-                                                Request replacement
-                                            </ActionButton>
-                                        </div>
+                                        <FastTrackDocumentReviewControls
+                                            item={item}
+                                            hasAttachedFile={canPreview}
+                                            busy={activeAction === 'review_document'}
+                                            onReview={(outcome) => void runAction(
+                                                'review_document',
+                                                {
+                                                    document_id: item.id,
+                                                    outcome,
+                                                    note: documentNotes[item.id] || '',
+                                                },
+                                                outcome === 'approved'
+                                                    ? `${item.label} approved.`
+                                                    : `${item.label} marked for replacement.`,
+                                            )}
+                                        />
                                     )}
                                 </div>
                             </div>

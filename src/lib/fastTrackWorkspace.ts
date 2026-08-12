@@ -173,6 +173,33 @@ export const shouldStartDocumentsWhenSelectingStage = (
     && fastTrackCase?.managerId
 );
 
+export const resolveFastTrackVisibleStage = (
+    fastTrackCase: Pick<FastTrackCase, 'stage'> | null | undefined,
+    activeStageOverride: FastTrackStage | null,
+): FastTrackStage => activeStageOverride ?? fastTrackCase?.stage ?? 'selected';
+
+export const canUserPrepareFastTrackDocuments = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'> | null | undefined,
+) => fastTrackCase?.workspaceFinalStatus === 'active';
+
+export const canStartFastTrackDocumentUpload = (
+    item: Pick<FastTrackCase['documents']['items'][number], 'status' | 'documentRecordId' | 'fileName' | 'fileUrl'>,
+    file: Pick<File, 'name' | 'size' | 'lastModified'> | null | undefined,
+    uploadInFlight: boolean,
+) => Boolean(
+    file
+    && !uploadInFlight
+    && ['pending', 'uploaded', 'reupload_needed', 'approved'].includes(item.status),
+);
+
+export const getFastTrackDocumentReviewActions = (
+    status: FastTrackCase['documents']['items'][number]['status'],
+    hasAttachedFile: boolean,
+) => ({
+    canApprove: hasAttachedFile && status === 'uploaded',
+    canRequestReplacement: hasAttachedFile && (status === 'uploaded' || status === 'approved'),
+});
+
 export const resolveFastTrackDocumentSearchParam = (
     params: URLSearchParams,
     validDocumentIds: string[] = [],
@@ -387,9 +414,7 @@ export const describeFastTrackWorkspaceFocus = (
                     : 'Finish handover';
         default:
             if (role === 'user') {
-                return fastTrackCase.journeyMode === 'sale'
-                    ? 'Offer, memorandum, conveyancing, exchange, and completion stay visible here'
-                    : 'We are preparing your next step';
+                return 'Prepare your documents now';
             }
             return fastTrackCase.managerId ? 'Start documents' : 'Claim and start';
     }
@@ -445,9 +470,7 @@ export const describeFastTrackWorkspaceStatus = (
                     : 'Mark the case ready, confirm the final note, and complete it here.';
         default:
             return role === 'user'
-                ? fastTrackCase.journeyMode === 'sale'
-                    ? 'Your purchase journey moves through offer review, memorandum, solicitor conveyancing, exchange, completion, and keys in one place.'
-                    : 'The team will open the next step here. You stay in this journey from start to finish.'
+                ? 'You can open Share your documents now, upload identity and address evidence, and switch between both files while your manager prepares the review.'
                 : fastTrackCase.managerId
                     ? 'This case is assigned. Open documents here so the rest of the journey stays on one page.'
                     : 'Claim the case, then open documents here so the rest of the journey stays on one page.';
