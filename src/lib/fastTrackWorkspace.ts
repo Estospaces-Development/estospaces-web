@@ -174,9 +174,137 @@ export const shouldStartDocumentsWhenSelectingStage = (
 );
 
 export const resolveFastTrackVisibleStage = (
-    fastTrackCase: Pick<FastTrackCase, 'stage'> | null | undefined,
+    fastTrackCase: FastTrackCase | null | undefined,
     activeStageOverride: FastTrackStage | null,
-): FastTrackStage => activeStageOverride ?? fastTrackCase?.stage ?? 'selected';
+): FastTrackStage => {
+    if (!fastTrackCase) {
+        return 'selected';
+    }
+
+    if (activeStageOverride && isFastTrackStageUnlocked(fastTrackCase, activeStageOverride)) {
+        return activeStageOverride;
+    }
+
+    return fastTrackCase.stage;
+};
+
+export const shouldDeferFastTrackStageResolution = (
+    requestedCaseId: string | null | undefined,
+    selectedCaseId: string | null | undefined,
+) => {
+    const requested = String(requestedCaseId || '').trim().toLowerCase();
+    const selected = String(selectedCaseId || '').trim().toLowerCase();
+    return requested !== '' && requested !== selected;
+};
+
+export const shouldRemoveFastTrackStaleCaseLink = ({
+    requestedCaseId,
+    loading,
+    requestedCaseIsAvailable,
+    requestedCaseLookupPending,
+    requestedCaseLookupMissed,
+}: {
+    requestedCaseId: string | null | undefined;
+    loading: boolean;
+    requestedCaseIsAvailable: boolean;
+    requestedCaseLookupPending: boolean;
+    requestedCaseLookupMissed: boolean;
+}) => Boolean(
+    String(requestedCaseId || '').trim()
+    && !loading
+    && !requestedCaseIsAvailable
+    && !requestedCaseLookupPending
+    && requestedCaseLookupMissed
+);
+
+export const shouldDeferFastTrackSelectionURLSync = ({
+    requestedCaseId,
+    requestedCaseIsAvailable,
+    requestedCaseLookupMissed,
+}: {
+    requestedCaseId: string | null | undefined;
+    requestedCaseIsAvailable: boolean;
+    requestedCaseLookupMissed: boolean;
+}) => Boolean(
+    String(requestedCaseId || '').trim()
+    && !requestedCaseIsAvailable
+    && !requestedCaseLookupMissed
+);
+
+export const isFastTrackStageUnlocked = (
+    fastTrackCase: FastTrackCase | null | undefined,
+    targetStage: FastTrackStage,
+) => {
+    if (!fastTrackCase) {
+        return false;
+    }
+
+    if (fastTrackCase.workspaceFinalStatus === 'completed') {
+        return true;
+    }
+
+    const currentStageIndex = FAST_TRACK_STAGE_KEYS.indexOf(fastTrackCase.stage);
+    const targetStageIndex = FAST_TRACK_STAGE_KEYS.indexOf(targetStage);
+    if (targetStageIndex <= currentStageIndex) {
+        return true;
+    }
+
+    if (targetStage === 'documents') {
+        return fastTrackCase.workspaceFinalStatus === 'active';
+    }
+
+    const viewingStatus = String(fastTrackCase.viewing.status || '').trim().toLowerCase();
+    if (targetStage === 'viewing') {
+        return fastTrackCase.documents.allApproved
+            || Boolean(fastTrackCase.viewingId || fastTrackCase.viewing.scheduledAt)
+            || ['scheduled', 'change_requested', 'completed', 'skipped'].includes(viewingStatus);
+    }
+
+    if (targetStage === 'decision') {
+        return viewingStatus === 'completed' || viewingStatus === 'skipped';
+    }
+
+    const decisionStatus = String(fastTrackCase.decision.status || '').trim().toLowerCase();
+    if (targetStage === 'agreement') {
+        return decisionStatus === 'approved' || decisionStatus === 'accepted';
+    }
+
+    const agreementStatus = String(fastTrackCase.agreement.status || '').trim().toLowerCase();
+    const paymentStatus = String(fastTrackCase.agreement.paymentStatus || '').trim().toLowerCase();
+    const handoverStatus = String(fastTrackCase.handover.status || '').trim().toLowerCase();
+    return (
+        ['ready', 'completed'].includes(handoverStatus)
+        || (
+            ['accepted', 'signed', 'completed'].includes(agreementStatus)
+            && (!PAYMENTS_ENABLED || paymentStatus !== 'requested')
+        )
+    );
+};
+
+export const resolveFastTrackStageNavigation = (
+    fastTrackCase: FastTrackCase | null | undefined,
+    requestedStage: FastTrackStage | null,
+    previousBackendStage: FastTrackStage | null = null,
+) => {
+    if (!fastTrackCase) {
+        return {
+            visibleStage: 'selected' as FastTrackStage,
+            shouldReplaceStageParam: false,
+        };
+    }
+
+    const stageAfterProgress = previousBackendStage
+        && previousBackendStage !== fastTrackCase.stage
+        && requestedStage === previousBackendStage
+        ? fastTrackCase.stage
+        : requestedStage;
+    const visibleStage = resolveFastTrackVisibleStage(fastTrackCase, stageAfterProgress);
+
+    return {
+        visibleStage,
+        shouldReplaceStageParam: requestedStage !== null && requestedStage !== visibleStage,
+    };
+};
 
 export const canUserPrepareFastTrackDocuments = (
     fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'> | null | undefined,

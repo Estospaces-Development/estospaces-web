@@ -49,12 +49,17 @@ import {
     isFastTrackDocumentDraftDirty,
     isFastTrackCaseCompleteForRole,
     isFastTrackManagerReviewEligible,
+    isFastTrackStageUnlocked,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
+    resolveFastTrackStageNavigation,
     resolveFastTrackThreadRecipientId,
     resolveFastTrackVisibleStage,
+    shouldDeferFastTrackStageResolution,
+    shouldDeferFastTrackSelectionURLSync,
+    shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
 } from '@/lib/fastTrackWorkspace';
 import {
@@ -637,6 +642,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const lastSavedWorkspacePreferencesRef = useRef('');
     const lastCasesSignatureRef = useRef('');
     const pendingSelectedCaseIdRef = useRef<string | null>(null);
+    const previousBackendStageRef = useRef<{ caseId: string; stage: FastTrackStage } | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const searchParamsKey = searchParams.toString();
     const journeyChromeCopy = getJourneyChromeCopy(role);
@@ -779,7 +785,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     useWorkspaceRefresh({
         tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
         refresh: () => fetchCases(true),
-        intervalMs: role === 'user' ? 60000 : WORKSPACE_SYNC_INTERVALS.DASHBOARD,
+        intervalMs: WORKSPACE_SYNC_INTERVALS.WORKFLOW,
         refreshOnFocus: true,
         refreshOnVisible: true,
     });
@@ -882,6 +888,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [cases, requestedCaseParam],
     );
     const normalizedRequestedCaseParam = String(requestedCaseParam || '').trim();
+    const requestedCaseForStageNavigation = requestedCaseParam
+        ? sanitizeWorkspaceCaseId(requestedCaseParam, cases.map((item) => item.caseId)).caseId
+            || normalizedRequestedCaseParam
+        : null;
     const requestedCaseLookupPending = Boolean(
         normalizedRequestedCaseParam
         && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
@@ -952,7 +962,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     ]);
 
     useEffect(() => {
-        if (!requestedCaseParam || loading) {
+        if (!shouldRemoveFastTrackStaleCaseLink({
+            requestedCaseId: requestedCaseParam,
+            loading,
+            requestedCaseIsAvailable,
+            requestedCaseLookupPending,
+            requestedCaseLookupMissed,
+        })) {
             return;
         }
 
@@ -968,7 +984,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         setRecoveredCaseLink(removedCaseId);
         setSearchParams((previous) => stripCaseSearchParam(previous), { replace: true });
-    }, [cases, loading, requestedCaseParam, setSearchParams]);
+    }, [
+        cases,
+        loading,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+        requestedCaseLookupPending,
+        requestedCaseParam,
+        setSearchParams,
+    ]);
 
     useEffect(() => {
         if (!recoveredCaseLink) {
@@ -1080,7 +1104,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        if (hasInvalidRequestedCase || recoveredCaseLink) {
+        if (
+            hasInvalidRequestedCase
+            || recoveredCaseLink
+            || shouldDeferFastTrackSelectionURLSync({
+                requestedCaseId: requestedCaseParam,
+                requestedCaseIsAvailable,
+                requestedCaseLookupMissed,
+            })
+        ) {
             return;
         }
 
@@ -1099,7 +1131,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setSearchParams((previous) => buildFastTrackSelectionSearchParams(previous, selectedCaseId));
-    }, [cases, filteredCases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
+    }, [
+        cases,
+        filteredCases,
+        hasInvalidRequestedCase,
+        recoveredCaseLink,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+        requestedCaseParam,
+        selectedCaseId,
+        setSearchParams,
+    ]);
 
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
@@ -1168,16 +1210,38 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     useEffect(() => {
         if (!selectedCase) {
             setActiveStageOverride(null);
+            previousBackendStageRef.current = null;
             return;
         }
 
-        if (requestedStageParam) {
-            setActiveStageOverride(requestedStageParam === selectedCase.stage ? null : requestedStageParam);
+        if (shouldDeferFastTrackStageResolution(requestedCaseForStageNavigation, selectedCase.caseId)) {
             return;
         }
 
-        setActiveStageOverride(null);
-    }, [requestedStageParam, selectedCase]);
+        const previousBackendStage = previousBackendStageRef.current?.caseId === selectedCase.caseId
+            ? previousBackendStageRef.current.stage
+            : null;
+        const navigation = resolveFastTrackStageNavigation(
+            selectedCase,
+            requestedStageParam,
+            previousBackendStage,
+        );
+
+        previousBackendStageRef.current = {
+            caseId: selectedCase.caseId,
+            stage: selectedCase.stage,
+        };
+        setActiveStageOverride(
+            navigation.visibleStage === selectedCase.stage ? null : navigation.visibleStage,
+        );
+
+        if (navigation.shouldReplaceStageParam) {
+            setSearchParams(
+                (previous) => buildFastTrackStageSearchParams(previous, navigation.visibleStage),
+                { replace: true },
+            );
+        }
+    }, [requestedCaseForStageNavigation, requestedStageParam, selectedCase, setSearchParams]);
 
     useEffect(() => {
         if (!isManagerReviewEligible || !selectedCase) {
@@ -3309,6 +3373,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const decisionStatus = String(selectedCase.decision.status || '').trim().toLowerCase();
         const agreementStatus = String(selectedCase.agreement.status || '').trim().toLowerCase();
         const handoverStatus = String(selectedCase.handover.status || '').trim().toLowerCase();
+        const legacyPaymentOutstanding = !PAYMENTS_ENABLED && selectedCase.agreement.paymentStatus === 'requested';
         const decisionAccepted = decisionStatus === 'approved' || decisionStatus === 'accepted';
         const agreementAccepted = ['accepted', 'signed', 'completed'].includes(agreementStatus);
         const handoverCompleted = handoverStatus === 'completed';
@@ -3321,7 +3386,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 ? selectedCase.journeyMode === 'sale'
                     ? 'Finish the memorandum, solicitor conveyancing, exchange, and signed agreement steps before handover.'
                     : 'Send and confirm the agreement before handover.'
-                : null;
+                : legacyPaymentOutstanding
+                    ? 'A previous payment request must be confirmed before handover can continue.'
+                    : null;
         const completeHandoverGuard = handoverPrerequisiteGuard || (!handoverReady && !handoverCompleted
             ? 'Mark handover ready before completing it.'
             : null);
@@ -3359,6 +3426,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {selectedCase.handover.note || 'Your final handover update stays here.'}
                         </p>
+                        {legacyPaymentOutstanding ? (
+                            <p className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-300">
+                                A previous payment request is waiting for manager confirmation.
+                            </p>
+                        ) : null}
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                         <ActionButton
@@ -3428,6 +3500,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     className="h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                 />
                 <div className="mt-5 flex flex-wrap gap-3">
+                    {legacyPaymentOutstanding ? (
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void runAction(
+                                'mark_payment_received',
+                                {},
+                                'Previous payment request cleared.',
+                            )}
+                            busy={activeAction === 'mark_payment_received'}
+                        >
+                            Confirm previous payment
+                        </ActionButton>
+                    ) : null}
                     <ActionButton
                         onClick={() => void runAction(
                             'mark_handover_ready',
@@ -3659,30 +3744,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     );
 
     const canNavigateToStage = useCallback((targetStage: FastTrackStage): boolean => {
-        if (!selectedCase) {
-            return false;
-        }
-
-        if (selectedCase.workspaceFinalStatus === 'completed') {
-            return true;
-        }
-
-        const currentIndex = STAGES.indexOf(selectedCase.stage);
-        const targetIndex = STAGES.indexOf(targetStage);
-
-        if (targetIndex < currentIndex) {
-            return true;
-        }
-
-        if (targetIndex === currentIndex) {
-            return true;
-        }
-
-        if (targetIndex === currentIndex + 1) {
-            return true;
-        }
-
-        return false;
+        return isFastTrackStageUnlocked(selectedCase, targetStage);
     }, [selectedCase]);
 
     const handleStageSelect = useCallback((stage: string) => {
@@ -3729,11 +3791,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const stepperItems = useMemo(
         () => STAGES.map((stage, index) => {
             const Icon = STAGE_ICONS[stage];
-            const isLocked = Boolean(
-                selectedCase
-                && selectedCase.workspaceFinalStatus !== 'completed'
-                && index > stageIndex + 1
-            );
+            const isLocked = Boolean(selectedCase && !isFastTrackStageUnlocked(selectedCase, stage));
             return {
                 key: stage,
                 label: selectedCase
