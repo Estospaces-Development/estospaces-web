@@ -23,7 +23,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
         return this.props.children;
     }
 }
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 const CHUNK_RELOAD_KEY = 'estospaces:lazy-route-reload';
 
@@ -162,7 +162,6 @@ import StartupRedirect from './components/routing/StartupRedirect';
 import { useAuth } from './contexts/AuthContext';
 import { useManagerVerification } from './contexts/ManagerVerificationContext';
 import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
-import { buildUserDashboardPropertyPath } from './lib/userPropertyRoute';
 
 function RouteScrollReset() {
   const location = useLocation();
@@ -200,13 +199,6 @@ function PublicRootEntry() {
   }
 
   return isAuthenticated ? <StartupRedirect /> : <HomePage />;
-}
-
-function LegacyUserPropertyRedirect() {
-  const { id } = useParams<{ id: string }>();
-  const { search, hash } = useLocation();
-
-  return <Navigate to={buildUserDashboardPropertyPath(id, search, hash)} replace />;
 }
 
 const App: React.FC = () => {
@@ -332,7 +324,7 @@ const App: React.FC = () => {
             <Route path="saved" element={<Navigate to="/user/dashboard/saved" replace />} />
             <Route path="virtual-storage" element={<Navigate to="/user/dashboard/virtual-storage" replace />} />
             <Route path="search" element={<Navigate to="/user/dashboard/search" replace />} />
-            <Route path="properties/:id" element={<LegacyUserPropertyRedirect />} />
+            <Route path="properties/:id" element={<UserPropertyDetail />} />
             <Route path="settings" element={<Navigate to="/user/dashboard/settings" replace />} />
           </Route>
 

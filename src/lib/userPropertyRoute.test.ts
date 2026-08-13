@@ -24,9 +24,9 @@ test('ticket 422 rejects missing or literal placeholder property ids', () => {
     assert.equal(buildUserDashboardPropertyPath(':id'), '/user/dashboard/discover');
 });
 
-test('the legacy property route uses the dynamic redirect component', () => {
+test('the public property route renders the property detail without a protected redirect', () => {
     const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
 
-    assert.match(appSource, /path="properties\/:id" element=\{<LegacyUserPropertyRedirect \/>\}/);
-    assert.doesNotMatch(appSource, /to="\/user\/dashboard\/properties\/:id"/);
+    assert.match(appSource, /path="properties\/:id" element=\{<UserPropertyDetail \/>\}/);
+    assert.doesNotMatch(appSource, /LegacyUserPropertyRedirect/);
 });
