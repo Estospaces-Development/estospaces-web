@@ -107,7 +107,15 @@ export function getManagerPropertySubmitIntent({
 }
 
 export function getManagerPropertyAddressRevalidationFields(): string[] {
-  return ['country', 'state', 'city', 'addressLine1', 'postalCode'];
+  return [
+    'country',
+    'state',
+    'city',
+    'addressLine1',
+    'postalCode',
+    'latitude',
+    'longitude',
+  ];
 }
 
 export function getManagerPropertyDefaultAuditReason(mode: ManagerPropertyFormMode): string {

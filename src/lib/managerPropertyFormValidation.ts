@@ -383,7 +383,7 @@ function validateCoordinate(
 ): string | null {
   const trimmed = value.trim();
   if (!trimmed) {
-    return null;
+    return "Find the entered address or use your current location";
   }
 
   const parsed = Number(trimmed);

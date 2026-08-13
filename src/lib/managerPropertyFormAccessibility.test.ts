@@ -126,6 +126,8 @@ test('manager property location changes always revalidate required address field
     'city',
     'addressLine1',
     'postalCode',
+    'latitude',
+    'longitude',
   ]);
 });
 
@@ -186,12 +188,12 @@ test('manager property money fields display the selected currency symbol', () =>
   assert.match(managerPropertyFormPage, /Maintenance Charges \(\{displayCurrency\}\/month\)/);
 });
 
-test('manager property location coordinate examples follow the selected country', () => {
-  assert.match(managerPropertyFormPage, /formData\.countryCode === UK_COUNTRY_CODE/);
-  assert.match(managerPropertyFormPage, /latitude:\s*"e\.g\. 51\.5074"/);
-  assert.match(managerPropertyFormPage, /longitude:\s*"e\.g\. -0\.1278"/);
-  assert.match(managerPropertyFormPage, /latitude:\s*"e\.g\. 13\.0827"/);
-  assert.match(managerPropertyFormPage, /longitude:\s*"e\.g\. 80\.2707"/);
-  assert.match(managerPropertyFormPage, /placeholder=\{coordinatePlaceholder\.latitude\}/);
-  assert.match(managerPropertyFormPage, /placeholder=\{coordinatePlaceholder\.longitude\}/);
+test('manager property location uses address lookup, current location, and a map picker', () => {
+  assert.match(managerPropertyFormPage, /PropertyLocationPicker/);
+  assert.match(managerPropertyFormPage, /getCoordinatesFromAddress/);
+  assert.match(managerPropertyFormPage, /getUserGeolocation/);
+  assert.match(managerPropertyFormPage, /addressChanged \? "" : formData\.latitude/);
+  assert.match(managerPropertyFormPage, /onLocationChange=\{handleMapLocationChange\}/);
+  assert.doesNotMatch(managerPropertyFormPage, />\s*Latitude\s*</);
+  assert.doesNotMatch(managerPropertyFormPage, />\s*Longitude\s*</);
 });

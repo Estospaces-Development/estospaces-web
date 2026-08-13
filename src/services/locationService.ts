@@ -25,6 +25,16 @@ interface GetUserLocationParams {
     useGeolocation?: boolean;
 }
 
+export interface PropertyLocationLookup {
+    postalCode: string;
+    countryCode: string;
+}
+
+export interface ResolvedMapCoordinates {
+    latitude: number;
+    longitude: number;
+}
+
 type GeolocationPolicyDocument = Document & {
     permissionsPolicy?: {
         allowsFeature?: (feature: string) => boolean;
@@ -104,30 +114,49 @@ const fetchIndianPinCoords = async (pinCode: string) => {
         if (response.ok) {
             const data = await response.json();
             if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-                const postOffice = data[0].PostOffice[0];
-                return {
-                    latitude: parseFloat(postOffice.Latitude || '0') || null,
-                    longitude: parseFloat(postOffice.Longitude || '0') || null,
-                    postcode: pinCode,
-                    city: postOffice.District || postOffice.State || '',
-                };
+                const postOffice = data[0].PostOffice.find((entry: Record<string, unknown>) => {
+                    const latitude = Number(entry.Latitude);
+                    const longitude = Number(entry.Longitude);
+                    return Number.isFinite(latitude) &&
+                        Number.isFinite(longitude) &&
+                        !(latitude === 0 && longitude === 0);
+                });
+                if (postOffice) {
+                    return {
+                        latitude: Number(postOffice.Latitude),
+                        longitude: Number(postOffice.Longitude),
+                        postcode: pinCode,
+                        city: postOffice.District || postOffice.State || '',
+                    };
+                }
             }
         }
     } catch {
-        // Fall through to BigDataCloud
+        // Fall through to the PIN-only directory.
     }
 
-    // Fallback: BigDataCloud free geocoding API (works for India)
+    // Fallback to a PIN-only directory sourced from India Post data. This
+    // sends no street, manager, or property information to the provider.
     try {
-        const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=&longitude=&localityLanguage=en&limit=1`);
+        const response = await fetch(
+            `https://api.pincodeapi.in/api/v1/pincode/${encodeURIComponent(pinCode)}`,
+            { cache: 'force-cache' },
+        );
         if (response.ok) {
             const data = await response.json();
-            if (data) {
+            const offices = Array.isArray(data?.data) ? data.data : [];
+            const office = offices.find((entry: unknown) => {
+                if (!entry || typeof entry !== 'object') return false;
+                const record = entry as Record<string, unknown>;
+                return Number.isFinite(Number(record.latitude)) &&
+                    Number.isFinite(Number(record.longitude));
+            }) as Record<string, unknown> | undefined;
+            if (office) {
                 return {
-                    latitude: data.latitude || null,
-                    longitude: data.longitude || null,
+                    latitude: Number(office.latitude),
+                    longitude: Number(office.longitude),
                     postcode: pinCode,
-                    city: data.city || data.principalSubdivision || data.countryName || '',
+                    city: String(office.district || office.statename || ''),
                 };
             }
         }
@@ -246,6 +275,29 @@ export const getCoordinatesFromPostcode = async (postcode: string): Promise<any 
         console.error('Error getting coordinates from location code:', error);
         return null;
     }
+};
+
+/**
+ * Resolve the PIN/postcode portion of the entered property address to a map
+ * area. Exact street details never leave the application; managers refine the
+ * initial postal position using the map or their current location.
+ */
+export const getCoordinatesFromAddress = async (
+    location: PropertyLocationLookup,
+): Promise<ResolvedMapCoordinates | null> => {
+    const coordinates = await getCoordinatesFromPostcode(location.postalCode);
+    const latitude = Number(coordinates?.latitude);
+    const longitude = Number(coordinates?.longitude);
+
+    if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        (latitude === 0 && longitude === 0)
+    ) {
+        return null;
+    }
+
+    return { latitude, longitude };
 };
 
 /**

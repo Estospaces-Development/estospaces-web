@@ -151,10 +151,17 @@ test("validateManagerPropertyForm enforces floor relationships and optional mone
   );
 });
 
-test("validateManagerPropertyField accepts optional blank coordinates and alternate phone", () => {
+test("validateManagerPropertyField requires a map location and keeps alternate phone optional", () => {
   assert.equal(
     validateManagerPropertyField("latitude", { ...baseValues, latitude: "" }),
-    null,
+    "Find the entered address or use your current location",
+  );
+  assert.equal(
+    validateManagerPropertyField("longitude", {
+      ...baseValues,
+      longitude: "",
+    }),
+    "Find the entered address or use your current location",
   );
   assert.equal(
     validateManagerPropertyField("alternatePhone", {

@@ -55,6 +55,7 @@ import DateField from "@/components/ui/DateField";
 import AddressSection, {
   AddressFormData,
 } from "@/components/ui/AddressSection";
+import PropertyLocationPicker from "@/components/manager/PropertyLocationPicker";
 import {
   getCitiesByState,
   getStatesByCountry,
@@ -64,6 +65,10 @@ import {
   getPropertyById,
   type Property as ServiceProperty,
 } from "@/services/propertyService";
+import {
+  getCoordinatesFromAddress,
+  getUserGeolocation,
+} from "@/services/locationService";
 import Toast from "@/components/ui/Toast";
 import { useManagerVerification } from "@/contexts/ManagerVerificationContext";
 import {
@@ -556,6 +561,7 @@ export default function AddPropertyPage() {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const formContentRef = useRef<HTMLFormElement | null>(null);
+  const locationRevisionRef = useRef(0);
 
   // Determine mode based on presence of ID
   const mode: FormMode = idValue ? "edit" : "create";
@@ -573,6 +579,8 @@ export default function AddPropertyPage() {
   const [mediaListLoading, setMediaListLoading] = useState(false);
   const [_mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [resolvingLocation, setResolvingLocation] = useState(false);
+  const [locationStatusMessage, setLocationStatusMessage] = useState("");
   const [pendingUnsavedNavigation, setPendingUnsavedNavigation] =
     useState<PendingNavigationTarget | null>(null);
   const [pendingMediaDelete, setPendingMediaDelete] =
@@ -1359,6 +1367,153 @@ export default function AddPropertyPage() {
     }
   };
 
+  const applyPropertyLocation = useCallback(
+    (latitude: number, longitude: number, statusMessage: string) => {
+      if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180 ||
+        (latitude === 0 && longitude === 0)
+      ) {
+        showToast(
+          "We could not place this location. Check the PIN or postcode, or use your current location.",
+          "error",
+        );
+        return;
+      }
+
+      const formattedLatitude = latitude.toFixed(7);
+      const formattedLongitude = longitude.toFixed(7);
+      setFormData((current) => ({
+        ...current,
+        latitude: formattedLatitude,
+        longitude: formattedLongitude,
+      }));
+      setErrors((previous) => {
+        if (!previous.latitude && !previous.longitude) {
+          return previous;
+        }
+        const nextErrors = { ...previous };
+        delete nextErrors.latitude;
+        delete nextErrors.longitude;
+        return nextErrors;
+      });
+      setIsDirty(true);
+      setLocationStatusMessage(statusMessage);
+    },
+    [showToast],
+  );
+
+  const handleFindEnteredAddress = useCallback(async () => {
+    const validationValues = getValidationValues(formData);
+    const addressErrors = [
+      "addressLine1",
+      "country",
+      "state",
+      "city",
+      "postalCode",
+    ].reduce<Record<string, string>>((messages, field) => {
+      const message = validateManagerPropertyField(field, validationValues);
+      if (message) {
+        messages[field] = message;
+      }
+      return messages;
+    }, {});
+    if (Object.keys(addressErrors).length > 0) {
+      setErrors((previous) => ({ ...previous, ...addressErrors }));
+      focusFirstErrorField(addressErrors);
+      showToast(
+        "Complete the highlighted address fields before finding the map position.",
+        "error",
+      );
+      return;
+    }
+
+    const locationRevision = locationRevisionRef.current;
+    setResolvingLocation(true);
+    try {
+      const coordinates = await getCoordinatesFromAddress({
+        postalCode: formData.postalCode,
+        countryCode: formData.countryCode,
+      });
+      if (locationRevision !== locationRevisionRef.current) {
+        showToast(
+          "The address changed while we were locating it. Find the updated address again.",
+          "warning",
+        );
+        return;
+      }
+      const latitude = Number(coordinates?.latitude);
+      const longitude = Number(coordinates?.longitude);
+      applyPropertyLocation(
+        latitude,
+        longitude,
+        "PIN or postcode area located. Click or drag the marker to the exact building.",
+      );
+    } catch {
+      showToast(
+        "We could not find that PIN or postcode. Check it and try again, or use your current location.",
+        "error",
+      );
+    } finally {
+      setResolvingLocation(false);
+    }
+  }, [
+    applyPropertyLocation,
+    focusFirstErrorField,
+    formData,
+    getValidationValues,
+    showToast,
+  ]);
+
+  const handleUseCurrentLocation = useCallback(async () => {
+    const locationRevision = locationRevisionRef.current;
+    setResolvingLocation(true);
+    try {
+      const coordinates = await getUserGeolocation();
+      if (locationRevision !== locationRevisionRef.current) {
+        showToast(
+          "The address changed while location permission was open. Choose the location again.",
+          "warning",
+        );
+        return;
+      }
+      applyPropertyLocation(
+        coordinates.latitude,
+        coordinates.longitude,
+        "Current location found. Click or drag the marker if the property entrance is elsewhere.",
+      );
+    } catch (error) {
+      const permissionDenied =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        Number(error.code) === 1;
+      showToast(
+        permissionDenied
+          ? "Location permission was denied. Allow location access or find the entered address instead."
+          : "Your current location is unavailable. Find the entered address or try again.",
+        "error",
+      );
+    } finally {
+      setResolvingLocation(false);
+    }
+  }, [applyPropertyLocation, showToast]);
+
+  const handleMapLocationChange = useCallback(
+    (latitude: number, longitude: number) => {
+      applyPropertyLocation(
+        latitude,
+        longitude,
+        "Exact property position selected. This pin will be saved with the listing.",
+      );
+    },
+    [applyPropertyLocation],
+  );
+
   const getNumericDisplayValue = (value: number | undefined): string => {
     if (value === undefined || value === null) {
       return "";
@@ -1384,10 +1539,21 @@ export default function AddPropertyPage() {
         country: country.name,
         countryCode: country.code,
         currency: country.currency,
+        latitude: "",
+        longitude: "",
       };
+      locationRevisionRef.current += 1;
       setFormData(nextData);
       setIsDirty(true);
-      syncFieldErrors(nextData, ["country", "postalCode"]);
+      setLocationStatusMessage(
+        "Country changed. Confirm the address, then find it again on the map.",
+      );
+      syncFieldErrors(nextData, [
+        "country",
+        "postalCode",
+        "latitude",
+        "longitude",
+      ]);
     }
   };
 
@@ -2078,9 +2244,17 @@ export default function AddPropertyPage() {
   const mediaSourceEntityId = draftMediaEntityIdRef.current;
   const _mediaTargetEntityId = idValue || "Created property after save";
   const displayCurrency = getCurrencySymbol(formData.currency);
-  const coordinatePlaceholder = formData.countryCode === UK_COUNTRY_CODE
-    ? { latitude: "e.g. 51.5074", longitude: "e.g. -0.1278" }
-    : { latitude: "e.g. 13.0827", longitude: "e.g. 80.2707" };
+  const propertyLatitude = formData.latitude.trim()
+    ? Number(formData.latitude)
+    : null;
+  const propertyLongitude = formData.longitude.trim()
+    ? Number(formData.longitude)
+    : null;
+  const hasValidPropertyLocation =
+    propertyLatitude !== null &&
+    propertyLongitude !== null &&
+    Number.isFinite(propertyLatitude) &&
+    Number.isFinite(propertyLongitude);
   const _canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
   const _selectedStagedUploadCount = [
     ...formData.images,
@@ -2575,6 +2749,15 @@ export default function AddPropertyPage() {
                 const currency = addressData.countryCode
                   ? resolveCountryCurrency(addressData.countryCode)
                   : formData.currency;
+                const addressChanged =
+                  addressData.countryCode !== formData.countryCode ||
+                  addressData.stateName !== formData.state ||
+                  addressData.cityName !== formData.city ||
+                  addressData.addressLine1 !== formData.addressLine1 ||
+                  addressData.addressLine2 !== formData.addressLine2 ||
+                  addressData.postalCode !== formData.postalCode ||
+                  addressData.neighborhood !== formData.neighborhood ||
+                  addressData.landmark !== formData.landmark;
 
                 const nextData = {
                   ...formData,
@@ -2592,8 +2775,16 @@ export default function AddPropertyPage() {
                   postalCode: addressData.postalCode,
                   neighborhood: addressData.neighborhood,
                   landmark: addressData.landmark,
+                  latitude: addressChanged ? "" : formData.latitude,
+                  longitude: addressChanged ? "" : formData.longitude,
                 };
                 setFormData(nextData);
+                if (addressChanged) {
+                  locationRevisionRef.current += 1;
+                  setLocationStatusMessage(
+                    "Address changed. Find it again to place the correct map pin.",
+                  );
+                }
                 // Only mark as dirty after initial load is complete
                 if (hasInitializedRef.current || mode === "create") {
                   setIsDirty(true);
@@ -2612,56 +2803,18 @@ export default function AddPropertyPage() {
               initialState={formData.state}
               initialCity={formData.city}
             />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label
-                  htmlFor={getManagerPropertyFieldId("latitude")}
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Latitude
-                </label>
-                <input
-                  {...fieldState("latitude")}
-                  type="text"
-                  inputMode="decimal"
-                  value={formData.latitude}
-                  onChange={(e) =>
-                    handleInputChange("latitude", e.target.value)
-                  }
-                  className={getFieldClassName("latitude")}
-                  placeholder={coordinatePlaceholder.latitude}
-                />
-                {renderFieldError("latitude")}
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Use real coordinates to make the manager and discovery maps
-                  place this property accurately.
-                </p>
-              </div>
-              <div>
-                <label
-                  htmlFor={getManagerPropertyFieldId("longitude")}
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Longitude
-                </label>
-                <input
-                  {...fieldState("longitude")}
-                  type="text"
-                  inputMode="decimal"
-                  value={formData.longitude}
-                  onChange={(e) =>
-                    handleInputChange("longitude", e.target.value)
-                  }
-                  className={getFieldClassName("longitude")}
-                  placeholder={coordinatePlaceholder.longitude}
-                />
-                {renderFieldError("longitude")}
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Leave this blank only if you intentionally want the property
-                  excluded from map markers.
-                </p>
-              </div>
-            </div>
+            <PropertyLocationPicker
+              latitude={hasValidPropertyLocation ? propertyLatitude : null}
+              longitude={hasValidPropertyLocation ? propertyLongitude : null}
+              countryCode={formData.countryCode}
+              busy={resolvingLocation}
+              disabled={saving}
+              statusMessage={locationStatusMessage}
+              errorMessage={errors.latitude || errors.longitude}
+              onFindAddress={() => void handleFindEnteredAddress()}
+              onUseCurrentLocation={() => void handleUseCurrentLocation()}
+              onLocationChange={handleMapLocationChange}
+            />
           </div>
         )}
 
