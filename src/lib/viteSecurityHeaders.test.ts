@@ -41,6 +41,8 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
+  assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/api\.pincodeapi\.in/);
+  assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/api\.postcodes\.io/);
   assert.doesNotMatch(nginxSecurityHeadersSource, /salesiq\.zoho\.in/);
   assert.doesNotMatch(nginxSecurityHeadersSource, /zohocdn\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src .*wss:\/\/\*\.zoho\.in/);

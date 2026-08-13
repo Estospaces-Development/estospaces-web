@@ -9,17 +9,6 @@ test("getCoordinatesFromAddress resolves India using only the entered PIN", asyn
   globalThis.fetch = async (input) => {
     const url = String(input);
     requestedURLs.push(url);
-    if (url.includes("api.postalpincode.in")) {
-      return new Response(
-        JSON.stringify([
-          {
-            Status: "Success",
-            PostOffice: [{ Latitude: "NA", Longitude: "NA" }],
-          },
-        ]),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
     return new Response(
       JSON.stringify({
         status: "success",
@@ -43,7 +32,8 @@ test("getCoordinatesFromAddress resolves India using only the entered PIN", asyn
       }),
       { latitude: 13.0394444, longitude: 80.2573611 },
     );
-    assert.equal(requestedURLs.length, 2);
+    assert.equal(requestedURLs.length, 1);
+    assert.ok(requestedURLs[0].includes("api.pincodeapi.in"));
     assert.ok(requestedURLs.every((url) => url.includes("600018")));
     assert.ok(requestedURLs.every((url) => !url.includes("Anna")));
   } finally {
@@ -53,18 +43,10 @@ test("getCoordinatesFromAddress resolves India using only the entered PIN", asyn
 
 test("getCoordinatesFromAddress returns null when no real postal position exists", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (input) => {
-    if (String(input).includes("api.postalpincode.in")) {
-      return new Response(
-        JSON.stringify([{ Status: "Error", PostOffice: null }]),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return new Response(JSON.stringify({ status: "success", data: [] }), {
+  globalThis.fetch = async () => new Response(JSON.stringify({ status: "success", data: [] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  };
 
   try {
     assert.equal(

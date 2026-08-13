@@ -104,39 +104,10 @@ const isIndianPinCode = (code: string): boolean => INDIA_PIN_CODE_PATTERN.test(c
 const isUkPostcode = (code: string): boolean => UK_POSTCODE_PATTERN.test(code);
 
 /**
- * Fetch coordinates for an Indian PIN code from the India Post API.
- * Falls back to a free geocoding service (BigDataCloud) if the India Post API is unavailable.
+ * Fetch coordinates from a PIN-only directory sourced from India Post data.
+ * No street, manager, or property information is sent to the provider.
  */
 const fetchIndianPinCoords = async (pinCode: string) => {
-    // Try India Post API first
-    try {
-        const response = await fetch(`https://api.postalpincode.in/pincode/${encodeURIComponent(pinCode)}`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-                const postOffice = data[0].PostOffice.find((entry: Record<string, unknown>) => {
-                    const latitude = Number(entry.Latitude);
-                    const longitude = Number(entry.Longitude);
-                    return Number.isFinite(latitude) &&
-                        Number.isFinite(longitude) &&
-                        !(latitude === 0 && longitude === 0);
-                });
-                if (postOffice) {
-                    return {
-                        latitude: Number(postOffice.Latitude),
-                        longitude: Number(postOffice.Longitude),
-                        postcode: pinCode,
-                        city: postOffice.District || postOffice.State || '',
-                    };
-                }
-            }
-        }
-    } catch {
-        // Fall through to the PIN-only directory.
-    }
-
-    // Fallback to a PIN-only directory sourced from India Post data. This
-    // sends no street, manager, or property information to the provider.
     try {
         const response = await fetch(
             `https://api.pincodeapi.in/api/v1/pincode/${encodeURIComponent(pinCode)}`,
