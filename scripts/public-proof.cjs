@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const { chromium, firefox } = require('playwright');
 const {
   buildArtifactPath,
@@ -102,6 +103,7 @@ async function main() {
   };
   await ensureReachable(target.baseUrl);
   const artifactPath = buildArtifactPath(`public-${target.name}-proof.json`);
+  fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
 
   const desktop = await runViewportPass(chromium, target, { width: 1440, height: 960 }, 'chromium-desktop');
   const mobile = await runViewportPass(chromium, target, { width: 390, height: 844 }, 'chromium-mobile');

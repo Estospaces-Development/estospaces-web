@@ -20,6 +20,7 @@ test('public proof uses the Cloud Run compatible login route', () => {
 
   assert.match(source, /\{ id: 'PUB-002', route: '\/login\/'/);
   assert.doesNotMatch(source, /\{ id: 'PUB-002', route: '\/login'/);
+  assert.match(source, /fs\.mkdirSync\(path\.dirname\(artifactPath\), \{ recursive: true \}\)/);
 });
 
 test('dev proof helpers default to deployed Cloud Run when FRONTEND_URL is absent', () => {
