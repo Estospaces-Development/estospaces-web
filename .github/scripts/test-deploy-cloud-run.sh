@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy-cloud-run.sh"
+TEST_SERVICE_NAME="estospaces-web"
+TEST_EXPECTED_SERVICE="estospaces-web"
+TEST_HEALTH_HOST="app.estospaces.com/health"
 
 run_case() {
   local scenario="$1"
@@ -23,17 +26,17 @@ if [[ "$*" == "run services describe "* ]]; then
   echo "$count" >"$DESCRIBE_COUNT"
   case "$count" in
     1) printf '%s\n' '{"status":{"traffic":[{"percent":100,"revisionName":"old-rev"}],"url":"https://service.test"}}' ;;
-    2) printf '%s\n' '{"status":{"traffic":[{"tag":"candidate-10-1","revisionName":"new-rev","url":"https://candidate.test"}]}}' ;;
+    2) printf '{"status":{"traffic":[{"tag":"%s","revisionName":"new-rev"}]}}\n' "$EXPECTED_TAG" ;;
     *) printf '%s\n' '{"status":{"traffic":[{"percent":100,"revisionName":"new-rev"}],"url":"https://service.test"}}' ;;
   esac
 elif [[ "$*" == "artifacts docker images describe "* ]]; then
   printf 'sha256:%064d\n' 0
 elif [[ "$*" == "run revisions describe "* ]]; then
-  if [[ "$SCENARIO" == "pre_promotion_failure" ]]; then
-    printf '%s\n' '{"spec":{"containers":[{"image":"registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]},"status":{"conditions":[{"type":"Ready","status":"False"}]}}'
-  else
-    printf '%s\n' '{"spec":{"containers":[{"image":"registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]},"status":{"conditions":[{"type":"Ready","status":"True"}]}}'
-  fi
+  ready=True
+  image="registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  [[ "$SCENARIO" == "pre_promotion_failure" ]] && ready=False
+  [[ "$SCENARIO" == "image_mismatch" ]] && image="registry.test/service@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  printf '{"spec":{"containers":[{"image":"%s"}]},"status":{"conditions":[{"type":"Ready","status":"%s"}]}}\n' "$image" "$ready"
 elif [[ "$*" == *"run services update-traffic"*"old-rev=100"* ]]; then
   echo ROLLBACK >>"$EVENT_LOG"
   [[ "$SCENARIO" != "rollback_failure" ]]
@@ -45,15 +48,21 @@ MOCK
   cat >"$sandbox/bin/curl" <<'MOCK'
 #!/usr/bin/env bash
 set -u
+echo "$*" >>"$CURL_LOG"
 if [[ "$SCENARIO" == "cancellation" ]]; then
   kill -TERM "$PPID"
   /bin/sleep 0.1
   exit 22
-elif [[ "$*" == *".estospaces.com/health"* ]]; then
-  [[ "$SCENARIO" != "post_promotion_failure" && "$SCENARIO" != "rollback_failure" ]]
-else
+fi
+if [[ "$*" != *"$TEST_HEALTH_HOST"* ]]; then
   exit 22
 fi
+case "$SCENARIO" in
+  post_promotion_failure|rollback_failure) exit 22 ;;
+  wrong_service) printf '%s\n' '{"status":"ok","service":"wrong-service"}' ;;
+  invalid_body) printf '%s\n' '<html>healthy</html>' ;;
+  *) printf '{"status":"ok","service":"%s"}\n' "$TEST_EXPECTED_SERVICE" ;;
+esac
 MOCK
 
   cat >"$sandbox/bin/sleep" <<'MOCK'
@@ -61,35 +70,15 @@ MOCK
 exit 0
 MOCK
 
-  cat >"$sandbox/bin/jq" <<'MOCK'
-#!/usr/bin/env bash
-set -u
-input="$(cat)"
-if [[ "$*" == *"--arg tag"* ]]; then
-  if [[ "$*" == *".url"* ]]; then
-    echo "https://candidate.test"
-  else
-    echo "new-rev"
-  fi
-elif [[ "$*" == *".status.url"* ]]; then
-  echo "https://service.test"
-elif [[ "$*" == *".status.conditions"* ]]; then
-  if [[ "$input" == *'"status":"True"'* ]]; then echo True; else echo False; fi
-elif [[ "$*" == *".spec.containers[0].image"* ]]; then
-  echo "registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"
-elif [[ "$input" == *"old-rev"* ]]; then
-  echo "old-rev"
-else
-  echo "new-rev"
-fi
-MOCK
-  chmod +x "$sandbox/bin/gcloud" "$sandbox/bin/curl" "$sandbox/bin/sleep" "$sandbox/bin/jq"
+  chmod +x "$sandbox/bin/gcloud" "$sandbox/bin/curl" "$sandbox/bin/sleep"
 
   export SCENARIO="$scenario"
   export MOCK_LOG="$sandbox/gcloud.log"
+  export CURL_LOG="$sandbox/curl.log"
   export EVENT_LOG="$sandbox/events.log"
   export DESCRIBE_COUNT="$sandbox/describe-count"
-  export SERVICE_NAME=estospaces-notification-service
+  export TEST_HEALTH_HOST TEST_EXPECTED_SERVICE
+  export SERVICE_NAME="$TEST_SERVICE_NAME"
   export TARGET_ENV=prod
   export REGION=europe-west2
   export PROJECT_ID=project
@@ -97,6 +86,7 @@ MOCK
   export GITHUB_RUN_ID=31461798217
   export GITHUB_RUN_ATTEMPT="$run_attempt"
   export GITHUB_OUTPUT="$sandbox/output"
+  export EXPECTED_TAG="c$(printf '%s' "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" | sha256sum | cut -c1-9)"
 
   set +e
   PATH="$sandbox/bin:$PATH" bash "$DEPLOY_SCRIPT" >"$sandbox/stdout" 2>"$sandbox/stderr"
@@ -107,17 +97,29 @@ MOCK
     cat "$sandbox/stdout" "$sandbox/stderr" >&2
     return 1
   fi
-  expected_tag="c$(printf '%s' "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" | sha256sum | cut -c1-9)"
+
+  expected_tag="$EXPECTED_TAG"
   [[ "${#expected_tag}" == "10" ]]
   combined_length=$((${#SERVICE_NAME} + 1 + ${#TARGET_ENV} + ${#expected_tag}))
   [[ "$combined_length" -le 46 ]]
   grep -q -- "--tag=${expected_tag}" "$sandbox/gcloud.log"
+  grep -q -- "--remove-tags=${expected_tag}" "$sandbox/gcloud.log"
+  if [[ "$scenario" == "post_promotion_failure" || "$scenario" == "wrong_service" || "$scenario" == "invalid_body" || "$scenario" == "rollback_failure" ]]; then
+    [[ "$(wc -l <"$sandbox/curl.log")" == "12" ]]
+  fi
 
   case "$scenario" in
-    pre_promotion_failure)
+    success)
+      grep -q PROMOTE "$sandbox/events.log"
+      ! grep -q ROLLBACK "$sandbox/events.log"
+      grep -q -- "$TEST_HEALTH_HOST" "$sandbox/curl.log"
+      grep -q "candidate_revision=new-rev" "$sandbox/output"
+      ;;
+    pre_promotion_failure|image_mismatch)
+      ! grep -q PROMOTE "$sandbox/events.log" 2>/dev/null
       ! grep -q ROLLBACK "$sandbox/events.log" 2>/dev/null
       ;;
-    post_promotion_failure|cancellation)
+    post_promotion_failure|wrong_service|invalid_body|cancellation)
       grep -q PROMOTE "$sandbox/events.log"
       grep -q ROLLBACK "$sandbox/events.log"
       ;;
@@ -129,8 +131,12 @@ MOCK
   esac
 }
 
-run_case pre_promotion_failure 1 1
-run_case post_promotion_failure 1 10
-run_case cancellation 143 999999
-run_case rollback_failure 1 123456789
-echo "Deployment failure and rollback scenarios passed."
+run_case success 0 1
+run_case pre_promotion_failure 1 2
+run_case image_mismatch 1 3
+run_case post_promotion_failure 1 4
+run_case wrong_service 1 5
+run_case invalid_body 1 6
+run_case cancellation 143 7
+run_case rollback_failure 1 8
+echo "Deployment success, health contract, cleanup, and rollback scenarios passed."
