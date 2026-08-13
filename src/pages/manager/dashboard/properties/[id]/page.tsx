@@ -15,6 +15,7 @@ import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
+import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 
 // Helper for currency formatting
 const formatPrice = (price: any, property?: any) => {
@@ -35,7 +36,7 @@ export default function PropertyDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementViews } = useProperties();
+    const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementViews, incrementShares } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user: _user } = useAuth();
 
@@ -58,6 +59,7 @@ export default function PropertyDetailPage() {
 
     const property = id ? getProperty(id) : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
+    const canSharePublicly = isPropertyPubliclyShareable(property?.status);
 
     // Increment views on mount - only once per session per property
     useEffect(() => {
@@ -260,9 +262,11 @@ export default function PropertyDetailPage() {
                     {/* Share */}
                     <button
                         type="button"
-                        aria-label="Share property"
+                        aria-label={canSharePublicly ? "Share property" : "Publish property before sharing"}
                         onClick={() => setShowShareModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        disabled={!canSharePublicly}
+                        title={canSharePublicly ? "Share public listing" : "Publish this property before sharing"}
+                        className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
                     >
                         <Share2 className="w-5 h-5" />
                         <span className="hidden sm:inline">Share</span>
@@ -578,8 +582,11 @@ export default function PropertyDetailPage() {
                                 </button>
 
                                 <button
+                                    aria-label={canSharePublicly ? "Share property" : "Publish property before sharing"}
                                     onClick={() => setShowShareModal(true)}
-                                    className="w-full py-3 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2"
+                                    disabled={!canSharePublicly}
+                                    title={canSharePublicly ? "Share public listing" : "Publish this property before sharing"}
+                                    className="w-full py-3 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
                                 >
                                     <Share2 className="w-5 h-5" />
                                     Share Property
@@ -772,9 +779,14 @@ export default function PropertyDetailPage() {
                     property={{
                         id: property.id,
                         title: property.title,
-                        city: property.location?.city
+                        price: formatPrice(property.price, property),
                     }}
                     onClose={() => setShowShareModal(false)}
+                    onShare={() => {
+                        if (id) {
+                            void incrementShares(id);
+                        }
+                    }}
                 />
             )}
 

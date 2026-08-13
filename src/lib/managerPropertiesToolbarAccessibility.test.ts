@@ -14,9 +14,12 @@ test('manager properties toolbar gives icon-only buttons accessible names', () =
   assert.match(managerPropertiesPage, /aria-label="Sort properties"/);
   assert.match(managerPropertiesPage, /aria-label=\{`Switch to \$\{mode\} view`\}/);
   assert.match(managerPropertiesPage, /aria-pressed=\{viewMode === mode\}/);
-  assert.match(managerPropertiesPage, /aria-label=\{`Share \$\{property\.title\}`\}/);
+  assert.match(managerPropertiesPage, /aria-label=\{isPropertyPubliclyShareable\(property\.status\) \? `Share \$\{property\.title\}` : `Publish \$\{property\.title\} before sharing`\}/);
   assert.match(managerPropertiesPage, /aria-label=\{`Delete \$\{property\.title\}`\}/);
   assert.match(managerPropertiesPage, /aria-label=\{`Edit \$\{property\.title\}`\}/);
+  assert.match(managerPropertiesPage, /disabled=\{!isPropertyPubliclyShareable\(property\.status\)\}/);
+  assert.match(managerPropertiesPage, /Publish this property before sharing/);
+  assert.match(managerPropertiesPage, /group-focus-within:opacity-100/);
 });
 
 test('manager property delete actions use an in-app confirmation dialog', () => {

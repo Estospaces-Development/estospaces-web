@@ -1,116 +1,207 @@
 "use client";
 
-import React, { useState } from 'react';
-import { X, Copy, Check, Share2, Mail, MessageCircle, Twitter, Facebook, Linkedin } from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Check,
+  Copy,
+  Facebook,
+  Linkedin,
+  Mail,
+  MessageCircle,
+  Share2,
+  Twitter,
+  X,
+} from "lucide-react";
+
+import {
+  buildPropertyShareTargets,
+  getPublicPropertySharePath,
+} from "@/lib/propertySharing";
 
 interface ShareModalProps {
-    property: {
-        id: string;
-        title: string;
-        address_line_1?: string;
-        city?: string;
-    };
-    onClose: () => void;
+  property: {
+    id: string;
+    title: string;
+    price?: string;
+  };
+  onClose: () => void;
+  onShare?: (platform: string) => void;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ property, onClose }) => {
-    const [copied, setCopied] = useState(false);
-    const shareUrl = typeof window !== 'undefined'
-        ? `${window.location.origin}/property/${property.id}`
-        : `https://estospaces.com/property/${property.id}`;
-    const encodedSubject = encodeURIComponent(`Check out this property: ${property.title}`);
-    const encodedText = encodeURIComponent(`Check out this property: ${property.title} - ${shareUrl}`);
-    const encodedUrl = encodeURIComponent(shareUrl);
+const ShareModal: React.FC<ShareModalProps> = ({
+  property,
+  onClose,
+  onShare,
+}) => {
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}${getPublicPropertySharePath(property.id)}`
+      : `https://app.estospaces.com${getPublicPropertySharePath(property.id)}`;
+  const targets = buildPropertyShareTargets({
+    title: property.title,
+    price: property.price || "Price on request",
+    url: shareUrl,
+  });
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(shareUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+  useEffect(() => {
+    const returnFocusTo = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), a[href]',
+        ) || [],
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) {
+        return;
+      }
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      returnFocusTo?.focus();
+    };
+  }, [onClose]);
 
-    const shareOptions = [
-        { name: 'Email', icon: Mail, color: 'text-gray-600', bg: 'bg-gray-100', action: () => window.open(`mailto:?subject=${encodedSubject}&body=${encodedUrl}`) },
-        { name: 'WhatsApp', icon: MessageCircle, color: 'text-green-600', bg: 'bg-green-100', action: () => window.open(`https://wa.me/?text=${encodedText}`) },
-        { name: 'Twitter', icon: Twitter, color: 'text-blue-400', bg: 'bg-blue-50', action: () => window.open(`https://twitter.com/intent/tweet?text=${encodedSubject}&url=${encodedUrl}`) },
-        { name: 'Facebook', icon: Facebook, color: 'text-blue-600', bg: 'bg-blue-100', action: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`) },
-        { name: 'LinkedIn', icon: Linkedin, color: 'text-blue-700', bg: 'bg-blue-50', action: () => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`) },
-    ];
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopyStatus("copied");
+      onShare?.("copy");
+      window.setTimeout(() => setCopyStatus("idle"), 2000);
+    } catch {
+      setCopyStatus("error");
+    }
+  };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="share-property-title"
-                aria-describedby="share-property-description"
-                className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 shadow-2xl relative transition-all transform scale-100"
-            >
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Close share property dialog"
-                    className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                    <X size={20} />
-                </button>
+  const openShareTarget = (platform: keyof typeof targets) => {
+    const target = targets[platform];
+    if (platform === "email") {
+      window.location.href = target;
+    } else {
+      window.open(target, "_blank", "noopener,noreferrer");
+    }
+    onShare?.(platform);
+  };
 
-                <div className="mb-6">
-                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mb-4">
-                        <Share2 className="text-orange-600 dark:text-orange-400" size={24} />
-                    </div>
-                    <h3 id="share-property-title" className="text-xl font-bold text-gray-900 dark:text-white">Share this property</h3>
-                    <p id="share-property-description" className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                        {property.title}
-                    </p>
-                </div>
+  const shareOptions = [
+    { name: "Email", id: "email" as const, icon: Mail, color: "text-gray-700", bg: "bg-gray-100" },
+    { name: "WhatsApp", id: "whatsapp" as const, icon: MessageCircle, color: "text-green-700", bg: "bg-green-100" },
+    { name: "Twitter / X", id: "twitter" as const, icon: Twitter, color: "text-sky-700", bg: "bg-sky-50" },
+    { name: "Facebook", id: "facebook" as const, icon: Facebook, color: "text-blue-700", bg: "bg-blue-100" },
+    { name: "LinkedIn", id: "linkedin" as const, icon: Linkedin, color: "text-blue-800", bg: "bg-blue-50" },
+  ];
 
-                {/* Copy Link Section */}
-                <div className="mb-6">
-                    <label htmlFor="share-property-link" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                        Property Link
-                    </label>
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
-                        <input
-                            id="share-property-link"
-                            type="text"
-                            readOnly
-                            value={shareUrl}
-                            className="flex-1 bg-transparent text-sm text-gray-600 dark:text-gray-300 outline-none w-full"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleCopy}
-                            aria-label={copied ? 'Property link copied' : 'Copy property link'}
-                            className={`p-2 rounded-md transition-all ${copied
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 shadow-sm'
-                                }`}
-                        >
-                            {copied ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
-                    </div>
-                </div>
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-property-title"
+        aria-describedby="share-property-description"
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+      >
+        <button
+          ref={closeButtonRef}
+          type="button"
+          onClick={onClose}
+          aria-label="Close share property dialog"
+          className="absolute right-4 top-4 rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800 dark:hover:text-white"
+        >
+          <X size={20} />
+        </button>
 
-                {/* Social Share Options */}
-                <div className="grid grid-cols-5 gap-2">
-                    {shareOptions.map((option) => (
-                        <button
-                            type="button"
-                            key={option.name}
-                            onClick={option.action}
-                            aria-label={`Share property via ${option.name}`}
-                            className="flex flex-col items-center gap-2 group"
-                        >
-                            <div className={`w-12 h-12 flex items-center justify-center rounded-full transition-transform group-hover:scale-110 ${option.bg} ${option.color}`}>
-                                <option.icon size={20} />
-                            </div>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400">{option.name}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+        <div className="mb-6">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+            <Share2 className="text-orange-700 dark:text-orange-300" size={24} />
+          </div>
+          <h2 id="share-property-title" className="text-xl font-bold text-gray-900 dark:text-white">
+            Share this property
+          </h2>
+          <p id="share-property-description" className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+            Share the public listing for {property.title}.
+          </p>
         </div>
-    );
+
+        <div className="mb-6">
+          <label htmlFor="share-property-link" className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Public property link
+          </label>
+          <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800">
+            <input
+              id="share-property-link"
+              type="text"
+              readOnly
+              value={shareUrl}
+              className="min-w-0 flex-1 bg-transparent px-2 text-sm text-gray-700 outline-none dark:text-gray-200"
+            />
+            <button
+              type="button"
+              onClick={() => void handleCopy()}
+              aria-label={copyStatus === "copied" ? "Property link copied" : "Copy property link"}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-orange-600 px-3 text-sm font-semibold text-white transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+            >
+              {copyStatus === "copied" ? <Check size={16} /> : <Copy size={16} />}
+              {copyStatus === "copied" ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
+            {copyStatus === "copied"
+              ? "Public property link copied."
+              : copyStatus === "error"
+                ? "Copy failed. Select the public link and copy it manually."
+                : "Anyone with this link can view the published listing."}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+          {shareOptions.map((option) => (
+            <button
+              type="button"
+              key={option.id}
+              onClick={() => openShareTarget(option.id)}
+              aria-label={`Share property via ${option.name}`}
+              className="group flex min-w-0 flex-col items-center gap-2 rounded-xl p-2 text-center transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800"
+            >
+              <span className={`flex h-11 w-11 items-center justify-center rounded-full ${option.bg} ${option.color}`}>
+                <option.icon size={20} />
+              </span>
+              <span className="max-w-full break-words text-[11px] font-medium leading-tight text-gray-600 dark:text-gray-300">
+                {option.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ShareModal;

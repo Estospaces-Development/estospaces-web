@@ -31,7 +31,7 @@ test('manager property detail keeps passive views local and mobile icon actions 
   assert.match(managerPropertyDetail, /incrementViews\(id\);/);
   assert.doesNotMatch(managerPropertyDetail, /analytics:\s*\{\s*\.\.\.property\.analytics,/);
   assert.match(managerPropertyDetail, /aria-label=\{isFavorited \? 'Remove property from saved' : 'Save property'\}/);
-  assert.match(managerPropertyDetail, /aria-label="Share property"/);
+  assert.match(managerPropertyDetail, /aria-label=\{canSharePublicly \? "Share property" : "Publish property before sharing"\}/);
   assert.match(managerPropertyDetail, /aria-label="Duplicate property"/);
   assert.match(managerPropertyDetail, /aria-label="Edit property"/);
   assert.match(managerPropertyDetail, /aria-label="Delete property"/);

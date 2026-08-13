@@ -24,6 +24,7 @@ import {
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 
 const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
@@ -144,6 +145,7 @@ function PropertiesContent() {
         setPage,
         exportProperties,
         getPropertyStats,
+        incrementShares,
     } = useProperties();
 
 
@@ -652,16 +654,17 @@ function PropertiesContent() {
                                 onView={(id) => navigate(`/manager/dashboard/properties/${id}`)}
                             />
                             {/* Quick Actions Overlay (visible on hover) */}
-                            <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                            <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-10">
                                 <button
-                                    aria-label={`Share ${property.title}`}
+                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `Publish ${property.title} before sharing`}
+                                    disabled={!isPropertyPubliclyShareable(property.status)}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedPropertyForShare(property);
                                         setShowShareModal(true);
                                     }}
-                                    className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    title="Share"
+                                    className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : "Publish this property before sharing"}
                                 >
                                     <Share2 className="w-4 h-4" />
                                 </button>
@@ -736,14 +739,15 @@ function PropertiesContent() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    aria-label={`Share ${property.title}`}
+                                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `Publish ${property.title} before sharing`}
+                                                    disabled={!isPropertyPubliclyShareable(property.status)}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setSelectedPropertyForShare(property);
                                                         setShowShareModal(true);
                                                     }}
-                                                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                                                    title="Share"
+                                                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+                                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : "Publish this property before sharing"}
                                                 >
                                                     <Share2 className="w-4 h-4" />
                                                 </button>
@@ -791,6 +795,11 @@ function PropertiesContent() {
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
                 property={selectedPropertyForShare}
+                onShare={() => {
+                    if (selectedPropertyForShare) {
+                        void incrementShares(selectedPropertyForShare.id);
+                    }
+                }}
             />
             {pendingDeleteProperty && (
                 <div
