@@ -392,7 +392,16 @@ test("fast-track notification deep links load the requested case before stale-li
   assert.match(source, /getFastTrackCaseById\(normalizedRequestedCaseParam, \{ suppressErrorToast: true \}\)/);
   assert.match(source, /pendingSelectedCaseIdRef\.current = result\.data\.caseId/);
   assert.match(source, /setCases\(\(previous\) => sortFastTrackWorkspaceCases\(\[/);
+  assert.match(source, /if \(result\.notFound\) \{/);
   assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'miss' \}\)/);
+  assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'unavailable' \}\)/);
+  assert.match(source, /setError\(result\.error \|\| 'The Fast Track service is temporarily unavailable\. Please try again\.'\);/);
+  assert.match(source, /requestedCaseLookup\.status !== 'unavailable'/);
+  assert.match(source, /setRequestedCaseRetryToken\(\(current\) => current \+ 1\)/);
+  assert.match(source, /}, WORKSPACE_SYNC_INTERVALS\.WORKFLOW\);/);
+  assert.match(source, /requestedCaseRetryToken,\s*\]\);/);
+  assert.match(source, /if \(!silent\) \{\s*setError\(null\);\s*\}/);
+  assert.match(source, /if \(result\.data\) \{\s*setError\(null\);/);
   assert.match(source, /&& requestedCaseLookupMissed/);
   assert.match(source, /shouldDeferFastTrackSelectionURLSync\(\{/);
   assert.match(source, /const recoveredCase = cases\.find\(\(item\) => \(/);

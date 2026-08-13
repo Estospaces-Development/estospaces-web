@@ -616,8 +616,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
         caseId: string;
-        status: 'loading' | 'miss';
+        status: 'loading' | 'miss' | 'unavailable';
     } | null>(null);
+    const [requestedCaseRetryToken, setRequestedCaseRetryToken] = useState(0);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
         () => defaultFastTrackWorkspacePreferences(role),
     );
@@ -743,7 +744,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     lastCasesSignatureRef.current = result.signature;
                     setCases(result.cases);
                 }
-                setError(null);
+                if (!silent) {
+                    setError(null);
+                }
             } else if (!silent) {
                 setError(result.error || 'Unable to load fast-track cases.');
             }
@@ -916,6 +919,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     useEffect(() => {
         if (
             !normalizedRequestedCaseParam
+            || requestedCaseLookup?.caseId !== normalizedRequestedCaseParam
+            || requestedCaseLookup.status !== 'unavailable'
+        ) {
+            return undefined;
+        }
+
+        const retryTimer = window.setTimeout(() => {
+            setRequestedCaseRetryToken((current) => current + 1);
+        }, WORKSPACE_SYNC_INTERVALS.WORKFLOW);
+
+        return () => window.clearTimeout(retryTimer);
+    }, [normalizedRequestedCaseParam, requestedCaseLookup]);
+
+    useEffect(() => {
+        if (
+            !normalizedRequestedCaseParam
             || loading
             || requestedCaseIsAvailable
         ) {
@@ -932,6 +951,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
 
             if (result.data) {
+                setError(null);
                 setRecoveredCaseLink(null);
                 pendingSelectedCaseIdRef.current = result.data.caseId;
                 setCases((previous) => sortFastTrackWorkspaceCases([
@@ -943,7 +963,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 return;
             }
 
-            setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' });
+            if (result.notFound) {
+                setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' });
+                return;
+            }
+
+            setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'unavailable' });
+            setError(result.error || 'The Fast Track service is temporarily unavailable. Please try again.');
         };
 
         void loadRequestedCase();
@@ -955,6 +981,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         loading,
         normalizedRequestedCaseParam,
         requestedCaseIsAvailable,
+        requestedCaseRetryToken,
     ]);
 
     useEffect(() => {

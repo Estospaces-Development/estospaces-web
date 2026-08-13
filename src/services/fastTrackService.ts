@@ -1,4 +1,4 @@
-import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
+import { apiFetch, getErrorMessage, getErrorStatus, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
 import {
   getFastTrackCaseRemainingHours,
@@ -683,15 +683,19 @@ export const getFastTrackCases = async (
 export const getFastTrackCaseById = async (
   id: string,
   options: ServiceRequestOptions = {},
-): Promise<{ data: FastTrackCase | null; error: string | null }> => {
+): Promise<{ data: FastTrackCase | null; error: string | null; notFound: boolean }> => {
   try {
     const result = await apiFetch<BackendFastTrackWorkspaceCase>(
       `${BOOKING_URL()}/api/v1/fast-track/${id}`,
       options,
     );
-    return { data: result ? mapBackendToFrontend(result) : null, error: null };
+    return { data: result ? mapBackendToFrontend(result) : null, error: null, notFound: false };
   } catch (error: any) {
-    return { data: null, error: getErrorMessage(error) };
+    return {
+      data: null,
+      error: getErrorMessage(error),
+      notFound: getErrorStatus(error) === 404,
+    };
   }
 };
 

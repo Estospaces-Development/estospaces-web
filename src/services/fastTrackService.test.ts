@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getFastTrackCases } from './fastTrackService';
+import { getFastTrackCaseById, getFastTrackCases } from './fastTrackService';
 
 const buildResponse = (payload: unknown) => ({
   ok: true,
@@ -11,6 +11,36 @@ const buildResponse = (payload: unknown) => ({
     data: payload,
   }),
 }) as Response;
+
+const buildErrorResponse = (status: number, message: string) => ({
+  ok: false,
+  status,
+  text: async () => JSON.stringify({
+    success: false,
+    error: message,
+  }),
+}) as Response;
+
+test('fast-track detail lookup distinguishes a missing case from a temporary service failure', async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = (async () => buildErrorResponse(500, 'The service is temporarily unavailable. Please try again.')) as typeof fetch;
+    const unavailable = await getFastTrackCaseById('case-unavailable', { suppressErrorToast: true });
+
+    assert.equal(unavailable.data, null);
+    assert.equal(unavailable.notFound, false);
+    assert.match(unavailable.error || '', /temporarily unavailable/i);
+
+    globalThis.fetch = (async () => buildErrorResponse(404, 'Fast-track case not found.')) as typeof fetch;
+    const missing = await getFastTrackCaseById('case-missing', { suppressErrorToast: true });
+
+    assert.equal(missing.data, null);
+    assert.equal(missing.notFound, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('fast-track service maps manager verification reupload_required documents to reupload needed UI state', async () => {
   const originalFetch = globalThis.fetch;
