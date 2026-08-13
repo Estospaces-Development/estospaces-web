@@ -125,6 +125,20 @@ export const getPropertyImages = (property: unknown): string[] => {
     ]);
 };
 
+export const getPropertyVideos = (property: unknown): string[] => {
+    if (!isRecord(property)) {
+        return [];
+    }
+
+    return uniqueImages([
+        ...normalizeImageValue(property.video_urls).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.videos).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(isRecord(property.media) ? property.media.videos : undefined).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.video).map(resolvePropertyImageUrl),
+        ...normalizeImageValue(property.video_url).map(resolvePropertyImageUrl),
+    ]);
+};
+
 export const getPrimaryPropertyImage = (property: unknown, fallback?: string) => {
     const [image] = getPropertyImages(property);
     return image || fallback || null;

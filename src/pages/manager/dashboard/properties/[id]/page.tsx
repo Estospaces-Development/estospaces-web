@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { getPropertyVideos } from '@/lib/propertyImages';
 
 // Helper for currency formatting
 const formatPrice = (price: any, property?: any) => {
@@ -216,8 +217,7 @@ export default function PropertyDetailPage() {
         property.images?.filter((img): img is string => typeof img === 'string') || [];
 
     // Get videos from the property  
-    const videos = property.media?.videos?.map(vid => vid.url) ||
-        property.videos?.filter((vid): vid is string => typeof vid === 'string') || [];
+    const videos = getPropertyVideos(property);
     const propertyMapState = getPropertyMapState(property, {
         userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
     });

@@ -228,7 +228,7 @@ const SatelliteMap = () => {
                         ? 'Loading manager property locations...'
                         : propertyError
                             ? propertyError
-                            : 'No mappable property locations yet. Add a city, Indian PIN code, UK postcode, or coordinates to show markers here.'}
+                            : 'No property locations with saved latitude and longitude are available yet. Add the exact coordinates to a property to show its marker here.'}
                 </div>
             )}
 

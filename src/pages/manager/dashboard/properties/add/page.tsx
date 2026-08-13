@@ -3235,7 +3235,7 @@ export default function AddPropertyPage() {
                   id="video-upload"
                   name="property-videos"
                   multiple
-                  accept="video/mp4,video/quicktime,video/x-msvideo,.mp4,.mov,.avi"
+                  accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
                   onChange={handleVideoUpload}
                   className="sr-only"
                   aria-label={videoUploadCopy.ariaLabel}

@@ -100,7 +100,7 @@ test('manager property upload controls expose button copy and format help', () =
   assert.deepEqual(getManagerPropertyUploadControlCopy('videos'), {
     buttonLabel: 'Click to upload videos',
     ariaLabel: 'Upload property videos',
-    helpText: 'MP4, MOV, AVI up to 50MB each',
+    helpText: 'MP4, WebM, MOV up to 50MB each',
   });
 });
 

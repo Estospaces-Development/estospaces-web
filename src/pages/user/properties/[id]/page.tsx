@@ -23,6 +23,7 @@ import {
     X,
     Heart,
     Star,
+    Video,
 } from 'lucide-react';
 import { getPropertyById, Property } from '../../../../services/propertyService';
 import { recordPropertyNavigation } from '@/lib/propertyNavigation';
@@ -59,7 +60,7 @@ import {
 } from '@/lib/immersiveGallery';
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
-import { getPropertyImages } from '@/lib/propertyImages';
+import { getPropertyImages, getPropertyVideos } from '@/lib/propertyImages';
 import {
     MAX_SALE_OFFER_NOTES_LENGTH,
     buildSaleOfferPayload,
@@ -1107,6 +1108,7 @@ const UserPropertyDetail = () => {
     }, [property]);
     const realImages = useMemo(() => getPropertyImages(property), [property]);
     const realImageCount = realImages.length;
+    const propertyVideos = useMemo(() => getPropertyVideos(property), [property]);
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
     const isSaved = id ? isPropertySaved(id) : false;
@@ -2563,6 +2565,38 @@ const UserPropertyDetail = () => {
                             </div>
                         </div>
                     </div>
+
+                    {propertyVideos.length > 0 && (
+                        <section
+                            aria-labelledby="property-videos-heading"
+                            className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 md:p-7"
+                        >
+                            <div className="flex items-start gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
+                                    <Video size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Property video</p>
+                                    <h2 id="property-videos-heading" className="mt-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                                        Explore this home in motion
+                                    </h2>
+                                </div>
+                            </div>
+                            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                                {propertyVideos.map((videoUrl, index) => (
+                                    <video
+                                        key={`${videoUrl}-${index}`}
+                                        controls
+                                        preload="metadata"
+                                        className="aspect-video w-full rounded-[1.5rem] bg-black object-contain shadow-sm"
+                                    >
+                                        <source src={videoUrl} />
+                                        Your browser does not support property videos.
+                                    </video>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {heroStats.map((item) => {
