@@ -71,25 +71,23 @@ SERVICE_JSON="$(gcloud run services describe "$SERVICE_TARGET" \
 CANDIDATE_REVISION="$(jq -r --arg tag "$CANDIDATE_TAG" '
   [.status.traffic[]? | select(.tag == $tag and .revisionName != null) | .revisionName][0] // empty
 ' <<<"$SERVICE_JSON")"
-CANDIDATE_URL="$(jq -r --arg tag "$CANDIDATE_TAG" '
-  [.status.traffic[]? | select(.tag == $tag and .url != null) | .url][0] // empty
-' <<<"$SERVICE_JSON")"
-if [[ -z "$CANDIDATE_REVISION" || -z "$CANDIDATE_URL" ]]; then
-  echo "Candidate revision or tagged URL was not created." >&2
+if [[ -z "$CANDIDATE_REVISION" ]]; then
+  echo "Candidate revision was not created." >&2
   exit 1
 fi
 
-candidate_healthy=0
-for attempt in {1..12}; do
-  if curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "${CANDIDATE_URL}/health" >/dev/null; then
-    candidate_healthy=1
-    break
-  fi
-  echo "Candidate health attempt ${attempt}/12 failed; retrying in 5 seconds."
-  sleep 5
-done
-if [[ "$candidate_healthy" != "1" ]]; then
-  echo "Candidate revision failed its health gate." >&2
+CANDIDATE_JSON="$(gcloud run revisions describe "$CANDIDATE_REVISION" \
+  --region="$REGION" \
+  --project="$PROJECT_ID" \
+  --format=json)"
+CANDIDATE_READY="$(jq -r '[.status.conditions[]? | select(.type == "Ready") | .status][0] // "False"' <<<"$CANDIDATE_JSON")"
+DEPLOYED_IMAGE="$(jq -r '.spec.containers[0].image // empty' <<<"$CANDIDATE_JSON")"
+if [[ "$CANDIDATE_READY" != "True" ]]; then
+  echo "Candidate revision did not pass the Cloud Run readiness and startup-probe gate." >&2
+  exit 1
+fi
+if [[ "$DEPLOYED_IMAGE" != "$IMMUTABLE_IMAGE" ]]; then
+  echo "Candidate revision image does not match the resolved digest." >&2
   exit 1
 fi
 
@@ -112,15 +110,22 @@ if [[ "$ACTIVE_REVISION" != "$CANDIDATE_REVISION" || -z "$SERVICE_URL" ]]; then
   exit 1
 fi
 
-DEPLOYED_IMAGE="$(gcloud run revisions describe "$CANDIDATE_REVISION" \
-  --region="$REGION" \
-  --project="$PROJECT_ID" \
-  --format='value(spec.containers[0].image)')"
-if [[ "$DEPLOYED_IMAGE" != "$IMMUTABLE_IMAGE" ]]; then
-  echo "Deployed revision image does not match the resolved digest." >&2
-  exit 1
+if [[ "$TARGET_ENV" == "prod" ]]; then
+  case "$SERVICE_NAME" in
+    estospaces-web) HEALTH_URL="https://app.estospaces.com/health" ;;
+    estospaces-core-service) HEALTH_URL="https://core-api.estospaces.com/health" ;;
+    estospaces-booking-service) HEALTH_URL="https://booking-api.estospaces.com/health" ;;
+    estospaces-payment-service) HEALTH_URL="https://payment-api.estospaces.com/health" ;;
+    estospaces-notification-service) HEALTH_URL="https://notification-api.estospaces.com/health" ;;
+    estospaces-search-service) HEALTH_URL="https://search-api.estospaces.com/health" ;;
+    estospaces-media-service) HEALTH_URL="https://media-api.estospaces.com/health" ;;
+    estospaces-messaging-service) HEALTH_URL="https://messaging-api.estospaces.com/health" ;;
+    *) echo "No approved production health endpoint for ${SERVICE_NAME}." >&2; exit 1 ;;
+  esac
+else
+  HEALTH_URL="${SERVICE_URL}/health"
 fi
-curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "${SERVICE_URL}/health" >/dev/null
+curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "$HEALTH_URL" >/dev/null
 
 gcloud run services update-traffic "$SERVICE_TARGET" \
   --remove-tags="$CANDIDATE_TAG" \

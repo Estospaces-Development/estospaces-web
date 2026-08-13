@@ -29,7 +29,11 @@ if [[ "$*" == "run services describe "* ]]; then
 elif [[ "$*" == "artifacts docker images describe "* ]]; then
   printf 'sha256:%064d\n' 0
 elif [[ "$*" == "run revisions describe "* ]]; then
-  printf 'registry.test/service@sha256:%064d\n' 0
+  if [[ "$SCENARIO" == "pre_promotion_failure" ]]; then
+    printf '%s\n' '{"spec":{"containers":[{"image":"registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]},"status":{"conditions":[{"type":"Ready","status":"False"}]}}'
+  else
+    printf '%s\n' '{"spec":{"containers":[{"image":"registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]},"status":{"conditions":[{"type":"Ready","status":"True"}]}}'
+  fi
 elif [[ "$*" == *"run services update-traffic"*"old-rev=100"* ]]; then
   echo ROLLBACK >>"$EVENT_LOG"
   [[ "$SCENARIO" != "rollback_failure" ]]
@@ -41,12 +45,12 @@ MOCK
   cat >"$sandbox/bin/curl" <<'MOCK'
 #!/usr/bin/env bash
 set -u
-if [[ "$*" == *"candidate.test/health"* ]]; then
-  [[ "$SCENARIO" != "pre_promotion_failure" ]]
-elif [[ "$SCENARIO" == "cancellation" ]]; then
+if [[ "$SCENARIO" == "cancellation" ]]; then
   kill -TERM "$PPID"
   /bin/sleep 0.1
   exit 22
+elif [[ "$*" == *".estospaces.com/health"* ]]; then
+  [[ "$SCENARIO" != "post_promotion_failure" && "$SCENARIO" != "rollback_failure" ]]
 else
   exit 22
 fi
@@ -69,6 +73,10 @@ if [[ "$*" == *"--arg tag"* ]]; then
   fi
 elif [[ "$*" == *".status.url"* ]]; then
   echo "https://service.test"
+elif [[ "$*" == *".status.conditions"* ]]; then
+  if [[ "$input" == *'"status":"True"'* ]]; then echo True; else echo False; fi
+elif [[ "$*" == *".spec.containers[0].image"* ]]; then
+  echo "registry.test/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"
 elif [[ "$input" == *"old-rev"* ]]; then
   echo "old-rev"
 else
@@ -122,7 +130,7 @@ MOCK
 }
 
 run_case pre_promotion_failure 1 1
-run_case post_promotion_failure 22 10
+run_case post_promotion_failure 1 10
 run_case cancellation 143 999999
-run_case rollback_failure 22 123456789
+run_case rollback_failure 1 123456789
 echo "Deployment failure and rollback scenarios passed."
