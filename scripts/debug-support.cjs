@@ -7,8 +7,15 @@ fs.mkdirSync(ARTIFACTS, { recursive: true });
 
 const BASE = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
 const API = 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app';
-const EMAIL = 'user@example.com';
-const PASSWORD = 'dev-user-change-me';
+
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
+const EMAIL = requireEnv('E2E_USER_EMAIL');
+const PASSWORD = requireEnv('E2E_USER_PASSWORD');
 
 (async () => {
   const browser = await chromium.launch({ headless: true });

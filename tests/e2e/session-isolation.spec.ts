@@ -2,6 +2,12 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:3001';
 
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
 async function dismissCookieBanner(page: any) {
   try {
     const acceptButton = page.locator('button:has-text("Accept"), button:has-text("Accept All"), [aria-label*="cookie" i]').first();
@@ -15,6 +21,10 @@ async function dismissCookieBanner(page: any) {
 
 test.describe('Session Isolation', () => {
   test('User A and User B sessions are isolated', async ({ browser }) => {
+    const userEmail = requireEnv('E2E_USER_EMAIL');
+    const userPassword = requireEnv('E2E_USER_PASSWORD');
+    const managerEmail = requireEnv('E2E_MANAGER_EMAIL');
+    const managerPassword = requireEnv('E2E_MANAGER_PASSWORD');
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
 
@@ -24,18 +34,18 @@ test.describe('Session Isolation', () => {
     await pageA.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await pageA.waitForSelector('#email', { timeout: 30000 });
     await dismissCookieBanner(pageA);
-    await pageA.fill('#email', 'siranjeeviworks@gmail.com');
-    await pageA.fill('#password', 'dev-user-change-me');
+    await pageA.fill('#email', userEmail);
+    await pageA.fill('#password', userPassword);
     await pageA.click('button[type="submit"]');
-    await pageA.waitForTimeout;
+    await pageA.waitForLoadState('domcontentloaded');
 
     await pageB.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await pageB.waitForSelector('#email', { timeout: 30000 });
     await dismissCookieBanner(pageB);
-    await pageB.fill('#email', 'manager@estospaces.com');
-    await pageB.fill('#password', 'dev-manager-change-me');
+    await pageB.fill('#email', managerEmail);
+    await pageB.fill('#password', managerPassword);
     await pageB.click('button[type="submit"]');
-    await pageB.waitForTimeout;
+    await pageB.waitForLoadState('domcontentloaded');
 
     // Verify separate sessions via cookies
     const cookiesA = await contextA.cookies();

@@ -11,6 +11,12 @@ const outputDir = path.join(process.cwd(), 'output', 'playwright', 'project5-155
 
 fs.mkdirSync(outputDir, { recursive: true });
 
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
 async function login(email, password) {
   const response = await fetch(`${coreUrl}/api/v1/auth/login`, {
     method: 'POST',
@@ -95,9 +101,9 @@ async function pageText(page) {
 }
 
 (async () => {
-  const admin = await login('admin@example.com', 'dev-admin-change-me');
-  const manager = await login('manager@example.com', 'dev-manager-change-me');
-  const user = await login('user@example.com', 'dev-user-change-me');
+  const admin = await login(requireEnv('E2E_ADMIN_EMAIL'), requireEnv('E2E_ADMIN_PASSWORD'));
+  const manager = await login(requireEnv('E2E_MANAGER_EMAIL'), requireEnv('E2E_MANAGER_PASSWORD'));
+  const user = await login(requireEnv('E2E_USER_EMAIL'), requireEnv('E2E_USER_PASSWORD'));
 
   const title = `Codex Project5 FastTrack ${runId}`;
   let propertyId = null;

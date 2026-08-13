@@ -1,21 +1,25 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const env = {
-  ...process.env,
-  E2E_USER_EMAIL: 'user@example.com',
-  E2E_USER_PASSWORD: 'dev-user-change-me',
-  E2E_MANAGER_EMAIL: 'manager@gmail.com',
-  E2E_MANAGER_PASSWORD: 'Estospaces@123',
-  E2E_ADMIN_EMAIL: 'admin@example.com',
-  E2E_ADMIN_PASSWORD: 'dev-admin-change-me',
-};
+const requiredCredentials = [
+  'E2E_USER_EMAIL',
+  'E2E_USER_PASSWORD',
+  'E2E_MANAGER_EMAIL',
+  'E2E_MANAGER_PASSWORD',
+  'E2E_ADMIN_EMAIL',
+  'E2E_ADMIN_PASSWORD',
+];
+for (const name of requiredCredentials) {
+  if (!process.env[name]?.trim()) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+}
 
-const playwrightCli = path.join(
-  'C:/Users/jeevi/Estospaces/esto-app-projects/estospaces-web/node_modules/.bin/playwright.cmd'
-);
-const testFile = 'C:/Users/jeevi/Estospaces/esto-app-projects/estospaces-web/tests/e2e/smoke-test.spec.ts';
-const webDir = 'C:/Users/jeevi/Estospaces/esto-app-projects/estospaces-web';
+const env = { ...process.env };
+
+const webDir = process.cwd();
+const playwrightCli = path.join(webDir, 'node_modules', '.bin', process.platform === 'win32' ? 'playwright.cmd' : 'playwright');
+const testFile = path.join(webDir, 'tests', 'e2e', 'smoke-test.spec.ts');
 
 const result = spawnSync(
   playwrightCli,

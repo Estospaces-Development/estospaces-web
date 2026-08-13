@@ -23,10 +23,16 @@ if (fs.existsSync(envFile)) {
 const DEV_BASE_URL = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
 const OUTPUT = path.join(process.cwd(), 'output', 'playwright', 'bugfix-proof-340-351');
 
-const E2E_USER_EMAIL = process.env.E2E_USER_EMAIL || 'user@example.com';
-const E2E_USER_PASSWORD = process.env.E2E_USER_PASSWORD || 'dev-user-change-me';
-const E2E_ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'admin@example.com';
-const E2E_ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'dev-admin-change-me';
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
+const E2E_USER_EMAIL = requireEnv('E2E_USER_EMAIL');
+const E2E_USER_PASSWORD = requireEnv('E2E_USER_PASSWORD');
+const E2E_ADMIN_EMAIL = requireEnv('E2E_ADMIN_EMAIL');
+const E2E_ADMIN_PASSWORD = requireEnv('E2E_ADMIN_PASSWORD');
 
 const SETTLE_MS = 2000;
 

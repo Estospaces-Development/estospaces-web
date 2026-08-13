@@ -31,13 +31,13 @@ function requireEnv(name) {
   return value;
 }
 
-function resolveCredential(envKey, fileKey, fallback) {
-  return process.env[envKey] || readEnvFromFile('.env.development', envKey) || readEnvFromFile('.env.e2e', envKey) || readEnvFromFile('.env.local', fileKey || envKey) || fallback;
+function resolveCredential(envKey, fileKey) {
+  return process.env[envKey] || readEnvFromFile('.env.development', envKey) || readEnvFromFile('.env.e2e', envKey) || readEnvFromFile('.env.local', fileKey || envKey) || requireEnv(envKey);
 }
 
 const credentials = {
-  user: { email: resolveCredential('E2E_USER_EMAIL', 'E2E_USER_EMAIL', 'siranjeeviworks@gmail.com'), password: resolveCredential('E2E_USER_PASSWORD', 'E2E_USER_PASSWORD'), dashboard: '/user/dashboard' },
-  admin: { email: resolveCredential('E2E_ADMIN_EMAIL', 'E2E_ADMIN_EMAIL', 'admin@estospaces.com'), password: resolveCredential('E2E_ADMIN_PASSWORD', 'E2E_ADMIN_PASSWORD'), dashboard: '/admin/dashboard' },
+  user: { email: resolveCredential('E2E_USER_EMAIL', 'E2E_USER_EMAIL'), password: resolveCredential('E2E_USER_PASSWORD', 'E2E_USER_PASSWORD'), dashboard: '/user/dashboard' },
+  admin: { email: resolveCredential('E2E_ADMIN_EMAIL', 'E2E_ADMIN_EMAIL'), password: resolveCredential('E2E_ADMIN_PASSWORD', 'E2E_ADMIN_PASSWORD'), dashboard: '/admin/dashboard' },
 };
 
 async function waitForTicketVisible(page, ticketId) {

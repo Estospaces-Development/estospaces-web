@@ -54,15 +54,15 @@ function requireEnv(name) {
 
 const credentials = {
   user: {
-    email: process.env.E2E_USER_EMAIL || 'siranjeeviworks@gmail.com',
+    email: requireEnv('E2E_USER_EMAIL'),
     password: requireEnv('E2E_USER_PASSWORD'),
   },
   manager: {
-    email: process.env.E2E_MANAGER_EMAIL || 'manager@estospaces.com',
+    email: requireEnv('E2E_MANAGER_EMAIL'),
     password: requireEnv('E2E_MANAGER_PASSWORD'),
   },
   admin: {
-    email: process.env.E2E_ADMIN_EMAIL || 'admin@estospaces.com',
+    email: requireEnv('E2E_ADMIN_EMAIL'),
     password: requireEnv('E2E_ADMIN_PASSWORD'),
   },
 };

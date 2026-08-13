@@ -10,11 +10,20 @@ const outputDir = path.join(process.cwd(), 'output', 'playwright', 'project5-155
 
 fs.mkdirSync(outputDir, { recursive: true });
 
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
 async function login() {
   const response = await fetch(`${coreUrl}/api/v1/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'manager@example.com', password: 'dev-manager-change-me' }),
+    body: JSON.stringify({
+      email: requireEnv('E2E_MANAGER_EMAIL'),
+      password: requireEnv('E2E_MANAGER_PASSWORD'),
+    }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
