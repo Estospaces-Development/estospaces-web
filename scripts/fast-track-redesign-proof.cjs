@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+const { gotoFastTrackWorkspace } = require("./platform-proof-browser-helpers.cjs");
 const { selectCoreApiToken } = require("./fast-track-token.cjs");
 
 function requireEnv(name) {
@@ -40,12 +41,6 @@ const BOOKING_URL = process.env.BOOKING_URL || "http://localhost:8081";
 const OUTPUT_PATH =
   process.env.OUTPUT_PATH ||
   "C:/Users/jeevi/Estospaces/esto-app-projects/estospaces-web/output/playwright/fast-track-redesign-proof-local.json";
-
-const FAST_TRACK_ROUTE_BY_ROLE = {
-  user: "/user/dashboard/fast-track",
-  manager: "/manager/fast-track",
-  admin: "/admin/fast-track",
-};
 
 const CREDENTIALS = {
   user: { email: requireEnv("E2E_USER_EMAIL"), password: requireEnv("E2E_USER_PASSWORD") },
@@ -288,39 +283,6 @@ function attachDiagnostics(page, result) {
   });
 }
 
-async function gotoFastTrackWorkspace(page, role, caseId, section = "documents") {
-  const params = new URLSearchParams({ case: caseId, section });
-  await page.goto(`${BASE_URL}${FAST_TRACK_ROUTE_BY_ROLE[role]}?${params.toString()}`, {
-    waitUntil: "domcontentloaded",
-    timeout: 30000,
-  });
-  const headerReady = await page
-    .locator("[data-fast-track-header]")
-    .waitFor({ timeout: 30000 })
-    .then(() => true)
-    .catch((error) => {
-      const message = String(error?.message || error);
-      if (/Timeout \d+ms exceeded/i.test(message)) {
-        return false;
-      }
-      throw error;
-    });
-  if (!headerReady) {
-    return false;
-  }
-  await page.locator("[data-fast-track-masthead]").waitFor({ timeout: 30000 });
-  await page.locator("[data-fast-track-stepper]").waitFor({ timeout: 30000 });
-  const utilityDock = page.locator("[data-fast-track-utility-dock]").first();
-  if (!(await utilityDock.isVisible().catch(() => false))) {
-    const disclosure = page.locator("details:has([data-fast-track-utility-dock]) > summary").first();
-    if (await disclosure.isVisible().catch(() => false)) {
-      await disclosure.click({ timeout: 10000 });
-    }
-  }
-  await page.locator("[data-fast-track-utility-dock]").waitFor({ timeout: 30000 });
-  await page.waitForTimeout(1200);
-}
-
 async function hasVisibleLocator(page, selector) {
   const locator = page.locator(selector);
   const count = await locator.count();
@@ -414,7 +376,7 @@ async function run() {
     const userPage = await userContext.newPage();
     attachDiagnostics(userPage, result);
 
-    const userPageReady = await gotoFastTrackWorkspace(userPage, "user", userActiveCase.caseId);
+    const userPageReady = await gotoFastTrackWorkspace(userPage, BASE_URL, "user", userActiveCase.caseId);
     if (!userPageReady) {
       result.userDesktop = { caseId: userActiveCase.caseId, skipped: true, reason: "no cases available" };
     } else {
@@ -518,7 +480,7 @@ async function run() {
     );
     const managerPage = await managerContext.newPage();
     attachDiagnostics(managerPage, result);
-    const managerPageReady = await gotoFastTrackWorkspace(managerPage, "manager", managerActiveCase.caseId);
+    const managerPageReady = await gotoFastTrackWorkspace(managerPage, BASE_URL, "manager", managerActiveCase.caseId);
     if (!managerPageReady) {
       result.managerDesktop = { caseId: managerActiveCase.caseId, skipped: true, reason: "no cases available" };
     } else {
@@ -577,7 +539,7 @@ async function run() {
     );
     const adminPage = await adminContext.newPage();
     attachDiagnostics(adminPage, result);
-    const adminPageReady = await gotoFastTrackWorkspace(adminPage, "admin", adminActiveCase.caseId);
+    const adminPageReady = await gotoFastTrackWorkspace(adminPage, BASE_URL, "admin", adminActiveCase.caseId);
     if (!adminPageReady) {
       result.adminDesktop = { caseId: adminActiveCase.caseId, skipped: true, reason: "no cases available" };
     } else {
@@ -606,7 +568,7 @@ async function run() {
     );
     const tabletPage = await tabletContext.newPage();
     attachDiagnostics(tabletPage, result);
-    const tabletPageReady = await gotoFastTrackWorkspace(tabletPage, "user", userActiveCase.caseId);
+    const tabletPageReady = await gotoFastTrackWorkspace(tabletPage, BASE_URL, "user", userActiveCase.caseId);
     if (!tabletPageReady) {
       result.userTablet = { skipped: true, reason: "no cases available" };
     } else {
