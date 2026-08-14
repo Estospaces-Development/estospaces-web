@@ -23,7 +23,8 @@ import type {
 } from "@/types/journey";
 
 const CORE_URL = () => getServiceUrl("core");
-const PROPERTY_DETAIL_CACHE_TTL_MS = 30_000;
+const PROPERTY_DETAIL_CACHE_TTL_MS = 5 * 60_000;
+const PROPERTY_LIST_CACHE_TTL_MS = 60_000;
 
 interface CachedPropertyLookup {
   cacheable: boolean;
@@ -35,6 +36,26 @@ const propertyDetailCache = createAsyncRequestCache<CachedPropertyLookup>(
   PROPERTY_DETAIL_CACHE_TTL_MS,
   (result) => result.cacheable,
 );
+
+interface PropertyListResult {
+  data: Property[] | null;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  } | null;
+  error: string | null;
+}
+
+const propertyListCache = createAsyncRequestCache<PropertyListResult>(
+  PROPERTY_LIST_CACHE_TTL_MS,
+  (result) => result.error === null,
+);
+
+export const invalidatePropertyListCache = () => {
+  propertyListCache.clear();
+};
 
 export const invalidatePropertyDetailCache = (id: string) => {
   const normalizedId = id.trim();
@@ -253,19 +274,12 @@ const normalizeFilterValue = (value: unknown) => {
 const fetchPropertyList = async (
   endpoint: string,
   filters: Record<string, any> = {},
-): Promise<{
-  data: Property[] | null;
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  } | null;
-  error: string | null;
-}> => {
-  try {
-    const url = buildApiUrl(CORE_URL(), endpoint);
-    Object.keys(filters).forEach((key) => {
+): Promise<PropertyListResult> => {
+  const url = buildApiUrl(CORE_URL(), endpoint);
+  Object.keys(filters)
+    .filter((key) => key !== "_cache_key")
+    .sort()
+    .forEach((key) => {
       const param = FILTER_PARAM_MAP[key] || key;
       const value = normalizeFilterValue(filters[key]);
       if (value !== undefined && value !== null && value !== "") {
@@ -273,24 +287,28 @@ const fetchPropertyList = async (
       }
     });
 
-    const response = await apiFetchEnvelope<PropertyListPayload>(
-      url.toString(),
-    );
-    const payload = response.data;
-    const properties = Array.isArray(payload?.data) ? payload.data : [];
-    const pagination = payload?.pagination
-      ? {
-          page: payload.pagination.page,
-          limit: payload.pagination.limit,
-          total: payload.pagination.total,
-          totalPages: payload.pagination.total_pages,
-        }
-      : null;
+  const cacheKey = `${getAuthTokenVersion()}|${url.toString()}`;
+  return propertyListCache.get(cacheKey, async () => {
+    try {
+      const response = await apiFetchEnvelope<PropertyListPayload>(
+        url.toString(),
+      );
+      const payload = response.data;
+      const properties = Array.isArray(payload?.data) ? payload.data : [];
+      const pagination = payload?.pagination
+        ? {
+            page: payload.pagination.page,
+            limit: payload.pagination.limit,
+            total: payload.pagination.total,
+            totalPages: payload.pagination.total_pages,
+          }
+        : null;
 
-    return { data: properties, pagination, error: null };
-  } catch (error: any) {
-    return { data: null, pagination: null, error: getErrorMessage(error) };
-  }
+      return { data: properties, pagination, error: null };
+    } catch (error: any) {
+      return { data: null, pagination: null, error: getErrorMessage(error) };
+    }
+  });
 };
 
 /**
@@ -372,6 +390,7 @@ export const createProperty = async (
       body: JSON.stringify(propertyData),
       suppressErrorToast: options.suppressErrorToast ?? true,
     });
+    invalidatePropertyListCache();
     invalidatePropertyDetailCache(data.id);
     return { data, error: null };
   } catch (error: any) {
@@ -400,6 +419,7 @@ export const updateProperty = async (
         suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
+    invalidatePropertyListCache();
     invalidatePropertyDetailCache(id);
     return { data, error: null };
   } catch (error: any) {
@@ -431,6 +451,7 @@ export const adminUpdatePropertyStatus = async (
         suppressErrorToast: true,
       },
     );
+    invalidatePropertyListCache();
     invalidatePropertyDetailCache(id);
     return { data, error: null };
   } catch (error: any) {
@@ -450,6 +471,7 @@ export const deleteProperty = async (
       method: "DELETE",
       suppressErrorToast: true,
     });
+    invalidatePropertyListCache();
     invalidatePropertyDetailCache(id);
     return { error: null };
   } catch (error: any) {
@@ -489,6 +511,7 @@ export const copyProperty = async (
       method: "POST",
       suppressErrorToast: true,
     });
+    invalidatePropertyListCache();
     invalidatePropertyDetailCache(data.id);
     return { data, error: null };
   } catch (error: any) {
