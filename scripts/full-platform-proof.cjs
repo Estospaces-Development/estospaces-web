@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { resolveTarget } = require('./platform-proof-shared.cjs');
+const { buildHealthCheckUrls } = require('./platform-proof-browser-helpers.cjs');
 
 function runNode(commandArgs, cwd, env = {}) {
   const result = spawnSync(process.execPath, commandArgs, {
@@ -40,19 +41,7 @@ function toScenario(category, environment, role, surface, status, expected, actu
 }
 
 async function healthChecks(target) {
-  const urls = [
-    target.baseUrl,
-    target.appBaseUrl,
-    target.adminBaseUrl,
-    `${target.adminBaseUrl}/login`,
-    `${target.services.core}/health`,
-    `${target.services.booking}/health`,
-    `${target.services.payment}/health`,
-    `${target.services.notification}/health`,
-    `${target.services.search}/health`,
-    `${target.services.media}/health`,
-    `${target.services.messaging}/health`,
-  ];
+  const urls = buildHealthCheckUrls(target);
 
   const scenarios = [];
   for (const url of urls) {
