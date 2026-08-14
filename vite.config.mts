@@ -1,5 +1,4 @@
 import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -109,7 +108,6 @@ export default defineConfig(({ mode }) => {
   validateBuildServiceEnv(mode, env);
 
   return {
-    plugins: [react()],
     resolve: {
       alias: {
         '@': path.resolve(rootDir, './src'),
@@ -172,7 +170,7 @@ export default defineConfig(({ mode }) => {
               return 'markdown';
             }
 
-            if (id.includes('pdf-lib') || id.includes('exceljs')) {
+            if (id.includes('write-excel-file') || id.includes('/fflate/')) {
               return 'documents';
             }
 

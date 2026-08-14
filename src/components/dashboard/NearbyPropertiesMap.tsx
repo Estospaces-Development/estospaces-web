@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from '@/lib/leafletReact';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {

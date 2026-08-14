@@ -15,7 +15,7 @@ import {
   TileLayer,
   useMap,
   useMapEvents,
-} from "react-leaflet";
+} from "@/lib/leafletReact";
 import "leaflet/dist/leaflet.css";
 
 interface PropertyLocationPickerProps {

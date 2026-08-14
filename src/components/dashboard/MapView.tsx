@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {  Layers, Globe } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from '@/lib/leafletReact';
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 
