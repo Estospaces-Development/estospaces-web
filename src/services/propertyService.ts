@@ -12,7 +12,7 @@ import {
   getServiceUrl,
 } from "@/lib/apiUtils";
 import { createAsyncRequestCache } from "@/lib/asyncRequestCache";
-import { getAuthTokenVersion } from "@/lib/authToken";
+import { getAuthToken, getAuthTokenVersion } from "@/lib/authToken";
 import { LAUNCH_COUNTRY_CODE } from "@/lib/launchLocale";
 import { normalizeSavedPropertyId } from "@/lib/savedPropertyState";
 import type {
@@ -316,7 +316,10 @@ const fetchPropertyList = async (
  * GET /api/v1/properties (core-service)
  */
 export const getProperties = async (filters: Record<string, any> = {}) => {
-  return fetchPropertyList("/api/v1/properties", filters);
+  const endpoint = getAuthToken()
+    ? "/api/v1/properties/catalog"
+    : "/api/v1/properties";
+  return fetchPropertyList(endpoint, filters);
 };
 
 /**
@@ -339,8 +342,11 @@ export const getPropertyById = async (
   const cacheKey = `${getAuthTokenVersion()}|${normalizedId}|${options.suppressErrorToast === true ? "silent" : "default"}`;
   const result = await propertyDetailCache.get(cacheKey, async () => {
     try {
+      const endpoint = getAuthToken()
+        ? `/api/v1/properties/catalog/${normalizedId}`
+        : `/api/v1/properties/${normalizedId}`;
       const data = await apiFetch<Property>(
-        `${CORE_URL()}/api/v1/properties/${normalizedId}`,
+        `${CORE_URL()}${endpoint}`,
         options,
       );
       return { cacheable: true, data, error: null };
