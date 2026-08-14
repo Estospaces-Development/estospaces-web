@@ -8,8 +8,11 @@ import {
   apiFetchEnvelope,
   buildApiUrl,
   getErrorMessage,
+  getErrorStatus,
   getServiceUrl,
 } from "@/lib/apiUtils";
+import { createAsyncRequestCache } from "@/lib/asyncRequestCache";
+import { getAuthTokenVersion } from "@/lib/authToken";
 import { LAUNCH_COUNTRY_CODE } from "@/lib/launchLocale";
 import { normalizeSavedPropertyId } from "@/lib/savedPropertyState";
 import type {
@@ -20,6 +23,25 @@ import type {
 } from "@/types/journey";
 
 const CORE_URL = () => getServiceUrl("core");
+const PROPERTY_DETAIL_CACHE_TTL_MS = 30_000;
+
+interface CachedPropertyLookup {
+  cacheable: boolean;
+  data: Property | null;
+  error: string | null;
+}
+
+const propertyDetailCache = createAsyncRequestCache<CachedPropertyLookup>(
+  PROPERTY_DETAIL_CACHE_TTL_MS,
+  (result) => result.cacheable,
+);
+
+export const invalidatePropertyDetailCache = (id: string) => {
+  const normalizedId = id.trim();
+  const sessionVersion = getAuthTokenVersion();
+  propertyDetailCache.delete(`${sessionVersion}|${normalizedId}|silent`);
+  propertyDetailCache.delete(`${sessionVersion}|${normalizedId}|default`);
+};
 
 interface PropertyMutationOptions {
   suppressErrorToast?: boolean;
@@ -295,15 +317,25 @@ export const getPropertyById = async (
   id: string,
   options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
 ): Promise<{ data: Property | null; error: string | null }> => {
-  try {
-    const data = await apiFetch<Property>(
-      `${CORE_URL()}/api/v1/properties/${id}`,
-      options,
-    );
-    return { data, error: null };
-  } catch (error: any) {
-    return { data: null, error: getErrorMessage(error) };
-  }
+  const normalizedId = id.trim();
+  const cacheKey = `${getAuthTokenVersion()}|${normalizedId}|${options.suppressErrorToast === true ? "silent" : "default"}`;
+  const result = await propertyDetailCache.get(cacheKey, async () => {
+    try {
+      const data = await apiFetch<Property>(
+        `${CORE_URL()}/api/v1/properties/${normalizedId}`,
+        options,
+      );
+      return { cacheable: true, data, error: null };
+    } catch (error: unknown) {
+      return {
+        cacheable: getErrorStatus(error) === 404,
+        data: null,
+        error: getErrorMessage(error),
+      };
+    }
+  });
+
+  return { data: result.data, error: result.error };
 };
 
 /**
@@ -340,6 +372,7 @@ export const createProperty = async (
       body: JSON.stringify(propertyData),
       suppressErrorToast: options.suppressErrorToast ?? true,
     });
+    invalidatePropertyDetailCache(data.id);
     return { data, error: null };
   } catch (error: any) {
     if (options.throwOnError) {
@@ -367,6 +400,7 @@ export const updateProperty = async (
         suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
+    invalidatePropertyDetailCache(id);
     return { data, error: null };
   } catch (error: any) {
     if (options.throwOnError) {
@@ -397,6 +431,7 @@ export const adminUpdatePropertyStatus = async (
         suppressErrorToast: true,
       },
     );
+    invalidatePropertyDetailCache(id);
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
@@ -415,6 +450,7 @@ export const deleteProperty = async (
       method: "DELETE",
       suppressErrorToast: true,
     });
+    invalidatePropertyDetailCache(id);
     return { error: null };
   } catch (error: any) {
     return { error: getErrorMessage(error) };
@@ -438,6 +474,7 @@ export const saveProperty = async (
       method: "POST",
       suppressErrorToast: true,
     });
+    invalidatePropertyDetailCache(propertyId);
     return { error: null };
   } catch (error: any) {
     return { error: getErrorMessage(error) };
@@ -452,6 +489,7 @@ export const copyProperty = async (
       method: "POST",
       suppressErrorToast: true,
     });
+    invalidatePropertyDetailCache(data.id);
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
@@ -475,6 +513,7 @@ export const unsaveProperty = async (
       method: "DELETE",
       suppressErrorToast: true,
     });
+    invalidatePropertyDetailCache(propertyId);
     return { error: null };
   } catch (error: any) {
     return { error: getErrorMessage(error) };

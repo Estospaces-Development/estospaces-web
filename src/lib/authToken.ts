@@ -2,6 +2,7 @@ const LEGACY_TOKEN_KEYS = ['esto_token', 'auth_token'] as const;
 const SESSION_TOKEN_KEY = 'esto_session_token';
 
 let authToken: string | null = readSessionToken();
+let authTokenVersion = 0;
 
 function readSessionToken() {
     try {
@@ -34,15 +35,21 @@ export function getAuthToken() {
     return authToken;
 }
 
+export function getAuthTokenVersion() {
+    return authTokenVersion;
+}
+
 export function setAuthToken(token: string | null | undefined) {
     const normalizedToken = typeof token === 'string' ? token.trim() : '';
     authToken = normalizedToken || null;
+    authTokenVersion += 1;
     clearBrowserTokenStorage();
     persistSessionToken(authToken);
 }
 
 export function clearAuthToken() {
     authToken = null;
+    authTokenVersion += 1;
     clearBrowserTokenStorage();
     persistSessionToken(null);
 }

@@ -2,6 +2,7 @@ import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/li
 import {
     getAdminPropertyById,
     getPropertyById,
+    invalidatePropertyDetailCache,
     type Property,
     type VirtualTourRequest,
     type VirtualTourStatus,
@@ -94,6 +95,7 @@ export const requestVirtualTour = async (
                 body: JSON.stringify(input),
             },
         );
+        invalidatePropertyDetailCache(propertyId);
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
@@ -130,6 +132,7 @@ export const fulfillVirtualTourRequest = async (
                 body: JSON.stringify(input),
             },
         );
+        invalidatePropertyDetailCache(data.property_id);
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };

@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 import type { Property } from './PropertyContext';
 import { isSameSavedPropertyId, normalizeSavedPropertyId } from '@/lib/savedPropertyState';
+import { invalidatePropertyDetailCache } from '@/services/propertyService';
 
 interface SavedPropertiesContextType {
     savedProperties: Property[];
@@ -86,6 +87,7 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
                 `${getServiceUrl('core')}/api/v1/properties/${propertyId}/save`,
                 { method: 'POST' },
             );
+            invalidatePropertyDetailCache(propertyId);
             await fetchSavedProperties();
             return { success: true };
         } catch (err: any) {
@@ -114,6 +116,7 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
                 `${getServiceUrl('core')}/api/v1/properties/${normalizedPropertyId}/save`,
                 { method: 'DELETE' },
             );
+            invalidatePropertyDetailCache(normalizedPropertyId);
             setSavedProperties(prev => prev.filter(p => !isSameSavedPropertyId(p.id, normalizedPropertyId)));
             return { success: true };
         } catch (err: any) {
