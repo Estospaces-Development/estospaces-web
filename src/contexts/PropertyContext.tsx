@@ -540,7 +540,6 @@ export const PropertyProvider = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cacheKey, setCacheKey] = useState(0);
   const isAuthRoute = isAuthRoutePath(location.pathname);
   const syncTags = useMemo(() => {
     const tags: string[] = [WORKSPACE_SYNC_TAGS.PROPERTIES];
@@ -565,11 +564,6 @@ export const PropertyProvider = ({
     }
     return tags;
   }, [scope]);
-
-  // Invalidate property cache on route changes to prevent stale data
-  useEffect(() => {
-    setCacheKey((prev) => prev + 1);
-  }, [location.pathname, location.search]);
 
   // Mappers
   const parseStringArray = (val: any): string[] => {
@@ -927,12 +921,11 @@ export const PropertyProvider = ({
       limit: pagination.limit,
       sort_by: SORT_FIELD_MAP[sort.field],
       sort_order: sort.order,
-      _cache_key: cacheKey,
     }),
-    [filters, pagination.limit, pagination.page, sort.field, sort.order, cacheKey],
+    [filters, pagination.limit, pagination.page, sort.field, sort.order],
   );
 
-  const fetchProperties = useCallback(async () => {
+  const loadProperties = useCallback(async () => {
     if (isAuthRoute || !enabled) {
       setError(null);
       setLoading(false);
@@ -997,9 +990,14 @@ export const PropertyProvider = ({
     }
   }, [buildPropertyQuery, enabled, isAuthRoute, mapServiceToContextProperty, pagination.limit, pagination.page, scope]);
 
+  const fetchProperties = useCallback(async () => {
+    propertyService.invalidatePropertyListCache();
+    await loadProperties();
+  }, [loadProperties]);
+
   useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
+    void loadProperties();
+  }, [loadProperties, location.pathname, location.search]);
 
   useWorkspaceRefresh({
     tags: syncTags,
