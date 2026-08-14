@@ -51,16 +51,13 @@
     "axios": "^1.15.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "exceljs": "^3.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.34.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.563.0",
-    "pdf-lib": "^1.17.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
-    "react-leaflet": "^5.0.0",
     "react-markdown": "^10.1.0",
     "react-router": "^7.18.1",
     "react-router-dom": "^7.18.1",
@@ -68,6 +65,7 @@
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
     "uuid": "^14.0.0",
+    "write-excel-file": "^4.1.1",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
@@ -80,9 +78,9 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
-    "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9",
-    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "happy-dom": "^20.11.2",
     "playwright": "^1.56.1",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
@@ -92,9 +90,6 @@
   "overrides": {
     "brace-expansion": "5.0.9",
     "postcss": "8.5.23",
-    "exceljs": {
-      "uuid": "^14.0.0"
-    },
     "follow-redirects": "^1.16.0",
     "minimatch": "^3.1.5"
   }

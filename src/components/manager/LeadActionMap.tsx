@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Clock3, FileUp, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from '@/lib/leafletReact';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';

@@ -6,7 +6,7 @@ import {
     resolveManagerPropertyMapLocation,
     type ManagerPropertyMapLocation,
 } from '@/lib/managerPropertyMap';
-import { useMap, MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useMap, MapContainer, TileLayer, Marker, Popup } from '@/lib/leafletReact';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
