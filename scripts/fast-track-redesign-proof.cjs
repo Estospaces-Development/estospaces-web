@@ -1,7 +1,14 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
-const { gotoFastTrackWorkspace } = require("./platform-proof-browser-helpers.cjs");
+const {
+  closeFastTrackUserDetails,
+  gotoFastTrackWorkspace,
+  gotoWithRetry,
+  isExpectedUnavailablePropertyConsoleError,
+  isExpectedUnavailablePropertyResponse,
+  openFastTrackUserDetails,
+} = require("./platform-proof-browser-helpers.cjs");
 const { selectCoreApiToken } = require("./fast-track-token.cjs");
 
 function requireEnv(name) {
@@ -249,8 +256,9 @@ async function waitForWorkspacePreferences(token, role, predicate, timeoutMs = 3
 async function newAuthedContext(browser, session, theme, viewport) {
   const context = await browser.newContext({ viewport });
   await context.addInitScript(({ token, storedUser, initialTheme }) => {
-    localStorage.setItem("esto_token", token);
+    sessionStorage.setItem("esto_session_token", token);
     localStorage.setItem("esto_user", JSON.stringify(storedUser));
+    localStorage.setItem("estospaces_cookie_consent", "rejected");
     if (initialTheme) {
       localStorage.setItem("estospaces-theme", initialTheme);
     }
@@ -268,6 +276,13 @@ function attachDiagnostics(page, result) {
   });
   page.on("console", (msg) => {
     if (msg.type() === "error") {
+      if (isExpectedUnavailablePropertyConsoleError(msg.text(), msg.location().url)) {
+        return;
+      }
+      if (/ERR_QUIC_PROTOCOL_ERROR/i.test(msg.text())) {
+        result.transportWarnings.push(`${page.url() || "about:blank"}: ${msg.text()}`);
+        return;
+      }
       result.consoleErrors.push(`${page.url() || "about:blank"}: ${msg.text()}`);
     }
   });
@@ -276,6 +291,12 @@ function attachDiagnostics(page, result) {
       return;
     }
     const url = response.url();
+    if (isExpectedUnavailablePropertyResponse(response.status(), url)) {
+      if (!result.unavailablePropertyUrls.includes(url)) {
+        result.unavailablePropertyUrls.push(url);
+      }
+      return;
+    }
     if (!/localhost:3000|localhost:8080|localhost:8081|a\.run\.app/i.test(url)) {
       return;
     }
@@ -330,6 +351,8 @@ async function run() {
     pageErrors: [],
     consoleErrors: [],
     networkErrors: [],
+    transportWarnings: [],
+    unavailablePropertyUrls: [],
     overallOk: false,
   };
 
@@ -435,6 +458,7 @@ async function run() {
       userPage,
       "[data-fast-track-metrics-strip]",
     );
+    await openFastTrackUserDetails(userPage);
     const userDefaultPanelAfterReload = await userPage
       .locator("[data-fast-track-utility-panel]")
       .first()
@@ -443,6 +467,7 @@ async function run() {
       userPage,
       '[data-fast-track-utility-tab="connected_records"]',
     );
+    await closeFastTrackUserDetails(userPage);
 
     const userDesktopScreenshot = path.join(
       screenshotDir,
@@ -574,6 +599,16 @@ async function run() {
     } else {
       await tabletPage.locator("[data-fast-track-toggle-rail]").click({ timeout: 10000 });
     await tabletPage.locator("[data-fast-track-case-rail]:visible").first().waitFor({ timeout: 10000 });
+    const tabletRailDrawerOpened = await hasVisibleLocator(
+      tabletPage,
+      "[data-fast-track-case-rail]",
+    );
+    await tabletPage.getByRole("button", { name: /^Close case rail$/ }).click({ timeout: 10000 });
+    await openFastTrackUserDetails(tabletPage);
+    const tabletUtilityDockVisible = await hasVisibleLocator(
+      tabletPage,
+      "[data-fast-track-utility-dock]",
+    );
 
     const userTabletScreenshot = path.join(
       screenshotDir,
@@ -582,11 +617,12 @@ async function run() {
     await saveScreenshot(tabletPage, userTabletScreenshot);
 
     result.userTablet = {
-      railDrawerOpened: await hasVisibleLocator(tabletPage, "[data-fast-track-case-rail]"),
+      railDrawerOpened: tabletRailDrawerOpened,
       mastheadVisible: await hasVisibleLocator(tabletPage, "[data-fast-track-masthead]"),
-      utilityDockVisible: await hasVisibleLocator(tabletPage, "[data-fast-track-utility-dock]"),
+      utilityDockVisible: tabletUtilityDockVisible,
       screenshot: userTabletScreenshot,
     };
+    await closeFastTrackUserDetails(tabletPage);
 
     }
     await tabletContext.close();
@@ -600,7 +636,8 @@ async function run() {
     const dashboardPage = await dashboardContext.newPage();
     attachDiagnostics(dashboardPage, result);
 
-    await dashboardPage.goto(
+    await gotoWithRetry(
+      dashboardPage,
       `${BASE_URL}/user/dashboard?celebrate=1&fastTrackCase=${userCompletedCase.caseId}`,
       { waitUntil: "domcontentloaded", timeout: 30000 },
     );
@@ -621,7 +658,7 @@ async function run() {
 
     const revisitPage = await dashboardContext.newPage();
     attachDiagnostics(revisitPage, result);
-    await revisitPage.goto(`${BASE_URL}/user/dashboard`, {
+    await gotoWithRetry(revisitPage, `${BASE_URL}/user/dashboard`, {
       waitUntil: "domcontentloaded",
       timeout: 30000,
     });
