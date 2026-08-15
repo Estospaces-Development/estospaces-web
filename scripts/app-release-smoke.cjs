@@ -169,6 +169,11 @@ async function runProtectedRedirectChecks(target) {
     for (const item of routes) {
       await page.goto(`${item.baseUrl}${item.route}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+      const rejectOptionalTools = page.getByRole('button', { name: /Reject optional tools/i });
+      if (await rejectOptionalTools.isVisible().catch(() => false)) {
+        await rejectOptionalTools.click();
+      }
+      await page.waitForURL((url) => item.expected.test(url.pathname), { timeout: 10000 }).catch(() => {});
       const actual = page.url();
       results.push(result(
         `protected-redirect:${item.id}`,

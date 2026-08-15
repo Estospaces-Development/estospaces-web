@@ -10,7 +10,7 @@ const targets = {
     name: 'prod',
     appBaseUrl: process.env.E2E_PROD_APP_BASE_URL || process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
     adminBaseUrl: process.env.E2E_PROD_ADMIN_BASE_URL || 'https://admin.estospaces.com',
-    coreUrl: process.env.E2E_PROD_CORE_URL || 'https://estospaces-core-service-prod-zaryfkxmeq-nw.a.run.app',
+    coreUrl: process.env.E2E_PROD_CORE_URL || 'https://core-api.estospaces.com',
   },
   dev: {
     name: 'dev',
