@@ -67,6 +67,46 @@ test('resolveTarget defaults dev web to Cloud Run when FRONTEND_URL is absent', 
   }
 });
 
+test('resolveTarget defaults production services to customer load-balancer domains', () => {
+  const envNames = [
+    'E2E_PROD_CORE_URL',
+    'E2E_PROD_BOOKING_URL',
+    'E2E_PROD_PAYMENT_URL',
+    'E2E_PROD_NOTIFICATION_URL',
+    'E2E_PROD_SEARCH_URL',
+    'E2E_PROD_MEDIA_URL',
+    'E2E_PROD_MESSAGING_URL',
+  ];
+  const originalValues = new Map(envNames.map((name) => [name, process.env[name]]));
+
+  try {
+    envNames.forEach((name) => delete process.env[name]);
+    delete require.cache[modulePath];
+    const { resolveTarget } = require(modulePath);
+
+    const target = resolveTarget(['--target=prod']);
+
+    assert.deepEqual(target.services, {
+      core: 'https://core-api.estospaces.com',
+      booking: 'https://booking-api.estospaces.com',
+      payment: 'https://payment-api.estospaces.com',
+      notification: 'https://notification-api.estospaces.com',
+      search: 'https://search-api.estospaces.com',
+      media: 'https://media-api.estospaces.com',
+      messaging: 'https://messaging-api.estospaces.com',
+    });
+  } finally {
+    for (const [name, value] of originalValues) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+    delete require.cache[modulePath];
+  }
+});
+
 test('isIgnorableConsoleError only ignores the known Firefox Google Fonts warning', async () => {
   delete require.cache[modulePath];
   const { isIgnorableConsoleError } = require(modulePath);

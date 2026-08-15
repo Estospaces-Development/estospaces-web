@@ -74,7 +74,7 @@ const envTargets = {
     baseUrl: process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
     appBaseUrl: process.env.E2E_PROD_APP_BASE_URL || process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
     adminBaseUrl: process.env.E2E_PROD_ADMIN_BASE_URL || 'https://admin.estospaces.com',
-    coreServiceUrl: process.env.E2E_PROD_CORE_URL || 'https://estospaces-core-service-prod-zaryfkxmeq-nw.a.run.app',
+    coreServiceUrl: process.env.E2E_PROD_CORE_URL || 'https://core-api.estospaces.com',
     caseId: process.env.E2E_PROD_FAST_TRACK_CASE_ID || '',
   },
 };
