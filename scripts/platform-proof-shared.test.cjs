@@ -79,4 +79,8 @@ test('isIgnorableConsoleError only ignores the known Firefox Google Fonts warnin
     isIgnorableConsoleError('Error: app shell crashed while loading dashboard'),
     false,
   );
+  assert.equal(
+    isIgnorableConsoleError('[JavaScript Error: "downloadable font: download failed source: https://fonts.gstatic.com.attacker.example/example.woff2"]'),
+    false,
+  );
 });

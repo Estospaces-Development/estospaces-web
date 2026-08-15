@@ -51,7 +51,7 @@ test('getPropertyImages passes GCS media bucket URLs through resolveMediaUrl', (
     });
 
     assert.ok(images.some(img => img.includes('estospaces-media-dev')));
-    assert.equal(images.filter(img => img.includes('example.com')).length, 0);
+    assert.equal(images.filter(img => new URL(img).hostname === 'example.com').length, 0);
     assert.ok(images.includes('https://assets.estospaces.com/listing.jpg'));
 });
 

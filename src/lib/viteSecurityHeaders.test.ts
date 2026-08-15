@@ -30,7 +30,7 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(viteConfigSource, /connect-src 'self' http: https: ws: wss:/);
   assert.doesNotMatch(viteConfigSource, /salesiq\.zoho\.in/);
-  assert.doesNotMatch(viteConfigSource, /zohocdn\.com/);
+  assert.doesNotMatch(viteConfigSource, /^.*zohocdn\.com.*$/m);
   assert.match(viteConfigSource, /headers: SECURITY_HEADERS/);
 });
 
@@ -44,7 +44,7 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/api\.pincodeapi\.in/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/api\.postcodes\.io/);
   assert.doesNotMatch(nginxSecurityHeadersSource, /salesiq\.zoho\.in/);
-  assert.doesNotMatch(nginxSecurityHeadersSource, /zohocdn\.com/);
+  assert.doesNotMatch(nginxSecurityHeadersSource, /^.*zohocdn\.com.*$/m);
   assert.match(nginxSecurityHeadersSource, /connect-src .*wss:\/\/\*\.zoho\.in/);
 });
 

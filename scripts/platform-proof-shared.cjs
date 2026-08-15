@@ -261,8 +261,17 @@ function buildArtifactPath(filename) {
 
 function isIgnorableConsoleError(message) {
   const text = String(message || '').toLowerCase();
-  return text.includes('downloadable font: download failed')
-    && text.includes('fonts.gstatic.com');
+  if (!text.includes('downloadable font: download failed')) {
+    return false;
+  }
+  const candidates = text.match(/https?:\/\/[^\s"'<>\]]+/g) || [];
+  return candidates.some((candidate) => {
+    try {
+      return new URL(candidate).hostname === 'fonts.gstatic.com';
+    } catch {
+      return false;
+    }
+  });
 }
 
 function normalizeRole(roleName) {

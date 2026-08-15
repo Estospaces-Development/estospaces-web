@@ -55,9 +55,9 @@ const target: HealthTarget = {
 
 test('platform health proof uses the canonical trailing-slash login route', () => {
     const urls = buildHealthCheckUrls(target);
+    const loginUrls = urls.filter((url) => new URL(url).pathname.startsWith('/login'));
 
-    assert.ok(urls.includes('https://dev.example/login/'));
-    assert.ok(!urls.includes('https://dev.example/login'));
+    assert.deepEqual(loginUrls, ['https://dev.example/login/']);
 });
 
 test('Fast Track navigation reports a ready workspace after all required panels load', async () => {

@@ -1089,7 +1089,7 @@ for (const [sn, title, spc] of SECTIONS) {
           const note = topic.notes[noteIdx] || "";
 
           // Escape pipes for markdown table
-          const esc = (s) => String(s).replace(/\|/g, "\\|").replace(/\n/g, " ");
+          const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 
           lines.push(`| ${id} | S${String(sn).padStart(2, "0")} | ${esc(sub)} | ${role} | ${TYPES[tc]} | ${env} | — | ${esc(steps)} | ${esc(result)} | | | ${esc(note)} |`);
         }

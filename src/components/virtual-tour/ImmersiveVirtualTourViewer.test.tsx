@@ -57,7 +57,9 @@ test("immersive virtual tour viewer renders branded explore and floor plan contr
   assert.match(markup, /Explore/);
   assert.match(markup, /Top view/);
   assert.match(markup, /title="Living Room true 360 viewer"/);
-  assert.ok(markup.includes("cdn.pannellum.org"));
+  const viewerSource = markup.match(/<iframe[^>]+src="([^"]+)"/)?.[1];
+  assert.ok(viewerSource);
+  assert.equal(new URL(viewerSource.replaceAll("&amp;", "&")).hostname, "cdn.pannellum.org");
   assert.match(markup, /living-stitched\.jpg/);
   assert.match(markup, /Mini map/);
   assert.match(markup, /Living Room/);

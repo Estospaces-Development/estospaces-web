@@ -31,13 +31,40 @@ test("social targets encode the public URL and listing copy", () => {
     url,
   });
 
-  assert.match(targets.facebook, /facebook\.com\/sharer\/sharer\.php/);
-  assert.match(targets.twitter, /twitter\.com\/intent\/tweet/);
-  assert.match(targets.linkedin, /linkedin\.com\/sharing\/share-offsite/);
-  assert.match(targets.whatsapp, /wa\.me/);
-  assert.match(targets.email, /^mailto:/);
-  Object.values(targets).forEach((target) => {
-    assert.match(target, new RegExp(encodeURIComponent(url)));
-    assert.doesNotMatch(target, /manager\/dashboard\/properties\/edit/);
-  });
+  const facebook = new URL(targets.facebook);
+  assert.equal(facebook.origin, "https://www.facebook.com");
+  assert.equal(facebook.pathname, "/sharer/sharer.php");
+  assert.equal(facebook.searchParams.get("u"), url);
+
+  const twitter = new URL(targets.twitter);
+  assert.equal(twitter.origin, "https://twitter.com");
+  assert.equal(twitter.pathname, "/intent/tweet");
+  assert.equal(twitter.searchParams.get("url"), url);
+  assert.equal(
+    twitter.searchParams.get("text"),
+    "Chennai Beach Home - ₹1,20,00,000",
+  );
+
+  const linkedin = new URL(targets.linkedin);
+  assert.equal(linkedin.origin, "https://www.linkedin.com");
+  assert.equal(linkedin.pathname, "/sharing/share-offsite/");
+  assert.equal(linkedin.searchParams.get("url"), url);
+
+  const whatsapp = new URL(targets.whatsapp);
+  assert.equal(whatsapp.origin, "https://wa.me");
+  assert.equal(
+    whatsapp.searchParams.get("text"),
+    `Chennai Beach Home - ₹1,20,00,000\n${url}`,
+  );
+
+  const email = new URL(targets.email);
+  assert.equal(email.protocol, "mailto:");
+  assert.equal(
+    email.searchParams.get("subject"),
+    "Chennai Beach Home - Property Listing",
+  );
+  assert.equal(
+    email.searchParams.get("body"),
+    `View this property on Estospaces:\n\nChennai Beach Home - ₹1,20,00,000\n${url}`,
+  );
 });
