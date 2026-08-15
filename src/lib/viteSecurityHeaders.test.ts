@@ -85,15 +85,16 @@ test('nginx client geo route returns first-party country hints before SPA fallba
   }
 });
 
-test('production nginx proxies __api/ prefix to Cloud Run backends', () => {
+test('production nginx proxies __api/ prefixes through customer API edges', () => {
   assert.match(prodNginxSource, /location \/__api\/core\//);
   assert.match(prodNginxSource, /location \/__api\/booking\//);
   assert.match(prodNginxSource, /location \/__api\/search\//);
   assert.match(prodNginxSource, /location \/__api\/media\//);
   assert.match(prodNginxSource, /location \/__api\/messaging\//);
   assert.match(prodNginxSource, /location \/__api\/notification\//);
-  assert.match(prodNginxSource, /proxy_pass https:\/\/estospaces-core-service-prod/);
-  assert.match(prodNginxSource, /proxy_pass https:\/\/estospaces-search-service-prod/);
+  assert.match(prodNginxSource, /proxy_pass https:\/\/core-api\.estospaces\.com/);
+  assert.match(prodNginxSource, /proxy_pass https:\/\/search-api\.estospaces\.com/);
+  assert.doesNotMatch(prodNginxSource, /proxy_pass https:\/\/[^;]*\.run\.app/);
 });
 
 test('production web CSP connect-src does not leak direct Cloud Run origins to browser', () => {
