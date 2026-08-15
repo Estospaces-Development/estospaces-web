@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const { gotoWithRetry } = require("./platform-proof-browser-helpers.cjs");
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
@@ -240,12 +241,12 @@ async function ensureReachable(baseUrl) {
 async function login(page, baseUrl, role) {
   const session = getRoleSession(role);
   if (session) {
-    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await gotoWithRetry(page, baseUrl, { waitUntil: "domcontentloaded" });
     await page.evaluate(({ token, storedUser }) => {
-      localStorage.setItem("esto_token", token);
+      sessionStorage.setItem("esto_session_token", token);
       localStorage.setItem("esto_user", JSON.stringify(storedUser));
     }, session);
-    await page.goto(`${baseUrl}${role.dashboard}`, { waitUntil: "domcontentloaded" });
+    await gotoWithRetry(page, `${baseUrl}${role.dashboard}`, { waitUntil: "domcontentloaded" });
     await page.waitForURL((url) => url.pathname.startsWith(role.dashboard), { timeout: 30000 });
     await page.waitForTimeout(routeSettleMs);
     return;
@@ -253,7 +254,7 @@ async function login(page, baseUrl, role) {
 
   const email = requireEnv(role.emailEnv);
   const password = requireEnv(role.passwordEnv);
-  await page.goto(`${baseUrl}${resolveLoginPath(baseUrl)}`, { waitUntil: "domcontentloaded" });
+  await gotoWithRetry(page, `${baseUrl}${resolveLoginPath(baseUrl)}`, { waitUntil: "domcontentloaded" });
   const emailField = page
     .locator('input[name="email"], input[type="email"], input[placeholder*="email" i]')
     .first();
@@ -294,7 +295,7 @@ async function assertHealthyPage(page, expectedPath) {
 }
 
 async function runRouteCheck(page, baseUrl, route) {
-  await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
+  await gotoWithRetry(page, `${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
   await assertHealthyPage(page, route);
   await page.waitForTimeout(routeSettleMs);
 }
@@ -322,7 +323,7 @@ async function runCaseChecks(page, targetName, baseUrl, caseId, roleName) {
 
   if (roleName === "user") {
     const route = `/user/dashboard/fast-track?case=${caseId}`;
-    await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
+    await gotoWithRetry(page, `${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
     await assertHealthyPage(page, "/user/dashboard/fast-track");
     results.push({
       target: targetName,
@@ -337,7 +338,7 @@ async function runCaseChecks(page, targetName, baseUrl, caseId, roleName) {
     ? `/admin/fast-track?case=${caseId}`
     : `/manager/fast-track?case=${caseId}`;
   const expectedPath = roleName === "admin" ? "/admin/fast-track" : "/manager/fast-track";
-  await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
+  await gotoWithRetry(page, `${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
   await assertFastTrackWorkspace(page, expectedPath, roleName);
   results.push({
     target: targetName,
