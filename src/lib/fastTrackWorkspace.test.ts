@@ -17,9 +17,11 @@ import {
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
+    FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
+    getFastTrackManagerAgreementStatus,
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
@@ -75,6 +77,42 @@ const buildCase = (overrides: Partial<FastTrackCase> = {}): FastTrackCase => ({
     activity: [],
     documentPhase: 'not_requested',
     ...overrides,
+});
+
+test('agreement publish copy explains that user acceptance unlocks handover', () => {
+    assert.equal(
+        FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
+        'Agreement published. Waiting for the user to sign before handover.',
+    );
+    assert.deepEqual(getFastTrackManagerAgreementStatus(buildCase({
+        agreement: { status: 'sent', paymentStatus: 'not_requested' },
+    })), {
+        title: 'Awaiting user signature',
+        description: 'The agreement is published. Handover unlocks after the user signs it.',
+    });
+    assert.deepEqual(getFastTrackManagerAgreementStatus(buildCase({
+        agreement: { status: 'accepted', paymentStatus: 'not_requested' },
+    })), {
+        title: 'Agreement accepted',
+        description: 'The user has signed the agreement. Continue to the handover stage.',
+    });
+    assert.deepEqual(getFastTrackManagerAgreementStatus(buildCase({
+        workspaceFinalStatus: 'completed',
+        finalStatus: 'completed',
+        agreement: { status: 'accepted', paymentStatus: 'paid' },
+        handover: { status: 'completed' },
+    })), {
+        title: 'Fast Track completed',
+        description: 'The agreement was accepted and the handover has been completed.',
+    });
+    assert.deepEqual(getFastTrackManagerAgreementStatus(buildCase({
+        workspaceFinalStatus: 'cancelled',
+        finalStatus: 'rejected',
+        agreement: { status: 'sent', paymentStatus: 'not_requested' },
+    })), {
+        title: 'Fast Track closed',
+        description: 'This case is closed. Its agreement history remains available for reference.',
+    });
 });
 
 test('selection resolves legacy query ids to the matching case', () => {

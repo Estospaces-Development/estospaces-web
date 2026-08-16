@@ -21,6 +21,8 @@ import {
 } from "@/lib/fastTrackCompanion";
 import {
   canUserConfirmFastTrackHandover,
+  FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
+  getFastTrackManagerAgreementStatus,
   getFastTrackDecisionGuard,
   getFastTrackFinalDecisionGuard,
   isFastTrackCaseCompleteForRole,
@@ -541,9 +543,14 @@ export default function FastTrackCompanionPanel({
     }
 
     const publishNeedsAmount = PAYMENTS_ENABLED && paymentRequired && !hasValidAgreementAmount;
+    const managerAgreementStatus = getFastTrackManagerAgreementStatus(fastTrackCase);
 
     return (
       <div className="space-y-4">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+          <p className="text-sm font-semibold">{managerAgreementStatus.title}</p>
+          <p className="mt-1 text-sm">{managerAgreementStatus.description}</p>
+        </div>
         <textarea
           rows={3}
           value={agreementNote}
@@ -587,7 +594,7 @@ export default function FastTrackCompanionPanel({
                       ? parsedAgreementAmount
                       : undefined,
                 },
-                "Agreement published.",
+                FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
               )
             }
             disabled={activeAction === "publish_agreement" || publishNeedsAmount}
@@ -598,7 +605,7 @@ export default function FastTrackCompanionPanel({
             ) : (
               <FileText className="h-4 w-4" />
             )}
-            Publish agreement
+            {fastTrackCase.agreement.status === "sent" ? "Republish agreement" : "Publish agreement"}
           </button>
           {PAYMENTS_ENABLED && paymentRequired ? (
             <button

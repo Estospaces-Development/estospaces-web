@@ -3,6 +3,58 @@ import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 export type FastTrackWorkspaceRole = 'user' | 'manager' | 'admin';
 
+export const FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE = (
+    'Agreement published. Waiting for the user to sign before handover.'
+);
+
+export const getFastTrackManagerAgreementStatus = (
+    fastTrackCase: Pick<FastTrackCase, 'agreement' | 'handover' | 'workspaceFinalStatus'>,
+) => {
+    const normalizedStatus = String(fastTrackCase.agreement.status || '').trim().toLowerCase();
+    const paymentStatus = String(fastTrackCase.agreement.paymentStatus || '').trim().toLowerCase();
+    const handoverStatus = String(fastTrackCase.handover.status || '').trim().toLowerCase();
+
+    if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
+        return {
+            title: 'Fast Track closed',
+            description: 'This case is closed. Its agreement history remains available for reference.',
+        };
+    }
+
+    if (fastTrackCase.workspaceFinalStatus === 'completed' || handoverStatus === 'completed') {
+        return {
+            title: 'Fast Track completed',
+            description: 'The agreement was accepted and the handover has been completed.',
+        };
+    }
+
+    if (['accepted', 'signed', 'completed'].includes(normalizedStatus)) {
+        if (PAYMENTS_ENABLED && paymentStatus === 'requested') {
+            return {
+                title: 'Agreement accepted',
+                description: 'The user has signed. Confirm the requested payment before handover.',
+            };
+        }
+
+        return {
+            title: 'Agreement accepted',
+            description: 'The user has signed the agreement. Continue to the handover stage.',
+        };
+    }
+
+    if (normalizedStatus === 'sent') {
+        return {
+            title: 'Awaiting user signature',
+            description: 'The agreement is published. Handover unlocks after the user signs it.',
+        };
+    }
+
+    return {
+        title: 'Ready to publish',
+        description: 'Publish the agreement, then the user must sign it before handover unlocks.',
+    };
+};
+
 const FAST_TRACK_STAGE_KEYS: FastTrackStage[] = [
     'selected',
     'documents',

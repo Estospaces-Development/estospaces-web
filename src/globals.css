@@ -197,6 +197,26 @@
     letter-spacing: -0.01em;
   }
 
+  select {
+    color-scheme: light;
+  }
+
+  select option,
+  select optgroup {
+    background-color: #ffffff;
+    color: #111827;
+  }
+
+  .dark select {
+    color-scheme: dark;
+  }
+
+  .dark select option,
+  .dark select optgroup {
+    background-color: #111827;
+    color: #f9fafb;
+  }
+
   label {
     font-family: var(--font-body);
     font-size: 13px;

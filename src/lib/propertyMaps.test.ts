@@ -166,6 +166,24 @@ test("getPropertyMapState falls back to service-address search without coordinat
   assert.match(state.externalUrl ?? "", /221B%20Smoke%20Test%20Lane/);
 });
 
+test("ticket 400 maps the Gurgaon fixture from its listed address instead of a guessed pin", () => {
+  const state = getPropertyMapState({
+    address_line_1: "Gurgaon road",
+    city: "Mumbai",
+    postcode: "122001",
+    country: "India",
+    latitude: "",
+    longitude: "",
+  });
+
+  assert.equal(state.hasCoordinates, false);
+  assert.equal(state.displayAddress, "Gurgaon road, Mumbai, 122001, India");
+  assert.match(decodeURIComponent(state.embedUrl ?? ""), /Gurgaon road, Mumbai, 122001, India/);
+  assert.match(decodeURIComponent(state.externalUrl ?? ""), /Gurgaon road, Mumbai, 122001, India/);
+  assert.doesNotMatch(decodeURIComponent(state.embedUrl ?? ""), /Dhaturiya/i);
+  assert.doesNotMatch(decodeURIComponent(state.externalUrl ?? ""), /Dhaturiya/i);
+});
+
 test("getPropertyMapState uses a sanitized display address override for address search", () => {
   const state = getPropertyMapState(
     {

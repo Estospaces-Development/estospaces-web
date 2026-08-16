@@ -43,9 +43,11 @@ import {
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
+    FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
+    getFastTrackManagerAgreementStatus,
     isFastTrackDocumentDraftDirty,
     isFastTrackCaseCompleteForRole,
     isFastTrackManagerReviewEligible,
@@ -1760,7 +1762,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 payment_required: PAYMENTS_ENABLED && paymentRequired && hasValidAgreementPaymentAmount,
                 amount_due: PAYMENTS_ENABLED && paymentRequired && hasValidAgreementPaymentAmount ? parsedAgreementAmount : undefined,
             },
-            'Agreement published.',
+            FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
         );
     }, [
         agreementNote,
@@ -3260,6 +3262,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        const managerAgreementStatus = getFastTrackManagerAgreementStatus(selectedCase);
+
         if (role === 'user') {
             return (
                 <SectionShell
@@ -3302,6 +3306,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 title="Agreement"
                 description="Send the agreement and keep this case moving toward handover."
             >
+                <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+                    <p className="text-sm font-semibold">{managerAgreementStatus.title}</p>
+                    <p className="mt-1 text-sm">{managerAgreementStatus.description}</p>
+                </div>
                 <textarea
                     value={agreementNote}
                     onChange={(event) => setAgreementNote(event.target.value)}
@@ -3339,7 +3347,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         disabled={publishAgreementNeedsAmount}
                         title={publishAgreementNeedsAmount ? 'Enter a payment amount or turn off payment required.' : undefined}
                     >
-                        Publish agreement
+                        {selectedCase.agreement.status === 'sent' ? 'Republish agreement' : 'Publish agreement'}
                     </ActionButton>
                     {PAYMENTS_ENABLED && paymentRequired ? (
                         <ActionButton
