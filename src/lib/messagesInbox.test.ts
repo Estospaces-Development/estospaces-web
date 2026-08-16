@@ -4,9 +4,24 @@ import test from 'node:test';
 import { ApiRequestError } from '@/lib/apiUtils';
 import {
     buildConversationListUrl,
+    buildConversationPropertyPath,
     isUnavailableConversationThreadError,
     resolveConversationQuerySelection,
 } from '@/lib/messagesInbox';
+
+test('conversation property action targets the exact linked property', () => {
+    assert.equal(buildConversationPropertyPath('property/one'), '/user/properties/property%2Fone');
+    assert.equal(
+        buildConversationPropertyPath('property/one', 'manager'),
+        '/manager/dashboard/properties/property%2Fone',
+    );
+    assert.equal(
+        buildConversationPropertyPath('property/one', 'broker'),
+        '/manager/dashboard/properties/property%2Fone',
+    );
+    assert.equal(buildConversationPropertyPath('property/one', 'admin'), '/admin/properties/property%2Fone');
+    assert.equal(buildConversationPropertyPath(''), null);
+});
 
 test('conversation query selection waits for the initial inbox load before selecting a deep link', () => {
     assert.deepEqual(

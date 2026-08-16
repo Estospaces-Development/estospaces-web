@@ -8,12 +8,30 @@ import {
   FastTrackCaseRail,
   FastTrackCaseMasthead,
   FastTrackStageStepper,
+  FastTrackUtilityDock,
   type FastTrackCaseRailItem,
 } from './FastTrackWorkspaceLayout';
 import {
   FAST_TRACK_WORKSPACE_MODULES,
   defaultFastTrackWorkspacePreferences,
 } from '@/lib/fastTrackWorkspacePreferences';
+
+test('fast-track utility dock contains long module content at narrow widths', () => {
+  const markup = renderToStaticMarkup(
+    <FastTrackUtilityDock
+      role="manager"
+      density="compact"
+      modules={['core_files']}
+      activeModule="core_files"
+      onActiveModuleChange={() => {}}
+      renderModule={() => <p>{'identity-proof-'.repeat(30)}.pdf</p>}
+    />,
+  );
+
+  assert.match(markup, /data-fast-track-utility-dock/);
+  assert.match(markup, /min-w-0 max-w-full overflow-hidden/);
+  assert.match(markup, /data-fast-track-utility-panel="core_files"/);
+});
 
 test('fast-track customization drawer exposes named switches, radios, and status', () => {
   const preferences = defaultFastTrackWorkspacePreferences('user');

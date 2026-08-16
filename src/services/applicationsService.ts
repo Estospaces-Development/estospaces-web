@@ -30,6 +30,7 @@ export interface Application extends JourneyStateFields {
   property_title?: string;
   property_address?: string;
   property_country?: string;
+  property_currency?: string;
   property_image?: string;
   property_type?: string;
   listing_type?: string;

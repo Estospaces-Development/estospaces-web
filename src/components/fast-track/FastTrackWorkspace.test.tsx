@@ -163,20 +163,20 @@ test("fast-track preview buttons open a modal with zoom controls", () => {
   assert.match(source, /aria-label="Zoom in document preview"/);
 });
 
-test("fast-track document open buttons stay inside the in-app preview modal", () => {
+test("fast-track document open buttons use the full external viewer", () => {
   const source = workspaceSource();
 
   assert.match(source, /window\.open\('about:blank', '_blank'\)/);
   assert.match(source, /externalWindow\.location\.href = url/);
   assert.match(source, /const openedWindow = window\.open\(url, '_blank', 'noopener,noreferrer'\)/);
   assert.match(source, /window\.location\.assign\(url\)/);
-  assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/);
+  assert.match(source, /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/);
   assert.match(source, /onClick=\{\(\) => void handleRailOpen\(item\)\}/);
   assert.match(source, /onClick=\{\(\) => void handleRailOpen\(activeDocument\)\}/);
   assert.match(source, /Open PDF/);
   assert.match(source, /ensureDocumentPreview\(previewItem, \{ openInNewTab: true, busyAction: 'download' \}\)/);
   assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\)/);
-  assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/);
+  assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/);
 });
 
 test("fast-track uploaded document preview uses signed access URL without blob fetching", () => {

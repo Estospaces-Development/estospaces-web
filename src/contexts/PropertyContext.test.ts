@@ -84,3 +84,14 @@ test('property context combines search with status and price filters', () => {
 
   assert.deepEqual(filtered.map((item) => item.id), ['available-rent']);
 });
+
+test('available manager filter keeps every backend live-status alias', () => {
+  const properties = ['available', 'published', 'online', 'active', 'sold'].map((status) => property({
+    id: status,
+    status: status as Property['status'],
+  }));
+
+  const filtered = filterContextProperties(properties, { status: ['available'] });
+
+  assert.deepEqual(filtered.map((item) => item.id), ['available', 'published', 'online', 'active']);
+});

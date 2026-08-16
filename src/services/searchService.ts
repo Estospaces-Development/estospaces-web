@@ -526,6 +526,10 @@ export interface PropertySectionsResponse {
     error?: string;
 }
 
+export const getPropertySectionsRequestOptions = () => ({
+    suppressErrorToast: true,
+});
+
 export interface AutocompleteResponse {
     success: boolean;
     data: {
@@ -730,7 +734,7 @@ export const searchService = {
 
             const response = await apiFetchEnvelope<CorePropertySectionsPayload>(
                 `${CORE_API_URL}/api/v1/properties/sections?${params.toString()}`,
-                { suppressErrorToast: true, auth: false },
+                getPropertySectionsRequestOptions(),
             );
 
             return {

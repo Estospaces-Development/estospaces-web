@@ -6,6 +6,23 @@ export interface ConversationThreadIssue {
     message: string;
 }
 
+export const buildConversationPropertyPath = (propertyId?: string | null, role?: string | null) => {
+    const normalized = String(propertyId || '').trim();
+    if (!normalized) {
+        return null;
+    }
+
+    const encodedPropertyId = encodeURIComponent(normalized);
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    if (normalizedRole === 'manager' || normalizedRole === 'broker') {
+        return `/manager/dashboard/properties/${encodedPropertyId}`;
+    }
+    if (normalizedRole === 'admin') {
+        return `/admin/properties/${encodedPropertyId}`;
+    }
+    return `/user/properties/${encodedPropertyId}`;
+};
+
 export interface ConversationQueryResolutionInput {
     requestedConversationId: string | null | undefined;
     hasLoadedConversations: boolean;

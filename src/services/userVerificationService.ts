@@ -1,5 +1,6 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import type { ApiFetchOptions } from '@/lib/apiUtils';
+import { getUserVerificationWorkflowStatus } from '@/lib/userVerificationQueue';
 import type { Lead } from '@/services/leadsService';
 
 const CORE_URL = () => getServiceUrl('core');
@@ -143,9 +144,13 @@ export const getVerificationLevelLabel = (level: UserVerificationLevel): string 
     }
 };
 
+export const countActionableUserVerifications = (records: UserVerificationInfo[]) => (
+    records.filter((record) => getUserVerificationWorkflowStatus(record) === 'review').length
+);
+
 export const getAdminPendingVerificationsCount = async (): Promise<number> => {
     const { data, error: _error } = await getPendingUserVerifications('admin', { suppressErrorToast: true });
-    return data?.length || 0;
+    return countActionableUserVerifications(data || []);
 };
 
 export const getVerificationLevelColor = (

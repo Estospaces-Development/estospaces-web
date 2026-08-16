@@ -355,7 +355,9 @@ export const filterContextProperties = (
     if (statuses.size > 0) {
       const status = normalizePropertyFilterValue(property.status);
       const draft = property.draft ? "draft" : "";
-      if (!statuses.has(status) && !statuses.has(draft)) {
+      const liveStatusMatch = statuses.has("available")
+        && ["available", "published", "online", "active"].includes(status);
+      if (!statuses.has(status) && !statuses.has(draft) && !liveStatusMatch) {
         return false;
       }
     }

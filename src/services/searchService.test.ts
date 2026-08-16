@@ -2,10 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    getPropertySectionsRequestOptions,
     mapCorePropertySectionToSearchSection,
     mapSearchFiltersToCoreQuery,
     PRIMARY_SEARCH_SERVICE_TIMEOUT_MS,
 } from '@/services/searchService';
+
+test('property sections use the signed-in core contract', () => {
+    assert.deepEqual(getPropertySectionsRequestOptions(), { suppressErrorToast: true });
+    assert.equal('auth' in getPropertySectionsRequestOptions(), false);
+});
 
 test('core property search maps spaced postcode location to search', () => {
     const params = mapSearchFiltersToCoreQuery('', {

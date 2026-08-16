@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+
+test('user profile reports applications instead of manager-side leads', () => {
+  const source = readSource('src/pages/user/dashboard/profile/page.tsx');
+  assert.match(source, /const \{ allApplications \} = useApplications\(\)/);
+  assert.match(source, /\{allApplications\.length\}/);
+  assert.match(source, />Applications<\/div>/);
+  assert.doesNotMatch(source, />Leads<\/div>/);
+});
+
+test('admin property registry reports the server total instead of current page length', () => {
+  const source = readSource('src/pages/admin/properties/page.tsx');
+  assert.match(source, /Total Listed:[\s\S]*\{pagination\.total\}/);
+  assert.doesNotMatch(source, /Total Listed:[\s\S]{0,120}\{visibleRegistryProperties\.length\}/);
+});
+
+test('manager review history does not synthesize a system audit event', () => {
+  const source = readSource('src/components/admin/ManagerReviewModal.tsx');
+  assert.doesNotMatch(source, /Status imported from the approved manager profile/);
+  assert.match(source, /return auditLog;/);
+});

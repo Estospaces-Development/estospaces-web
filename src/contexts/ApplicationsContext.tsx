@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import {
     Application as BackendApplication,
@@ -31,7 +31,7 @@ import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
-import { getApplicationPropertyDisplayTitle } from '@/lib/applicationDisplayTitle';
+import { getApplicationPropertyDisplayTitle, isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
 
 type PropertyContext = {
     title?: string;
@@ -281,6 +281,58 @@ export const hydrateMissingSaleProgressionPropertyContexts = async (
     }));
 };
 
+export const hydrateApplicationPropertyContexts = async (
+    applications: Array<Pick<BackendApplication, 'property_id'>>,
+    propertyContextById: Map<string, PropertyContext>,
+    fetchPropertyById: (propertyId: string) => ReturnType<typeof getPropertyById> = (propertyId) =>
+        getPropertyById(propertyId, { suppressErrorToast: true }),
+) => {
+    const propertyIds = Array.from(new Set(
+        applications.map((application) => application.property_id).filter(Boolean),
+    ));
+
+    await Promise.all(propertyIds.map(async (propertyId) => {
+        const { data: property } = await fetchPropertyById(propertyId);
+        const propertyContext = buildPropertyContextFromProperty(property);
+        if (propertyContext) {
+            propertyContextById.set(propertyId, propertyContext);
+        }
+    }));
+};
+
+const hasUsableApplicationAddress = (address: unknown) => {
+    const normalizedAddress = String(address || '').trim();
+
+    return Boolean(normalizedAddress)
+        && !/^(address unavailable|location unavailable|unknown address|n\/a|na)$/i.test(normalizedAddress)
+        && !isInternalApplicationTitle(normalizedAddress);
+};
+
+const normalizeApplicationSnapshotText = (value: unknown) => String(value || '').trim();
+
+export const applicationNeedsCurrentPropertyContext = (application: Pick<
+    BackendApplication,
+    | 'property_title'
+    | 'property_address'
+    | 'property_country'
+    | 'property_currency'
+    | 'property_image'
+    | 'property_price'
+    | 'property_type'
+    | 'agent_name'
+>) => {
+    return !String(application.property_title || '').trim()
+        || isInternalApplicationTitle(application.property_title)
+        || !hasUsableApplicationAddress(application.property_address)
+        || !String(application.property_image || '').trim()
+        || !Number.isFinite(application.property_price)
+        || Number(application.property_price) <= 0
+        || !String(application.property_country || '').trim()
+        || !String(application.property_currency || '').trim()
+        || !String(application.property_type || '').trim()
+        || !String(application.agent_name || '').trim();
+};
+
 const findRelatedSaleViewing = (
     progression: SaleProgression,
     viewings: Viewing[],
@@ -399,14 +451,30 @@ const deriveStatusFromViewing = (application: BackendApplication, viewing?: View
     return APPLICATION_STATUS.SUBMITTED;
 };
 
-const mapBackendApplication = (application: BackendApplication, relatedViewing?: Viewing): Application => {
+export const mapBackendApplication = (
+    application: BackendApplication,
+    relatedViewing?: Viewing,
+    propertyContext?: PropertyContext,
+): Application => {
     const displayStage = resolveSaleJourneyDisplayStage({
         source: 'application',
         status: application.status,
         liveStage: application.liveStage,
     });
-    const propertyAddress = application.property_address || 'Address unavailable';
-    const propertyTitle = getApplicationPropertyDisplayTitle(application.property_title, propertyAddress, 'Property');
+    const snapshotTitle = String(application.property_title || '').trim();
+    const snapshotAddress = String(application.property_address || '').trim();
+    const snapshotImage = String(application.property_image || '').trim();
+    const snapshotPrice = Number(application.property_price);
+    const propertyAddress = hasUsableApplicationAddress(snapshotAddress)
+        ? snapshotAddress
+        : propertyContext?.address || 'Address unavailable';
+    const propertyTitle = getApplicationPropertyDisplayTitle(
+        snapshotTitle && !isInternalApplicationTitle(snapshotTitle)
+            ? snapshotTitle
+            : propertyContext?.title,
+        propertyAddress,
+        'Property',
+    );
 
     return {
         id: application.id,
@@ -424,15 +492,17 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
         updatedAt: application.updated_at,
         propertyTitle,
         propertyAddress,
-        propertyImage: toImageUrl(application.property_image),
-        propertyPrice: application.property_price,
-        propertyCountry: application.property_country,
-        propertyCurrency: (application as any).property_currency,
-        propertyType: application.property_type || 'property',
-        agentName: application.agent_name || '',
-        agentAgency: application.agent_agency || '',
-        agentEmail: application.agent_email || '',
-        agentPhone: application.agent_phone || '',
+        propertyImage: toImageUrl(snapshotImage || propertyContext?.image),
+        propertyPrice: Number.isFinite(snapshotPrice) && snapshotPrice > 0
+            ? snapshotPrice
+            : propertyContext?.price ?? application.property_price,
+        propertyCountry: normalizeApplicationSnapshotText(application.property_country) || propertyContext?.country,
+        propertyCurrency: normalizeApplicationSnapshotText(application.property_currency) || propertyContext?.currency,
+        propertyType: normalizeApplicationSnapshotText(application.property_type) || propertyContext?.propertyType || 'property',
+        agentName: normalizeApplicationSnapshotText(application.agent_name) || propertyContext?.agentName || '',
+        agentAgency: normalizeApplicationSnapshotText(application.agent_agency) || propertyContext?.agentAgency || '',
+        agentEmail: normalizeApplicationSnapshotText(application.agent_email) || propertyContext?.agentEmail || '',
+        agentPhone: normalizeApplicationSnapshotText(application.agent_phone) || propertyContext?.agentPhone || '',
         listingType: application.listing_type || 'sale',
         submittedDate: application.created_at,
         lastUpdated: application.updated_at || application.created_at,
@@ -523,8 +593,10 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         WORKSPACE_SYNC_TAGS.PAYMENTS,
     ], []);
     const registerConsumer = useCallback(() => () => {}, []);
+    const fetchRevisionRef = useRef(0);
 
     const fetchApplications = useCallback(async () => {
+        const fetchRevision = ++fetchRevisionRef.current;
         if (!user) {
             setApplications([]);
             setIsLoading(false);
@@ -550,6 +622,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
         const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
         const propertyContextById = new Map<string, PropertyContext>();
+        const refreshedApplicationPropertyContextById = new Map<string, PropertyContext>();
 
         (applicationsResult.data || []).forEach((application) => {
             if (!application.property_id) {
@@ -562,7 +635,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 image: application.property_image,
                 price: application.property_price,
                 country: application.property_country,
-                currency: (application as any).property_currency,
+                currency: application.property_currency,
                 propertyType: application.property_type,
                 agentName: application.agent_name,
                 agentAgency: application.agent_agency,
@@ -591,6 +664,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             });
         });
 
+        const backendApplications = applicationsResult.data || [];
         const saleProgressions = saleProgressionsResult.data || [];
         await hydrateMissingSaleProgressionPropertyContexts(saleProgressions, propertyContextById);
 
@@ -605,48 +679,70 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             ),
         );
 
-        const mappedApplications = (applicationsResult.data || [])
-            .filter((application) => {
-                if (application.listing_type !== 'sale') {
-                    return true;
-                }
-
-                return !saleProgressionKeys.has(
-                    buildJourneyKey({
-                        propertyId: application.property_id,
-                        userId: application.user_id,
-                        leadId: application.lead_id,
-                        fastTrackCaseId: application.fast_track_case_id,
-                    }),
-                );
-            })
-            .map((application) => (
-                mapBackendApplication(application, findRelatedViewing(application, relatedViewings))
-            ));
-
-        const mappedSaleProgressions = saleProgressions.map((progression) =>
-            mapSaleProgression(
-                progression,
-                propertyContextById.get(progression.property_id),
-                findRelatedSaleViewing(progression, relatedViewings),
-            ),
-        );
-
         const fastTrackCases = fastTrackCasesResult.data || [];
-        setApplications(
-            [...mappedApplications, ...mappedSaleProgressions]
+        const publishApplications = () => {
+            const mappedApplications = backendApplications
+                .filter((application) => {
+                    if (application.listing_type !== 'sale') {
+                        return true;
+                    }
+
+                    return !saleProgressionKeys.has(
+                        buildJourneyKey({
+                            propertyId: application.property_id,
+                            userId: application.user_id,
+                            leadId: application.lead_id,
+                            fastTrackCaseId: application.fast_track_case_id,
+                        }),
+                    );
+                })
+                .map((application) => (
+                    mapBackendApplication(
+                        application,
+                        findRelatedViewing(application, relatedViewings),
+                        refreshedApplicationPropertyContextById.get(application.property_id),
+                    )
+                ));
+            const mappedSaleProgressions = saleProgressions.map((progression) =>
+                mapSaleProgression(
+                    progression,
+                    refreshedApplicationPropertyContextById.get(progression.property_id)
+                        || propertyContextById.get(progression.property_id),
+                    findRelatedSaleViewing(progression, relatedViewings),
+                ),
+            );
+
+            setApplications(
+                [...mappedApplications, ...mappedSaleProgressions]
                 .map((application) => attachLinkedFastTrackCase(application, fastTrackCases))
                 .sort(
                     (left, right) =>
                         new Date(right.lastUpdated || right.createdAt).getTime() -
                         new Date(left.lastUpdated || left.createdAt).getTime(),
                 ),
-        );
+            );
+        };
+
+        publishApplications();
         setIsLoading(false);
+
+        const applicationsNeedingRefresh = backendApplications.filter(applicationNeedsCurrentPropertyContext);
+        if (applicationsNeedingRefresh.length > 0) {
+            void hydrateApplicationPropertyContexts(applicationsNeedingRefresh, refreshedApplicationPropertyContextById)
+                .then(() => {
+                    if (fetchRevision === fetchRevisionRef.current) {
+                        publishApplications();
+                    }
+                })
+                .catch(() => {
+                    // Initial application snapshots remain usable when a background refresh fails.
+                });
+        }
     }, [user]);
 
     useEffect(() => {
         if (!user) {
+            fetchRevisionRef.current += 1;
             setApplications([]);
             setIsLoading(false);
             return;

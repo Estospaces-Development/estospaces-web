@@ -3772,21 +3772,39 @@ export default function AddPropertyPage() {
             </div>
 
             {/* Ready to Save/Publish */}
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
+            <div className={hasFullFormValidationErrors
+              ? "rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-900/20"
+              : "rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20"}
+            >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className={hasFullFormValidationErrors
+                  ? "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40"
+                  : "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40"}
+                >
+                  {hasFullFormValidationErrors
+                    ? <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    : <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />}
                 </div>
                 <div>
-                  <p className="text-green-800 dark:text-green-200 font-medium text-lg">
-                    {mode === "edit"
+                  <p className={hasFullFormValidationErrors
+                    ? "text-lg font-medium text-amber-800 dark:text-amber-200"
+                    : "text-lg font-medium text-green-800 dark:text-green-200"}
+                  >
+                    {hasFullFormValidationErrors
+                      ? "Complete the required fields"
+                      : mode === "edit"
                       ? isEditSubmission
                         ? "Ready to Submit!"
                         : "Ready to Save!"
                       : "Ready to Submit!"}
                   </p>
-                  <p className="text-green-700 dark:text-green-300 text-sm mt-1">
-                    {mode === "edit"
+                  <p className={hasFullFormValidationErrors
+                    ? "mt-1 text-sm text-amber-700 dark:text-amber-300"
+                    : "mt-1 text-sm text-green-700 dark:text-green-300"}
+                  >
+                    {hasFullFormValidationErrors
+                      ? `${fullFormErrorCount} required ${fullFormErrorCount === 1 ? "field is" : "fields are"} still incomplete. The submit action stays disabled until they are corrected.`
+                      : mode === "edit"
                       ? isEditSubmission
                         ? "Review your changes and submit the listing for admin approval when ready. You can still save it as draft if more work is needed."
                         : 'Review your changes and click "Save Property" to update the listing. You can also save as draft if the listing is not ready.'
