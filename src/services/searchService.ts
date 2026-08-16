@@ -1,8 +1,9 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '../lib/apiUtils';
 import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
-import { LAUNCH_COUNTRY_CODE, UK_COUNTRY_CODE } from '@/lib/launchLocale';
+import { getSupportedLaunchCountry, LAUNCH_COUNTRY_CODE, UK_COUNTRY_CODE } from '@/lib/launchLocale';
 import { propertyTypes } from '@/lib/propertyTypeOptions';
+import { getAuthToken } from '@/lib/authToken';
 
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
@@ -160,6 +161,11 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
         .join(', ');
 
     const images = parseImageList(property.image_urls);
+    const explicitCountry = String(property.country || '').trim();
+    const countryCode = getSupportedLaunchCountry(explicitCountry, explicitCountry)
+        || (!explicitCountry
+            ? getSupportedLaunchCountry(undefined, undefined, property.postcode)
+            : null);
 
     return {
         id: property.id,
@@ -173,7 +179,8 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
         location: address || property.city || property.postcode || '',
         city: property.city || '',
         postcode: property.postcode || '',
-        country: property.country || '',
+        country: explicitCountry || countryCode || '',
+        countryCode: countryCode || undefined,
         bedrooms: toNumber(property.bedrooms),
         bathrooms: toNumber(property.bathrooms),
         square_feet: toNumber(property.property_size_sqft),
@@ -295,9 +302,13 @@ const coreSearchFallback = async (
     filters: Record<string, any>,
 ): Promise<SearchResponse> => {
     const params = mapSearchFiltersToCoreQuery(query, filters);
+    const isAuthenticated = Boolean(getAuthToken());
+    const endpoint = isAuthenticated ? '/api/v1/properties/catalog' : '/api/v1/properties';
     const response = await apiFetchEnvelope<CorePropertyListPayload>(
-        `${CORE_API_URL}/api/v1/properties?${params.toString()}`,
-        { suppressErrorToast: true, auth: false },
+        `${CORE_API_URL}${endpoint}?${params.toString()}`,
+        isAuthenticated
+            ? { suppressErrorToast: true }
+            : { suppressErrorToast: true, auth: false },
     );
     const payload = response.data || {};
     let mapped = (payload.data || []).map(mapCorePropertyToSearchResult);
@@ -313,6 +324,40 @@ const coreSearchFallback = async (
             total: payload.pagination?.total || mapped.length,
             page: payload.pagination?.page || Number(filters.page || 1),
             limit: payload.pagination?.limit || Number(filters.limit || 10),
+        },
+    };
+};
+
+const fetchCompleteCoreSearchFallback = async (
+    query: string,
+    filters: Record<string, any>,
+): Promise<SearchResponse> => {
+    const limit = 100;
+    const firstPage = await coreSearchFallback(query, { ...filters, page: 1, limit });
+    const returnedLimit = Math.max(1, firstPage.pagination.limit || limit);
+    const pageCount = Math.max(1, Math.ceil(firstPage.pagination.total / returnedLimit));
+
+    if (pageCount === 1) {
+        return firstPage;
+    }
+
+    const remainingPages: SearchResponse[] = [];
+    for (let page = 2; page <= pageCount; page += 1) {
+        remainingPages.push(await coreSearchFallback(query, { ...filters, page, limit: returnedLimit }));
+    }
+    const propertiesById = new Map(
+        [firstPage, ...remainingPages]
+            .flatMap((page) => page.data)
+            .map((property) => [property.id, property]),
+    );
+
+    return {
+        success: true,
+        data: Array.from(propertiesById.values()),
+        pagination: {
+            total: firstPage.pagination.total,
+            page: 1,
+            limit: returnedLimit,
         },
     };
 };
@@ -526,6 +571,16 @@ export interface PropertySectionsResponse {
     error?: string;
 }
 
+export const buildFallbackPropertySections = (properties: SearchResult[]): SearchResultSection[] => (
+    properties.length > 0
+        ? [{
+            title: 'Available properties',
+            type: 'all',
+            properties,
+        }]
+        : []
+);
+
 export const getPropertySectionsRequestOptions = () => ({
     suppressErrorToast: true,
 });
@@ -737,16 +792,53 @@ export const searchService = {
                 getPropertySectionsRequestOptions(),
             );
 
+            const sections = (response.data?.sections || []).map(mapCorePropertySectionToSearchSection);
+            if (sections.some((section) => section.properties.length > 0)) {
+                return { success: true, data: sections };
+            }
+
+            const countryFallback = await fetchCompleteCoreSearchFallback('', {
+                country,
+            });
+            if (countryFallback.data.length > 0 || !country.trim()) {
+                return {
+                    success: true,
+                    data: buildFallbackPropertySections(countryFallback.data),
+                };
+            }
+
+            // Legacy listings may predate persisted country metadata. Keep
+            // those real records discoverable; the page still rejects an
+            // explicitly different country when one is present.
+            const legacyFallback = await fetchCompleteCoreSearchFallback('', {});
             return {
                 success: true,
-                data: (response.data?.sections || []).map(mapCorePropertySectionToSearchSection),
+                data: buildFallbackPropertySections(legacyFallback.data),
             };
         } catch (error) {
-            return {
-                success: false,
-                data: [],
-                error: getErrorMessage(error, 'Failed to fetch property sections.'),
-            };
+            try {
+                const countryFallback = await fetchCompleteCoreSearchFallback('', {
+                    country,
+                });
+                if (countryFallback.data.length > 0 || !country.trim()) {
+                    return {
+                        success: true,
+                        data: buildFallbackPropertySections(countryFallback.data),
+                    };
+                }
+
+                const legacyFallback = await fetchCompleteCoreSearchFallback('', {});
+                return {
+                    success: true,
+                    data: buildFallbackPropertySections(legacyFallback.data),
+                };
+            } catch {
+                return {
+                    success: false,
+                    data: [],
+                    error: getErrorMessage(error, 'Failed to fetch property sections.'),
+                };
+            }
         }
     },
 

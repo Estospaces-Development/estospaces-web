@@ -375,7 +375,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </div>
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <Clock size={14} className="flex-shrink-0 text-gray-400" />
-                                <span className="truncate">{formatApplicationRelativeTime(application.lastUpdated || application.createdAt, relativeTimeNow)}</span>
+                                <span className="truncate">{formatApplicationRelativeTime(application.createdAt || application.lastUpdated, relativeTimeNow)}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <FileText size={14} className="flex-shrink-0 text-gray-400" />

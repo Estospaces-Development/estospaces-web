@@ -8,12 +8,37 @@ import {
     hydrateApplicationPropertyContexts,
     hydrateMissingSaleProgressionPropertyContexts,
     mapBackendApplication,
+    mergePropertyContexts,
 } from '../contexts/ApplicationsContext';
 
 const applicationsContextSource = readFileSync(
     resolve(import.meta.dirname, '..', 'contexts', 'ApplicationsContext.tsx'),
     'utf8',
 );
+
+test('legacy application context merges missing snapshot fields from viewing data', () => {
+    const merged = mergePropertyContexts(
+        {
+            title: 'QA Issue 1234567890',
+            address: 'Address unavailable',
+            price: 0,
+            currency: '',
+        },
+        {
+            title: 'Chennai Garden Home',
+            address: '12 Marina Road, Chennai',
+            price: 125000,
+            currency: 'INR',
+            agentName: 'SRINI Agency',
+        },
+    );
+
+    assert.equal(merged.title, 'Chennai Garden Home');
+    assert.equal(merged.address, '12 Marina Road, Chennai');
+    assert.equal(merged.price, 125000);
+    assert.equal(merged.currency, 'INR');
+    assert.equal(merged.agentName, 'SRINI Agency');
+});
 
 test('sign-out invalidates pending background application hydration', () => {
     assert.match(

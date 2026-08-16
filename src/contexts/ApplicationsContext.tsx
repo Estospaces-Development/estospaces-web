@@ -33,7 +33,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import { getApplicationPropertyDisplayTitle, isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
 
-type PropertyContext = {
+export type PropertyContext = {
     title?: string;
     address?: string;
     image?: string;
@@ -309,6 +309,27 @@ const hasUsableApplicationAddress = (address: unknown) => {
 };
 
 const normalizeApplicationSnapshotText = (value: unknown) => String(value || '').trim();
+
+const usablePropertyContextText = (value: unknown) => String(value || '').trim();
+
+export const mergePropertyContexts = (
+    primary: PropertyContext | undefined,
+    fallback: PropertyContext | undefined,
+): PropertyContext => ({
+    title: usablePropertyContextText(primary?.title) && !isInternalApplicationTitle(primary?.title)
+        ? primary?.title
+        : fallback?.title,
+    address: hasUsableApplicationAddress(primary?.address) ? primary?.address : fallback?.address,
+    image: usablePropertyContextText(primary?.image) ? primary?.image : fallback?.image,
+    price: Number.isFinite(primary?.price) && Number(primary?.price) > 0 ? primary?.price : fallback?.price,
+    country: usablePropertyContextText(primary?.country) ? primary?.country : fallback?.country,
+    currency: usablePropertyContextText(primary?.currency) ? primary?.currency : fallback?.currency,
+    propertyType: usablePropertyContextText(primary?.propertyType) ? primary?.propertyType : fallback?.propertyType,
+    agentName: usablePropertyContextText(primary?.agentName) ? primary?.agentName : fallback?.agentName,
+    agentAgency: usablePropertyContextText(primary?.agentAgency) ? primary?.agentAgency : fallback?.agentAgency,
+    agentEmail: usablePropertyContextText(primary?.agentEmail) ? primary?.agentEmail : fallback?.agentEmail,
+    agentPhone: usablePropertyContextText(primary?.agentPhone) ? primary?.agentPhone : fallback?.agentPhone,
+});
 
 export const applicationNeedsCurrentPropertyContext = (application: Pick<
     BackendApplication,
@@ -645,23 +666,26 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         });
 
         relatedViewings.forEach((viewing) => {
-            if (!viewing.property_id || propertyContextById.has(viewing.property_id)) {
+            if (!viewing.property_id) {
                 return;
             }
 
-            propertyContextById.set(viewing.property_id, {
-                title: viewing.property_title,
-                address: viewing.property_address,
-                image: viewing.property_image,
-                price: viewing.property_price,
-                country: (viewing as any).property_country,
-                currency: (viewing as any).property_currency,
-                propertyType: viewing.listing_type,
-                agentName: viewing.agent_name,
-                agentAgency: viewing.agent_agency,
-                agentEmail: viewing.agent_email,
-                agentPhone: viewing.agent_phone,
-            });
+            propertyContextById.set(
+                viewing.property_id,
+                mergePropertyContexts(propertyContextById.get(viewing.property_id), {
+                    title: viewing.property_title,
+                    address: viewing.property_address,
+                    image: viewing.property_image,
+                    price: viewing.property_price,
+                    country: (viewing as any).property_country,
+                    currency: (viewing as any).property_currency,
+                    propertyType: viewing.listing_type,
+                    agentName: viewing.agent_name,
+                    agentAgency: viewing.agent_agency,
+                    agentEmail: viewing.agent_email,
+                    agentPhone: viewing.agent_phone,
+                }),
+            );
         });
 
         const backendApplications = applicationsResult.data || [];
@@ -700,7 +724,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                     mapBackendApplication(
                         application,
                         findRelatedViewing(application, relatedViewings),
-                        refreshedApplicationPropertyContextById.get(application.property_id),
+                        refreshedApplicationPropertyContextById.get(application.property_id)
+                            || propertyContextById.get(application.property_id),
                     )
                 ));
             const mappedSaleProgressions = saleProgressions.map((progression) =>

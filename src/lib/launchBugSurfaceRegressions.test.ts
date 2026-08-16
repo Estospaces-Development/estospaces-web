@@ -24,3 +24,14 @@ test('manager review history does not synthesize a system audit event', () => {
   assert.doesNotMatch(source, /Status imported from the approved manager profile/);
   assert.match(source, /return auditLog;/);
 });
+
+test('application card age is based on the persisted creation time', () => {
+  const source = readSource('src/components/dashboard/applications/ApplicationCard.tsx');
+  assert.match(source, /formatApplicationRelativeTime\(application\.createdAt \|\| application\.lastUpdated/);
+  assert.doesNotMatch(source, /formatApplicationRelativeTime\(application\.lastUpdated \|\| application\.createdAt/);
+});
+
+test('legacy application hydration retains viewing snapshot context', () => {
+  const source = readSource('src/contexts/ApplicationsContext.tsx');
+  assert.match(source, /refreshedApplicationPropertyContextById\.get\(application\.property_id\)[\s\S]{0,100}\|\| propertyContextById\.get\(application\.property_id\)/);
+});

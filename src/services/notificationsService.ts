@@ -5,6 +5,7 @@
 
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { getNotificationNavigationPath as resolveNotificationNavigationPath } from '@/lib/notificationNavigation';
+import { isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
 
 const NOTIFICATION_URL = () => getServiceUrl('notification');
 
@@ -220,6 +221,22 @@ export const dedupeNotificationsForDisplay = (notifications: Notification[]): No
     return deduped;
 };
 
+export const isInternalAdminQANotification = (notification: Notification) => {
+    const propertyTitle = readNotificationDataString(
+        notification.data,
+        'property_title',
+        'propertyTitle',
+        'case_title',
+        'caseTitle',
+    );
+    const messagePropertyTitle = String(notification.message || '').match(
+        /\b(?:case|request)\s+for\s+(.+?)(?:[.!]|$)/i,
+    )?.[1]?.trim();
+
+    return [propertyTitle, messagePropertyTitle]
+        .some((value) => isInternalApplicationTitle(value));
+};
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -235,6 +252,10 @@ export async function getNotifications(unreadOnly: boolean = false, role?: strin
         suppressErrorToast: true,
     });
     let notifications = dedupeNotificationsForDisplay((data.notifications || []).map(normalizeNotification));
+
+    if (role === 'admin') {
+        notifications = notifications.filter((notification) => !isInternalAdminQANotification(notification));
+    }
 
     // For managers, ensure all manager-relevant notification types are surfaced
     // even if the backend applies partial filtering based on role heuristics.
@@ -283,7 +304,9 @@ export async function getNotifications(unreadOnly: boolean = false, role?: strin
     // Falling back to the local filter would inflate the count whenever the
     // dedupe/role-merging step surfaces a notification the backend had already
     // counted, causing stale "unread" badges after the user marks all as read.
-    const backendUnreadCount = typeof data.unread_count === 'number' ? data.unread_count : null;
+    const backendUnreadCount = role === 'admin'
+        ? null
+        : typeof data.unread_count === 'number' ? data.unread_count : null;
     const computedUnreadCount = notifications.filter((notification) => !notification.is_read).length;
     return {
         notifications,
