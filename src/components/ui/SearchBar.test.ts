@@ -92,6 +92,14 @@ test('user dashboard hero search defaults to all sale and rental homes', () => {
     assert.doesNotMatch(userDashboardSource, /listingType: selectedPropertyType === 'rent' \? 'rent' : 'sale'/);
 });
 
+test('dashboard search rejects invalid keyword characters before searching or navigating', () => {
+    assert.match(source, /getSearchQueryValidationMessage/);
+    assert.match(source, /const keywordValidationMessage = getSearchQueryValidationMessage\(rawKeyword\);/);
+    assert.match(source, /if \(keywordValidationMessage\) \{[\s\S]*toast\.error\(keywordValidationMessage\);[\s\S]*return;/);
+    assert.match(source, /const submittedFilters = \{ \.\.\.nextFilters, keyword: trimmedKeyword \};/);
+    assert.match(source, /onSearch\) onSearch\(submittedFilters\);/);
+});
+
 test('user dashboard search keeps submitted filters in dashboard URL params', () => {
     assert.match(userDashboardSource, /const dashboardSearchParamKeys = \[[\s\S]*'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
     assert.match(userDashboardSource, /const nextDashboardType = nextFilters\.listingType === 'rent'[\s\S]*selectedPropertyType;/);

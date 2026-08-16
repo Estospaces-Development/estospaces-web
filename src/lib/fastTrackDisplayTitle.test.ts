@@ -11,6 +11,10 @@ test('fast-track display titles hide internal QA artifact labels', () => {
     getFastTrackDisplayTitle('QA Manual FT E2E 2026-06-25T18-30-15-991Z', 'Selected fast-track case'),
     'Selected fast-track case',
   );
+  assert.equal(
+    getFastTrackDisplayTitle('Dev validation proof 1775036317781', 'Selected fast-track case'),
+    'Selected fast-track case',
+  );
 });
 
 test('fast-track display titles keep real property titles', () => {

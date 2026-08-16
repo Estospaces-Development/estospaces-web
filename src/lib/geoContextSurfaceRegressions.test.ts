@@ -71,7 +71,7 @@ test("application displays preserve property country for currency formatting", (
   const userApplicationsSource = readSource("pages/user/applications/page.tsx");
 
   assert.match(contextSource, /propertyCountry\?: string/);
-  assert.match(contextSource, /propertyCountry: application\.property_country/);
+  assert.match(contextSource, /propertyCountry: normalizeApplicationSnapshotText\(application\.property_country\) \|\| propertyContext\?\.country/);
   assert.match(contextSource, /property_country: data\.property_country \|\| propertySnapshot\.property_country/);
   assert.match(workflowSource, /property_country: propertyCountry/);
 

@@ -47,7 +47,36 @@ export type AdminPropertyRegistryFilters = {
     statusFilter?: string;
 };
 
+export type AdminPropertyRegistryServiceFilters = {
+    search?: string;
+    listingType?: Array<'sale' | 'rent'>;
+    propertyType?: Array<'commercial'>;
+    status?: string[];
+};
+
 export type AdminPropertyRegistrySortOption = 'newest' | 'oldest' | 'title_asc' | 'price_desc' | 'status';
+
+export interface AdminPropertyRegistryServiceSort {
+    field: 'createdAt' | 'title' | 'price' | 'status';
+    order: 'asc' | 'desc';
+}
+
+export const buildAdminPropertyRegistryServiceSort = (
+    sortBy: AdminPropertyRegistrySortOption,
+): AdminPropertyRegistryServiceSort => {
+    switch (sortBy) {
+        case 'oldest':
+            return { field: 'createdAt', order: 'asc' };
+        case 'title_asc':
+            return { field: 'title', order: 'asc' };
+        case 'price_desc':
+            return { field: 'price', order: 'desc' };
+        case 'status':
+            return { field: 'status', order: 'asc' };
+        default:
+            return { field: 'createdAt', order: 'desc' };
+    }
+};
 
 export const ADMIN_PROPERTY_TYPE_FILTERS = [
     { value: 'all', label: 'all' },
@@ -93,6 +122,32 @@ const STATUS_FILTER_GROUPS: Record<string, readonly string[]> = {
     coming_soon: ['coming_soon'],
 };
 
+export const buildAdminPropertyRegistryServiceFilters = ({
+    searchQuery,
+    typeFilter,
+    statusFilter,
+}: AdminPropertyRegistryFilters): AdminPropertyRegistryServiceFilters => {
+    const serviceFilters: AdminPropertyRegistryServiceFilters = {};
+    const normalizedType = normalizeFilterToken(typeFilter);
+    const normalizedStatus = normalizeFilterToken(statusFilter);
+    const normalizedSearch = searchQuery?.trim();
+
+    if (normalizedSearch) {
+        serviceFilters.search = normalizedSearch;
+    }
+
+    if (normalizedType === 'sale' || normalizedType === 'rent') {
+        serviceFilters.listingType = [normalizedType];
+    } else if (normalizedType === 'commercial') {
+        serviceFilters.propertyType = ['commercial'];
+    }
+    if (normalizedStatus !== 'all') {
+        serviceFilters.status = [...(STATUS_FILTER_GROUPS[normalizedStatus] || [normalizedStatus])];
+    }
+
+    return serviceFilters;
+};
+
 const normalizeFilterToken = (value?: string | null) => value?.trim().toLowerCase() || 'all';
 
 const normalizePropertyValue = (value?: string | null) => value?.trim().toLowerCase() || '';
@@ -114,7 +169,7 @@ const RAW_AUTOMATION_TIMESTAMP_PATTERNS = [
 ] as const;
 
 const getPropertyTimestamp = (property: AdminPropertyRegistryProperty) =>
-    new Date(property.updatedAt || property.createdAt || 0).getTime();
+    new Date(property.createdAt || 0).getTime();
 
 const getPropertyPriceAmount = (property: AdminPropertyRegistryProperty) => {
     if (typeof property.price === 'number') {
@@ -179,14 +234,33 @@ const getAdminPropertyRegistryText = (property: AdminPropertyRegistryProperty) =
     property.property_id,
     property.title,
     property.description,
+    property.address_line_1,
+    property.address_line_2,
+    property.location?.addressLine1,
+    property.location?.addressLine2,
+    property.city,
+    property.location?.city,
+    property.postcode,
+    property.location?.postalCode,
+    property.status,
+    property.contactName,
+    property.agent_name,
+].filter(Boolean).join(' ');
+
+const getAdminPropertyAutomationText = (property: AdminPropertyRegistryProperty) => [
+    property.id,
+    property.propertyId,
+    property.property_id,
+    property.title,
+    property.description,
     property.contactName,
     property.agent_name,
 ].filter(Boolean).join(' ');
 
 export const isInternalAutomationProperty = (property: AdminPropertyRegistryProperty) => {
-    const searchableText = getAdminPropertyRegistryText(property);
-    return INTERNAL_AUTOMATION_TEXT_PATTERNS.some((pattern) => pattern.test(searchableText))
-        || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(searchableText));
+    const automationText = getAdminPropertyAutomationText(property);
+    return INTERNAL_AUTOMATION_TEXT_PATTERNS.some((pattern) => pattern.test(automationText))
+        || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(automationText));
 };
 
 const COPY_PROPERTY_PATTERN = /\(copy\)/i;
@@ -214,7 +288,6 @@ export const filterVisibleAdminPropertyRegistry = <Property extends AdminPropert
     properties: readonly Property[],
 ) => {
     const seenKeys = new Set<string>();
-    const seenByTitle = new Map<string, string>();
     const nonInternal = properties.filter((property) => !isInternalAutomationProperty(property));
 
     const result: Property[] = [];
@@ -223,15 +296,10 @@ export const filterVisibleAdminPropertyRegistry = <Property extends AdminPropert
             continue;
         }
         const dedupKey = getPropertyDedupKey(property);
-        const titleKey = String(property.title || '').trim().toLowerCase();
-        if (seenByTitle.has(titleKey)) {
-            continue;
-        }
         if (seenKeys.has(dedupKey)) {
             continue;
         }
         seenKeys.add(dedupKey);
-        seenByTitle.set(titleKey, dedupKey);
         result.push(property);
     }
     return result;
@@ -244,16 +312,7 @@ const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: st
         return true;
     }
 
-    return [
-        property.id,
-        property.propertyId,
-        property.property_id,
-        property.title,
-        property.city,
-        property.location?.city,
-        property.status,
-        property.contactName,
-    ].some((value) => normalizePropertyValue(value).includes(normalizedQuery));
+    return normalizePropertyValue(getAdminPropertyRegistryText(property)).includes(normalizedQuery);
 };
 
 const matchesTypeFilter = (property: AdminPropertyRegistryProperty, typeFilter?: string) => {
@@ -283,7 +342,7 @@ const matchesStatusFilter = (property: AdminPropertyRegistryProperty, statusFilt
 export const filterAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
     properties: readonly Property[],
     filters: AdminPropertyRegistryFilters,
-) => filterVisibleAdminPropertyRegistry(properties).filter((property) => (
+) => properties.filter((property) => (
     matchesSearch(property, filters.searchQuery)
     && matchesTypeFilter(property, filters.typeFilter)
     && matchesStatusFilter(property, filters.statusFilter)

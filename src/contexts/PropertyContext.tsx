@@ -8,6 +8,7 @@ import {
   useMemo,
   ReactNode,
   useCallback,
+  useRef,
 } from "react";
 import { useLocation } from "react-router-dom";
 import * as propertyService from "../services/propertyService";
@@ -355,7 +356,9 @@ export const filterContextProperties = (
     if (statuses.size > 0) {
       const status = normalizePropertyFilterValue(property.status);
       const draft = property.draft ? "draft" : "";
-      if (!statuses.has(status) && !statuses.has(draft)) {
+      const liveStatusMatch = statuses.has("available")
+        && ["available", "published", "online", "active"].includes(status);
+      if (!statuses.has(status) && !statuses.has(draft) && !liveStatusMatch) {
         return false;
       }
     }
@@ -416,7 +419,8 @@ export type SortField =
   | "area"
   | "bedrooms"
   | "views"
-  | "title";
+  | "title"
+  | "status";
 export type SortOrder = "asc" | "desc";
 
 const SORT_FIELD_MAP: Record<SortField, string> = {
@@ -427,12 +431,25 @@ const SORT_FIELD_MAP: Record<SortField, string> = {
   bedrooms: "bedrooms",
   views: "views",
   title: "title",
+  status: "status",
 };
 
 export interface SortOption {
   field: SortField;
   order: SortOrder;
 }
+
+export const createPropertyLoadSequence = () => {
+  let latestRequestId = 0;
+
+  return {
+    begin: () => {
+      latestRequestId += 1;
+      return latestRequestId;
+    },
+    isCurrent: (requestId: number) => requestId === latestRequestId,
+  };
+};
 
 export interface Pagination {
   page: number;
@@ -534,12 +551,13 @@ export const PropertyProvider = ({
   });
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    limit: scope === "admin" ? 100 : 12,
+    limit: scope === "admin" ? 15 : 12,
     total: 0,
     totalPages: 1,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadSequence = useRef(createPropertyLoadSequence());
   const isAuthRoute = isAuthRoutePath(location.pathname);
   const syncTags = useMemo(() => {
     const tags: string[] = [WORKSPACE_SYNC_TAGS.PROPERTIES];
@@ -926,6 +944,8 @@ export const PropertyProvider = ({
   );
 
   const loadProperties = useCallback(async () => {
+    const requestId = loadSequence.current.begin();
+
     if (isAuthRoute || !enabled) {
       setError(null);
       setLoading(false);
@@ -959,14 +979,18 @@ export const PropertyProvider = ({
         errorMsg = result.error;
       }
 
+      if (!loadSequence.current.isCurrent(requestId)) {
+        return;
+      }
+
       if (errorMsg) {
         setError(errorMsg);
         setProperties([]);
         setPagination((prev) => ({ ...prev, total: 0, totalPages: 1 }));
       } else if (data) {
         setProperties(data.map(mapServiceToContextProperty));
-        const nextPage = paginationData?.page ?? pagination.page;
-        const nextLimit = paginationData?.limit ?? pagination.limit;
+        const nextPage = paginationData?.page ?? Math.max(Number(query.page) || 1, 1);
+        const nextLimit = paginationData?.limit ?? Math.max(Number(query.limit) || 1, 1);
         const nextTotal =
           paginationData?.total ?? paginationData?.totalCount ?? data.length;
         const nextTotalPages =
@@ -983,12 +1007,17 @@ export const PropertyProvider = ({
         }));
       }
     } catch (err: any) {
+      if (!loadSequence.current.isCurrent(requestId)) {
+        return;
+      }
       console.error("[PropertyContext] fetchProperties error:", err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (loadSequence.current.isCurrent(requestId)) {
+        setLoading(false);
+      }
     }
-  }, [buildPropertyQuery, enabled, isAuthRoute, mapServiceToContextProperty, pagination.limit, pagination.page, scope]);
+  }, [buildPropertyQuery, enabled, isAuthRoute, mapServiceToContextProperty, scope]);
 
   const fetchProperties = useCallback(async () => {
     propertyService.invalidatePropertyListCache();

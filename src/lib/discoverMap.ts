@@ -12,6 +12,9 @@ export interface DiscoverNearbyMapProperty {
     city: string;
     postcode: string;
     price: number;
+    currency?: string;
+    country?: string;
+    countryCode?: string;
     property_type: string;
     bedrooms: number;
     bathrooms: number;
@@ -31,6 +34,9 @@ export const toDiscoverNearbyMapProperties = (properties: SearchResult[]): Disco
         city: formatLaunchPropertyLocation(property.city),
         postcode: property.postcode || '',
         price: property.price || 0,
+        currency: property.currency || undefined,
+        country: property.country || undefined,
+        countryCode: property.countryCode || undefined,
         property_type: property.listing_type || property.property_type || '',
         bedrooms: property.bedrooms || 0,
         bathrooms: property.bathrooms || 0,

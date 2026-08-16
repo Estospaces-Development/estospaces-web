@@ -53,8 +53,11 @@ test('search query normalization trims, lowercases, collapses spacing, and caps 
 test('search query validation rejects explicit blank invalid and over-limit queries', () => {
   assert.equal(getSearchQueryValidationMessage('', true), 'Enter a search term.');
   assert.match(getSearchQueryValidationMessage('<script>'), /letters/);
+  assert.match(getSearchQueryValidationMessage('@@@###'), /letters/);
   assert.match(getSearchQueryValidationMessage('a'.repeat(121)), /120 characters/);
   assert.equal(getSearchQueryValidationMessage('Attur PR1 5QH'), '');
+  assert.equal(getSearchQueryValidationMessage('Flat #12'), '');
+  assert.equal(getSearchQueryValidationMessage('Smith & Sons'), '');
 });
 
 test('room bound normalization rejects invalid and over-limit values', () => {

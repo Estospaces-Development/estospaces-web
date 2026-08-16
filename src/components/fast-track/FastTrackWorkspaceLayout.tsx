@@ -521,8 +521,8 @@ export function FastTrackUtilityDock({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <section className="min-w-0 max-w-full rounded-[28px] border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
-      <div className="space-y-3.5">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
+      <div className="min-w-0 max-w-full space-y-3.5">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
             {copy.utilityDockTitle}
@@ -554,7 +554,7 @@ export function FastTrackUtilityDock({
 
         <div
           className={cn(
-            'rounded-[22px] border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40',
+            'min-w-0 max-w-full overflow-hidden rounded-[22px] border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40',
             density === 'comfortable' ? 'min-h-[320px]' : 'min-h-[248px]',
           )}
           data-fast-track-utility-panel={activeModule}

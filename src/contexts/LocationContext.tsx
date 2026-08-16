@@ -17,6 +17,16 @@ interface LocationContextType {
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
+export const resolveProfileLocation = (user?: {
+    postcode?: string | null;
+    address?: string | null;
+} | null) => {
+    if (!user) return null;
+    const postcode = extractPostcodeFromAddress(user.postcode || '')
+        || extractPostcodeFromAddress(user.address || '');
+    return postcode ? { postcode } : null;
+};
+
 export const useUserLocation = () => {
     const context = useContext(LocationContext);
     if (!context) {
@@ -40,9 +50,7 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
     // Get user profile location
     const getUserProfileLocation = useCallback(async () => {
-        if (!user || !user.address) return null;
-        const postcode = extractPostcodeFromAddress(user.address);
-        return postcode ? { postcode } : null;
+        return resolveProfileLocation(user);
     }, [user]);
 
     // Detect user location on mount

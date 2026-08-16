@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   getApplicationPropertyDisplayTitle,
+  isApplicationWorkflowTitle,
+  isApplicationWorkflowStatusTitle,
   isInternalApplicationTitle,
 } from './applicationDisplayTitle';
 
@@ -49,6 +51,20 @@ test('application display titles keep human property titles', () => {
     getApplicationPropertyDisplayTitle('Canal View Apartment', '2 Canal Road, London'),
     'Canal View Apartment',
   );
+});
+
+test('application display titles do not present workflow statuses as property names', () => {
+  assert.equal(isApplicationWorkflowTitle('Cancelled'), true);
+  assert.equal(isApplicationWorkflowTitle('Canal View Apartment'), false);
+  assert.equal(isApplicationWorkflowStatusTitle('CANCELLED', 'cancelled'), true);
+  assert.equal(isApplicationWorkflowStatusTitle('Submitted', 'submitted'), true);
+  assert.equal(isApplicationWorkflowStatusTitle('under_review', 'under_review'), true);
+  assert.equal(isApplicationWorkflowStatusTitle('documents_required', 'documents_requested'), true);
+  assert.equal(isApplicationWorkflowStatusTitle('verification_in_progress', 'verification_in_progress'), true);
+  assert.equal(isApplicationWorkflowStatusTitle('offer_under_review', 'offer_under_review'), true);
+  assert.equal(isApplicationWorkflowStatusTitle('Exchange', 'pending'), false);
+  assert.equal(isInternalApplicationTitle('Draft'), false);
+  assert.equal(getApplicationPropertyDisplayTitle('Draft', '12 Park Road'), 'Draft');
 });
 
 test('application display titles use real address before fallback', () => {

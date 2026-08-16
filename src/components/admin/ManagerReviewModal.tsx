@@ -180,33 +180,10 @@ export const getEffectiveManagerDocumentStatus = (
 };
 
 export const getManagerReviewAuditLog = (
-    profile: ManagerProfile,
+    _profile: ManagerProfile,
     auditLog: AuditLogEntry[],
 ): AuditLogEntry[] => {
-    if (auditLog.length > 0) {
-        return auditLog;
-    }
-
-    const fallbackActionByStatus: Partial<Record<VerificationStatus, string>> = {
-        approved: 'manager_approved',
-        rejected: 'manager_rejected',
-        under_review: 'review_started',
-        submitted: 'verification_submitted',
-    };
-    const actionType = fallbackActionByStatus[profile.verification_status];
-    if (!actionType) {
-        return auditLog;
-    }
-
-    return [{
-        id: `profile-status-${profile.id}-${profile.verification_status}`,
-        manager_id: profile.id,
-        action_type: actionType,
-        actor_id: '',
-        actor_role: 'system',
-        notes: 'Status imported from the approved manager profile because no detailed audit history was returned.',
-        created_at: profile.submitted_at || new Date(0).toISOString(),
-    }];
+    return auditLog;
 };
 
 // ============================================================================

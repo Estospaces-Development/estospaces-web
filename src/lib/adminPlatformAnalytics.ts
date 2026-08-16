@@ -51,6 +51,10 @@ export const getAdminTotalBookings = (data?: AnalyticsData | null) => (
 );
 
 export const getAdminActiveListings = (data?: AnalyticsData | null) => {
+    if (typeof data?.active_listings === 'number') {
+        return data.active_listings;
+    }
+
     const livePerformanceRows = (data?.propertyPerformance || []).filter((property) => (
         ADMIN_LIVE_LISTING_STATUSES.has(property.status?.trim().toLowerCase() || '')
     ));

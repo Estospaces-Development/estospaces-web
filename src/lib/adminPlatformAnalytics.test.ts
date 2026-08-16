@@ -11,7 +11,15 @@ import {
     buildAdminDashboardSnapshot,
     createAdminAnalyticsExportDeduper,
     formatAdminCurrency,
+    getAdminActiveListings,
 } from './adminPlatformAnalytics';
+
+test('admin active listings prefer the authoritative aggregate over top-five rows', () => {
+    assert.equal(getAdminActiveListings({
+        active_listings: 12,
+        propertyPerformance: analytics.propertyPerformance?.slice(0, 5),
+    } as AnalyticsData), 12);
+});
 
 const analytics = {
     total_users: 79,

@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, LifeBuoy } from 'lucide-react';
+import { Bell, BellOff, Home, LifeBuoy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/contexts/MessagesContext';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import { buildConversationPropertyPath } from '@/lib/messagesInbox';
 import MessageBubble from './MessageBubble';
 
 interface ConversationThreadProps {
@@ -13,6 +15,7 @@ interface ConversationThreadProps {
 
 export default function ConversationThread({ conversationId }: ConversationThreadProps) {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { getConversation, isLoading, loadOlderMessages, muteConversation, unmuteConversation } = useMessages();
     const conversation = getConversation(conversationId);
     const messages = useMemo(() => conversation?.messages || [], [conversation?.messages]);
@@ -20,6 +23,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     const lastMessageIdRef = useRef<string | null>(null);
     const [isSavingPreference, setIsSavingPreference] = useState(false);
     const messageKeyFor = createDuplicateSafeKeyResolver('conversation-message');
+    const propertyPath = buildConversationPropertyPath(conversation?.propertyId, user?.role);
 
     useEffect(() => {
         const lastMessageId = messages[messages.length - 1]?.id || null;
@@ -68,7 +72,26 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     return (
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900/50" tabIndex={0} aria-label="Conversation messages">
             {conversation && (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 text-left">
+                        <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+                            {conversation.contactName || conversation.agentName || 'Conversation'}
+                        </p>
+                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                            {conversation.propertyTitle || conversation.agentAgency || 'General conversation'}
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                    {propertyPath ? (
+                        <button
+                            type="button"
+                            onClick={() => navigate(propertyPath)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300"
+                        >
+                            <Home size={16} />
+                            Back to property
+                        </button>
+                    ) : null}
                     <button
                         type="button"
                         onClick={() => void handleCreateSupportTicket()}
@@ -87,6 +110,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                         {conversation.isMuted ? <Bell size={16} /> : <BellOff size={16} />}
                         {isSavingPreference ? 'Updating...' : conversation.isMuted ? 'Unmute' : 'Mute'}
                     </button>
+                    </div>
                 </div>
             )}
             {messages.length > 0 ? (

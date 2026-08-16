@@ -6,11 +6,8 @@ import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from '@/lib/leafletReact';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {
-    formatLaunchPropertyLocation,
-    getLaunchLocationCodeLabel,
-} from '@/lib/launchLocale';
-import { formatMapPriceInRupees } from '@/lib/mapCurrency';
+import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
+import { formatMapPropertyPrice } from '@/lib/mapCurrency';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -192,9 +189,7 @@ const NearbyPropertiesMap = ({
         setIsMounted(true);
     }, []);
 
-    const formatPropertyPrice = (property?: Property | null) => (
-        formatMapPriceInRupees(property?.price)
-    );
+    const formatPropertyPrice = formatMapPropertyPrice;
 
     const propertiesWithDistance = useMemo(() => {
         if (!Array.isArray(properties) || properties.length === 0) {
@@ -438,7 +433,7 @@ const NearbyPropertiesMap = ({
                         <Marker
                             key={property.id}
                             position={[property.latitude as number, property.longitude as number]}
-                            icon={createPropertyIcon(formatMapPriceInRupees(property.price, 'View'), getMarkerColor(property.category), isSelected)}
+                            icon={createPropertyIcon(formatMapPropertyPrice(property, 'View'), getMarkerColor(property.category), isSelected)}
                             eventHandlers={{
                                 click: () => {
                                     setIsSelectionDismissed(false);

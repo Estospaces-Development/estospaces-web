@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     FileText,
     MapPin,
@@ -26,6 +26,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { canWithdrawApplicationRecord } from '@/lib/saleJourney';
 import { messagesService } from '@/services/messagesService';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatApplicationRelativeTime } from '@/lib/applicationRelativeTime';
 
 
 
@@ -38,6 +39,12 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const navigate = useNavigate();
     const { user } = useAuth();
     const toast = useToast();
+    const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setRelativeTimeNow(Date.now()), 30_000);
+        return () => window.clearInterval(timer);
+    }, []);
     const [openingConversation, setOpeningConversation] = React.useState(false);
 
     const getStatusConfig = (status: string) => {
@@ -211,22 +218,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     };
 
-    const formatRelativeTime = (dateString: string | undefined) => {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor(diff / (1000 * 60));
-
-        if (minutes < 60) return `${minutes}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        if (days === 1) return 'Yesterday';
-        if (days < 7) return `${days} days ago`;
-        return formatDate(dateString);
-    };
-
     const isDeadlineWarning = () => {
         if (!application.deadline) return false;
         const deadline = new Date(application.deadline);
@@ -322,11 +313,14 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     };
 
     const _PropertyTypeIcon = getPropertyTypeIcon();
-    const formattedPropertyPrice = formatLaunchCurrencyForCountry(application.propertyPrice || 0, {
-        countryCode: application.propertyCountry,
-        countryName: application.propertyCountry,
-        currencyCode: application.propertyCurrency,
-    });
+    const hasPropertyPrice = Number.isFinite(application.propertyPrice) && Number(application.propertyPrice) > 0;
+    const formattedPropertyPrice = hasPropertyPrice
+        ? formatLaunchCurrencyForCountry(Number(application.propertyPrice), {
+            countryCode: application.propertyCountry,
+            countryName: application.propertyCountry,
+            currencyCode: application.propertyCurrency,
+        })
+        : 'Price unavailable';
 
     return (
         <div
@@ -384,7 +378,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </div>
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <Clock size={14} className="flex-shrink-0 text-gray-400" />
-                                <span className="truncate">{formatRelativeTime(application.lastUpdated || application.createdAt)}</span>
+                                <span className="truncate">{formatApplicationRelativeTime(application.createdAt || application.lastUpdated, relativeTimeNow)}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <FileText size={14} className="flex-shrink-0 text-gray-400" />
@@ -442,9 +436,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
                                 {formattedPropertyPrice}
                             </span>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                                {application.propertyType === 'rent' ? '/month' : ''}
-                            </span>
+                            {hasPropertyPrice ? (
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                    {application.propertyType === 'rent' ? '/month' : ''}
+                                </span>
+                            ) : null}
                         </div>
 
                         {/* Action Buttons */}

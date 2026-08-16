@@ -178,6 +178,8 @@ test('manager property submit button is disabled until required fields are compl
     managerPropertyFormPage,
     /Complete all required property details before submitting\./,
   );
+  assert.match(managerPropertyFormPage, /\? "Complete the required fields"/);
+  assert.match(managerPropertyFormPage, /The submit action stays disabled until they are corrected\./);
 });
 
 test('manager property money fields display the selected currency symbol', () => {

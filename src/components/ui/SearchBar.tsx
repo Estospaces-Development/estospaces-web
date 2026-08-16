@@ -10,7 +10,7 @@ import {
     getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
-import { normalizeSearchQueryInput } from '@/lib/propertySearchControls';
+import { getSearchQueryValidationMessage, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
 import { selectLocationSuggestions } from '@/lib/locationSuggestions';
@@ -208,10 +208,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
     const handleInputChange = (field: keyof SearchFilters, value: string | number | null) => {
         if (field === 'keyword' && typeof value === 'string') {
-            // Strip disallowed characters on input (allow letters, numbers, spaces, common punctuation)
-            const sanitized = value.replace(/[<>{}[\]\\|`~]/g, '');
-            const normalized = normalizeSearchQueryInput(sanitized);
-            setFilters((prev) => ({ ...prev, keyword: normalized }));
+            setFilters((prev) => ({ ...prev, keyword: value }));
             return;
         }
         setFilters((prev) => ({ ...prev, [field]: value }));
@@ -221,25 +218,17 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (e) e.preventDefault();
 
         const rawKeyword = (nextFilters.keyword || '').trim();
+        const keywordValidationMessage = getSearchQueryValidationMessage(rawKeyword);
+        if (keywordValidationMessage) {
+            toast.error(keywordValidationMessage);
+            return;
+        }
         if (rawKeyword.length > 0 && rawKeyword.length < 3) {
             toast.error('Please enter at least 3 characters to search.');
             return;
         }
         const trimmedKeyword = normalizeSearchQueryInput(rawKeyword);
-        if (trimmedKeyword.length > 120) {
-            toast.error('Search term is too long. Please use fewer than 120 characters.');
-            return;
-        }
-        if (/[<>{}[\]\\|`~]/.test(rawKeyword)) {
-            toast.error('Please remove special characters from your search.');
-            return;
-        }
-
-        // Enforce a minimum-length on the keyword itself (after sanitization) when provided.
-        if (trimmedKeyword.length > 0 && trimmedKeyword.length < 3) {
-            toast.error('Please enter at least 3 characters to search.');
-            return;
-        }
+        const submittedFilters = { ...nextFilters, keyword: trimmedKeyword };
 
         const params = new URLSearchParams();
         if (trimmedKeyword) params.set('q', trimmedKeyword);
@@ -252,7 +241,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (nextFilters.minBathrooms !== null) params.set('baths', nextFilters.minBathrooms.toString());
         if (searchMarket) params.set('market', searchMarket === 'GB' ? 'england' : 'india');
 
-        if (onSearch) onSearch(nextFilters);
+        if (onSearch) onSearch(submittedFilters);
         if (navigateOnSearch) navigate(`${searchPath}?${params.toString()}`);
     };
 

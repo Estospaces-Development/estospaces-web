@@ -95,7 +95,7 @@ test('manager review modal treats approved profile documents as approved for sta
     assert.match(source, /effectiveDocuments\.map/);
 });
 
-test('manager review modal backfills an activity entry for legacy approved managers', () => {
+test('manager review modal does not fabricate activity for legacy approved managers', () => {
     const auditLog = getManagerReviewAuditLog({
         id: 'manager-1',
         profile_type: 'broker',
@@ -103,10 +103,7 @@ test('manager review modal backfills an activity entry for legacy approved manag
         submitted_at: '2026-07-07T10:00:00Z',
     } as any, []);
 
-    assert.equal(auditLog.length, 1);
-    assert.equal(auditLog[0].action_type, 'manager_approved');
-    assert.equal(auditLog[0].actor_role, 'system');
-    assert.equal(auditLog[0].created_at, '2026-07-07T10:00:00Z');
+    assert.equal(auditLog.length, 0);
     assert.match(source, /const effectiveAuditLog = getManagerReviewAuditLog\(profile, auditLog\)/);
     assert.match(source, /\{effectiveAuditLog\.length\}/);
 });

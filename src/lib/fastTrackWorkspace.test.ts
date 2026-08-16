@@ -436,7 +436,7 @@ test('fast-track document preview opens a modal only from explicit preview actio
     );
 });
 
-test('fast-track document open stays inside the in-app preview modal', () => {
+test('fast-track document open uses a full external viewer while preview stays in-app', () => {
     assert.match(
         fastTrackWorkspaceComponent,
         /const externalWindow = openInNewTab \? window\.open\('about:blank', '_blank'\) : null/,
@@ -455,9 +455,9 @@ test('fast-track document open stays inside the in-app preview modal', () => {
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\);/,
+        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\);/,
     );
-    assert.doesNotMatch(
+    assert.match(
         fastTrackWorkspaceComponent,
         /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/,
     );
@@ -516,37 +516,33 @@ test('document preview busy state is scoped to the clicked action', () => {
 
 test('document row focus is single-click and does not reset scroll position', () => {
     const focusHandler = fastTrackWorkspaceComponent.match(
-        /const handleDocumentFocus = useCallback\(\(documentId: string\) => \{[\s\S]*?\}, \[replaceDocumentFocusUrl, restoreDocumentFocusScroll\]\);/,
+        /const handleDocumentFocus = useCallback\(\(documentId: string\) => \{[\s\S]*?\}, \[replaceDocumentFocusUrl\]\);/,
     )?.[0] || '';
 
     assert.match(fastTrackWorkspaceComponent, /const replaceDocumentFocusUrl = useCallback\(\(documentId: string\) => \{/);
-    assert.match(fastTrackWorkspaceComponent, /const pendingPointerDocumentFocusRef = useRef<string \| null>\(null\)/);
-    assert.match(fastTrackWorkspaceComponent, /const restoreDocumentFocusScroll = useCallback\(\(scrollX: number, scrollY: number\) => \{/);
-    assert.match(fastTrackWorkspaceComponent, /window\.scrollTo\(\{ left: scrollX, top: scrollY, behavior: 'auto' \}\)/);
-    assert.match(fastTrackWorkspaceComponent, /window\.requestAnimationFrame\(\(\) => \{\s*restore\(\);\s*window\.requestAnimationFrame\(restore\);/);
-    assert.match(fastTrackWorkspaceComponent, /window\.setTimeout\(restore, 80\)/);
+    assert.doesNotMatch(fastTrackWorkspaceComponent, /pendingPointerDocumentFocusRef/);
+    assert.doesNotMatch(fastTrackWorkspaceComponent, /restoreDocumentFocusScroll/);
     assert.match(
         fastTrackWorkspaceComponent,
         /setSearchParams\(\s*\(previous\) => buildFastTrackDocumentSearchParams\(previous, documentId\),\s*\{ replace: true, preventScrollReset: true \},/,
     );
     assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.history\.replaceState/);
     assert.match(focusHandler, /replaceDocumentFocusUrl\(documentId\)/);
-    assert.match(focusHandler, /restoreDocumentFocusScroll\(previousScrollX, previousScrollY\)/);
     assert.match(
         fastTrackWorkspaceComponent,
         /data-fast-track-document-focus-trigger/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onPointerDown=\{\(event\) => \{\s*if \(event\.button === 0\) \{\s*event\.preventDefault\(\);\s*pendingPointerDocumentFocusRef\.current = item\.id;\s*handleDocumentFocus\(item\.id\);/,
+        /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*handleDocumentFocus\(item\.id\);/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /if \(pendingPointerDocumentFocusRef\.current === item\.id\) \{\s*pendingPointerDocumentFocusRef\.current = null;\s*return;/,
+        /onClick=\{\(event\) => \{\s*if \(shouldIgnoreDocumentCardFocus\(event\.target\)\)/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onPointerDownCapture=\{\(event\) => \{/,
+        /\{ preventScrollReset: true \}/,
     );
 });
 

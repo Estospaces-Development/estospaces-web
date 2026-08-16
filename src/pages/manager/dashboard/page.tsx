@@ -123,6 +123,7 @@ function DashboardContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [dashboardMetricsLoading, setDashboardMetricsLoading] = useState(true);
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
   const [propertyStatusFilter, setPropertyStatusFilter] = useState('all');
@@ -160,6 +161,7 @@ function DashboardContent() {
     setFastTrackError(null);
     setBookingError(null);
     setIsLoading(false);
+    setDashboardMetricsLoading(false);
   }, []);
 
   const fetchDashboardData = useCallback(async (forceRefresh = false, silent = false) => {
@@ -174,6 +176,7 @@ function DashboardContent() {
 
     if (!silent) {
       setIsLoading(true);
+      setDashboardMetricsLoading(true);
     }
 
     try {
@@ -212,6 +215,7 @@ function DashboardContent() {
       }
       if (!silent) {
         setIsLoading(false);
+        setDashboardMetricsLoading(false);
       }
 
       const bookingsRes = await Promise.allSettled([bookingsTask]);
@@ -226,6 +230,7 @@ function DashboardContent() {
     } finally {
       if (!silent) {
         setIsLoading(false);
+        setDashboardMetricsLoading(false);
       }
     }
   }, [canLoadOperationalDashboard, managerVerificationLoading, resetOperationalDashboardData]);
@@ -373,11 +378,11 @@ function DashboardContent() {
 
   const stats = {
     liveFastTrack: String(fastTrackSummary.active),
-    liveFastTrackChange: [
+    liveFastTrackChange: `Across all cases: ${[
         fastTrackSummary.completed > 0 && `${fastTrackSummary.completed} completed`,
         fastTrackSummary.cancelled > 0 && `${fastTrackSummary.cancelled} closed`,
         fastTrackSummary.closingSoon > 0 && `${fastTrackSummary.closingSoon} closing soon`,
-    ].filter(Boolean).join(' · ') || `${fastTrackSummary.active} active`,
+    ].filter(Boolean).join(' · ') || 'no completed or closed cases'}`,
     activeProperties: getManagerLiveListingCount(analytics, properties, livePropertyTotal).toString(),
     activeListingsChange: analytics?.property_growth || '0%',
     totalViews: analytics?.total_views?.toString() || String(
@@ -484,6 +489,7 @@ function DashboardContent() {
           iconColor="bg-emerald-500"
           trendColor="text-emerald-700"
           onClick={() => navigate('/manager/fast-track')}
+          loading={dashboardMetricsLoading}
         />
         <StatCard
           title="Active Listings"
@@ -493,6 +499,7 @@ function DashboardContent() {
           iconColor="bg-blue-500"
           trendColor="text-blue-600"
           onClick={() => navigate(buildManagerActiveListingsPath())}
+          loading={dashboardMetricsLoading}
         />
         <StatCard
           title="Total Views"
@@ -502,6 +509,7 @@ function DashboardContent() {
           iconColor="bg-purple-500"
           trendColor="text-purple-600"
           onClick={() => navigate('/manager/analytics')}
+          loading={dashboardMetricsLoading}
         />
         <StatCard
           title="Conversion Rate"
@@ -511,6 +519,7 @@ function DashboardContent() {
           iconColor="bg-orange-500"
           trendColor="text-orange-600"
           onClick={() => navigate('/manager/analytics')}
+          loading={dashboardMetricsLoading}
         />
       </div>
 

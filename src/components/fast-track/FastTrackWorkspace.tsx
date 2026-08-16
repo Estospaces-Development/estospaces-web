@@ -636,7 +636,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
     const recoveredCaseNoticeRef = useRef<HTMLDivElement | null>(null);
-    const pendingPointerDocumentFocusRef = useRef<string | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
     const workspacePreferencesLoadedRef = useRef(false);
@@ -675,27 +674,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         );
     }, [setSearchParams]);
 
-    const restoreDocumentFocusScroll = useCallback((scrollX: number, scrollY: number) => {
-        const restore = () => {
-            window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
-        };
-
-        restore();
-        window.requestAnimationFrame(() => {
-            restore();
-            window.requestAnimationFrame(restore);
-        });
-        window.setTimeout(restore, 0);
-        window.setTimeout(restore, 80);
-    }, []);
-
     const handleDocumentFocus = useCallback((documentId: string) => {
-        const previousScrollX = window.scrollX;
-        const previousScrollY = window.scrollY;
         setDocumentFocusId(documentId);
         replaceDocumentFocusUrl(documentId);
-        restoreDocumentFocusScroll(previousScrollX, previousScrollY);
-    }, [replaceDocumentFocusUrl, restoreDocumentFocusScroll]);
+    }, [replaceDocumentFocusUrl]);
 
     const isPreviewActionBusy = useCallback((
         itemId: FastTrackDocumentItem['id'],
@@ -1993,7 +1975,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [ensureDocumentPreview]);
 
     const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' });
+        await ensureDocumentPreview(item, { openInNewTab: true, busyAction: 'open' });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
@@ -2756,8 +2738,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <div
                                 key={documentCardKeyFor(item.id, itemIndex)}
                                 data-fast-track-document-card={item.id}
-                                onPointerDownCapture={(event) => {
-                                    if (event.button !== 0 || shouldIgnoreDocumentCardFocus(event.target)) {
+                                onClick={(event) => {
+                                    if (shouldIgnoreDocumentCardFocus(event.target)) {
                                         return;
                                     }
                                     handleDocumentFocus(item.id);
@@ -2773,18 +2755,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     <button
                                         type="button"
                                         data-fast-track-document-focus-trigger
-                                        onPointerDown={(event) => {
-                                            if (event.button === 0) {
-                                                event.preventDefault();
-                                                pendingPointerDocumentFocusRef.current = item.id;
-                                                handleDocumentFocus(item.id);
-                                            }
-                                        }}
-                                        onClick={() => {
-                                            if (pendingPointerDocumentFocusRef.current === item.id) {
-                                                pendingPointerDocumentFocusRef.current = null;
-                                                return;
-                                            }
+                                        onClick={(event) => {
+                                            event.stopPropagation();
                                             handleDocumentFocus(item.id);
                                         }}
                                         className="w-full text-left"
@@ -3784,13 +3756,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
             setActiveStageOverride(nextStage);
-            setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
+            setSearchParams(
+                (previous) => buildFastTrackStageSearchParams(previous, nextStage),
+                { preventScrollReset: true },
+            );
             void runAction('start_documents', {}, 'Documents stage started.');
             return;
         }
 
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
-        setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
+        setSearchParams(
+            (previous) => buildFastTrackStageSearchParams(previous, nextStage),
+            { preventScrollReset: true },
+        );
     }, [canNavigateToStage, role, runAction, selectedCase, setSearchParams, toast]);
 
     // Smoothly scroll to the stage content area when the visible stage changes,
@@ -3800,15 +3778,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         pendingSelectedCaseIdRef.current = caseId;
         setSelectedCaseId(caseId);
         setActiveStageOverride(null);
-        setSearchParams((previous) => {
-            const next = buildFastTrackSelectionSearchParams(previous, caseId);
-            next.delete('section');
-            next.delete('stage');
-            next.delete('document');
-            next.delete('file');
-            next.delete('celebrate');
-            return next;
-        });
+        setSearchParams(
+            (previous) => {
+                const next = buildFastTrackSelectionSearchParams(previous, caseId);
+                next.delete('section');
+                next.delete('stage');
+                next.delete('document');
+                next.delete('file');
+                next.delete('celebrate');
+                return next;
+            },
+            { preventScrollReset: true },
+        );
     }, [setSearchParams]);
 
     const stepperItems = useMemo(

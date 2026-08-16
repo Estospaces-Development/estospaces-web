@@ -17,10 +17,10 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile } from '@/services/authService';
 import { uploadMediaFile } from '@/services/mediaService';
-import { leadsService } from '@/services/leadsService';
 import { bookingsService } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
+import { useApplications } from '@/contexts/ApplicationsContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
 import { validateFullName, validatePhoneInput } from '@/lib/profileValidation';
 import { getLoginPath } from '@/lib/authUtils';
@@ -36,6 +36,7 @@ export default function ProfilePage() {
     const navigate = useNavigate();
     const { user: currentUser, refreshUser, mergeCurrentUserProfile, loading: authLoading, isAuthenticated } = useAuth();
     const { savedCount } = useSavedProperties();
+    const { allApplications } = useApplications();
     const toast = useToast();
 
     const [formData, setFormData] = useState({
@@ -47,11 +48,7 @@ export default function ProfilePage() {
         country: '',
     });
 
-    const [stats, setStats] = useState({
-        saved: 0,
-        leads: 0,
-        viewings: 0
-    });
+    const [viewingsCount, setViewingsCount] = useState(0);
 
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
@@ -67,19 +64,11 @@ export default function ProfilePage() {
 
     const fetchStats = useCallback(async () => {
         try {
-            const [leadsData, viewingsData] = await Promise.all([
-                leadsService.getUserLeads(),
-                bookingsService.getViewings()
-            ]);
-            
-            setStats({
-                saved: savedCount,
-                leads: leadsData.data?.length || 0,
-                viewings: Array.isArray(viewingsData) ? viewingsData.length : 0
-            });
+            const viewingsData = await bookingsService.getViewings();
+            setViewingsCount(Array.isArray(viewingsData) ? viewingsData.length : 0);
         } catch (_error) {
         }
-    }, [savedCount]);
+    }, []);
 
     useEffect(() => {
         if (authLoading) {
@@ -319,15 +308,15 @@ export default function ProfilePage() {
 
                             <div className="mt-8 pt-8 border-t dark:border-gray-800 grid grid-cols-3 gap-2">
                                 <div className="text-center">
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">{stats.saved}</div>
+                                    <div className="text-lg font-black text-gray-900 dark:text-white">{savedCount}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Saved</div>
                                 </div>
                                 <div className="text-center border-x dark:border-gray-800">
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">{stats.leads}</div>
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase">Leads</div>
+                                    <div className="text-lg font-black text-gray-900 dark:text-white">{allApplications.length}</div>
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase">Applications</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">{stats.viewings}</div>
+                                    <div className="text-lg font-black text-gray-900 dark:text-white">{viewingsCount}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Viewings</div>
                                 </div>
                             </div>
