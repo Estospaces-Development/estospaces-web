@@ -313,11 +313,14 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     };
 
     const _PropertyTypeIcon = getPropertyTypeIcon();
-    const formattedPropertyPrice = formatLaunchCurrencyForCountry(application.propertyPrice || 0, {
-        countryCode: application.propertyCountry,
-        countryName: application.propertyCountry,
-        currencyCode: application.propertyCurrency,
-    });
+    const hasPropertyPrice = Number.isFinite(application.propertyPrice) && Number(application.propertyPrice) > 0;
+    const formattedPropertyPrice = hasPropertyPrice
+        ? formatLaunchCurrencyForCountry(Number(application.propertyPrice), {
+            countryCode: application.propertyCountry,
+            countryName: application.propertyCountry,
+            currencyCode: application.propertyCurrency,
+        })
+        : 'Price unavailable';
 
     return (
         <div
@@ -433,9 +436,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
                                 {formattedPropertyPrice}
                             </span>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                                {application.propertyType === 'rent' ? '/month' : ''}
-                            </span>
+                            {hasPropertyPrice ? (
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                    {application.propertyType === 'rent' ? '/month' : ''}
+                                </span>
+                            ) : null}
                         </div>
 
                         {/* Action Buttons */}

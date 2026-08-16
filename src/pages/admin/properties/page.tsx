@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -26,6 +26,8 @@ import {
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
     ADMIN_PROPERTY_TYPE_FILTERS,
+    buildAdminPropertyRegistryServiceFilters,
+    buildAdminPropertyRegistryServiceSort,
     type AdminPropertyRegistrySortOption,
     filterAdminPropertyRegistry,
     getAdminPropertyWorkflowFallbackLabel,
@@ -37,7 +39,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 function PropertyManagementContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { properties, pagination, fetchProperties, loading, setPage } = useProperties();
+    const { properties, pagination, fetchProperties, loading, setFilters, setPage, setSort } = useProperties();
     const { success: showSuccessToast, error: showErrorToast, warning: showWarningToast } = useToast();
     const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
     const [filteringType, setFilteringType] = useState('all');
@@ -49,6 +51,28 @@ function PropertyManagementContent() {
     const [rejectReasonError, setRejectReasonError] = useState('');
     const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(null);
     const [copyingPropertyId, setCopyingPropertyId] = useState<string | null>(null);
+    const fetchPropertiesRef = useRef(fetchProperties);
+    const hasRegistryFilters = Boolean(searchQuery.trim()) || filteringType !== 'all' || statusFilter !== 'all';
+
+    useEffect(() => {
+        fetchPropertiesRef.current = fetchProperties;
+    }, [fetchProperties]);
+
+    const serviceFilters = useMemo(() => buildAdminPropertyRegistryServiceFilters({
+        searchQuery,
+        typeFilter: filteringType,
+        statusFilter,
+    }), [filteringType, searchQuery, statusFilter]);
+    const serviceSort = useMemo(() => buildAdminPropertyRegistryServiceSort(sortBy), [sortBy]);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => setFilters(serviceFilters), 250);
+        return () => window.clearTimeout(timeoutId);
+    }, [serviceFilters, setFilters]);
+
+    useEffect(() => {
+        setSort(serviceSort);
+    }, [serviceSort, setSort]);
 
     const resolvePropertyId = (property: any): string | null => {
         const candidates = [property?.id, property?.propertyId, property?.property_id];
@@ -62,12 +86,10 @@ function PropertyManagementContent() {
     };
 
     const handleTypeFilterChange = (value: string) => {
-        setPage(1);
         setFilteringType(value);
     };
 
     const handleStatusFilterChange = (value: string) => {
-        setPage(1);
         setStatusFilter(value);
     };
 
@@ -86,6 +108,15 @@ function PropertyManagementContent() {
         }),
         sortBy,
     );
+    const visibleTotal = pagination.total;
+    const visibleTotalPages = Math.max(1, pagination.totalPages);
+    const pageProperties = filteredProperties;
+
+    useEffect(() => {
+        if (!loading && pagination.page > visibleTotalPages) {
+            setPage(visibleTotalPages);
+        }
+    }, [loading, pagination.page, setPage, visibleTotalPages]);
     const propertyCardKeyCounts = new Map<string, number>();
 
     const resolvePropertyCardKey = (propertyId: string | null, index: number): string => {
@@ -165,7 +196,7 @@ function PropertyManagementContent() {
                 throw new Error(error);
             }
 
-            await fetchProperties();
+            await fetchPropertiesRef.current();
 
             if (nextStatus === 'published') {
                 showSuccessToast('Property approved and published successfully.');
@@ -212,7 +243,7 @@ function PropertyManagementContent() {
             }
             showSuccessToast('Property deleted successfully.');
             closeDeleteDialog();
-            await fetchProperties();
+            await fetchPropertiesRef.current();
         } catch (error: any) {
             showErrorToast(error?.message || 'Failed to delete property.');
         } finally {
@@ -235,7 +266,7 @@ function PropertyManagementContent() {
             }
             showSuccessToast('Property copied successfully. Navigate to edit the copy.');
             closeCopyDialog();
-            await fetchProperties();
+            await fetchPropertiesRef.current();
             if (data?.id) {
                 navigate(`/admin/properties/${data.id}`);
             }
@@ -563,10 +594,10 @@ function PropertyManagementContent() {
                     </div>
                     <div className="flex items-center gap-4 border-t pt-4 dark:border-gray-700 xl:border-l xl:border-t-0 xl:px-6 xl:pt-0">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Total Listed: <span className="text-gray-900 dark:text-white">{pagination.total}</span>
+                            {hasRegistryFilters ? 'Matching' : 'Total Listed'}: <span className="text-gray-900 dark:text-white">{visibleTotal}</span>
                         </span>
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Showing: <span className="text-gray-900 dark:text-white">{filteredProperties.length}</span>
+                            Showing: <span className="text-gray-900 dark:text-white">{pageProperties.length}</span>
                         </span>
                     </div>
                 </div>
@@ -579,10 +610,10 @@ function PropertyManagementContent() {
                         <span className="font-bold">Loading full property registry...</span>
                     </div>
                 </div>
-            ) : filteredProperties.length > 0 ? (
+            ) : pageProperties.length > 0 ? (
                 <>
                     <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredProperties.map((property, index) => {
+                        {pageProperties.map((property, index) => {
                             const statusBadge = getManagerPropertyStatusBadge(property.status);
                             const propertyId = resolvePropertyId(property);
                             const propertyCardKey = resolvePropertyCardKey(propertyId, index);
@@ -737,11 +768,11 @@ function PropertyManagementContent() {
                     </div>
                     <PaginationBar
                         currentPage={pagination.page}
-                        totalPages={pagination.totalPages}
+                        totalPages={visibleTotalPages}
                         onPageChange={setPage}
-                        totalItems={pagination.total}
+                        totalItems={visibleTotal}
                         pageSize={pagination.limit}
-                        currentItemCount={properties.length}
+                        currentItemCount={pageProperties.length}
                         itemLabel="properties"
                     />
                 </>
@@ -761,6 +792,16 @@ function PropertyManagementContent() {
                     >
                         Reset Filters
                     </button>
+                    {visibleTotalPages > 1 ? (
+                        <div className="mt-8 text-left">
+                            <PaginationBar
+                                currentPage={pagination.page}
+                                totalPages={visibleTotalPages}
+                                onPageChange={setPage}
+                                itemLabel="properties"
+                            />
+                        </div>
+                    ) : null}
                 </div>
             )}
         </div>

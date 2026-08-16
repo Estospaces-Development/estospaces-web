@@ -5,17 +5,46 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+    buildAdminPropertyRegistryServiceSort,
     ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL,
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
     filterAdminPropertyRegistry,
     filterVisibleAdminPropertyRegistry,
+    buildAdminPropertyRegistryServiceFilters,
     getAdminPropertySortControlLabel,
     getAdminPropertyWorkflowFallbackLabel,
     isInternalAutomationProperty,
     isAdminPropertyAwaitingManagerSubmission,
     sortAdminPropertyRegistry,
 } from './adminPropertyRegistry';
+
+test('admin registry maps every sort option to backend ordering before pagination', () => {
+    assert.deepEqual(buildAdminPropertyRegistryServiceSort('newest'), { field: 'createdAt', order: 'desc' });
+    assert.deepEqual(buildAdminPropertyRegistryServiceSort('oldest'), { field: 'createdAt', order: 'asc' });
+    assert.deepEqual(buildAdminPropertyRegistryServiceSort('title_asc'), { field: 'title', order: 'asc' });
+    assert.deepEqual(buildAdminPropertyRegistryServiceSort('price_desc'), { field: 'price', order: 'desc' });
+    assert.deepEqual(buildAdminPropertyRegistryServiceSort('status'), { field: 'status', order: 'asc' });
+});
+
+test('admin registry keeps broad search client-side and sends compatible filters to the backend', () => {
+    assert.deepEqual(buildAdminPropertyRegistryServiceFilters({
+        searchQuery: '  Gurgaon  ',
+        typeFilter: 'sale',
+        statusFilter: 'available',
+    }), {
+        search: 'Gurgaon',
+        listingType: ['sale'],
+        status: ['available', 'published', 'online', 'active'],
+    });
+
+    assert.deepEqual(buildAdminPropertyRegistryServiceFilters({
+        typeFilter: 'commercial',
+        statusFilter: 'all',
+    }), {
+        propertyType: ['commercial'],
+    });
+});
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const adminPropertiesPageSource = readFileSync(path.resolve(testDir, '../pages/admin/properties/page.tsx'), 'utf8');
@@ -30,6 +59,7 @@ const properties = [
         status: 'published',
         contactName: 'Alex Admin',
         createdAt: '2026-04-22T10:00:00Z',
+        updatedAt: '2026-04-22T10:00:00Z',
         price: { amount: 650000 },
     },
     {
@@ -63,6 +93,7 @@ const properties = [
         status: 'sold',
         contactName: 'Sam Seller',
         createdAt: '2026-04-19T10:00:00Z',
+        updatedAt: '2026-04-30T10:00:00Z',
         price: { amount: 725000 },
     },
     {
@@ -145,6 +176,10 @@ test('admin property registry sorts filtered rows for release QA combinations', 
         'available-sale',
         'sold-sale',
     ]);
+    assert.deepEqual(sortAdminPropertyRegistry(filtered, 'oldest').map((property) => property.id), [
+        'sold-sale',
+        'available-sale',
+    ]);
 });
 
 test('admin properties page exposes visible sort and first-last pagination controls', () => {
@@ -156,6 +191,36 @@ test('admin properties page exposes visible sort and first-last pagination contr
     assert.match(adminPropertiesPageSource, /PaginationBar/);
     assert.match(adminPropertiesPageSource, /getAdminPropertySortControlLabel/);
     assert.match(adminPropertiesPageSource, /useSearchParams/);
+});
+
+test('admin properties page keeps pagination available when a page has no visible cards', () => {
+    const source = readFileSync(path.resolve(process.cwd(), 'src/pages/admin/properties/page.tsx'), 'utf8');
+
+    assert.match(source, /visibleTotalPages > 1/);
+    assert.match(source, /No Properties Found[\s\S]*?<PaginationBar/);
+    const emptyStateSource = source.slice(source.indexOf('No Properties Found'));
+    assert.doesNotMatch(emptyStateSource, /currentItemCount=\{properties\.length\}/);
+    assert.doesNotMatch(emptyStateSource, /totalItems=\{pagination\.total\}/);
+});
+
+test('admin properties page trusts server filters and clamps stale pages after mutations', () => {
+    assert.match(adminPropertiesPageSource, /filterAdminPropertyRegistry\(properties/);
+    assert.match(adminPropertiesPageSource, /pagination\.page > visibleTotalPages/);
+    assert.match(adminPropertiesPageSource, /setPage\(visibleTotalPages\)/);
+    assert.match(adminPropertiesPageSource, /const fetchPropertiesRef = useRef\(fetchProperties\)/);
+    assert.match(adminPropertiesPageSource, /fetchPropertiesRef\.current = fetchProperties/);
+    assert.match(adminPropertiesPageSource, /await fetchPropertiesRef\.current\(\)/);
+    assert.doesNotMatch(adminPropertiesPageSource, /await fetchProperties\(\)/);
+    assert.match(adminPropertiesPageSource, /const handleSearchChange = \(value: string\) => \{\s*setPage\(1\);\s*setSearchQuery\(value\)/);
+    assert.match(adminPropertiesPageSource, /\}\), \[filteringType, searchQuery, statusFilter\]\);/);
+});
+
+test('admin layout keeps property registry filtering and pagination server-side', () => {
+    const contextSource = readFileSync(path.resolve(process.cwd(), 'src/contexts/PropertyContext.tsx'), 'utf8');
+
+    assert.match(contextSource, /page: pagination\.page/);
+    assert.match(contextSource, /await propertyService\.getAdminProperties\(query\)/);
+    assert.doesNotMatch(contextSource, /loadAllAdminPropertyPages/);
 });
 
 test('admin property workflow only shows awaiting manager submission for empty drafts', () => {
@@ -189,7 +254,7 @@ test('admin property workflow treats populated service-shaped drafts as submitte
     assert.equal(getAdminPropertyWorkflowFallbackLabel(populatedServiceDraft), 'Draft');
 });
 
-test('admin property registry hides internal QA and automated property fixtures', () => {
+test('admin property registry keeps all persisted rows manageable while identifying automation fixtures', () => {
     const mixedProperties = [
         ...properties,
         {
@@ -222,13 +287,64 @@ test('admin property registry hides internal QA and automated property fixtures'
             contactName: 'Jeevi Groups',
             price: { amount: 650000 },
         },
+        {
+            id: 'real-valley-home',
+            title: 'Riverside family home',
+            city: 'Test Valley',
+            address_line_1: '14 Test Road',
+            listingType: 'sale',
+            propertyType: 'house',
+            status: 'published',
+            contactName: 'Jeevi Groups',
+            price: { amount: 720000 },
+        },
     ];
 
     assert.equal(isInternalAutomationProperty(mixedProperties[5]), true);
     assert.equal(isInternalAutomationProperty(mixedProperties[6]), true);
     assert.equal(isInternalAutomationProperty(mixedProperties[7]), false);
+    assert.equal(isInternalAutomationProperty(mixedProperties[8]), false);
     assert.deepEqual(
         filterVisibleAdminPropertyRegistry(mixedProperties).map((property) => property.id),
-        [...properties.map((property) => property.id), 'real-preston-home'],
+        [...properties.map((property) => property.id), 'real-preston-home', 'real-valley-home'],
+    );
+    assert.deepEqual(
+        filterAdminPropertyRegistry(mixedProperties, {
+            typeFilter: 'all',
+            statusFilter: 'all',
+            searchQuery: 'Test Valley',
+        }).map((property) => property.id),
+        ['real-valley-home'],
+    );
+    assert.equal(filterAdminPropertyRegistry(mixedProperties, {
+        typeFilter: 'all',
+        statusFilter: 'all',
+        searchQuery: '',
+    }).length, mixedProperties.length);
+});
+
+test('admin property registry preserves distinct listings that share a title', () => {
+    const sameTitleListings = [
+        {
+            id: 'listing-one',
+            title: '2 BHK Apartment',
+            city: 'Chennai',
+            address_line_1: '1 Marina Road',
+            agent_name: 'Marina Estates',
+            price: 45000,
+        },
+        {
+            id: 'listing-two',
+            title: '2 BHK Apartment',
+            city: 'Mumbai',
+            address_line_1: '2 Harbour Road',
+            agent_name: 'Harbour Estates',
+            price: 55000,
+        },
+    ];
+
+    assert.deepEqual(
+        filterVisibleAdminPropertyRegistry(sameTitleListings).map((property) => property.id),
+        ['listing-one', 'listing-two'],
     );
 });

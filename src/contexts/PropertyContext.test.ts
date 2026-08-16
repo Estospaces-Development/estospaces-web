@@ -1,10 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  createPropertyLoadSequence,
   filterContextProperties,
   type Property,
   type PropertyFilters,
 } from './PropertyContext';
+
+test('property context ignores responses superseded by a newer request', () => {
+  const sequence = createPropertyLoadSequence();
+  const olderRequest = sequence.begin();
+  const newerRequest = sequence.begin();
+
+  assert.equal(sequence.isCurrent(olderRequest), false);
+  assert.equal(sequence.isCurrent(newerRequest), true);
+});
 
 const property = (overrides: Partial<Property>): Property => ({
   id: 'property-base',

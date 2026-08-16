@@ -13,9 +13,11 @@ test('user profile reports applications instead of manager-side leads', () => {
   assert.doesNotMatch(source, />Leads<\/div>/);
 });
 
-test('admin property registry reports the server total instead of current page length', () => {
+test('admin property registry reports the complete visible total instead of current page length', () => {
   const source = readSource('src/pages/admin/properties/page.tsx');
-  assert.match(source, /Total Listed:[\s\S]*\{pagination\.total\}/);
+  assert.match(source, /hasRegistryFilters \? 'Matching' : 'Total Listed'/);
+  assert.match(source, /setFilters\(serviceFilters\)/);
+  assert.match(source, /\{visibleTotal\}/);
   assert.doesNotMatch(source, /Total Listed:[\s\S]{0,120}\{visibleRegistryProperties\.length\}/);
 });
 
@@ -29,6 +31,8 @@ test('application card age is based on the persisted creation time', () => {
   const source = readSource('src/components/dashboard/applications/ApplicationCard.tsx');
   assert.match(source, /formatApplicationRelativeTime\(application\.createdAt \|\| application\.lastUpdated/);
   assert.doesNotMatch(source, /formatApplicationRelativeTime\(application\.lastUpdated \|\| application\.createdAt/);
+  assert.match(source, /: 'Price unavailable'/);
+  assert.doesNotMatch(source, /formatLaunchCurrencyForCountry\(application\.propertyPrice \|\| 0/);
 });
 
 test('legacy application hydration retains viewing snapshot context', () => {

@@ -109,6 +109,44 @@ test('application mapping treats whitespace snapshot context as missing', () => 
     assert.equal(mapped.agentPhone, '+44 20 7000 0000');
 });
 
+test('application mapping rejects a workflow status inherited from another snapshot', () => {
+    const mapped = mapBackendApplication({
+        id: 'application-submitted',
+        property_id: 'property-1',
+        user_id: 'user-1',
+        status: 'submitted',
+        listing_type: 'sale',
+        property_title: 'Submitted',
+        property_address: 'Address unavailable',
+        created_at: '2026-08-16T08:00:00Z',
+        updated_at: '2026-08-16T08:00:00Z',
+    } as any, undefined, {
+        title: 'Cancelled',
+        address: 'Address unavailable',
+    });
+
+    assert.equal(mapped.propertyTitle, 'Property');
+});
+
+test('application mapping rejects a stale workflow title after the status advances', () => {
+    const mapped = mapBackendApplication({
+        id: 'application-under-review',
+        property_id: 'property-1',
+        user_id: 'user-1',
+        status: 'under_review',
+        listing_type: 'sale',
+        property_title: 'Submitted',
+        property_address: 'Address unavailable',
+        created_at: '2026-08-16T08:00:00Z',
+        updated_at: '2026-08-16T08:30:00Z',
+    } as any, undefined, {
+        title: 'Canal View Apartment',
+        address: '2 Canal Road, London',
+    });
+
+    assert.equal(mapped.propertyTitle, 'Canal View Apartment');
+});
+
 test('legacy application snapshots without country or currency request current property context', () => {
     assert.equal(applicationNeedsCurrentPropertyContext({
         property_title: 'Complete legacy title',

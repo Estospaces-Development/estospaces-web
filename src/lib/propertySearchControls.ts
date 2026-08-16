@@ -44,7 +44,7 @@ export interface SearchUrlFilters {
 const MAX_SEARCH_QUERY_LENGTH = 120;
 const MAX_PRICE_BOUND = 100_000_000;
 const MAX_ROOM_BOUND = 20;
-const SEARCH_QUERY_ALLOWED_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}\s'.,/-]*$/u;
+const SEARCH_QUERY_ALLOWED_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}\s'.,/#&()-]*$/u;
 
 const SORT_OPTIONS: PropertySearchSortOption[] = [
   { value: 'relevance', label: 'Relevance' },

@@ -31,7 +31,12 @@ import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
-import { getApplicationPropertyDisplayTitle, isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
+import {
+    getApplicationPropertyDisplayTitle,
+    isApplicationWorkflowTitle,
+    isApplicationWorkflowStatusTitle,
+    isInternalApplicationTitle,
+} from '@/lib/applicationDisplayTitle';
 
 export type PropertyContext = {
     title?: string;
@@ -341,9 +346,10 @@ export const applicationNeedsCurrentPropertyContext = (application: Pick<
     | 'property_price'
     | 'property_type'
     | 'agent_name'
->) => {
+> & Partial<Pick<BackendApplication, 'status' | 'liveStage'>>) => {
     return !String(application.property_title || '').trim()
         || isInternalApplicationTitle(application.property_title)
+        || isApplicationWorkflowStatusTitle(application.property_title, application.status, application.liveStage)
         || !hasUsableApplicationAddress(application.property_address)
         || !String(application.property_image || '').trim()
         || !Number.isFinite(application.property_price)
@@ -486,13 +492,18 @@ export const mapBackendApplication = (
     const snapshotAddress = String(application.property_address || '').trim();
     const snapshotImage = String(application.property_image || '').trim();
     const snapshotPrice = Number(application.property_price);
+    const snapshotTitleIsWorkflowStatus = isApplicationWorkflowTitle(snapshotTitle);
+    const fallbackTitle = String(propertyContext?.title || '').trim();
+    const fallbackTitleIsWorkflowStatus = isApplicationWorkflowTitle(fallbackTitle);
     const propertyAddress = hasUsableApplicationAddress(snapshotAddress)
         ? snapshotAddress
         : propertyContext?.address || 'Address unavailable';
     const propertyTitle = getApplicationPropertyDisplayTitle(
-        snapshotTitle && !isInternalApplicationTitle(snapshotTitle)
+        snapshotTitle && !isInternalApplicationTitle(snapshotTitle) && !snapshotTitleIsWorkflowStatus
             ? snapshotTitle
-            : propertyContext?.title,
+            : fallbackTitle && !isInternalApplicationTitle(fallbackTitle) && !fallbackTitleIsWorkflowStatus
+                ? fallbackTitle
+                : undefined,
         propertyAddress,
         'Property',
     );
