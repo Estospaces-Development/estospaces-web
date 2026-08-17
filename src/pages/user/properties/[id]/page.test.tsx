@@ -343,7 +343,7 @@ test("property detail fast-track CTA never advertises a fresh start before statu
   assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupStatus: "error" }), "retry");
   assert.equal(resolvePropertyFastTrackCtaState({ ...base, isAuthenticated: false, lookupStatus: "idle" }), "start");
 
-  assert.match(propertyDetailSource, /disabled=\{isFastTrackCtaBusy\}/);
+  assert.match(propertyDetailSource, /disabled=\{isFastTrackCtaDisabled\}/);
   assert.match(propertyDetailSource, /Checking Fast Track Status/);
   assert.match(propertyDetailSource, /Check Fast Track Status/);
   assert.match(propertyDetailSource, /activePropertyIdRef\.current === property\.id/);
