@@ -42,6 +42,7 @@ import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/us
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 import { extractPostcodeFromAddress } from '@/services/locationService';
+import { hasValidMapCoordinates, loadCompleteMapCandidates } from '@/lib/nearbyMap';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
@@ -319,19 +320,36 @@ const DashboardClient = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    if (locationLoading) {
+      return;
+    }
+
     let active = true;
 
     const loadNearbyProperties = async () => {
       setNearbyPropertiesLoading(true);
 
       try {
-        const response = await searchService.search('', {
-          page: 1,
-          limit: 50,
-        });
+        if (!hasValidMapCoordinates(activeLocation)) {
+          if (active) {
+            setNearbyProperties([]);
+          }
+          return;
+        }
 
-        if (active && response.success) {
-          setNearbyProperties(response.data || []);
+        const candidates = await loadCompleteMapCandidates((page, limit) => (
+          searchService.search('', {
+            page,
+            limit,
+          })
+        ));
+
+        if (active) {
+          setNearbyProperties(candidates);
+        }
+      } catch {
+        if (active) {
+          setNearbyProperties([]);
         }
       } finally {
         if (active) {
@@ -345,7 +363,7 @@ const DashboardClient = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeLocation, locationLoading]);
 
   useEffect(() => {
     if (!user?.id) {
