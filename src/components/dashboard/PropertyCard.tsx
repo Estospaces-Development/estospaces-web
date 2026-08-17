@@ -419,7 +419,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                 className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold leading-tight text-white shadow-sm transition-all duration-200 hover:bg-orange-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-700 dark:focus:ring-offset-gray-900"
                             >
                                 <Clock size={16} className="shrink-0" />
-                                <span>Start 24-Hour Fast Track</span>
+                                <span>Request 24-Hour Fast Track</span>
                             </button>
                         )}
                         <div className="flex gap-2">

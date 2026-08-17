@@ -140,22 +140,25 @@ test('discover map properties preserve coordinates for real map markers', () => 
     assert.equal(property.address_line_1, '10 Test Street');
 });
 
-test('user dashboard property cards expose a direct fast-track start action', () => {
+test('user dashboard property cards expose a manager-approval Fast Track request action', () => {
     const propertyCard = readFileSync(resolve(root, 'src/components/dashboard/PropertyCard.tsx'), 'utf8');
     const dashboardClient = readFileSync(resolve(root, 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
     const discoverPage = readFileSync(resolve(root, 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 
     assert.match(propertyCard, /onStartFastTrack\?:/);
-    assert.match(propertyCard, /Start 24-Hour Fast Track/);
+    assert.match(propertyCard, /Request 24-Hour Fast Track/);
     assert.match(dashboardClient, /onStartFastTrack=\{openFastTrackFromDashboard\}/);
     assert.match(discoverPage, /onStartFastTrack=\{\(property\) => navigate\(`\/user\/properties\/\$\{property\.id\}\?fast-track=1`\)\}/);
+    assert.doesNotMatch(dashboardClient, /\{!showFilteredResults && \(\s*<div>\s*<div className="flex items-center justify-between mb-4">\s*<div>\s*<div className="flex items-center gap-2">\s*<MapIcon/);
 });
 
-test('direct property fast-track start refreshes manager live queue surfaces', () => {
+test('direct property Fast Track request refreshes manager live queue surfaces', () => {
     assert.match(userPropertyDetailPage, /publishWorkspaceSync/);
     assert.match(userPropertyDetailPage, /WORKSPACE_SYNC_TAGS\.FAST_TRACK/);
     assert.match(userPropertyDetailPage, /WORKSPACE_SYNC_TAGS\.MANAGER_DASHBOARD/);
-    assert.match(userPropertyDetailPage, /User started fast-track from property detail/);
+    assert.match(userPropertyDetailPage, /User requested fast-track from property detail/);
+    assert.match(userPropertyDetailPage, /requestFastTrack/);
+    assert.doesNotMatch(userPropertyDetailPage, /createFastTrackCase/);
 });
 
 test('rental application submission opens the real applications workspace and keeps applications fetching active', () => {

@@ -16,6 +16,7 @@ import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 interface ManualFastTrackModalProps {
     open: boolean;
     existingCases: FastTrackCase[];
+    initialSearch?: string;
     backgroundBusy?: boolean;
     onClose: () => void;
     onCreated?: (createdCase: FastTrackCase) => void | Promise<void>;
@@ -69,6 +70,7 @@ const hasActiveFastTrackCase = (caseItem: FastTrackCase) => (
 export default function ManualFastTrackModal({
     open,
     existingCases,
+    initialSearch = '',
     backgroundBusy = false,
     onClose,
     onCreated,
@@ -87,6 +89,8 @@ export default function ManualFastTrackModal({
             setError(null);
             return;
         }
+
+        setSearchQuery(initialSearch.trim());
 
         let cancelled = false;
 
@@ -116,7 +120,7 @@ export default function ManualFastTrackModal({
         return () => {
             cancelled = true;
         };
-    }, [open]);
+    }, [initialSearch, open]);
 
     const activeCaseByLeadKey = useMemo(() => {
         const nextMap = new Map<string, FastTrackCase>();
@@ -161,6 +165,10 @@ export default function ManualFastTrackModal({
         return eligibleLeads.filter(({ lead, stage, activeCase }) => {
             const haystack = [
                 lead.lead_number,
+                lead.id,
+                lead.broker_request_id,
+                lead.user_id,
+                lead.property_id,
                 getLeadTitle(lead),
                 getLeadClientName(lead),
                 lead.email,

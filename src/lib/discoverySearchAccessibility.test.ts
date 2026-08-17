@@ -69,7 +69,8 @@ test("user search keeps settled results stable while refreshed requests are in f
 test("property detail action and gallery controls expose stable button state", () => {
   assert.match(propertyDetailPage, /aria-pressed=\{index === selectedImageIndex\}/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?onClick=\{handleBackNavigation\}/);
-  assert.match(propertyDetailPage, /type="button"[\s\S]*?Start 24-Hour Fast Track/);
+  assert.match(propertyDetailPage, /type="button"[\s\S]*?Request 24-Hour Fast Track/);
+  assert.doesNotMatch(propertyDetailPage, /createFastTrackCase/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?Open live workspace/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?Open Message Thread/);
 });

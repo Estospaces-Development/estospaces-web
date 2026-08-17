@@ -29,7 +29,6 @@ import {
     getUserBrokerRequests,
     LeadBrokerSummary,
 } from '@/services/leadsService';
-import { createFastTrackCase } from '@/services/fastTrackService';
 import { messagesService } from '@/services/messagesService';
 import {
     formatRequestTypeLabel,
@@ -198,16 +197,6 @@ const formatRequirementsPreview = (value?: string | null) => {
     }
 
     return `${trimmedValue.slice(0, 137).trimEnd()}...`;
-};
-
-const mapListingTypeToFastTrackPropertyType = (listingType?: string) => {
-    if (listingType === 'sale') {
-        return 'buy' as const;
-    }
-    if (listingType === 'lease') {
-        return 'lease' as const;
-    }
-    return 'rent' as const;
 };
 
 const normalizePostcode = (value?: string | null) => normalizeLaunchLocationCode(value);
@@ -573,39 +562,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 throw new Error('The selected home could not be opened from this agent request.');
             }
 
-            const fastTrackResult = await createFastTrackCase({
-                property_id: selectedProperty.id,
-                broker_request_id: selectedRequest.id,
-                lead_id: selectedRequest.selected_lead_id || undefined,
-                manager_id: selectedRequest.matched_broker_id || undefined,
-                client_id: user.id,
-                client_name: displayName,
-                property_title: selectedProperty.title,
-                property_type: mapListingTypeToFastTrackPropertyType(selectedProperty.listing_type),
-                property_country: selectedProperty.country || undefined,
-                listing_type: selectedProperty.listing_type as 'rent' | 'sale' | 'lease' | undefined,
-                started_from: 'broker_request_selection',
-            });
-
-            if (fastTrackResult.error || !fastTrackResult.data) {
-                throw new Error(fastTrackResult.error || 'Unable to start your 24-hour journey.');
-            }
-
-            const nextFastTrackCaseId = fastTrackResult.data.caseId;
-
             const refreshedRequest = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
             const resolvedRequest = refreshedRequest.data || selectedRequest;
             setActiveRequest(resolvedRequest);
 
             const params = new URLSearchParams();
-            params.set('fast-track', '1');
             params.set('broker-request', resolvedRequest.id);
-            if (nextFastTrackCaseId) {
-                params.set('case', nextFastTrackCaseId);
-            }
 
-            setSelectionStatusMessage(brokerCopy.selectionSuccess);
-            toast.success(brokerCopy.selectionSuccess);
+            const selectedMessage = 'Home selected. Open it when you are ready to request Fast Track from your manager.';
+            setSelectionStatusMessage(selectedMessage);
+            toast.success(selectedMessage);
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -618,7 +584,6 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 ids: {
                     leadId: resolvedRequest.id,
                     propertyId,
-                    caseId: nextFastTrackCaseId || undefined,
                 },
             });
             navigate(`/user/properties/${propertyId}?${params.toString()}`);
@@ -824,7 +789,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const lockedRequestActionLabel = activeRequest?.selected_fast_track_case_id
         ? 'Continue in fast-track'
         : selectedProperty
-            ? 'Start fast-track with selected home'
+            ? 'Request fast-track for selected home'
             : 'Open matched agent request';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();

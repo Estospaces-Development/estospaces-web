@@ -43,6 +43,7 @@ import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 import { extractPostcodeFromAddress } from '@/services/locationService';
 import { hasValidMapCoordinates, loadCompleteMapCandidates } from '@/lib/nearbyMap';
+import { syncDashboardMapLocation } from '@/lib/dashboardMapLocation';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
@@ -221,7 +222,12 @@ const DashboardClient = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
-  const { activeLocation, loading: locationLoading } = useUserLocation();
+  const {
+    activeLocation,
+    loading: locationLoading,
+    updateLocationFromSearch,
+    clearSearchLocation,
+  } = useUserLocation();
   const { setActiveTab } = usePropertyFilter();
   const dashboardCelebrateRequested = searchParams.get('celebrate') === '1';
   const dashboardCelebrateCaseId = searchParams.get('fastTrackCase');
@@ -237,6 +243,7 @@ const DashboardClient = () => {
   const [dashboardSearchFilters, setDashboardSearchFilters] = useState<DashboardSearchFilters>(() => (
     buildDashboardSearchFiltersFromParams(searchParams)
   ));
+  const dashboardLocationParam = searchParams.get('location') || '';
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -289,6 +296,14 @@ const DashboardClient = () => {
       || nextDashboardType === 'sold',
     );
   }, [searchParams]);
+
+  useEffect(() => {
+    void syncDashboardMapLocation(
+      dashboardLocationParam,
+      updateLocationFromSearch,
+      clearSearchLocation,
+    );
+  }, [clearSearchLocation, dashboardLocationParam, updateLocationFromSearch]);
 
   const shouldFetchFilteredResults =
     hasActiveDashboardSearch(dashboardSearchFilters)
@@ -679,12 +694,13 @@ const DashboardClient = () => {
     setShowFilteredResults(false);
     setError(null);
     setLocationMessage(null);
+    clearSearchLocation();
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       dashboardSearchParamKeys.forEach((key) => next.delete(key));
       return next;
     }, { replace: true });
-  }, [setSearchParams]);
+  }, [clearSearchLocation, setSearchParams]);
 
   const handleBrokerRequestLocationContextChange = useCallback((locationCode: string | null) => {
     setBrokerRequestLocationContext(locationCode?.trim() || null);
@@ -1095,8 +1111,7 @@ const DashboardClient = () => {
         </div>
       )}
 
-      {!showFilteredResults && (
-        <div>
+      <div>
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -1149,8 +1164,7 @@ const DashboardClient = () => {
               </div>
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 };

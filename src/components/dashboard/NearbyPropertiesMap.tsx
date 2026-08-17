@@ -391,11 +391,13 @@ const NearbyPropertiesMap = ({
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        noWrap
                     />
                 ) : (
                     <TileLayer
                         attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        noWrap
                     />
                 )}
 
@@ -457,7 +459,7 @@ const NearbyPropertiesMap = ({
                                             onClick={() => handleStartFastTrack(property)}
                                             className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
                                         >
-                                            Start fast-track
+                                            Request fast-track
                                         </button>
                                     </div>
                                 </div>
@@ -585,7 +587,7 @@ const NearbyPropertiesMap = ({
                             onClick={() => handleStartFastTrack(selectedProperty)}
                             className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
                         >
-                            Open fast-track
+                            Request fast-track
                         </button>
                     </div>
                 </div>

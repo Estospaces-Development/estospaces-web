@@ -27,10 +27,21 @@ import {
 } from 'lucide-react';
 import { getPropertyById, Property } from '../../../../services/propertyService';
 import { recordPropertyNavigation } from '@/lib/propertyNavigation';
+import {
+    clearFastTrackRequestPending,
+    getFastTrackDeepLinkOpenKey,
+    getFastTrackRequestPendingDelay,
+    getFastTrackRequestPendingKey,
+    readFastTrackRequestPending,
+    resolveFastTrackRequestControlState,
+    shouldClearFastTrackRequestPending,
+    writeFastTrackRequestPending,
+    type FastTrackRequestPendingMarker,
+} from '@/lib/fastTrackRequestPending';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
-import { createFastTrackCase, FastTrackCase, getFastTrackCases, updateFastTrackCase, type CreateFastTrackRequest } from '@/services/fastTrackService';
+import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase, type CreateFastTrackRequest } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
@@ -48,7 +59,6 @@ import {
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
 import {
-    resolveCreatedPropertyFastTrackCase,
     resolvePropertyFastTrackSummaryDocuments,
     resolvePropertyFastTrackPanelLabels,
     resolvePropertyFastTrackWorkspaceSelection,
@@ -970,6 +980,7 @@ const UserPropertyDetail = () => {
     const [isFastTrackPanelLoading, setIsFastTrackPanelLoading] = useState(false);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
     const [activeFastTrackCase, setActiveFastTrackCase] = useState<FastTrackCase | null>(null);
+    const [fastTrackRequestPending, setFastTrackRequestPending] = useState<FastTrackRequestPendingMarker | null>(null);
     const [fastTrackWorkspaceLookup, setFastTrackWorkspaceLookup] = useState<{
         propertyId: string | null;
         status: PropertyFastTrackLookupStatus;
@@ -977,6 +988,46 @@ const UserPropertyDetail = () => {
     const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
     const [uploadingFastTrackDocumentType, setUploadingFastTrackDocumentType] = useState<'identity' | 'address' | null>(null);
     const [liveWorkspaceLoaded, setLiveWorkspaceLoaded] = useState(false);
+
+    const fastTrackRequestStorageKey = useMemo(() => (
+        user?.id && property?.id
+            ? getFastTrackRequestPendingKey(user.id, property.id)
+            : null
+    ), [property?.id, user?.id]);
+
+    useEffect(() => {
+        setFastTrackRequestPending(
+            fastTrackRequestStorageKey
+                ? readFastTrackRequestPending(window.localStorage, fastTrackRequestStorageKey)
+                : null,
+        );
+    }, [fastTrackRequestStorageKey]);
+
+    useEffect(() => {
+        if (!fastTrackRequestStorageKey || !fastTrackRequestPending) {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setFastTrackRequestPending(
+                readFastTrackRequestPending(window.localStorage, fastTrackRequestStorageKey),
+            );
+        }, getFastTrackRequestPendingDelay(fastTrackRequestPending));
+
+        return () => window.clearTimeout(timeout);
+    }, [fastTrackRequestPending, fastTrackRequestStorageKey]);
+
+    useEffect(() => {
+        if (
+            !fastTrackRequestStorageKey
+            || !property?.id
+            || !shouldClearFastTrackRequestPending(fastTrackRequestPending, activeFastTrackCase, property.id)
+        ) {
+            return;
+        }
+        clearFastTrackRequestPending(window.localStorage, fastTrackRequestStorageKey);
+        setFastTrackRequestPending(null);
+    }, [activeFastTrackCase, fastTrackRequestPending, fastTrackRequestStorageKey, property?.id]);
     const [calendarMonth, setCalendarMonth] = useState(() => {
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -1008,12 +1059,20 @@ const UserPropertyDetail = () => {
     const immersiveGalleryTriggerRef = useRef<HTMLElement | null>(null);
     const wasImmersiveGalleryOpenRef = useRef(false);
     const fastTrackTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const fastTrackRequestInFlightRef = useRef(false);
+    const handledFastTrackDeepLinkRef = useRef<string | null>(null);
     const activePropertyIdRef = useRef<string | null>(property?.id || null);
     activePropertyIdRef.current = property?.id || null;
     const viewingFormRef = useRef<HTMLFormElement | null>(null);
     const wasFastTrackModalOpenRef = useRef(false);
     const offerInFlightRef = useRef(false);
     const rentalApplicationInFlightRef = useRef(false);
+
+    useEffect(() => {
+        if (fastTrackQuery !== '1') {
+            handledFastTrackDeepLinkRef.current = null;
+        }
+    }, [fastTrackQuery]);
     const navigationState = (location.state && typeof location.state === 'object'
         ? location.state
         : null) as { backTo?: string; backLabel?: string } | null;
@@ -1238,6 +1297,7 @@ const UserPropertyDetail = () => {
     ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
     const propertyFastTrackCase = activeFastTrackCase?.propertyId === property?.id ? activeFastTrackCase : null;
     const hasActiveFastTrackJourney = isActiveFastTrackCase(propertyFastTrackCase);
+    const isFastTrackApprovalPending = Boolean(fastTrackRequestPending) && !hasActiveFastTrackJourney;
     const fastTrackCtaState = resolvePropertyFastTrackCtaState({
         isAuthenticated: Boolean(user),
         propertyId: property?.id,
@@ -1246,27 +1306,40 @@ const UserPropertyDetail = () => {
         hasActiveJourney: hasActiveFastTrackJourney,
     });
     const isFastTrackLookupPending = fastTrackCtaState === 'checking';
-    const isFastTrackCtaBusy = isStartingFastTrack || isFastTrackLookupPending;
-    const fastTrackSidebarActionLabel = fastTrackCtaState === 'continue'
+    const {
+        isBusy: isFastTrackCtaBusy,
+        isDisabled: isFastTrackCtaDisabled,
+    } = resolveFastTrackRequestControlState({
+        isStarting: isStartingFastTrack,
+        isLookupPending: isFastTrackLookupPending,
+        isApprovalPending: isFastTrackApprovalPending,
+    });
+    const fastTrackSidebarActionLabel = isFastTrackApprovalPending
+        ? 'Fast Track requested'
+        : fastTrackCtaState === 'continue'
         ? 'Continue 24-hour journey'
         : fastTrackCtaState === 'retry'
             ? 'Check fast-track status'
             : fastTrackCtaState === 'checking'
                 ? 'Checking fast-track status...'
                 : '24-hour fast track';
-    const fastTrackPrimaryActionLabel = fastTrackCtaState === 'continue'
+    const fastTrackPrimaryActionLabel = isFastTrackApprovalPending
+        ? 'Waiting for manager approval'
+        : fastTrackCtaState === 'continue'
         ? 'Continue Fast Track'
         : fastTrackCtaState === 'retry'
             ? 'Check Fast Track Status'
             : fastTrackCtaState === 'checking'
                 ? 'Checking Fast Track Status...'
-                : 'Start 24-Hour Fast Track';
+                : 'Request 24-Hour Fast Track';
     const fastTrackBusyActionLabel = fastTrackCtaState === 'continue'
         ? 'Opening Fast Track...'
         : fastTrackCtaState === 'start'
-            ? 'Starting Fast Track...'
+            ? 'Sending Fast Track request...'
             : 'Checking Fast Track Status...';
-    const fastTrackConciergeActionLabel = fastTrackCtaState === 'continue'
+    const fastTrackConciergeActionLabel = isFastTrackApprovalPending
+        ? 'Waiting for manager approval'
+        : fastTrackCtaState === 'continue'
         ? 'Continue your fast-track workspace'
         : fastTrackCtaState === 'retry'
             ? 'Check your fast-track status'
@@ -1658,10 +1731,6 @@ const UserPropertyDetail = () => {
             return;
         }
 
-        if (fastTrackQuery === '1') {
-            setIsFastTrackModalOpen(true);
-        }
-
         let cancelled = false;
         setFastTrackWorkspaceLookup({ propertyId: property.id, status: 'loading' });
         const refreshWorkspace = async (silent = false) => {
@@ -1669,6 +1738,15 @@ const UserPropertyDetail = () => {
                 const workspace = await loadFastTrackWorkspace({ silent });
                 if (!cancelled) {
                     setLiveWorkspaceLoaded(Boolean(workspace.lead || workspace.fastTrackCase));
+                    const deepLinkOpenKey = getFastTrackDeepLinkOpenKey({
+                        fastTrackQuery,
+                        hasActiveCase: isActiveFastTrackCase(workspace.fastTrackCase),
+                        propertyID: property.id,
+                    });
+                    if (!silent && deepLinkOpenKey && handledFastTrackDeepLinkRef.current !== deepLinkOpenKey) {
+                        handledFastTrackDeepLinkRef.current = deepLinkOpenKey;
+                        setIsFastTrackModalOpen(true);
+                    }
                 }
             } catch {
                 if (!cancelled && !silent) {
@@ -1691,7 +1769,7 @@ const UserPropertyDetail = () => {
             cancelled = true;
             window.clearInterval(interval);
         };
-    }, [fastTrackQuery, loadFastTrackWorkspace, property, user]);
+    }, [fastTrackQuery, fastTrackRequestStorageKey, loadFastTrackWorkspace, property, user]);
 
     useEffect(() => {
         if (!property || !user || !isFastTrackModalOpen) {
@@ -1869,7 +1947,7 @@ const UserPropertyDetail = () => {
     };
 
     const handleStartFastTrack = async () => {
-        if (!property || !ensureAuthenticated()) {
+        if (fastTrackRequestInFlightRef.current || !property || !ensureAuthenticated()) {
             return;
         }
 
@@ -1879,6 +1957,7 @@ const UserPropertyDetail = () => {
             return;
         }
 
+        fastTrackRequestInFlightRef.current = true;
         setIsStartingFastTrack(true);
         try {
             const currentWorkspace = await loadFastTrackWorkspace();
@@ -1912,30 +1991,22 @@ const UserPropertyDetail = () => {
                 return;
             }
 
-            const fastTrackResult = await createFastTrackCase(fastTrackRequest);
-            if (fastTrackResult.error || !fastTrackResult.data) {
-                throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
+            const fastTrackResult = await requestFastTrack(fastTrackRequest);
+            if (fastTrackResult.error || !fastTrackResult.requested) {
+                throw new Error(fastTrackResult.error || 'Unable to send the Fast Track request.');
             }
-
-            const createdFastTrackCase = fastTrackResult.data;
-            let selectedFastTrackCase = createdFastTrackCase;
-            try {
-                const refreshedWorkspace = await loadFastTrackWorkspace();
-                selectedFastTrackCase = resolveCreatedPropertyFastTrackCase(
-                    createdFastTrackCase,
-                    refreshedWorkspace.fastTrackCase,
+            setActiveLead(leadToUse);
+            setLiveWorkspaceLoaded(Boolean(leadToUse));
+            if (!fastTrackResult.requestedAt) {
+                throw new Error('The Fast Track request confirmation was incomplete. Please try again.');
+            }
+            if (fastTrackRequestStorageKey) {
+                const pendingMarker = writeFastTrackRequestPending(
+                    window.localStorage,
+                    fastTrackRequestStorageKey,
+                    fastTrackResult.requestedAt,
                 );
-                const selectedLead = refreshedWorkspace.lead?.id === selectedFastTrackCase.leadId
-                    ? refreshedWorkspace.lead
-                    : leadToUse || refreshedWorkspace.lead;
-
-                setActiveLead(selectedLead || null);
-                setActiveFastTrackCase(selectedFastTrackCase);
-                setLiveWorkspaceLoaded(Boolean(refreshedWorkspace.lead || selectedFastTrackCase));
-            } catch {
-                setActiveLead(leadToUse);
-                setActiveFastTrackCase(createdFastTrackCase);
-                setLiveWorkspaceLoaded(true);
+                setFastTrackRequestPending(pendingMarker);
             }
             publishWorkspaceSync({
                 source: 'mutation',
@@ -1944,31 +2015,28 @@ const UserPropertyDetail = () => {
                     WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
                     WORKSPACE_SYNC_TAGS.LEADS,
                 ],
-                reason: 'User started fast-track from property detail',
+                reason: 'User requested fast-track from property detail',
                 ids: {
-                    caseId: createdFastTrackCase.caseId,
-                    leadId: createdFastTrackCase.leadId || leadToUse?.id,
+                    leadId: leadToUse?.id,
                     propertyId: property.id,
                 },
             });
-            toast.success('Fast-track started. You can track the roadmap and upload supporting files here.');
-            openFastTrackDashboard(selectedFastTrackCase);
+            toast.success('Fast Track requested. Your manager has been notified and will start it after review.');
         } catch (actionError: any) {
-            const message = actionError?.message || 'Unable to start fast-track right now.';
+            const message = actionError?.message || 'Unable to request Fast Track right now.';
             const normalizedMessage = message.toLowerCase();
 
             if (normalizedMessage.includes('active lead') || normalizedMessage.includes('active fast-track case')) {
                 const recoveredWorkspace = await loadFastTrackWorkspace();
                 if (recoveredWorkspace.fastTrackCase) {
                     openFastTrackDashboard(recoveredWorkspace.fastTrackCase);
-                } else {
-                    setIsFastTrackModalOpen(true);
                 }
                 toast.success('Your live fast-track journey is already active for this property.');
             } else {
                 toast.error(message);
             }
         } finally {
+            fastTrackRequestInFlightRef.current = false;
             setIsStartingFastTrack(false);
         }
     };
@@ -2495,7 +2563,7 @@ const UserPropertyDetail = () => {
                                                     fastTrackTriggerRef.current = event.currentTarget;
                                                     void handleStartFastTrack();
                                                 }}
-                                                disabled={isFastTrackCtaBusy}
+                                                disabled={isFastTrackCtaDisabled}
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
                                             >
                                                 {isFastTrackCtaBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
@@ -2858,7 +2926,7 @@ const UserPropertyDetail = () => {
                             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing concierge</p>
                             <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Interested in this property?</h3>
                             <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                Start fast-track, open a direct chat, or send a polished viewing request without leaving the page.
+                                Request manager-approved Fast Track, open a direct chat, or send a polished viewing request without leaving the page.
                             </p>
                             <div className="mt-5 grid gap-2.5">
                                 {conciergeHighlights.map((item) => {
@@ -2867,6 +2935,7 @@ const UserPropertyDetail = () => {
                                     const isMessageAction = item.label === 'Private access';
                                     const isTourAction = item.label === 'Tour booking';
                                     const isBusy = (isResponseAction && isFastTrackCtaBusy) || (isMessageAction && isCreatingConversation);
+                                    const isDisabled = isBusy || (isResponseAction && isFastTrackApprovalPending);
 
                                     return (
                                         <button
@@ -2886,7 +2955,7 @@ const UserPropertyDetail = () => {
                                                     focusViewingRequestForm();
                                                 }
                                             }}
-                                            disabled={isBusy}
+                                            disabled={isDisabled}
                                             className="group flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-orange-800 dark:hover:bg-zinc-900/80"
                                         >
                                             <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition group-hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200 dark:group-hover:bg-orange-950/70">
@@ -2910,7 +2979,7 @@ const UserPropertyDetail = () => {
                                     fastTrackTriggerRef.current = event.currentTarget;
                                     void handleStartFastTrack();
                                 }}
-                                disabled={isFastTrackCtaBusy}
+                                disabled={isFastTrackCtaDisabled}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackPrimaryActionLabel}
@@ -2918,9 +2987,10 @@ const UserPropertyDetail = () => {
                             <button
                                 type="button"
                                 onClick={() => openFastTrackDashboard()}
-                                className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                                disabled={!hasActiveFastTrackJourney}
+                                className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                             >
-                                Open live workspace
+                                {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
                             </button>
                             <button
                                 type="button"

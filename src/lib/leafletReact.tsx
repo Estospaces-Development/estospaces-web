@@ -116,17 +116,18 @@ export function useMapEvents(handlers: LeafletEventHandlerFnMap) {
 interface TileLayerProps {
     url: string;
     attribution?: string;
+    noWrap?: boolean;
 }
 
-export function TileLayer({ url, attribution }: TileLayerProps) {
+export function TileLayer({ url, attribution, noWrap = false }: TileLayerProps) {
     const map = useMap();
 
     useEffect(() => {
-        const layer = L.tileLayer(url, { attribution }).addTo(map);
+        const layer = L.tileLayer(url, { attribution, noWrap }).addTo(map);
         return () => {
             layer.remove();
         };
-    }, [attribution, map, url]);
+    }, [attribution, map, noWrap, url]);
 
     return null;
 }

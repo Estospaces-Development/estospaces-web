@@ -99,6 +99,11 @@ import {
   getManagerPropertySubmitIntent,
   getManagerPropertyUploadControlCopy,
 } from "@/lib/managerPropertyFormAccessibility";
+import {
+  createManagerPropertyVideoPreview,
+  revokeAllManagerPropertyVideoPreviews,
+  revokeManagerPropertyVideoPreview,
+} from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
@@ -562,6 +567,7 @@ export default function AddPropertyPage() {
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const formContentRef = useRef<HTMLFormElement | null>(null);
   const locationRevisionRef = useRef(0);
+  const ownedVideoPreviewURLsRef = useRef(new Set<string>());
 
   // Determine mode based on presence of ID
   const mode: FormMode = idValue ? "edit" : "create";
@@ -750,6 +756,10 @@ export default function AddPropertyPage() {
       void refreshMediaFiles();
     }
   }, [currentStep, refreshMediaFiles]);
+
+  useEffect(() => () => {
+    revokeAllManagerPropertyVideoPreviews(ownedVideoPreviewURLsRef.current);
+  }, []);
 
   useEffect(() => {
     scrollToFormTop();
@@ -1630,23 +1640,19 @@ export default function AddPropertyPage() {
         return;
       }
 
-      if (file.size > 50 * 1024 * 1024) {
-        showToast(`${file.name} is too large. Maximum size is 50MB.`, "error");
+      if (file.size > 30 * 1024 * 1024) {
+        showToast(`${file.name} is too large. Maximum size is 30MB.`, "error");
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setVideoPreviews((prev) => [...prev, event.target!.result as string]);
-          setFormData((prev) => ({
-            ...prev,
-            videos: [...prev.videos, file],
-          }));
-          setIsDirty(true);
-        }
-      };
-      reader.readAsDataURL(file);
+      const previewURL = createManagerPropertyVideoPreview(file);
+      ownedVideoPreviewURLsRef.current.add(previewURL);
+      setVideoPreviews((prev) => [...prev, previewURL]);
+      setFormData((prev) => ({
+        ...prev,
+        videos: [...prev.videos, file],
+      }));
+      setIsDirty(true);
     });
   };
 
@@ -1671,7 +1677,16 @@ export default function AddPropertyPage() {
   };
 
   const removeVideo = (index: number) => {
-    setVideoPreviews((prev) => prev.filter((_, i) => i !== index));
+    setVideoPreviews((prev) => {
+      const previewURL = prev[index];
+      if (previewURL) {
+        revokeManagerPropertyVideoPreview(
+          previewURL,
+          ownedVideoPreviewURLsRef.current,
+        );
+      }
+      return prev.filter((_, i) => i !== index);
+    });
     setFormData((prev) => ({
       ...prev,
       videos: prev.videos.filter((_, i) => i !== index),
@@ -2978,10 +2993,11 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("balconies")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Balconies
+                    Balconies <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     {...fieldState("balconies")}
+                    required
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.balconies)}
@@ -2999,10 +3015,12 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("parkingSpaces")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <Car className="w-4 h-4 inline mr-1" /> Parking Spaces
+                    <Car className="w-4 h-4 inline mr-1" /> Parking Spaces{" "}
+                    <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     {...fieldState("parkingSpaces")}
+                    required
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.parkingSpaces)}
@@ -3044,10 +3062,11 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("totalFloors")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Total Floors
+                    Total Floors <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     {...fieldState("totalFloors")}
+                    required
                     type="number"
                     min="1"
                     value={getNumericDisplayValue(formData.totalFloors)}

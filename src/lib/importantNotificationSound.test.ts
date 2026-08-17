@@ -48,6 +48,7 @@ test('important notification coverage includes user, manager, and admin journeys
             'viewing_booked',
             'application_submitted',
             'fast_track_started',
+            'fast_track_requested',
         ],
         admin: [
             'user_verification_submitted',

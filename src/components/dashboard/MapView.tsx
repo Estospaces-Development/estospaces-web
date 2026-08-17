@@ -184,7 +184,7 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
                                             navigate(`/user/properties/${house.id}?fast-track=1`);
                                         }}
                                     >
-                                        Start fast-track
+                                        Request fast-track
                                     </button>
                                 </div>
                             </div>
