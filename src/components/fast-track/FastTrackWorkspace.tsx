@@ -3783,6 +3783,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     // preventing the browser from jumping the viewport abruptly.
     const contentRef = useRef<HTMLDivElement>(null);
     const handleSelectCase = useCallback((caseId: string) => {
+        setError(null);
+        setRequestedCaseLookup(null);
         pendingSelectedCaseIdRef.current = caseId;
         setSelectedCaseId(caseId);
         setActiveStageOverride(null);

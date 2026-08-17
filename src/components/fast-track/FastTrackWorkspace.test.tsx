@@ -423,6 +423,18 @@ test("fast-track notification deep links load the requested case before stale-li
   );
 });
 
+test("selecting an accessible case clears a failed deep-link error", () => {
+  const source = workspaceSource();
+  const handlerStart = source.indexOf("const handleSelectCase = useCallback((caseId: string) => {");
+  const handlerEnd = source.indexOf("const stepperItems = useMemo", handlerStart);
+
+  assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
+  const handler = source.slice(handlerStart, handlerEnd);
+  assert.match(handler, /setError\(null\);/);
+  assert.match(handler, /setRequestedCaseLookup\(null\);/);
+  assert.match(handler, /buildFastTrackSelectionSearchParams\(previous, caseId\)/);
+});
+
 test("compact case rail drawer sits above manager chrome without blurring the workspace", () => {
   const source = workspaceSource();
 
