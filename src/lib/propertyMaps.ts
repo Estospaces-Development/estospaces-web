@@ -87,9 +87,6 @@ const joinAddressParts = (parts: Array<string | null | undefined>) => {
 const buildGoogleEmbedUrl = (latitude: number, longitude: number) =>
   `https://maps.google.com/maps?q=${encodeURIComponent(`${latitude},${longitude}`)}&z=15&output=embed`;
 
-const buildGoogleAddressEmbedUrl = (query: string) =>
-  `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=15&output=embed`;
-
 const buildGoogleMapsUrl = (query: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
@@ -205,14 +202,14 @@ export const getPropertyMapState = (
       hasAddress: true,
       displayAddress,
       coordinates: null,
-      embedUrl: buildGoogleAddressEmbedUrl(displayAddress),
+      embedUrl: null,
       externalUrl:
         provider === "apple"
           ? buildAppleMapsUrl(displayAddress)
           : buildGoogleMapsUrl(displayAddress),
-      statusTitle: "Address map preview available",
+      statusTitle: "Address available — pin not verified",
       statusDescription:
-        "Map preview is based on the property address. Open it in Maps for full neighbourhood context and directions.",
+        "This listing has no verified map pin yet. Review the exact saved address, then open it in Maps for search and directions.",
     };
   }
 
