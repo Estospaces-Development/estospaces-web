@@ -26,7 +26,7 @@ export default function MessageInboxFab() {
         <button
             type="button"
             onClick={() => navigate('/user/dashboard/messages')}
-            className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-3 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-orange-600 hover:shadow-xl hover:shadow-orange-500/30"
+            className="fixed bottom-24 right-3 z-30 inline-flex min-h-12 items-center gap-3 rounded-full bg-orange-500 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-orange-600 hover:shadow-xl hover:shadow-orange-500/30 sm:right-6 sm:px-5 md:bottom-6 md:z-40"
             aria-label="Open messages"
         >
             <div className="relative">
@@ -37,7 +37,7 @@ export default function MessageInboxFab() {
                     </span>
                 )}
             </div>
-            <span>{totalUnreadCount > 0 ? 'Open Messages' : 'Messages'}</span>
+            <span className="hidden sm:inline">{totalUnreadCount > 0 ? 'Open Messages' : 'Messages'}</span>
         </button>
     );
 }

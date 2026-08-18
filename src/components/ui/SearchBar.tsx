@@ -54,6 +54,11 @@ const defaultFilters: SearchFilters = {
     minBathrooms: null,
 };
 
+export const shouldHydrateSearchBarFromUrl = (
+    variant: SearchBarProps['variant'],
+    initialFilters?: Partial<SearchFilters>,
+) => variant !== 'compact' && (!initialFilters || Object.keys(initialFilters).length === 0);
+
 const buildSearchPriceRanges = (countryCode: string) => {
     const format = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode,
@@ -146,7 +151,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     useEffect(() => {
         if (initialFilters && Object.keys(initialFilters).length > 0) {
             setFilters(prev => ({ ...prev, ...initialFilters }));
-        } else {
+        } else if (shouldHydrateSearchBarFromUrl(variant, initialFilters)) {
             // Fallback to URL parsing if no initialFilters provided (e.g Header search)
             const urlFilters: Partial<SearchFilters> = {};
 
@@ -180,7 +185,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 setFilters((prev) => ({ ...prev, ...urlFilters }));
             }
         }
-    }, [initialFilters, searchParams]);
+    }, [initialFilters, searchParams, variant]);
 
     // Location autocomplete
     const fetchLocationSuggestions = useCallback(async (query: string) => {
@@ -454,6 +459,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
+                        aria-label="Search properties from the global header"
+                        autoComplete="off"
                         value={filters.keyword}
                         onChange={(e) => {
                             handleInputChange('keyword', e.target.value);

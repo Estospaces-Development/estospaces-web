@@ -128,8 +128,8 @@ test('mobile user header keeps search and profile controls within the viewport b
   const userHeader = readSource('src/components/layout/UserHeader.tsx');
   const searchBar = readSource('src/components/ui/SearchBar.tsx');
 
-  assert.match(userHeader, /className="flex h-full items-center justify-between gap-2 px-3 sm:px-4 lg:px-6"/);
-  assert.match(userHeader, /className="mx-2 min-w-0 flex-1 sm:mx-4 md:mx-8 md:max-w-xl"/);
+  assert.match(userHeader, /className="grid min-h-16 grid-cols-\[minmax\(0,1fr\)_auto\][^"]*px-3[^"]*sm:flex[^"]*sm:px-4[^"]*lg:px-6"/);
+  assert.match(userHeader, /className="order-3 col-span-2 min-w-0[^"]*sm:col-span-1[^"]*sm:flex-1[^"]*md:max-w-xl"/);
   assert.match(userHeader, /className="flex shrink-0 items-center gap-1\.5 sm:gap-4"/);
   assert.match(userHeader, /className=\{`hidden text-white transition-transform dark:text-gray-200 sm:block/);
   assert.match(searchBar, /className=\{`flex min-w-0 items-center gap-2 \$\{className\}`\}/);

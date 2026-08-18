@@ -5,12 +5,60 @@ import { clearAuthToken, setAuthToken } from '@/lib/authToken';
 
 import {
     buildFallbackPropertySections,
+    getExactLocationSuggestion,
+    getLocationScopedSearchQuery,
+    isLocationAutocompleteSuggestion,
+    restorePersistedInferredLocation,
     getPropertySectionsRequestOptions,
     mapCorePropertySectionToSearchSection,
     mapSearchFiltersToCoreQuery,
     PRIMARY_SEARCH_SERVICE_TIMEOUT_MS,
     searchService,
 } from '@/services/searchService';
+
+test('exact city autocomplete identifies explicit location intent', () => {
+    const city = { text: 'Chennai', type: 'city' as const };
+
+    assert.deepEqual(getExactLocationSuggestion('  CHENNAI ', [city]), city);
+});
+
+test('exact postcode autocomplete ignores whitespace differences', () => {
+    const postcode = { text: 'SW1A 1AA', type: 'postcode' as const };
+
+    assert.deepEqual(getExactLocationSuggestion('sw1a1aa', [postcode]), postcode);
+});
+
+test('property-title suggestions do not reinterpret keyword searches as locations', () => {
+    const property = { id: 'property-1', text: 'Chennai', type: 'property' as const };
+    const city = { text: 'Chennai', type: 'city' as const };
+
+    assert.equal(getExactLocationSuggestion('Chennai', [property]), null);
+    assert.equal(getExactLocationSuggestion('Chennai', [city, property]), null);
+    assert.equal(getExactLocationSuggestion('Chennai House', [city]), null);
+    assert.equal(isLocationAutocompleteSuggestion(property), false);
+    assert.equal(isLocationAutocompleteSuggestion({ text: 'Popular homes', type: 'popular' }), false);
+    assert.equal(isLocationAutocompleteSuggestion(city), true);
+});
+
+test('inferred postcode location is not duplicated in the core search keyword', () => {
+    const query = getLocationScopedSearchQuery('PR15QH', 'PR1 5QH', 'PR1 5QH');
+    const params = mapSearchFiltersToCoreQuery(query, { location: 'PR1 5QH' });
+
+    assert.equal(query, '');
+    assert.equal(params.get('search'), 'PR1 5QH');
+});
+
+test('only persisted inferred locations deduplicate equivalent query text after reload', () => {
+    assert.equal(getLocationScopedSearchQuery('PR15QH', 'PR1 5QH', 'PR1 5QH'), '');
+    assert.equal(getLocationScopedSearchQuery('Chennai', 'Chennai', 'Chennai'), '');
+    assert.equal(getLocationScopedSearchQuery('Chennai', 'Chennai', ''), 'Chennai');
+    assert.equal(restorePersistedInferredLocation('PR15QH', 'PR1 5QH', '1'), 'PR1 5QH');
+    assert.equal(restorePersistedInferredLocation('Chennai', 'Chennai', null), '');
+});
+
+test('explicit location filters retain independent property-name keywords', () => {
+    assert.equal(getLocationScopedSearchQuery('Chennai House', 'Chennai', ''), 'Chennai House');
+});
 
 test('empty property sections can fall back to real public property records', () => {
     const property = {

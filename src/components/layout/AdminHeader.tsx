@@ -113,7 +113,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
     return (
         <>
-            <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
+            <header className="workspace-chrome bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
                 <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
                     <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         {onMenuToggle && (

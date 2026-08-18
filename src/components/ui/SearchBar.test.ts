@@ -3,11 +3,22 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildPropertyTypeOptions } from '../../lib/propertyTypeOptions';
+import { shouldHydrateSearchBarFromUrl } from './SearchBar';
 
 const source = readFileSync(resolve(process.cwd(), 'src/components/ui/SearchBar.tsx'), 'utf8');
 const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/search/page.tsx'), 'utf8');
 const userDashboardSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
 const discoverSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
+
+test('global and page search inputs keep independent draft state', () => {
+    const routeFilters = { keyword: 'chennai' };
+
+    assert.equal(shouldHydrateSearchBarFromUrl('compact'), false);
+    assert.equal(shouldHydrateSearchBarFromUrl('full'), true);
+    assert.equal(shouldHydrateSearchBarFromUrl('hero', routeFilters), false);
+    assert.match(source, /aria-label="Search properties from the global header"/);
+    assert.match(source, /autoComplete="off"/);
+});
 
 test('dashboard type options merge API filters with the shared property defaults', () => {
     const options = buildPropertyTypeOptions(['rent', 'apartment', 'sale', 'villa', 'Apartment']);

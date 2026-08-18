@@ -126,6 +126,69 @@ const normalizeCountryFilter = (...values: unknown[]) => {
 const normalizePostcodeText = (value?: string) =>
     (value || '').trim().toLowerCase().replace(/\s+/g, '');
 
+export const isLocationAutocompleteSuggestion = (suggestion: AutocompleteSuggestion) =>
+    suggestion.type === 'city'
+    || suggestion.type === 'location'
+    || suggestion.type === 'postcode';
+
+export const getExactLocationSuggestion = (
+    query: string,
+    suggestions: AutocompleteSuggestion[],
+): AutocompleteSuggestion | null => {
+    const normalizedQuery = normalizeSearchQueryInput(query);
+    if (!normalizedQuery) {
+        return null;
+    }
+
+    const hasExactPropertyTitle = suggestions.some((suggestion) =>
+        suggestion.type === 'property'
+        && normalizeSearchQueryInput(suggestion.text) === normalizedQuery);
+    if (hasExactPropertyTitle) {
+        return null;
+    }
+
+    const normalizedLocationCode = normalizePostcodeText(query);
+    return suggestions.find((suggestion) => {
+        if (!isLocationAutocompleteSuggestion(suggestion)) {
+            return false;
+        }
+        if (suggestion.type === 'postcode') {
+            return normalizePostcodeText(suggestion.text) === normalizedLocationCode;
+        }
+        return normalizeSearchQueryInput(suggestion.text) === normalizedQuery;
+    }) || null;
+};
+
+export const getLocationScopedSearchQuery = (
+    query: string,
+    location: string,
+    inferredLocation: string,
+) => {
+    const normalizedLocation = normalizeSearchQueryInput(location);
+    if (!normalizedLocation) {
+        return query;
+    }
+
+    const normalizedInference = normalizeSearchQueryInput(inferredLocation);
+    if (!normalizedInference || normalizedLocation !== normalizedInference) {
+        return query;
+    }
+
+    const normalizedQuery = normalizeSearchQueryInput(query);
+    const sameText = normalizedQuery === normalizedLocation;
+    const sameLocationCode = isFullLocationCodeSearch(location)
+        && normalizePostcodeText(query) === normalizePostcodeText(location);
+    return sameText || sameLocationCode ? '' : query;
+};
+
+export const restorePersistedInferredLocation = (
+    query: string,
+    location: string,
+    persisted: string | null,
+) => persisted === '1' && getLocationScopedSearchQuery(query, location, location) === ''
+    ? location
+    : '';
+
 const autocompleteSuggestionKey = (suggestion: AutocompleteSuggestion) => {
     if (suggestion.type === 'postcode') {
         return `${suggestion.type}:${normalizePostcodeText(suggestion.text)}`;

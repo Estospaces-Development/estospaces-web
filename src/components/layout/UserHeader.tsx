@@ -44,8 +44,8 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
     const getLinkPath = (path: string) => path;
 
     return (
-        <header className="sticky top-0 z-30 h-16 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
-            <div className="flex h-full items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+        <header className="workspace-chrome sticky top-0 z-30 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
+            <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-2 sm:flex sm:h-16 sm:flex-nowrap sm:px-4 sm:py-0 lg:px-6">
                 <div className="flex shrink-0 items-center">
                     <Link
                         to={getLinkPath('/user/dashboard')}
@@ -60,7 +60,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                 </div>
 
                 {/* Center - Global Search */}
-                <div className="mx-2 min-w-0 flex-1 sm:mx-4 md:mx-8 md:max-w-xl">
+                <div className="order-3 col-span-2 min-w-0 sm:order-none sm:col-span-1 sm:mx-4 sm:flex-1 md:mx-8 md:max-w-xl">
                     <SearchBar variant="compact" searchPath={getLinkPath('/user/search')} />
                 </div>
 
