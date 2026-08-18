@@ -29,6 +29,7 @@ import {
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
+    resolveFastTrackPendingStageSelection,
     resolveFastTrackStageNavigation,
     resolveFastTrackThreadRecipientId,
     resolveFastTrackVisibleStage,
@@ -207,12 +208,50 @@ test('selection search params replace stale case ids when a completed journey is
 });
 
 test('stage search params preserve manager-selected viewing stage across refresh', () => {
-    const next = buildFastTrackStageSearchParams(new URLSearchParams('case=case-1'), 'viewing');
+    const next = buildFastTrackStageSearchParams(
+        new URLSearchParams('case=case-1&section=documents&stage=documents&document=identity&file=preview'),
+        'viewing',
+    );
 
     assert.equal(next.get('case'), 'case-1');
     assert.equal(next.get('section'), 'viewing');
+    assert.equal(next.has('stage'), false);
+    assert.equal(next.has('document'), false);
+    assert.equal(next.has('file'), false);
     assert.equal(resolveFastTrackStageSearchParam(next), 'viewing');
     assert.equal(resolveFastTrackStageSearchParam(new URLSearchParams('section=bad-stage')), null);
+});
+
+test('pending stage selection remains authoritative until the URL confirms the click', () => {
+    const pendingViewing = { caseId: 'case-1', stage: 'viewing' as const };
+
+    assert.deepEqual(
+        resolveFastTrackPendingStageSelection(pendingViewing, 'case-1', 'documents'),
+        { requestedStage: 'viewing', awaitingURLSync: true },
+    );
+    assert.deepEqual(
+        resolveFastTrackPendingStageSelection(pendingViewing, 'case-1', 'viewing'),
+        { requestedStage: 'viewing', awaitingURLSync: false },
+    );
+    assert.deepEqual(
+        resolveFastTrackPendingStageSelection(pendingViewing, 'case-2', 'documents'),
+        { requestedStage: 'documents', awaitingURLSync: false },
+    );
+
+    const readinessRegressed = buildCase({
+        stage: 'documents',
+        documents: {
+            identityProof: 'pending',
+            addressProof: 'pending',
+            items: [],
+            allUploaded: false,
+            allApproved: false,
+        },
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(readinessRegressed, 'viewing'), {
+        visibleStage: 'documents',
+        shouldReplaceStageParam: true,
+    });
 });
 
 test('document search params preserve selected address row across refresh', () => {

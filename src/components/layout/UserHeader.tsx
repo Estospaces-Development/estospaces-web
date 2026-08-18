@@ -65,16 +65,16 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                     <SearchBar variant="compact" searchPath={USER_SEARCH_PATH} />
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
-                    <NotificationDropdown />
+                <div className="flex shrink-0 items-center gap-1 sm:gap-2" aria-label="Account actions">
+                    <NotificationDropdown appearance="brand" />
 
                     <div className="relative">
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
-                            className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-white/10 sm:p-2"
+                            className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-1.5 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600"
                             aria-label={profileMenuLabel}
-                            aria-haspopup="menu"
                             aria-expanded={userMenuOpen}
+                            aria-controls={userMenuOpen ? 'user-profile-menu' : undefined}
                         >
                             <Avatar
                                 userId={user?.id}
@@ -95,7 +95,10 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                                     className="fixed inset-0 z-40"
                                     onClick={() => setUserMenuOpen(false)}
                                 />
-                                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
+                                <div
+                                    id="user-profile-menu"
+                                    className="absolute right-0 z-50 mt-2 w-[min(14rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+                                >
                                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                                         <div className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</div>
                                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{userEmail}</div>

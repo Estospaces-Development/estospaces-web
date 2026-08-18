@@ -210,7 +210,34 @@ export const buildFastTrackStageSearchParams = (
 ) => {
     const next = new URLSearchParams(current);
     next.set('section', stage);
+    next.delete('stage');
+    if (stage !== 'documents') {
+        next.delete('document');
+        next.delete('file');
+    }
     return next;
+};
+
+export const resolveFastTrackPendingStageSelection = (
+    pendingSelection: { caseId: string; stage: FastTrackStage } | null,
+    selectedCaseId: string | null | undefined,
+    requestedStage: FastTrackStage | null,
+) => {
+    const pendingCaseId = String(pendingSelection?.caseId || '').trim().toLowerCase();
+    const selected = String(selectedCaseId || '').trim().toLowerCase();
+    const appliesToSelectedCase = Boolean(pendingSelection && pendingCaseId && pendingCaseId === selected);
+
+    if (!appliesToSelectedCase || !pendingSelection) {
+        return {
+            requestedStage,
+            awaitingURLSync: false,
+        };
+    }
+
+    return {
+        requestedStage: pendingSelection.stage,
+        awaitingURLSync: requestedStage !== pendingSelection.stage,
+    };
 };
 
 export const shouldStartDocumentsWhenSelectingStage = (

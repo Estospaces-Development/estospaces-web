@@ -130,7 +130,8 @@ test('mobile user header keeps search and profile controls within the viewport b
 
   assert.match(userHeader, /className="grid min-h-16 grid-cols-\[minmax\(0,1fr\)_auto\][^"]*px-3[^"]*sm:flex[^"]*sm:px-4[^"]*lg:px-6"/);
   assert.match(userHeader, /className="order-3 col-span-2 min-w-0[^"]*sm:col-span-1[^"]*sm:flex-1[^"]*md:max-w-xl"/);
-  assert.match(userHeader, /className="flex shrink-0 items-center gap-1\.5 sm:gap-4"/);
+  assert.match(userHeader, /className="flex shrink-0 items-center gap-1 sm:gap-2" aria-label="Account actions"/);
+  assert.match(userHeader, /className="flex h-11 min-w-11 items-center justify-center/);
   assert.match(userHeader, /className=\{`hidden text-white transition-transform dark:text-gray-200 sm:block/);
   assert.match(searchBar, /className=\{`flex min-w-0 items-center gap-2 \$\{className\}`\}/);
   assert.match(searchBar, /className="relative min-w-0 flex-1"/);
