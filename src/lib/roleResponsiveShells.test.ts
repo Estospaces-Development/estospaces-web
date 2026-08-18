@@ -27,6 +27,9 @@ test('user workspace uses a two-row mobile header and thumb-reachable navigation
     assert.match(userNavigation, /UnreadCountBadge count=\{item\.badgeCount \|\| 0\} mobile/);
     assert.match(userLayout, /pb-24[\s\S]*md:pb-0/);
     assert.match(messageFab, /bottom-24[\s\S]*md:bottom-6/);
+    assert.match(userHeader, /NotificationDropdown appearance="brand"/);
+    assert.match(userHeader, /h-11 min-w-11/);
+    assert.match(userHeader, /aria-label="Account actions"/);
 });
 
 test('every signed-in role renders inside the shared responsive workspace contract', () => {

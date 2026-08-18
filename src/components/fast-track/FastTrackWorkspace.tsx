@@ -56,6 +56,7 @@ import {
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
+    resolveFastTrackPendingStageSelection,
     resolveFastTrackStageNavigation,
     resolveFastTrackThreadRecipientId,
     resolveFastTrackVisibleStage,
@@ -565,6 +566,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
     const [activeStageOverride, setActiveStageOverride] = useState<FastTrackStage | null>(null);
+    const [pendingStageSelection, setPendingStageSelection] = useState<{
+        caseId: string;
+        stage: FastTrackStage;
+    } | null>(null);
     const [stageConfirmDialog, setStageConfirmDialog] = useState<{ open: boolean; stage: FastTrackStage } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -1217,6 +1222,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     useEffect(() => {
         if (!selectedCase) {
             setActiveStageOverride(null);
+            setPendingStageSelection(null);
             previousBackendStageRef.current = null;
             return;
         }
@@ -1228,27 +1234,49 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const previousBackendStage = previousBackendStageRef.current?.caseId === selectedCase.caseId
             ? previousBackendStageRef.current.stage
             : null;
+        const pendingResolution = resolveFastTrackPendingStageSelection(
+            pendingStageSelection,
+            selectedCase.caseId,
+            requestedStageParam,
+        );
         const navigation = resolveFastTrackStageNavigation(
             selectedCase,
-            requestedStageParam,
+            pendingResolution.requestedStage,
             previousBackendStage,
+        );
+        const pendingSelectionWasClamped = Boolean(
+            pendingStageSelection?.caseId === selectedCase.caseId
+            && navigation.visibleStage !== pendingResolution.requestedStage,
         );
 
         previousBackendStageRef.current = {
             caseId: selectedCase.caseId,
             stage: selectedCase.stage,
         };
-        setActiveStageOverride(
-            navigation.visibleStage === selectedCase.stage ? null : navigation.visibleStage,
-        );
+        setActiveStageOverride(navigation.visibleStage);
 
-        if (navigation.shouldReplaceStageParam) {
+        if (pendingSelectionWasClamped) {
+            setPendingStageSelection(null);
+        }
+
+        if (pendingResolution.awaitingURLSync || navigation.shouldReplaceStageParam) {
             setSearchParams(
                 (previous) => buildFastTrackStageSearchParams(previous, navigation.visibleStage),
                 { replace: true },
             );
+            return;
         }
-    }, [requestedCaseForStageNavigation, requestedStageParam, selectedCase, setSearchParams]);
+
+        if (pendingStageSelection?.caseId === selectedCase.caseId) {
+            setPendingStageSelection(null);
+        }
+    }, [
+        pendingStageSelection,
+        requestedCaseForStageNavigation,
+        requestedStageParam,
+        selectedCase,
+        setSearchParams,
+    ]);
 
     useEffect(() => {
         if (!isManagerReviewEligible || !selectedCase) {
@@ -1491,6 +1519,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const { stage } = stageConfirmDialog;
         setStageConfirmDialog(null);
+        setPendingStageSelection({ caseId: selectedCase.caseId, stage });
         setActiveStageOverride(stage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage));
         void runAction('start_documents', {}, 'Documents stage started.');
@@ -3763,6 +3792,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
+            setPendingStageSelection({ caseId: selectedCase.caseId, stage: nextStage });
             setActiveStageOverride(nextStage);
             setSearchParams(
                 (previous) => buildFastTrackStageSearchParams(previous, nextStage),
@@ -3772,7 +3802,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
+        setPendingStageSelection({ caseId: selectedCase.caseId, stage: nextStage });
+        setActiveStageOverride(nextStage);
         setSearchParams(
             (previous) => buildFastTrackStageSearchParams(previous, nextStage),
             { preventScrollReset: true },
@@ -3786,6 +3817,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setError(null);
         setRequestedCaseLookup(null);
         pendingSelectedCaseIdRef.current = caseId;
+        setPendingStageSelection(null);
         setSelectedCaseId(caseId);
         setActiveStageOverride(null);
         setSearchParams(

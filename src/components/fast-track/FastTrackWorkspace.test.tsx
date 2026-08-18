@@ -501,8 +501,12 @@ test("fast-track stage navigation uses workflow readiness instead of current plu
   assert.ok(source.includes('canNavigateToStage'), 'should define a canNavigateToStage guard');
   assert.ok(source.includes('isFastTrackStageUnlocked(selectedCase, targetStage)'),
     'should resolve navigation from authoritative workflow readiness');
-  assert.ok(source.includes("setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage)"),
-    'should preserve an explicitly selected unlocked historical stage');
+  assert.ok(source.includes('setPendingStageSelection({ caseId: selectedCase.caseId, stage: nextStage })'),
+    'should retain the clicked stage until the URL confirms navigation');
+  assert.ok(source.includes('setActiveStageOverride(nextStage)'),
+    'should immediately display an explicitly selected unlocked stage');
+  assert.ok(source.includes('if (pendingSelectionWasClamped) {'),
+    'should clear a pending click when polling makes its target unavailable');
   assert.ok(source.includes("toast.info('Complete the current stage before moving to the next one.')"),
     'should show toast when user tries to skip ahead');
 });
