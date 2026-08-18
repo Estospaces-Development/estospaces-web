@@ -653,6 +653,33 @@
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+.role-workspace-content {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.role-workspace-content > *,
+.role-workspace-content :where(section, article, form, fieldset, header, footer, nav) {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .role-workspace-content :where(h1, h2, h3, p, label, dd, dt) {
+    overflow-wrap: anywhere;
+  }
+
+  .role-workspace-content :where(input, textarea, select) {
+    font-size: 16px;
+  }
+}
+
+@media (pointer: coarse) {
+  .workspace-chrome :where(button, a, input, [role="button"]) {
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 380px) {
   .page-shell {
     width: min(100% - 1rem, 1180px);

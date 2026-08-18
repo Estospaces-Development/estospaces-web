@@ -118,7 +118,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     return (
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
+        <header className="workspace-chrome bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
             <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
 
                 {/* Left: Mobile Menu & Search */}

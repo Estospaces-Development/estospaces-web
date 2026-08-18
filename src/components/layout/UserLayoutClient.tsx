@@ -66,12 +66,12 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
                         <Suspense fallback={null}>
                             <PropertyFilterProvider>
                                 <MessagesProvider>
-                                    <div className="flex min-h-screen min-w-0 flex-col overflow-x-hidden bg-gray-50 transition-colors duration-300">
+                                    <div className="flex min-h-screen min-w-0 flex-col overflow-x-hidden bg-gray-50 transition-colors duration-300" data-workspace-role="user">
                                         <UserHeader useSubdomain={isSubdomain} />
                                         <Suspense fallback={<div className="h-12 bg-white animate-pulse" />}>
                                             <HorizontalNavigation useSubdomain={isSubdomain} />
                                         </Suspense>
-                                        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 transition-colors duration-300">
+                                        <main className="role-workspace-content min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 pb-24 transition-colors duration-300 md:pb-0">
                                             <Suspense fallback={<div className="h-full w-full flex items-center justify-center min-h-[50vh]">Loading...</div>}>
                                                 {children}
                                             </Suspense>
