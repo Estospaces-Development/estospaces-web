@@ -59,6 +59,10 @@ export const shouldHydrateSearchBarFromUrl = (
     initialFilters?: Partial<SearchFilters>,
 ) => variant !== 'compact' && (!initialFilters || Object.keys(initialFilters).length === 0);
 
+export const shouldClearSearchBarAfterNavigation = (variant: SearchBarProps['variant']) => (
+    variant === 'compact'
+);
+
 const buildSearchPriceRanges = (countryCode: string) => {
     const format = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode,
@@ -247,7 +251,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (searchMarket) params.set('market', searchMarket === 'GB' ? 'england' : 'india');
 
         if (onSearch) onSearch(submittedFilters);
-        if (navigateOnSearch) navigate(`${searchPath}?${params.toString()}`);
+        if (navigateOnSearch) {
+            navigate(`${searchPath}?${params.toString()}`);
+            if (shouldClearSearchBarAfterNavigation(variant)) {
+                setFilters(defaultFilters);
+            }
+        }
     };
 
     const handleCompactKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

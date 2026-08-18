@@ -231,6 +231,8 @@ test("manager lead list maps broker request offers into searchable client rows",
       image_urls: "",
       property_type: "apartment",
       listing_type: "rent",
+      latitude: 13.0827,
+      longitude: 80.2707,
     },
     matched_broker: {
       id: "manager-1",
@@ -263,6 +265,8 @@ test("manager lead list maps broker request offers into searchable client rows",
   assert.equal(lead.user_id, "user-asha-1");
   assert.equal(lead.broker_request_id, "request-live-1");
   assert.equal(lead.property?.title, "Lake View Home");
+  assert.equal(lead.property?.latitude, 13.0827);
+  assert.equal(lead.property?.longitude, 80.2707);
   assert.equal(merged.length, 1);
   assert.match(searchableText, /asha tenant/);
   assert.match(searchableText, /asha@example\.com/);
@@ -291,6 +295,42 @@ test("manager lead list does not duplicate broker requests already represented b
   }]);
 
   assert.deepEqual(merged.map((lead) => lead.id), ["lead-selected-1"]);
+});
+
+test("manager lead map reads persisted coordinates from the selected property share", () => {
+  const lead = mapBrokerRequestOfferToManagerLead({
+    id: "request-share-location",
+    user_id: "user-share-location",
+    request_type: "buy",
+    location: "Chennai",
+    status: "matched",
+    dispatch_status: "broker_matched",
+    created_at: "2026-08-18T08:00:00Z",
+    selected_property_id: "property-share-location",
+    property_shares: [{
+      id: "share-location",
+      broker_request_id: "request-share-location",
+      broker_id: "manager-1",
+      property_id: "property-share-location",
+      status: "selected",
+      rank: 1,
+      property: {
+        id: "property-share-location",
+        title: "Chennai Shared Home",
+        address_line_1: "1 Marina Road",
+        city: "Chennai",
+        postcode: "600001",
+        price: 10000000,
+        property_type: "house",
+        latitude: 13.0827,
+        longitude: 80.2707,
+      },
+    }],
+  });
+
+  assert.equal(lead.property?.id, "property-share-location");
+  assert.equal(lead.property?.latitude, 13.0827);
+  assert.equal(lead.property?.longitude, 80.2707);
 });
 
 test("manager lead workspace links require an active case matched to the lead", () => {

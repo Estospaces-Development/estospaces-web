@@ -24,6 +24,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
     }
 }
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { buildPreservedUserSearchRedirect } from '@/lib/userSearchRoute';
 
 const CHUNK_RELOAD_KEY = 'estospaces:lazy-route-reload';
 
@@ -201,6 +202,17 @@ function PublicRootEntry() {
   return isAuthenticated ? <StartupRedirect /> : <HomePage />;
 }
 
+function LegacyUserSearchRedirect() {
+  const location = useLocation();
+
+  return (
+    <Navigate
+      to={buildPreservedUserSearchRedirect(location.search, location.hash)}
+      replace
+    />
+  );
+}
+
 const App: React.FC = () => {
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -323,7 +335,7 @@ const App: React.FC = () => {
             <Route path="profile" element={<Navigate to="/user/dashboard/profile" replace />} />
             <Route path="saved" element={<Navigate to="/user/dashboard/saved" replace />} />
             <Route path="virtual-storage" element={<Navigate to="/user/dashboard/virtual-storage" replace />} />
-            <Route path="search" element={<Navigate to="/user/dashboard/search" replace />} />
+            <Route path="search" element={<LegacyUserSearchRedirect />} />
             <Route path="properties/:id" element={<UserPropertyDetail />} />
             <Route path="settings" element={<Navigate to="/user/dashboard/settings" replace />} />
           </Route>

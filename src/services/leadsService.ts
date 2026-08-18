@@ -292,6 +292,8 @@ export interface BrokerRequestRecord {
     image_urls?: string;
     property_type: string;
     listing_type?: string;
+    latitude?: number;
+    longitude?: number;
   } | null;
   property_shares?: BrokerRequestPropertyShare[];
   created_at?: string;
@@ -321,6 +323,8 @@ export interface BrokerRequestPropertyShare {
     image_urls?: string;
     property_type: string;
     listing_type?: string;
+    latitude?: number;
+    longitude?: number;
   } | null;
 }
 

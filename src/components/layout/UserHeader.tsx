@@ -9,6 +9,7 @@ import Avatar from '../ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
 import { getLoginPath } from '@/lib/authUtils';
+import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -61,7 +62,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
 
                 {/* Center - Global Search */}
                 <div className="order-3 col-span-2 min-w-0 sm:order-none sm:col-span-1 sm:mx-4 sm:flex-1 md:mx-8 md:max-w-xl">
-                    <SearchBar variant="compact" searchPath={getLinkPath('/user/search')} />
+                    <SearchBar variant="compact" searchPath={USER_SEARCH_PATH} />
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">

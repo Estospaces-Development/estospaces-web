@@ -1,5 +1,6 @@
 import type { BrokerRequestRecord } from '@/services/leadsService';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import { buildManagerFastTrackRequestPath } from '@/lib/managerFastTrackRequestNavigation';
 
 export type DispatchWorkspaceSummary = {
     title: string;
@@ -188,11 +189,16 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
 
 export const getManagerWorkspaceAction = (request: BrokerRequestRecord): ManagerWorkspaceAction => {
     if (request.handoff_status === 'property_selected' || request.selected_fast_track_case_id || request.selected_property_id) {
-        if (request.selected_fast_track_case_id) {
+        const selectedShare = request.property_shares?.find((share) => (
+            share.status === 'selected' || share.property_id === request.selected_property_id
+        ));
+        const fastTrackCaseId = request.selected_fast_track_case_id || selectedShare?.fast_track_case_id;
+
+        if (!fastTrackCaseId) {
             return {
-                label: 'Open property workflow',
-                path: buildWorkspacePath('/manager/fast-track', {
-                    caseId: request.selected_fast_track_case_id,
+                label: 'Start Fast Track workflow',
+                path: buildManagerFastTrackRequestPath({
+                    brokerRequestId: request.id,
                     leadId: request.selected_lead_id,
                     propertyId: request.selected_property_id,
                 }),
@@ -200,8 +206,9 @@ export const getManagerWorkspaceAction = (request: BrokerRequestRecord): Manager
         }
 
         return {
-            label: 'Open lead workflow',
-            path: buildWorkspacePath('/manager/leads', {
+            label: 'Open Fast Track workflow',
+            path: buildWorkspacePath('/manager/fast-track', {
+                caseId: fastTrackCaseId,
                 leadId: request.selected_lead_id,
                 propertyId: request.selected_property_id,
             }),
