@@ -48,6 +48,7 @@ import {
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
 const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
     const directLocationCountry = getSupportedLaunchCountry(undefined, undefined, location);
@@ -623,7 +624,7 @@ const PropertySearch = () => {
 
     const handleSearchHistoryReuse = (entry: SearchHistoryEntry) => {
         const params = buildSearchHistoryUrlParams(entry);
-        navigate(`/user/search?${params.toString()}`);
+        navigate(`${USER_SEARCH_PATH}?${params.toString()}`);
         setShowSuggestions(false);
     };
 

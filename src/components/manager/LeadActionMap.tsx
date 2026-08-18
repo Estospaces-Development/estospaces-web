@@ -8,6 +8,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { getLeadMapCoordinates } from '@/lib/leadMap';
 
 interface LeadActionMapProps {
     leads: Lead[];
@@ -66,8 +67,8 @@ function LeadMapAutoFit({ leads }: { leads: Lead[] }) {
     useEffect(() => {
         try {
             const points = leads
-                .filter((lead) => typeof lead.property?.latitude === 'number' && typeof lead.property?.longitude === 'number')
-                .map((lead) => [lead.property?.latitude as number, lead.property?.longitude as number] as [number, number]);
+                .map(getLeadMapCoordinates)
+                .filter((coordinates): coordinates is [number, number] => coordinates !== null);
 
             map.closePopup();
 
@@ -108,7 +109,7 @@ export default function LeadActionMap({
     }, []);
 
     const leadsWithCoordinates = useMemo(
-        () => leads.filter((lead) => typeof lead.property?.latitude === 'number' && typeof lead.property?.longitude === 'number'),
+        () => leads.filter((lead) => getLeadMapCoordinates(lead) !== null),
         [leads],
     );
 
@@ -128,7 +129,7 @@ export default function LeadActionMap({
         [leadsWithCoordinates, selectedLeadID],
     );
     const mapKey = useMemo(() => (
-        leadsWithCoordinates.map((lead) => `${lead.id}:${lead.property?.latitude}:${lead.property?.longitude}`).join('|')
+        leadsWithCoordinates.map((lead) => `${lead.id}:${getLeadMapCoordinates(lead)?.join(':')}`).join('|')
     ), [leadsWithCoordinates]);
     const resolveAssignedBrokerId = (lead: Lead) => lead.broker_id || lead.matched_broker_id || null;
     const canRequestDocumentsForLead = (lead: Lead) => (
@@ -187,6 +188,10 @@ export default function LeadActionMap({
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             />
                             {leadsWithCoordinates.map((lead) => {
+                                const coordinates = getLeadMapCoordinates(lead);
+                                if (!coordinates) {
+                                    return null;
+                                }
                                 const stage = resolveLeadStage(lead);
                                 const isSelected = selectedLeadID === lead.id;
                                 const canRequestDocs = canRequestDocumentsForLead(lead);
@@ -201,7 +206,7 @@ export default function LeadActionMap({
                                 return (
                                     <Marker
                                         key={lead.id}
-                                        position={[lead.property?.latitude as number, lead.property?.longitude as number]}
+                                        position={coordinates}
                                         icon={createLeadMarkerIcon(isSelected)}
                                         title={`${lead.lead_number || lead.id} ${lead.property?.title || lead.property_name || 'property enquiry'} ${formatLeadStage(stage)}`}
                                         alt={`${lead.lead_number || lead.id} map marker`}

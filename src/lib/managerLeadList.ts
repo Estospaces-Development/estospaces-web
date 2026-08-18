@@ -185,7 +185,10 @@ const getBrokerRequestTitle = (request: BrokerRequestRecord) => {
 
 export const mapBrokerRequestOfferToManagerLead = (request: BrokerRequestRecord): Lead => {
   const leadStatus = getBrokerRequestLeadStatus(request);
-  const selectedProperty = request.selected_property;
+  const selectedShare = request.property_shares?.find((share) => (
+    share.status === "selected" || share.property_id === request.selected_property_id
+  ));
+  const selectedProperty = request.selected_property || selectedShare?.property;
   const title = selectedProperty?.title || getBrokerRequestTitle(request);
   const address = selectedProperty?.address_line_1 || request.location || "Request area";
   const city = selectedProperty?.city || request.location || "";
@@ -242,6 +245,8 @@ export const mapBrokerRequestOfferToManagerLead = (request: BrokerRequestRecord)
       agent_email: request.matched_broker?.email,
       agent_phone: request.matched_broker?.phone,
       listing_type: selectedProperty?.listing_type || request.journey_type,
+      latitude: selectedProperty?.latitude,
+      longitude: selectedProperty?.longitude,
     },
     matched_broker: request.matched_broker || undefined,
     name: request.requester_name || request.requester_email || "Marketplace client",

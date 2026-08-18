@@ -146,26 +146,47 @@ test('manager workspace helpers keep same-user repeated sessions distinguishable
 
     assert.deepEqual(
         getManagerWorkspaceAction({
+            id: 'request-1',
             handoff_status: 'property_selected',
             selected_property_id: 'property-1',
             selected_lead_id: 'lead-1',
             selected_fast_track_case_id: 'case-1',
         } as any),
         {
-            label: 'Open property workflow',
+            label: 'Open Fast Track workflow',
             path: '/manager/fast-track?case=case-1&lead=lead-1&property=property-1',
         },
     );
 
     assert.deepEqual(
         getManagerWorkspaceAction({
+            id: 'request-1',
             handoff_status: 'property_selected',
             selected_property_id: 'property-1',
             selected_lead_id: 'lead-1',
         } as any),
         {
-            label: 'Open lead workflow',
-            path: '/manager/leads?lead=lead-1&property=property-1',
+            label: 'Start Fast Track workflow',
+            path: '/manager/dashboard?fast-track=request&broker-request=request-1&lead=lead-1',
+        },
+    );
+
+    assert.deepEqual(
+        getManagerWorkspaceAction({
+            id: 'request-1',
+            handoff_status: 'property_selected',
+            selected_property_id: 'property-1',
+            selected_lead_id: 'lead-1',
+            property_shares: [{
+                id: 'share-1',
+                property_id: 'property-1',
+                status: 'selected',
+                fast_track_case_id: 'case-from-share',
+            }],
+        } as any),
+        {
+            label: 'Open Fast Track workflow',
+            path: '/manager/fast-track?case=case-from-share&lead=lead-1&property=property-1',
         },
     );
 
