@@ -40,6 +40,17 @@ test('property-title suggestions do not reinterpret keyword searches as location
     assert.equal(isLocationAutocompleteSuggestion(city), true);
 });
 
+test('property-title ambiguity is checked beyond the visible autocomplete limit', () => {
+    const city = { text: 'Oxford', type: 'city' as const };
+    const unrelated = Array.from({ length: 10 }, (_, index) => ({
+        text: `Oxford area ${index + 1}`,
+        type: 'location' as const,
+    }));
+    const property = { id: 'property-oxford', text: 'Oxford', type: 'property' as const };
+
+    assert.equal(getExactLocationSuggestion('Oxford', [city, ...unrelated, property]), null);
+});
+
 test('inferred postcode location is not duplicated in the core search keyword', () => {
     const query = getLocationScopedSearchQuery('PR15QH', 'PR1 5QH', 'PR1 5QH');
     const params = mapSearchFiltersToCoreQuery(query, { location: 'PR1 5QH' });

@@ -2,6 +2,7 @@ import {
   LAUNCH_COUNTRY_CODE,
   LAUNCH_COUNTRY_NAME,
   UK_COUNTRY_CODE,
+  getSupportedLaunchCountry,
   type SupportedLaunchCountryCode,
 } from '@/lib/launchLocale';
 
@@ -39,6 +40,23 @@ export interface SearchUrlFilters {
   listingType: string;
   sortBy: PropertySearchSortValue;
   page: number;
+}
+
+export interface BroaderPropertySearchFilters {
+  country?: SupportedLaunchCountryCode;
+  location?: string;
+  propertyType?: string;
+  listingType?: string;
+  minBedrooms?: number;
+  minBathrooms?: number;
+  sortBy?: PropertySearchSortValue;
+  page: number;
+  limit: number;
+}
+
+export interface BroaderPropertySearchAttempt {
+  notice: string;
+  filters: BroaderPropertySearchFilters;
 }
 
 const MAX_SEARCH_QUERY_LENGTH = 120;
@@ -167,6 +185,65 @@ export function normalizeSearchMarketParam(value: string | null | undefined): Su
   }
 
   return '';
+}
+
+export function inferSearchMarketFromText(value: string | null | undefined): SupportedLaunchCountryCode | null {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const directCountry = getSupportedLaunchCountry(undefined, undefined, normalized);
+  if (directCountry) {
+    return directCountry;
+  }
+
+  if (/^(london|manchester|birmingham|bristol|leeds|liverpool|edinburgh|glasgow|cardiff|sheffield|nottingham|southampton|oxford|cambridge|belfast)(?:\s*,.*)?$/.test(normalized)) {
+    return UK_COUNTRY_CODE;
+  }
+  if (/^(chennai|coimbatore|madurai|bengaluru|bangalore|mysuru|mangaluru|hyderabad|warangal|mumbai|pune|nagpur|delhi|new delhi|dwarka|kolkata|ahmedabad|jaipur|kochi|thiruvananthapuram)(?:\s*,.*)?$/.test(normalized)) {
+    return LAUNCH_COUNTRY_CODE;
+  }
+
+  return null;
+}
+
+export function buildBroaderPropertySearchAttempts(input: {
+  market: SupportedLaunchCountryCode | '';
+  location: string;
+  propertyType: string;
+  listingType: string;
+  minPrice: string;
+  maxPrice: string;
+  bedrooms: string;
+  baths: string;
+  sortBy: PropertySearchSortValue;
+}): BroaderPropertySearchAttempt[] {
+  const baseFilters: BroaderPropertySearchFilters = {
+    country: input.market || undefined,
+    propertyType: input.propertyType || undefined,
+    listingType: input.listingType || undefined,
+    minBedrooms: input.bedrooms ? Number.parseInt(input.bedrooms, 10) : undefined,
+    minBathrooms: input.baths ? Number.parseInt(input.baths, 10) : undefined,
+    sortBy: input.sortBy !== 'relevance' ? input.sortBy : undefined,
+    page: 1,
+    limit: 12,
+  };
+
+  if (input.location && (input.minPrice || input.maxPrice)) {
+    return [{
+      notice: 'No exact matches for the selected budget. Showing matches in this location without the price range.',
+      filters: { ...baseFilters, location: input.location },
+    }];
+  }
+  if (!input.location && (input.minPrice || input.maxPrice)) {
+    return [{
+      notice: 'No exact matches for the selected budget. Showing broader matches without the price range.',
+      filters: baseFilters,
+    }];
+  }
+
+  return [];
 }
 
 export function serializeSearchMarketParam(value: SupportedLaunchCountryCode | ''): string {

@@ -81,7 +81,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(source, /fallbackCountryName\?: string \| null;/);
     assert.match(source, /const locationContext = filters\.location \|\| locationContextCode \|\| user\?\.postcode/);
     assert.match(source, /const countryNameContext = countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
-    assert.match(source, /const searchMarket = getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
+    assert.match(source, /const searchMarket = inferSearchMarketFromText\(filters\.location\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
     assert.match(source, /const locationCodeLabel = getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
     assert.match(source, /const sentenceLocationCodeLabel = locationCodeLabel === 'PIN code' \? locationCodeLabel : lowerLocationCodeLabel/);
     assert.match(source, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
@@ -89,6 +89,12 @@ test('user dashboard search passes active request location context into shared s
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
     assert.match(userDashboardSource, /<BrokerRequestWidget onLocationContextChange=\{handleBrokerRequestLocationContextChange\} \/>/);
+});
+
+test('free-text property titles do not select a country market', () => {
+    assert.match(source, /const submittedMarket = nextFilters\.location[\s\S]*\? inferSearchMarketFromText\(nextFilters\.location\)[\s\S]*: null;/);
+    assert.doesNotMatch(source, /inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\)/);
+    assert.doesNotMatch(source, /inferSearchMarketFromText\(nextFilters\.location\) \|\| searchMarket/);
 });
 
 test('dashboard search lets a typed or active PIN code override stale country text', () => {

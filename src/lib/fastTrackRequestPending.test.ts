@@ -33,8 +33,9 @@ test('Fast Track request marker is scoped to the user and property', () => {
 test('pending request clears when a manager-created case is newer than the request', () => {
   const storage = createStorage();
   const key = getFastTrackRequestPendingKey('user-1', 'property-1');
-  writeFastTrackRequestPending(storage, key, '2026-08-17T10:00:00.000Z');
-  const marker = readFastTrackRequestPending(storage, key);
+  const requestedAt = '2026-08-17T10:00:00.000Z';
+  writeFastTrackRequestPending(storage, key, requestedAt);
+  const marker = readFastTrackRequestPending(storage, key, Date.parse(requestedAt) + 1);
 
   assert.equal(shouldClearFastTrackRequestPending(marker, {
     propertyId: 'property-1',
@@ -129,9 +130,10 @@ test('accepted request remains pending when browser storage is blocked', () => {
     removeItem: (_key: string) => { throw new Error('blocked'); },
   };
   const key = getFastTrackRequestPendingKey('user-storage', 'property-storage');
-  const marker = writeFastTrackRequestPending(storage, key, '2026-08-17T10:00:00.000Z');
+  const requestedAt = '2026-08-17T10:00:00.000Z';
+  const marker = writeFastTrackRequestPending(storage, key, requestedAt);
 
-  assert.deepEqual(readFastTrackRequestPending(storage, key), marker);
+  assert.deepEqual(readFastTrackRequestPending(storage, key, Date.parse(requestedAt) + 1), marker);
   clearFastTrackRequestPending(storage, key);
   assert.equal(readFastTrackRequestPending(storage, key), null);
 });

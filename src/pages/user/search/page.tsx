@@ -23,12 +23,14 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import PaginationBar from '@/components/ui/PaginationBar';
 import {
     getPriceBoundAdjustmentMessage,
+    buildBroaderPropertySearchAttempts,
     getSearchFilterValidationMessage,
     getPropertySearchSortOptions,
     normalizePriceBoundInput,
     normalizePropertySearchSort,
     normalizeRoomBoundInput,
     normalizeSearchQueryInput,
+    inferSearchMarketFromText,
     getSearchQueryValidationMessage,
     readSearchUrlFilters,
     serializeSearchMarketParam,
@@ -51,17 +53,9 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
 const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
-    const directLocationCountry = getSupportedLaunchCountry(undefined, undefined, location);
+    const directLocationCountry = inferSearchMarketFromText(location);
     if (directLocationCountry) {
         return directLocationCountry;
-    }
-
-    const normalizedLocation = location.trim().toLowerCase();
-    if (/\b(london|manchester|birmingham|bristol|leeds|liverpool|edinburgh|glasgow|cardiff|sheffield|nottingham|southampton|oxford|cambridge)\b/.test(normalizedLocation)) {
-        return 'GB';
-    }
-    if (/\b(chennai|mumbai|delhi|bengaluru|bangalore|hyderabad|pune|kolkata|ahmedabad|jaipur|kochi|coimbatore)\b/.test(normalizedLocation)) {
-        return 'IN';
     }
 
     for (const property of properties) {
@@ -176,38 +170,17 @@ const PropertySearch = () => {
     }, [baths, bedrooms, formatSearchCurrency, listingType, location, market, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
 
     const buildBroaderSearchAttempts = useCallback(() => {
-        const baseFilters = {
-            country: market || undefined,
-            propertyType: propertyType || undefined,
-            listingType: listingType || undefined,
-            minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
-            minBathrooms: baths ? parseInt(baths) : undefined,
-            sortBy: sortBy !== 'relevance' ? sortBy : undefined,
-            page: 1,
-            limit: 12,
-        };
-        const attempts: Array<{ notice: string; filters: Record<string, any> }> = [];
-
-        if (location && (minPrice || maxPrice)) {
-            attempts.push({
-                notice: 'No exact matches for the selected budget. Showing matches in this location without the price range.',
-                filters: { ...baseFilters, location },
-            });
-        }
-        if (location) {
-            attempts.push({
-                notice: 'No exact matches for this location. Showing broader matches for the selected home criteria.',
-                filters: baseFilters,
-            });
-        }
-        if (!location && (minPrice || maxPrice)) {
-            attempts.push({
-                notice: 'No exact matches for the selected budget. Showing broader matches without the price range.',
-                filters: baseFilters,
-            });
-        }
-
-        return attempts;
+        return buildBroaderPropertySearchAttempts({
+            market,
+            location,
+            propertyType,
+            listingType,
+            minPrice,
+            maxPrice,
+            bedrooms,
+            baths,
+            sortBy,
+        });
     }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
@@ -498,7 +471,7 @@ const PropertySearch = () => {
 
                     const visibleSuggestions = suggestions.slice(0, 10);
                     setLocationSuggestions(visibleSuggestions);
-                    const exactLocation = getExactLocationSuggestion(query, visibleSuggestions);
+                    const exactLocation = getExactLocationSuggestion(query, suggestions);
                     if (
                         exactLocation
                         && !locationInferenceSuppressedRef.current
@@ -506,6 +479,11 @@ const PropertySearch = () => {
                     ) {
                         locationInferenceSuppressedRef.current = false;
                         inferredLocationRef.current = exactLocation.text;
+                        const nextMarket = inferSearchMarketFromText(exactLocation.text) || '';
+                        if (market !== nextMarket) {
+                            setMarket(nextMarket);
+                            setPage(1);
+                        }
                         if (location !== exactLocation.text) {
                             setLocation(exactLocation.text);
                             setPage(1);
@@ -528,7 +506,7 @@ const PropertySearch = () => {
             isMounted = false;
             clearTimeout(timer);
         };
-    }, [location, query]);
+    }, [location, market, query]);
 
     const openSaveSearchModal = () => {
         if (!isAuthenticated) {
@@ -616,6 +594,7 @@ const PropertySearch = () => {
         locationInferenceSuppressedRef.current = false;
         if (location === previousInference) {
             setLocation('');
+            setMarket('');
         }
         setQuery(normalizeSearchQueryInput(term));
         setPage(1);
@@ -719,9 +698,11 @@ const PropertySearch = () => {
                         aria-describedby={queryValidationMessage ? 'search-query-error' : undefined}
                         onChange={(e) => {
                             locationInferenceSuppressedRef.current = false;
-                            if (inferredLocationRef.current) {
-                                inferredLocationRef.current = '';
+                            const previousInference = inferredLocationRef.current;
+                            inferredLocationRef.current = '';
+                            if (previousInference && location === previousInference) {
                                 setLocation('');
+                                setMarket('');
                             }
                             setQuery(normalizeSearchQueryInput(e.target.value));
                             setPage(1);
@@ -760,6 +741,7 @@ const PropertySearch = () => {
                                             inferredLocationRef.current = suggestion.text;
                                             setQuery(suggestion.text);
                                             setLocation(suggestion.text);
+                                            setMarket(inferSearchMarketFromText(suggestion.text) || '');
                                         } else {
                                             const previousInference = inferredLocationRef.current;
                                             inferredLocationRef.current = '';
@@ -767,6 +749,7 @@ const PropertySearch = () => {
                                             setQuery(suggestion.text);
                                             if (location === previousInference) {
                                                 setLocation('');
+                                                setMarket('');
                                             }
                                         }
                                         setShowSuggestions(false);
@@ -969,9 +952,11 @@ const PropertySearch = () => {
                                 type="text"
                                 value={location}
                                 onChange={(e) => {
+                                    const nextLocation = e.target.value;
                                     inferredLocationRef.current = '';
                                     locationInferenceSuppressedRef.current = true;
-                                    setLocation(e.target.value);
+                                    setLocation(nextLocation);
+                                    setMarket(inferSearchMarketFromText(nextLocation) || '');
                                     setPage(1);
                                 }}
                                 placeholder={`City or ${lowerLocationCodeLabel}`}
