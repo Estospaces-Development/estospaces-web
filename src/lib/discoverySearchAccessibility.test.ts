@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const searchPage = readFileSync(resolve(root, "src/pages/user/search/page.tsx"), "utf8");
+const propertySearchControls = readFileSync(resolve(root, "src/lib/propertySearchControls.ts"), "utf8");
 const publicHeader = readFileSync(resolve(root, "src/components/layout/PublicHeader.tsx"), "utf8");
 const propertyDetailPage = readFileSync(resolve(root, "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
@@ -33,8 +34,30 @@ test("user search visibly summarizes active URL filters and broader fallback sta
   assert.match(searchPage, /aria-label="Active search filters"/);
   assert.match(searchPage, /Active filters/);
   assert.match(searchPage, /const buildBroaderSearchAttempts = useCallback/);
-  assert.match(searchPage, /No exact matches for the selected budget/);
-  assert.match(searchPage, /No exact matches for this location/);
+  assert.match(propertySearchControls, /No exact matches for the selected budget/);
+  assert.doesNotMatch(searchPage, /No exact matches for this location/);
+  assert.doesNotMatch(propertySearchControls, /No exact matches for this location/);
+});
+
+test("correcting or clearing an inferred market also resets stale pagination", () => {
+  assert.match(searchPage, /const nextMarket = inferSearchMarketFromText\(exactLocation\.text\) \|\| '';[\s\S]*if \(market !== nextMarket\) \{[\s\S]*setMarket\(nextMarket\);[\s\S]*setPage\(1\);/);
+});
+
+test("autocomplete checks all results for title ambiguity before limiting visible suggestions", () => {
+  assert.match(searchPage, /const visibleSuggestions = suggestions\.slice\(0, 10\);[\s\S]*setLocationSuggestions\(visibleSuggestions\);[\s\S]*getExactLocationSuggestion\(query, suggestions\);/);
+  assert.doesNotMatch(searchPage, /getExactLocationSuggestion\(query, visibleSuggestions\)/);
+});
+
+test("explicit location controls replace or clear stale market state", () => {
+  assert.match(searchPage, /isLocationAutocompleteSuggestion\(suggestion\)[\s\S]*setLocation\(suggestion\.text\);[\s\S]*setMarket\(inferSearchMarketFromText\(suggestion\.text\) \|\| ''\);/);
+  assert.match(searchPage, /const nextLocation = e\.target\.value;[\s\S]*setLocation\(nextLocation\);[\s\S]*setMarket\(inferSearchMarketFromText\(nextLocation\) \|\| ''\);/);
+});
+
+test("keyword transitions clear an auto-inferred location and its market together", () => {
+  const inferredLocationClearPattern = /if \(location === previousInference\) \{\s*setLocation\(''\);\s*setMarket\(''\);\s*\}/g;
+  const typedLocationClearPattern = /if \(previousInference && location === previousInference\) \{\s*setLocation\(''\);\s*setMarket\(''\);\s*\}/;
+  assert.equal(searchPage.match(inferredLocationClearPattern)?.length, 2);
+  assert.match(searchPage, typedLocationClearPattern);
 });
 
 test("user search keeps result headings in order below the page title", () => {

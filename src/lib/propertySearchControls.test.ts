@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildBroaderPropertySearchAttempts,
   getCountryAwarePropertyGroups,
   getPropertySearchSortOptions,
   getSearchFilterValidationMessage,
   getPriceBoundAdjustmentMessage,
+  inferSearchMarketFromText,
   getSearchQueryValidationMessage,
   normalizePriceBoundInput,
   normalizePropertySearchSort,
@@ -15,6 +17,53 @@ import {
   readSearchUrlFilters,
   serializeSearchMarketParam,
 } from './propertySearchControls';
+
+test('search market inference lets a submitted city override stale account geography', () => {
+  assert.equal(inferSearchMarketFromText('Chennai'), 'IN');
+  assert.equal(inferSearchMarketFromText('Madurai'), 'IN');
+  assert.equal(inferSearchMarketFromText('Mysuru'), 'IN');
+  assert.equal(inferSearchMarketFromText('Mangaluru'), 'IN');
+  assert.equal(inferSearchMarketFromText('Warangal'), 'IN');
+  assert.equal(inferSearchMarketFromText('Nagpur'), 'IN');
+  assert.equal(inferSearchMarketFromText('Dwarka'), 'IN');
+  assert.equal(inferSearchMarketFromText('Thiruvananthapuram'), 'IN');
+  assert.equal(inferSearchMarketFromText('600001'), 'IN');
+  assert.equal(inferSearchMarketFromText('Belfast'), 'GB');
+  assert.equal(inferSearchMarketFromText('SW1A 1AA'), 'GB');
+  assert.equal(inferSearchMarketFromText('Chennai, Tamil Nadu'), 'IN');
+  assert.equal(inferSearchMarketFromText('Oxford Heights'), null);
+  assert.equal(inferSearchMarketFromText('Cambridge Apartments'), null);
+  assert.equal(inferSearchMarketFromText('luxury apartment'), null);
+});
+
+test('broader search never removes an explicitly selected location', () => {
+  const attempts = buildBroaderPropertySearchAttempts({
+    market: 'IN',
+    location: 'Chennai',
+    propertyType: '',
+    listingType: '',
+    minPrice: '1000000',
+    maxPrice: '2000000',
+    bedrooms: '',
+    baths: '',
+    sortBy: 'relevance',
+  });
+
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0]?.filters.location, 'Chennai');
+  assert.equal(attempts.some((attempt) => !attempt.filters.location), false);
+  assert.deepEqual(buildBroaderPropertySearchAttempts({
+    market: 'IN',
+    location: 'Chennai',
+    propertyType: '',
+    listingType: '',
+    minPrice: '',
+    maxPrice: '',
+    bedrooms: '',
+    baths: '',
+    sortBy: 'relevance',
+  }), []);
+});
 
 test('property search sort helpers expose stable visible options', () => {
   assert.deepEqual(getPropertySearchSortOptions(), [
