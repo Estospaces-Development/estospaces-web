@@ -18,6 +18,7 @@ import {
   isManagerLivePropertyStatus,
 } from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { dedupeFastTrackWorkspaceCases } from '@/lib/fastTrackWorkspaceLoad';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
@@ -955,7 +956,7 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Dashboard...</div>}>
+    <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading dashboard..." />}>
       <DashboardContent />
     </Suspense>
   );

@@ -12,6 +12,7 @@ import {
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import PaginationBar from '@/components/ui/PaginationBar';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import {
     MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
@@ -363,7 +364,7 @@ function PropertiesContent() {
         return filteredProperties;
     }, [filteredProperties, activeTab]);
 
-    if (!isMounted) return <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center font-bold">Loading...</div>;
+    if (!isMounted) return <BrandLoadingScreen variant="section" label="Loading properties..." />;
 
     return (
         <div className="space-y-6 font-sans">
@@ -844,7 +845,7 @@ function PropertiesContent() {
 
 export default function PropertiesPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center font-bold">Loading Properties...</div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading properties..." />}>
             <PropertiesContent />
         </Suspense>
     );

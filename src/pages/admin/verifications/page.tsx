@@ -10,6 +10,7 @@ import {
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import Avatar from '@/components/ui/Avatar';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
 import {  useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
@@ -416,7 +417,7 @@ function VerificationsContent() {
 
 export default function VerificationsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold">Loading Queue...</div>}>
+    <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading verification queue..." />}>
       <VerificationsContent />
     </Suspense>
   );

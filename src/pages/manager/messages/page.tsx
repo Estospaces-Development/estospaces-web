@@ -6,6 +6,7 @@ import { useMessages } from '@/contexts/MessagesContext';
 import ConversationList from '@/components/dashboard/messaging/ConversationList';
 import ConversationThread from '@/components/dashboard/messaging/ConversationThread';
 import MessageInput from '@/components/dashboard/messaging/MessageInput';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { ArrowLeft } from 'lucide-react';
 import { buildConversationListUrl, resolveConversationQuerySelection } from '@/lib/messagesInbox';
 
@@ -204,7 +205,7 @@ function MessagesContent() {
 
 export default function ManagerMessagesPage() {
     return (
-        <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Messages...</div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading messages..." />}>
             <MessagesContent />
         </Suspense>
     );

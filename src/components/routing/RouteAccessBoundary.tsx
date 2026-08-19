@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import {
     isAuthRecoveryRoutePath,
     isProtectedRoutePath,
@@ -15,7 +16,7 @@ export default function RouteAccessBoundary({ children }: { children: ReactNode 
     const isGuardedPath = isProtectedRoutePath(location.pathname) || isAuthRecoveryRoutePath(location.pathname);
 
     if (shouldAwaitSessionResolution(loading, isAuthenticated) && isGuardedPath) {
-        return <div className="flex items-center justify-center h-screen">Loading...</div>;
+        return <BrandLoadingScreen label="Checking your session..." />;
     }
 
     const authRecoveryRedirectPath = resolveAuthRecoveryRedirect(location.pathname, isAuthenticated, user?.role);

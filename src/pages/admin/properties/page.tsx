@@ -22,6 +22,7 @@ import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import {
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
@@ -810,7 +811,7 @@ function PropertyManagementContent() {
 
 export default function AdminPropertyManagementPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold">Loading Properties...</div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading properties..." />}>
             <PropertyManagementContent />
         </Suspense>
     );

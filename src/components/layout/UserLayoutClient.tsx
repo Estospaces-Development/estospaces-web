@@ -16,6 +16,7 @@ import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { getLoginPath, getRedirectPath, isPublicUserPropertyDetailPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface UserLayoutClientProps {
     children: React.ReactNode;
@@ -39,7 +40,7 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
     );
 
     if (shouldWaitForSession) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+        return <BrandLoadingScreen label="Opening your dashboard..." />;
     }
 
     if (!isAuthenticated) {
@@ -72,7 +73,7 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
                                             <HorizontalNavigation useSubdomain={isSubdomain} />
                                         </Suspense>
                                         <main className="role-workspace-content min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 pb-24 transition-colors duration-300 md:pb-0">
-                                            <Suspense fallback={<div className="h-full w-full flex items-center justify-center min-h-[50vh]">Loading...</div>}>
+                                            <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading this page..." />}>
                                                 {children}
                                             </Suspense>
                                         </main>

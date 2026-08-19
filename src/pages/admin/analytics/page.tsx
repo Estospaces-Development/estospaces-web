@@ -6,6 +6,7 @@ import {
     Activity, Zap, Globe2, Loader2, TrendingUp, Building2, FileText
 } from 'lucide-react';
 import PieChart from '@/components/ui/PieChart';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getPlatformAnalytics, invalidateAnalyticsCache, type AnalyticsData } from '../../../services/analyticsService';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import {
@@ -332,7 +333,7 @@ function AnalyticsContent() {
 
 export default function AdminAnalyticsPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center font-bold">Loading Analytics...</div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading analytics..." />}>
             <AnalyticsContent />
         </Suspense>
     );

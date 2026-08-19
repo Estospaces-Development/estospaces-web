@@ -18,6 +18,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { buildCsvContent } from '@/lib/csvExport';
 import PaginationBar from '@/components/ui/PaginationBar';
 import Avatar from '@/components/ui/Avatar';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getAuthPath } from '@/lib/authUtils';
 
 export type AdminUsersSortOption = 'newest' | 'oldest' | 'name_asc' | 'email_asc' | 'status';
@@ -993,7 +994,7 @@ function UserManagementContent() {
 
 export default function AdminUserManagementPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold">Loading User Directory...</div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading user directory..." />}>
             <UserManagementContent />
         </Suspense>
     );

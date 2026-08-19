@@ -12,6 +12,7 @@ import Header from '../../components/layout/Header';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -85,7 +86,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
     }, [sidebarOpen]);
 
     if (shouldWaitForSession) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+        return <BrandLoadingScreen label="Opening the manager workspace..." />;
     }
 
     if (!isAuthenticated) {

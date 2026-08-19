@@ -8,6 +8,7 @@ import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface AdminLayoutClientProps {
     children: React.ReactNode;
@@ -52,7 +53,7 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     }, [sidebarOpen]);
 
     if (shouldWaitForSession) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+        return <BrandLoadingScreen label="Opening the admin workspace..." />;
     }
 
     if (!isAuthenticated) {

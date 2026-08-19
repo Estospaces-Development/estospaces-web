@@ -14,6 +14,34 @@
   --font-serif: 'Cormorant Garamond', serif;
 }
 
+@keyframes estospaces-loading-progress {
+  0% {
+    transform: translateX(-125%);
+  }
+
+  50% {
+    transform: translateX(75%);
+  }
+
+  100% {
+    transform: translateX(225%);
+  }
+}
+
+.brand-loading-progress {
+  animation: estospaces-loading-progress 1.35s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loading-progress {
+    width: 100%;
+    animation: none;
+    opacity: 0.72;
+    transform: none;
+  }
+}
+
 /* =========================================
    Base Styles
    ========================================= */

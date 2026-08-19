@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 // Minimal error boundary for page-level crashes
 class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
@@ -76,9 +77,6 @@ import RegisterPage from './pages/auth/register/page';
 import ForgotPasswordPage from './pages/auth/forgot-password/page';
 import ResetPasswordPage from './pages/auth/reset-password/page';
 import VerifyEmailPage from './pages/auth/verify-email/page';
-
-// Loading component
-const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
 
 // Lazy loaded pages - Public
 const HomePage = lazyPage(() => import('./pages/public/home/page'));
@@ -182,7 +180,7 @@ function VerifiedManagerRoute({ children }: { children: ReactNode }) {
   const { isLoading, isVerified } = useManagerVerification();
 
   if (isLoading) {
-    return <Loading />;
+    return <BrandLoadingScreen label="Checking manager access..." />;
   }
 
   if (!isVerified) {
@@ -196,7 +194,7 @@ function PublicRootEntry() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <Loading />;
+    return <BrandLoadingScreen />;
   }
 
   return isAuthenticated ? <StartupRedirect /> : <HomePage />;
@@ -221,7 +219,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<BrandLoadingScreen />}>
       <SubdomainRouter>
         <RouteScrollReset />
         <PageErrorBoundary>
