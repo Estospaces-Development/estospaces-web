@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import React from 'react';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Window } from 'happy-dom';
 
 import BrandLoadingScreen from './BrandLoadingScreen';
 
@@ -14,18 +16,21 @@ test('brand loading screen presents the Estospaces identity and an accessible st
     assert.match(markup, /aria-live="polite"/);
     assert.match(markup, /aria-busy="true"/);
     assert.match(markup, /src="\/logo-icon\.png"/);
-    assert.match(markup, />Estospaces</);
     assert.match(markup, /Loading your dashboard\.\.\./);
     assert.match(markup, /fixed inset-0/);
-    assert.match(markup, /z-\[120\]/);
+    assert.match(markup, /z-\[9999\]/);
     assert.match(markup, /h-\[100dvh\]/);
     assert.match(markup, /min-h-\[100dvh\]/);
     assert.match(markup, /w-screen/);
-    assert.match(markup, /h-28 w-52/);
-    assert.match(markup, /sm:h-32 sm:w-60/);
+    assert.match(markup, /size-36/);
+    assert.match(markup, /sm:size-40/);
     assert.match(markup, /data-loading-variant="screen"/);
-    assert.match(markup, /brand-loading-ambient/);
-    assert.match(markup, /brand-loading-halo/);
+    assert.match(markup, /data-loading-layer="global"/);
+    assert.match(markup, /brand-loading-spinner-ring/);
+    assert.match(markup, /class="sr-only"/);
+    assert.doesNotMatch(markup, /brand-loading-stage/);
+    assert.doesNotMatch(markup, /brand-loading-wordmark/);
+    assert.doesNotMatch(markup, /brand-loading-progress/);
 });
 
 test('section variant keeps the branded loader inside an existing workspace shell', () => {
@@ -33,7 +38,8 @@ test('section variant keeps the branded loader inside an existing workspace shel
 
     assert.match(markup, /min-h-\[18rem\]/);
     assert.match(markup, /sm:min-h-\[22rem\]/);
-    assert.match(markup, /h-20 w-40/);
+    assert.match(markup, /size-28/);
+    assert.match(markup, /sm:size-32/);
     assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
     assert.doesNotMatch(markup, /fixed inset-0/);
 });
@@ -47,19 +53,75 @@ test('panel variant preserves nearby content while remaining branded and respons
     assert.match(markup, /Loading the map\.\.\./);
     assert.match(markup, /Property locations will appear here\./);
     assert.match(markup, /data-loading-variant="panel"/);
-    assert.match(markup, /h-16 w-32/);
+    assert.match(markup, /data-loading-layer="inline"/);
+    assert.match(markup, /size-20/);
+    assert.match(markup, /sm:size-24/);
     assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
     assert.doesNotMatch(markup, /fixed inset-0/);
 });
 
-test('all loading surfaces use the same theme-aware tokens and indeterminate progress treatment', () => {
+test('all loading surfaces use the same theme-aware circular spinner treatment', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
 
     assert.match(styles, /\.brand-loading-surface\s*\{[\s\S]*--loading-surface:/);
     assert.match(styles, /\.dark \.brand-loading-surface/);
-    assert.match(styles, /\.brand-loading-track\s*\{/);
-    assert.match(styles, /\.brand-loading-progress\s*\{[\s\S]*linear-gradient/);
-    assert.match(styles, /\.brand-loading-surface\[data-loading-variant='screen'\] \.brand-loading-ambient/);
+    assert.match(styles, /\.brand-loading-spinner-track\s*\{/);
+    assert.match(styles, /\.brand-loading-spinner-ring\s*\{[\s\S]*conic-gradient/);
+    assert.match(styles, /\.brand-loading-logo\s*\{/);
+    assert.match(styles, /\.brand-loading-surface\[data-loading-variant='screen'\]\s*\{[\s\S]*pointer-events: auto/);
+});
+
+test('screen loader escapes dashboard stacking contexts through a body portal', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/ui/BrandLoadingScreen.tsx'), 'utf8');
+
+    assert.match(source, /import \{ createPortal \} from 'react-dom'/);
+    assert.match(source, /variant === 'screen' && typeof document !== 'undefined'/);
+    assert.match(source, /createPortal\(loadingSurface, document\.body\)/);
+});
+
+test('screen loader mounts outside the dashboard shell at runtime', () => {
+    const browserWindow = new Window({ url: 'https://estospaces.test/user/dashboard' });
+    const globals = globalThis as typeof globalThis & Record<string, unknown>;
+    const globalKeys = ['window', 'document', 'HTMLElement', 'Node', 'IS_REACT_ACT_ENVIRONMENT'] as const;
+    const previousDescriptors = new Map(
+        globalKeys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]),
+    );
+    const browserGlobals: Record<string, unknown> = {
+        window: browserWindow,
+        document: browserWindow.document,
+        HTMLElement: browserWindow.HTMLElement,
+        Node: browserWindow.Node,
+        IS_REACT_ACT_ENVIRONMENT: true,
+    };
+
+    Object.entries(browserGlobals).forEach(([key, value]) => {
+        Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    });
+
+    const dashboardShell = browserWindow.document.createElement('div');
+    const routeHost = browserWindow.document.createElement('div');
+    dashboardShell.append(routeHost);
+    browserWindow.document.body.append(dashboardShell);
+    const root = createRoot(routeHost as unknown as HTMLDivElement);
+
+    try {
+        act(() => {
+            root.render(<BrandLoadingScreen label="Opening your dashboard..." />);
+        });
+        const loader = browserWindow.document.querySelector('[data-loading-layer="global"]');
+        assert.ok(loader, 'global loader should render');
+        assert.equal(loader.parentElement, browserWindow.document.body);
+        assert.equal(dashboardShell.contains(loader), false);
+    } finally {
+        act(() => {
+            root.unmount();
+        });
+        browserWindow.close();
+        previousDescriptors.forEach((descriptor, key) => {
+            if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+            else delete globals[key];
+        });
+    }
 });
 
 test('global route and role session gates share the branded loading screen', () => {
@@ -89,9 +151,9 @@ test('observational research uses the branded section loader for its initial dat
 test('brand loader motion has a reduced-motion fallback', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
 
-    assert.match(styles, /@keyframes estospaces-loading-progress/);
     assert.match(styles, /@keyframes estospaces-loader-breathe/);
     assert.match(styles, /@keyframes estospaces-loader-glow/);
+    assert.match(styles, /@keyframes estospaces-loader-orbit/);
     assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
-    assert.match(styles, /\.brand-loading-progress/);
+    assert.match(styles, /\.brand-loading-spinner-ring/);
 });
