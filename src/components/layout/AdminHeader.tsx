@@ -30,6 +30,34 @@ interface AdminHeaderProps {
     onMenuToggle?: () => void;
 }
 
+export const getAdminPageTitles = (pathname: string) => {
+    let full = 'Admin Panel';
+    if (pathname.includes('/dashboard')) full = 'Dashboard';
+    else if (pathname.includes('/analytics')) full = 'Analytics';
+    else if (pathname.includes('/fast-track')) full = 'Fast Track';
+    else if (pathname.includes('/notifications')) full = 'Notifications';
+    else if (pathname.includes('/users')) full = 'User Management';
+    else if (pathname.includes('/verifications')) full = 'Verifications';
+    else if (pathname.includes('/properties')) full = 'Properties';
+    else if (pathname.includes('/chat') || pathname.includes('/help')) full = 'Help & Support';
+    else if (pathname.includes('/reviews')) full = 'Reviews';
+    else if (pathname.includes('/research')) full = 'Observational Research';
+    else if (pathname.includes('/profile')) full = 'Admin Profile';
+    else if (pathname.includes('/settings')) full = 'System Settings';
+
+    const compact = full === 'Observational Research'
+        ? 'Research'
+        : full === 'User Management'
+            ? 'Users'
+            : full === 'Admin Profile'
+                ? 'Profile'
+                : full === 'System Settings'
+                    ? 'Settings'
+                    : full;
+
+    return { full, compact };
+};
+
 const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -40,21 +68,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
     const [selectedIdx, setSelectedIdx] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const getPageTitle = () => {
-        if (pathname?.includes('/dashboard')) return 'Dashboard';
-        if (pathname?.includes('/analytics')) return 'Analytics';
-        if (pathname?.includes('/fast-track')) return 'Fast Track';
-        if (pathname?.includes('/notifications')) return 'Notifications';
-        if (pathname?.includes('/users')) return 'User Management';
-        if (pathname?.includes('/verifications')) return 'Verifications';
-        if (pathname?.includes('/properties')) return 'Properties';
-        if (pathname?.includes('/chat') || pathname?.includes('/help')) return 'Help & Support';
-        if (pathname?.includes('/reviews')) return 'Reviews';
-        if (pathname?.includes('/research')) return 'Observational Research';
-        if (pathname?.includes('/profile')) return 'Admin Profile';
-        if (pathname?.includes('/settings')) return 'System Settings';
-        return 'Admin Panel';
-    };
+    const pageTitles = getAdminPageTitles(pathname);
 
     const normalizedSearchQuery = normalizeCommandSearch(searchQuery);
     const visibleSearchQuery = searchQuery.trim().replace(/\s+/g, ' ');
@@ -114,10 +128,10 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
     return (
         <>
             <header className="workspace-chrome bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
-                <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                <div className="flex min-h-16 items-center justify-between gap-2 px-2.5 py-2 sm:gap-3 sm:px-6 sm:py-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
                         {onMenuToggle && (
-                            <button onClick={onMenuToggle} className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden" aria-label="Open admin sidebar">
+                            <button onClick={onMenuToggle} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800 lg:hidden" aria-label="Open admin sidebar">
                                 <Menu size={20} />
                             </button>
                         )}
@@ -127,16 +141,27 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                 onClick={() => navigate('/admin/dashboard')}
                                 aria-label="Back to admin dashboard"
                                 title="Back to dashboard"
-                                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-orange-900 dark:hover:bg-orange-900/20 dark:hover:text-orange-300"
+                                className="hidden h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 text-sm font-bold text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-orange-900 dark:hover:bg-orange-900/20 dark:hover:text-orange-300 sm:inline-flex"
                             >
                                 <ArrowLeft size={16} />
                                 <span className="hidden xl:inline">Dashboard</span>
                             </button>
                         )}
-                        <h1 className="min-w-0 break-words text-lg font-bold leading-tight tracking-tight text-gray-800 dark:text-white sm:text-2xl">{getPageTitle()}</h1>
+                        <h1 className="min-w-0 flex-1 truncate text-base font-bold leading-tight tracking-tight text-gray-800 dark:text-white sm:text-2xl" title={pageTitles.full}>
+                            <span className="sm:hidden">{pageTitles.compact}</span>
+                            <span className="hidden sm:inline">{pageTitles.full}</span>
+                        </h1>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-2 lg:gap-4">
+                        <button
+                            type="button"
+                            onClick={() => setSearchOpen(true)}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-300 dark:hover:bg-gray-800 md:hidden"
+                            aria-label="Open admin search"
+                        >
+                            <Search size={20} />
+                        </button>
                         <button
                             onClick={() => setSearchOpen(true)}
                             className="hidden md:flex items-center gap-2 pl-3 pr-4 py-2 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 rounded-lg hover:border-orange-300 dark:hover:border-orange-700 transition-all w-64 text-sm"
@@ -147,19 +172,19 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                             <kbd className="ml-auto text-[10px] font-bold bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-1.5 py-0.5 rounded">Ctrl+K</kbd>
                         </button>
 
-                        <div className="mx-1 hidden h-8 w-px bg-gray-200 dark:bg-gray-700 sm:block"></div>
+                        <div className="mx-1 hidden h-8 w-px bg-gray-200 dark:bg-gray-700 lg:block"></div>
 
                         <Link
                             to="/"
                             target="_blank"
-                            className="p-2 text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400 transition-colors"
+                            className="hidden h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-400 dark:hover:bg-orange-500/10 dark:hover:text-orange-400 sm:inline-flex"
                             title="Visit Landing Page"
                             aria-label="Open landing page"
                         >
                             <Globe size={20} />
                         </Link>
 
-                        <ThemeSwitcher />
+                        <div className="hidden sm:block"><ThemeSwitcher /></div>
 
                         <NotificationDropdown />
 
@@ -182,9 +207,9 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
             {/* Command Palette */}
             {searchOpen && (
-                <div className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[15vh]">
+                <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-start sm:px-4 sm:pt-[15vh]">
                     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setSearchOpen(false); setSearchQuery(''); }} />
-                    <div className="relative max-h-[80vh] w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
+                    <div className="relative flex max-h-[min(88dvh,44rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200 dark:border-gray-700 dark:bg-gray-900 sm:rounded-2xl sm:pb-0 sm:zoom-in-95">
                         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
                             <Search size={20} className="text-gray-400 shrink-0" />
                             <input
@@ -205,7 +230,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="h-80 overflow-y-auto p-2">
+                        <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:h-80 sm:flex-none">
                             {filteredPages.length > 0 ? filteredPages.map((page, idx) => (
                                 <button
                                     key={page.path}

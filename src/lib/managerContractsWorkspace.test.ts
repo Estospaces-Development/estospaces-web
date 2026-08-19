@@ -53,7 +53,9 @@ test('manager contract detail modal respects the manager shell chrome', () => {
     assert.match(source, /top: 'var\(--workspace-header-height, 4rem\)'/);
     assert.match(source, /left: 'var\(--workspace-sidebar-offset, 0rem\)'/);
     assert.match(source, /viewContract && renderManagerContractDetailPortal\(/);
-    assert.match(source, /className="fixed bottom-0 right-0 flex items-center justify-center bg-black\/60 p-4 backdrop-blur-sm"/);
+    assert.match(source, /className="fixed bottom-0 right-0 flex items-end justify-center bg-black\/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"/);
+    assert.match(source, /max-h-\[calc\(100dvh-var\(--workspace-header-height,4rem\)\)\]/);
+    assert.match(source, /rounded-t-3xl/);
     assert.match(source, /style=\{managerContractDetailOverlayStyle\}/);
     assert.doesNotMatch(source, /fixed inset-0 bg-black\/60 backdrop-blur-sm flex items-center justify-center z-\[9999\] p-4/);
 });

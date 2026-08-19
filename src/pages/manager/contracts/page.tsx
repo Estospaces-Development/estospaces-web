@@ -723,7 +723,7 @@ export default function ManagerContractsPage() {
             {/* View Contract Modal */}
             {viewContract && renderManagerContractDetailPortal(
                 <div
-                    className="fixed bottom-0 right-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    className="fixed bottom-0 right-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
                     style={managerContractDetailOverlayStyle}
                     onClick={closeContractDetail}
                 >
@@ -731,7 +731,7 @@ export default function ManagerContractsPage() {
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="manager-contract-detail-title"
-                        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col"
+                        className="flex max-h-[calc(100dvh-var(--workspace-header-height,4rem))] w-full max-w-2xl flex-col rounded-t-3xl bg-white shadow-2xl dark:bg-gray-800 sm:max-h-[85vh] sm:rounded-2xl"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
@@ -742,7 +742,7 @@ export default function ManagerContractsPage() {
                                 type="button"
                                 onClick={closeContractDetail}
                                 aria-label="Close contract detail"
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500"
+                                className="inline-flex min-h-11 items-center justify-center rounded-full px-3 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                                 Close
                             </button>

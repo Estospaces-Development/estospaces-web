@@ -526,7 +526,7 @@ export default function AdminPropertyDetailPage() {
                             )}
                         </div>
                         {imageUrls.length > 1 ? (
-                            <div className="grid grid-cols-2 gap-4 border-t p-4 dark:border-gray-700 md:grid-cols-4">
+                            <div className="grid grid-cols-1 gap-4 border-t p-4 min-[420px]:grid-cols-2 dark:border-gray-700 md:grid-cols-4">
                                 {imageUrls.slice(1, 5).map((url) => (
                                     <div key={url} className="h-24 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-900">
                                         <img src={url} alt={property.title} className="h-full w-full object-cover" />

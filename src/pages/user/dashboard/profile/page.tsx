@@ -307,7 +307,7 @@ export default function ProfilePage() {
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.fullName || 'User'}</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{formData.email}</p>
 
-                            <div className="mt-8 pt-8 border-t dark:border-gray-800 grid grid-cols-3 gap-2">
+                            <div className="mt-8 grid grid-cols-1 gap-2 border-t pt-8 min-[360px]:grid-cols-3 dark:border-gray-800">
                                 <div className="text-center">
                                     <div className="text-lg font-black text-gray-900 dark:text-white">{savedCount}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Saved</div>

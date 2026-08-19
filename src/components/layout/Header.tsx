@@ -118,15 +118,16 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     return (
-        <header className="workspace-chrome bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
-            <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <header className="workspace-chrome sticky top-0 z-40 h-16 border-b border-gray-100 bg-white transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex h-full items-center justify-between gap-2 px-2.5 sm:gap-3 sm:px-6 lg:px-8">
 
                 {/* Left: Mobile Menu & Search */}
                 <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                     <button
+                        type="button"
                         onClick={onMenuToggle}
-                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors lg:hidden"
-                        aria-label="Toggle menu"
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden"
+                        aria-label="Open manager navigation"
                     >
                         <Menu size={20} />
                     </button>
@@ -149,10 +150,10 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 </div>
 
                 {/* Right: Actions & Profile */}
-                <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+                <div className="flex shrink-0 items-center gap-0.5 sm:gap-2 lg:gap-4">
                     {/* Theme Toggle */}
                     {/* Theme Toggle */}
-                    <ThemeSwitcher />
+                    <div className="hidden sm:block"><ThemeSwitcher /></div>
 
                     {/* Verification Badge (Desktop) */}
                     <div className="hidden md:block">
@@ -176,7 +177,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     <div className="relative" ref={profileRef}>
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
-                            className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-full p-1 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800"
                             aria-label={profileMenuLabel}
                             aria-haspopup="menu"
                             aria-expanded={isProfileOpen}
@@ -190,7 +191,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         </button>
 
                         {isProfileOpen && (
-                            <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 animate-in fade-in slide-in-from-top-2">
+                            <div className="absolute right-0 top-full mt-2 w-[min(14rem,calc(100vw-1.5rem))] rounded-xl border border-gray-100 bg-white py-2 shadow-lg animate-in fade-in slide-in-from-top-2 dark:border-gray-800 dark:bg-gray-900">
                                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{displayName}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{role}</p>

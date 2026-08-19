@@ -372,7 +372,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         </div>
 
                         {/* Info Grid */}
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-3 text-sm">
+                        <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm min-[420px]:grid-cols-2 lg:grid-cols-3">
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <User size={14} className="flex-shrink-0 text-gray-400" />
                                 <span className="truncate">{application.agentName || 'Agent'}</span>

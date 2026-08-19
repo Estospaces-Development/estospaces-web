@@ -378,7 +378,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                             </div>
 
                             {/* Quick Info */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+                            <div className="mt-6 grid grid-cols-1 gap-4 border-t border-gray-100 pt-6 min-[420px]:grid-cols-2 dark:border-gray-700 lg:grid-cols-4">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Submitted</p>
                                     <p className="font-semibold text-gray-900 dark:text-white">

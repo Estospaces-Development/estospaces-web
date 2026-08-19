@@ -229,7 +229,7 @@ export default function PropertyDetailPage() {
         <div className="max-w-7xl mx-auto space-y-6 font-sans p-4 lg:p-6 pb-8">
             {/* Toast Notification */}
             {toast.visible && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                <div className={`fixed inset-x-4 top-4 z-50 min-w-0 rounded-lg px-4 py-3 text-center shadow-lg sm:left-auto sm:right-4 sm:max-w-sm sm:px-6 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
                     } text-white font-medium`}>
                     {toast.message}
                 </div>

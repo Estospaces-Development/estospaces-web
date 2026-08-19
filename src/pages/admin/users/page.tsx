@@ -542,7 +542,7 @@ function UserManagementContent() {
             </div>
 
             {/* Hero Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
                 {stats.map((stat) => (
                     <div key={stat.label} className="min-w-0 bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-[2.5rem] border dark:border-gray-700 shadow-xl shadow-gray-200/40 dark:shadow-none flex items-center gap-4 sm:gap-6 group hover:translate-y-[-4px] transition-all">
                         <div className={`p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 ${stat.color} group-hover:scale-110 transition-transform`}>

@@ -149,7 +149,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain: _useSubdomain = false }: Side
           <button
             type="button"
             onClick={onToggle}
-            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden"
             aria-label="Close sidebar"
           >
             <ChevronLeft size={18} />

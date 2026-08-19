@@ -115,6 +115,8 @@
     width: 100%;
     min-width: 0;
     overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -139,6 +141,12 @@
   canvas,
   iframe {
     max-width: 100%;
+    height: auto;
+  }
+
+  video,
+  iframe {
+    width: 100%;
   }
 
   button,
@@ -720,6 +728,28 @@
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+.mobile-action-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.mobile-dialog-panel {
+  width: 100%;
+  min-width: 0;
+  max-width: min(100% - 1rem, 48rem);
+  max-height: calc(100dvh - 1rem);
+  overflow: hidden;
+}
+
+.mobile-data-region {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .role-workspace-content {
   width: 100%;
   min-width: 0;
@@ -732,12 +762,50 @@
 }
 
 @media (max-width: 639px) {
+  .role-workspace-content {
+    min-height: calc(100dvh - 8rem);
+  }
+
   .role-workspace-content :where(h1, h2, h3, p, label, dd, dt) {
     overflow-wrap: anywhere;
   }
 
   .role-workspace-content :where(input, textarea, select) {
     font-size: 16px;
+  }
+
+  .role-workspace-content :where(img, video, canvas, iframe, svg) {
+    max-width: 100%;
+  }
+
+  .mobile-action-row > :where(button, a) {
+    min-height: 44px;
+    flex: 1 1 10rem;
+  }
+
+  .mobile-modal-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.625rem;
+  }
+
+  .mobile-modal-footer > :where(button, a) {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .leaflet-popup-content-wrapper {
+    max-width: calc(100vw - 2rem);
+  }
+
+  .leaflet-popup-content {
+    width: auto !important;
+    max-width: calc(100vw - 4rem);
+    margin: 0.75rem;
+  }
+
+  [data-mobile-table="cards"] :where(button, a, [role="button"]) {
+    min-height: 44px;
   }
 }
 

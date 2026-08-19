@@ -67,9 +67,8 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
             {/* Logo Section */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
                 <div className={`flex items-center gap-3 overflow-hidden ${!isOpen && 'justify-center w-full'}`}>
-                    <div className="relative w-8 h-8 flex-shrink-0">
-                        {/* Placeholder for logo */}
-                        <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-orange-500/30">E</div>
+                    <div className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-orange-50 dark:bg-orange-500/10">
+                        <img src="/images/logo-icon.png" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
                     </div>
                     <span
                         className={`font-bold text-xl tracking-tight text-gray-900 dark:text-white whitespace-nowrap transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}
@@ -80,7 +79,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
                 {isOpen && onToggle && (
                     <button
                         onClick={onToggle}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors lg:hidden"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800 lg:hidden"
                         aria-label="Close sidebar"
                     >
                         <ChevronLeft size={18} />
