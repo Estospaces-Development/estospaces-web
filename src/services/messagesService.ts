@@ -290,11 +290,41 @@ export async function getSupportAttachmentAccessUrl(attachmentId: string): Promi
 }
 
 export async function openSupportAttachment(attachmentId: string): Promise<void> {
-    const data = await getSupportAttachmentAccessUrl(attachmentId);
-    if (!data.access_url) {
-        throw new Error('Attachment access URL is unavailable.');
+    const reservedWindow = typeof window === 'undefined' ? null : window.open('about:blank', '_blank');
+    if (reservedWindow) {
+        reservedWindow.opener = null;
+        try {
+            reservedWindow.document.write('<!doctype html><title>Opening attachment...</title><body>Opening attachment...</body>');
+            reservedWindow.document.close();
+        } catch {
+            // The reserved handle can be write-protected; navigation remains available.
+        }
     }
-    window.open(data.access_url, '_blank', 'noopener,noreferrer');
+
+    try {
+        const data = await getSupportAttachmentAccessUrl(attachmentId);
+        if (!data.access_url) {
+            throw new Error('Attachment access URL is unavailable.');
+        }
+
+        if (reservedWindow && !reservedWindow.closed) {
+            reservedWindow.location.href = data.access_url;
+            return;
+        }
+
+        if (typeof window === 'undefined' || !window.open(data.access_url, '_blank', 'noopener,noreferrer')) {
+            throw new Error('Attachment viewer was blocked. Allow pop-ups for Estospaces and try again.');
+        }
+    } catch (error) {
+        if (reservedWindow && !reservedWindow.closed) {
+            try {
+                reservedWindow.close();
+            } catch {
+                // Best-effort cleanup only.
+            }
+        }
+        throw error;
+    }
 }
 
 export const messagesService = {

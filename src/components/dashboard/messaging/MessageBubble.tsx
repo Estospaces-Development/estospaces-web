@@ -1,9 +1,8 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Check, CheckCheck, FileText, Download } from 'lucide-react';
+import { SupportAttachmentPreview } from '@/components/support/SupportAttachmentPreview';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import Avatar from '@/components/ui/Avatar';
@@ -37,7 +36,6 @@ interface MessageBubbleProps {
 
 const MessageBubble = ({ message, isUser, isSupportConversation = false, showAvatar, agentUserId, agentName = '', agentAvatar }: MessageBubbleProps) => {
     const toast = useToast();
-    const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
     const attachmentKeyFor = createDuplicateSafeKeyResolver('message-attachment');
 
     const formatTime = (timestamp: string) => {
@@ -49,46 +47,29 @@ const MessageBubble = ({ message, isUser, isSupportConversation = false, showAva
         });
     };
 
-    const handleOpenSupportAttachment = async (attachment: Attachment) => {
-        if (!attachment.id) {
+    const handleOpenSupportAttachment = async (attachmentId: string) => {
+        if (!attachmentId) {
             toast.error('Attachment is unavailable.');
             return;
         }
 
         try {
-            setOpeningAttachmentId(attachment.id);
-            await messagesService.openSupportAttachment(attachment.id);
+            await messagesService.openSupportAttachment(attachmentId);
         } catch {
             toast.error('Unable to open this support attachment right now.');
-        } finally {
-            setOpeningAttachmentId(null);
         }
     };
 
     const renderAttachment = (attachment: Attachment) => {
         if (isSupportConversation) {
-            const isOpening = openingAttachmentId === attachment.id;
             return (
-                <button
-                    type="button"
-                    onClick={() => void handleOpenSupportAttachment(attachment)}
-                    className="mt-2 flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/10 p-3 text-left transition hover:border-orange-300 hover:bg-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-orange-400"
-                >
-                    <FileText size={20} className={isUser ? 'text-orange-100' : 'text-gray-600 dark:text-gray-300'} />
-                    <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm font-medium ${isUser ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
-                            {attachment.file_name}
-                        </p>
-                        <p className={`text-xs ${isUser ? 'text-orange-100/80' : 'text-gray-500 dark:text-gray-400'}`}>
-                            {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : 'Support attachment'}
-                        </p>
-                    </div>
-                    {isOpening ? (
-                        <BrandLoader size={16} className={`${isUser ? 'text-orange-100' : 'text-gray-500 dark:text-gray-400'}`} />
-                    ) : (
-                        <Download size={16} className={isUser ? 'text-orange-100' : 'text-gray-600 dark:text-gray-400'} />
-                    )}
-                </button>
+                <div className="mt-2">
+                    <SupportAttachmentPreview
+                        attachment={attachment}
+                        emphasized={isUser}
+                        onOpenAttachment={(attachmentId) => void handleOpenSupportAttachment(attachmentId)}
+                    />
+                </div>
             );
         }
 
