@@ -49,6 +49,15 @@ test('legacy square spinner classes become a correctly proportioned compact word
     assert.match(markup, /text-white/);
 });
 
+test('the logo asset is preloaded before the application renders a cold-start loader', () => {
+    const documentSource = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+
+    assert.match(
+        documentSource,
+        /<link rel="preload" as="image" href="\/logo-icon\.png" fetchpriority="high" \/>/,
+    );
+});
+
 test('application loading indicators use the shared Estospaces primitives instead of generic circle spinners', () => {
     const files = collectSourceFiles(resolve(process.cwd(), 'src'));
     const combinedSource = files
