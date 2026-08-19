@@ -17,6 +17,9 @@ test('brand loading screen presents the Estospaces identity and an accessible st
     assert.match(markup, />Estospaces</);
     assert.match(markup, /Loading your dashboard\.\.\./);
     assert.match(markup, /min-h-\[100dvh\]/);
+    assert.match(markup, /data-loading-variant="screen"/);
+    assert.match(markup, /brand-loading-ambient/);
+    assert.match(markup, /brand-loading-halo/);
 });
 
 test('section variant keeps the branded loader inside an existing workspace shell', () => {
@@ -35,7 +38,17 @@ test('panel variant preserves nearby content while remaining branded and respons
     assert.match(markup, /min-h-32/);
     assert.match(markup, /Loading the map\.\.\./);
     assert.match(markup, /Property locations will appear here\./);
+    assert.match(markup, /data-loading-variant="panel"/);
     assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
+});
+
+test('all loading surfaces use the same theme-aware tokens and indeterminate progress treatment', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
+
+    assert.match(styles, /\.brand-loading-surface\s*\{[\s\S]*--loading-surface:/);
+    assert.match(styles, /\.dark \.brand-loading-surface/);
+    assert.match(styles, /\.brand-loading-track\s*\{/);
+    assert.match(styles, /\.brand-loading-progress\s*\{[\s\S]*linear-gradient/);
 });
 
 test('global route and role session gates share the branded loading screen', () => {
@@ -67,6 +80,7 @@ test('brand loader motion has a reduced-motion fallback', () => {
 
     assert.match(styles, /@keyframes estospaces-loading-progress/);
     assert.match(styles, /@keyframes estospaces-loader-breathe/);
+    assert.match(styles, /@keyframes estospaces-loader-glow/);
     assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
     assert.match(styles, /\.brand-loading-progress/);
 });

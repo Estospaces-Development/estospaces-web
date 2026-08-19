@@ -24,6 +24,7 @@ test('compact brand loader exposes an accessible loading state without a rotatin
     assert.match(markup, /aria-label="Saving changes"/);
     assert.match(markup, /aria-busy="true"/);
     assert.match(markup, /src="\/logo-icon\.png"/);
+    assert.match(markup, /brand-loader-glow/);
     assert.match(markup, /--brand-loader-height:18px/);
     assert.doesNotMatch(markup, /animate-spin/);
     assert.doesNotMatch(markup, /<svg|<circle/);
@@ -35,6 +36,7 @@ test('compact brand loader can display useful progress copy without duplicating 
     );
 
     assert.match(markup, />Loading property details</);
+    assert.match(markup, /brand-loader-label/);
     assert.match(markup, /--brand-loader-height:36px/);
 });
 
@@ -81,4 +83,16 @@ test('application loading indicators use the shared Estospaces primitives instea
         const source = readFileSync(resolve(process.cwd(), file), 'utf8');
         assert.match(source, /BrandLoader|BrandLoadingScreen/, `${file} must use an Estospaces loading primitive`);
     }
+});
+
+test('compact loader inherits the surrounding theme and foreground instead of forcing a one-off color', () => {
+    const markup = renderToStaticMarkup(
+        <div className="dark text-orange-100">
+            <BrandLoader label="Loading manager activity" showLabel />
+        </div>,
+    );
+
+    assert.match(markup, /class="dark text-orange-100"/);
+    assert.match(markup, /brand-loader-label/);
+    assert.doesNotMatch(markup, /text-(?:black|zinc-950|white)"/);
 });

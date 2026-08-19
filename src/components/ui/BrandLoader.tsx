@@ -64,10 +64,11 @@ export default function BrandLoader({
             aria-busy="true"
             style={style}
         >
-            <span className="brand-loader-mark relative inline-grid shrink-0 place-items-center" aria-hidden="true">
-                <img src="/logo-icon.png" alt="" className="block h-auto w-full object-contain" />
+            <span className="brand-loader-mark relative inline-grid shrink-0 place-items-center overflow-hidden" aria-hidden="true">
+                <span className="brand-loader-glow absolute inset-0" />
+                <img src="/logo-icon.png" alt="" className="relative block h-auto w-full object-contain" />
             </span>
-            {showLabel ? <span className="truncate text-sm font-medium">{label}</span> : null}
+            {showLabel ? <span className="brand-loader-label truncate text-sm font-semibold">{label}</span> : null}
         </span>
     );
 }
