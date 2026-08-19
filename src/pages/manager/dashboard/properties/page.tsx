@@ -655,20 +655,7 @@ function PropertiesContent() {
                                 onView={(id) => navigate(`/manager/dashboard/properties/${id}`)}
                             />
                             {/* Quick Actions Overlay (visible on hover) */}
-                            <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-10">
-                                <button
-                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `Publish ${property.title} before sharing`}
-                                    disabled={!isPropertyPubliclyShareable(property.status)}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedPropertyForShare(property);
-                                        setShowShareModal(true);
-                                    }}
-                                    className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
-                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : "Publish this property before sharing"}
-                                >
-                                    <Share2 className="w-4 h-4" />
-                                </button>
+                            <div className="absolute right-3 top-14 z-10 flex flex-col gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
                                 <button
                                     aria-label={`Delete ${property.title}`}
                                     onClick={(e) => {

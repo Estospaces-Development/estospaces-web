@@ -115,7 +115,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/70 p-3 backdrop-blur-sm sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -126,7 +126,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
         aria-modal="true"
         aria-labelledby="share-property-title"
         aria-describedby="share-property-description"
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+        className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[1.75rem] border border-orange-100 bg-white p-5 shadow-[0_28px_90px_-28px_rgba(0,0,0,0.65)] sm:p-6 dark:border-orange-500/15 dark:bg-gray-900"
       >
         <button
           ref={closeButtonRef}
@@ -139,7 +139,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
         </button>
 
         <div className="mb-6">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-orange-200/80 bg-gradient-to-br from-orange-50 to-orange-100 shadow-sm dark:border-orange-500/20 dark:from-orange-950/70 dark:to-gray-900">
             <Share2 className="text-orange-700 dark:text-orange-300" size={24} />
           </div>
           <h2 id="share-property-title" className="text-xl font-bold text-gray-900 dark:text-white">
@@ -181,14 +181,14 @@ const ShareModal: React.FC<ShareModalProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
           {shareOptions.map((option) => (
             <button
               type="button"
               key={option.id}
               onClick={() => openShareTarget(option.id)}
               aria-label={`Share property via ${option.name}`}
-              className="group flex min-w-0 flex-col items-center gap-2 rounded-xl p-2 text-center transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800"
+              className="group flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-transparent p-2 text-center transition hover:border-orange-100 hover:bg-orange-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:border-orange-500/15 dark:hover:bg-orange-950/20"
             >
               <span className={`flex h-11 w-11 items-center justify-center rounded-full ${option.bg} ${option.color}`}>
                 <option.icon size={20} />

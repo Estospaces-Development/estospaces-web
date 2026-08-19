@@ -11,7 +11,6 @@ import {
     Maximize,
     MapPin,
     Star,
-    Share2,
     ChevronLeft,
     ChevronRight,
     CheckCircle,
@@ -19,9 +18,9 @@ import {
     Eye,
 } from 'lucide-react';
 import ShareModal from './ShareModal';
+import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useProperties } from '@/contexts/PropertyContext';
-import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
@@ -61,12 +60,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
     const { incrementViews } = useProperties();
-    const { allApplications } = useApplications();
 
     const isSaved = isPropertySaved(property.id);
-    const existingApplication = allApplications.find(app => app.propertyId === property.id);
-    const isApplied = !!existingApplication || property.is_applied || false;
-    const applicationStatus = existingApplication?.status || property.application_status || null;
     const viewCount = property.view_count || 0;
     const statusBadge = getManagerPropertyStatusBadge(property.status);
     const _isPending = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
@@ -302,7 +297,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     )}
 
                     {/* Action Buttons */}
-                    {(showSaveAction || isApplied || viewCount > 0) && (
                     <div className="absolute top-3 right-3 flex gap-2">
                         {showSaveAction && (
                             <button
@@ -318,15 +312,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                 {isSaving ? <BrandLoader size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
                             </button>
                         )}
-                        {isApplied && (
-                            <button
-                                className="p-2 rounded-full backdrop-blur-sm bg-green-500 text-white shadow-lg"
-                                title={`Applied - ${applicationStatus}`}
-                                aria-label="Already applied"
-                            >
-                                <CheckCircle size={16} className="fill-current" />
-                            </button>
-                        )}
+                        <PropertyShareAction
+                            propertyTitle={displayTitle}
+                            expanded={showShareModal}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                setShowShareModal(true);
+                            }}
+                        />
                         {viewCount > 0 && (
                             <div
                                 className="p-2 rounded-full backdrop-blur-sm bg-blue-700 text-white flex items-center gap-1 shadow-lg"
@@ -337,7 +330,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                             </div>
                         )}
                     </div>
-                    )}
 
                     <div className="absolute bottom-3 left-3">
                         <span className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-xl font-bold font-manager text-lg shadow-sm">
@@ -423,25 +415,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                 <span>Request 24-Hour Fast Track</span>
                             </button>
                         )}
-                        <div className="flex gap-2">
                         <button
                             onClick={handleViewDetails}
-                            className="flex-1 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-orange-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-700 dark:focus:ring-offset-gray-900"
+                            className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-orange-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-700 dark:focus:ring-offset-gray-900"
                         >
                             View Details
                         </button>
-
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                setShowShareModal(true);
-                            }}
-                            className="rounded-xl bg-gray-50 p-2.5 text-gray-600 transition-all duration-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900"
-                            title="Share Property"
-                        >
-                            <Share2 size={16} />
-                        </button>
-                        </div>
                     </div>
                 </div>
             </div>
