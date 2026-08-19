@@ -1,5 +1,7 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
     ArrowUpRight,
@@ -7,7 +9,6 @@ import {
     Clock3,
     FileCheck2,
     Home,
-    Loader2,
     ShieldCheck,
     X,
 } from 'lucide-react';
@@ -217,7 +218,7 @@ const PropertyFastTrackModal = ({
                                 </div>
                                 {isRefreshing ? (
                                     <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300">
-                                        <Loader2 size={14} className="animate-spin" />
+                                        <BrandLoader size={14} className="" />
                                         Refreshing case
                                     </span>
                                 ) : null}

@@ -1,12 +1,13 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Bell,
     ArrowLeft,
     Save,
-    Loader2,
     Check,
     Search,
     SlidersHorizontal,
@@ -195,7 +196,7 @@ export default function SettingsPage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <BrandLoader className="w-10 h-10 text-orange-500" />
             </div>
         );
     }
@@ -231,7 +232,7 @@ export default function SettingsPage() {
                             className="px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-all flex items-center gap-3"
                         >
                             {saving ? (
-                                <Loader2 size={24} className="animate-spin" />
+                                <BrandLoader size={24} className="" />
                             ) : saveSuccess ? (
                                 <Check size={24} strokeWidth={3} />
                             ) : (

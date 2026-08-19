@@ -1,8 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
 import {
@@ -817,7 +819,7 @@ const PropertySearch = () => {
                         Recent
                     </span>
                     {historyLoading ? (
-                        <p role="status" className="text-sm text-gray-500 dark:text-gray-400">Loading recent searches...</p>
+                        <BrandLoader size="sm" label="Loading recent searches" showLabel />
                     ) : searchHistory.length > 0 ? (
                         <div className="flex min-w-0 flex-wrap gap-2">
                             {searchHistory.map((entry, index) => {
@@ -1093,7 +1095,7 @@ const PropertySearch = () => {
             {/* Results Grid */}
             {isInitialSearchLoading ? (
                 <div className="flex justify-center flex-col items-center py-20 text-primary">
-                    <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                    <BrandLoader className="w-10 h-10 mb-4" />
                     <span className="text-sm font-medium text-gray-500">Searching properties...</span>
                 </div>
             ) : error ? (
@@ -1153,7 +1155,7 @@ const PropertySearch = () => {
                                         title={isSaved ? 'Saved' : 'Save property'}
                                     >
                                         {isSavingProperty ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <BrandLoader className="h-4 w-4" />
                                         ) : (
                                             <Heart className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
                                         )}
@@ -1258,7 +1260,7 @@ const PropertySearch = () => {
                             disabled={isSaving}
                             className="w-full py-3 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-orange-200 dark:shadow-none transition-all flex items-center justify-center gap-2 mt-4"
                         >
-                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <BookmarkPlus className="w-5 h-5" />}
+                            {isSaving ? <BrandLoader className="w-5 h-5" /> : <BookmarkPlus className="w-5 h-5" />}
                             Save Search
                         </button>
                     </div>

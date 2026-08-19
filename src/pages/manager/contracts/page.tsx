@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck } from 'lucide-react';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contractStatus';
 import {
     getDepositProtectionRecord,
@@ -470,7 +472,7 @@ export default function ManagerContractsPage() {
                         onClick={fetchContracts}
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
                     >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                        {loading ? <BrandLoader size="xs" label="Refreshing contracts" /> : <RefreshCw size={16} />} Refresh
                     </button>
                 </div>
             </div>
@@ -499,7 +501,7 @@ export default function ManagerContractsPage() {
             {/* Loading */}
             {loading && (
                 <div className="flex items-center justify-center py-20">
-                    <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <BrandLoader size="lg" label="Loading contracts" />
                 </div>
             )}
 
@@ -704,7 +706,7 @@ export default function ManagerContractsPage() {
                                                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition-colors disabled:opacity-70"
                                             >
                                                 {signingId === contract.id ? (
-                                                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming...</>
+                                                    <><BrandLoader size="xs" label="Confirming contract" /> Confirming...</>
                                                 ) : (
                                                     <><PenTool size={16} /> Confirm Contract</>
                                                 )}
@@ -905,7 +907,7 @@ export default function ManagerContractsPage() {
                                     className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2"
                                 >
                                     {signingId === viewContract.id ? (
-                                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming...</>
+                                        <><BrandLoader size="xs" label="Confirming contract" /> Confirming...</>
                                     ) : (
                                         <><PenTool size={16} /> Confirm Contract</>
                                     )}

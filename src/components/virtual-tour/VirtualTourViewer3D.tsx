@@ -7,6 +7,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { TourScene, Hotspot } from '@/services/virtualTourService';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 interface VirtualTourViewer3DProps {
     scene: TourScene;
     onHotspotClick: (targetSceneId: string) => void;
@@ -234,7 +236,7 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
             {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
                     <div className="text-white text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                        <BrandLoader size="xl" className="mx-auto mb-4" label="Loading virtual tour" />
                         <p>Loading High-Quality Experience...</p>
                     </div>
                 </div>

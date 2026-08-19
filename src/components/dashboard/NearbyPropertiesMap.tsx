@@ -6,6 +6,8 @@ import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from '@/lib/leafletReact';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
 import { formatMapPropertyPrice } from '@/lib/mapCurrency';
 import {
@@ -365,7 +367,7 @@ const NearbyPropertiesMap = ({
     if (!isMounted) {
         return (
             <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Loading nearby map...</span>
+                <BrandLoader size="md" label="Loading nearby map" showLabel />
             </div>
         );
     }

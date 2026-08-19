@@ -1,8 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, Loader2, LogOut, Settings, HelpCircle, User, BookOpen } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, HelpCircle, User, BookOpen } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
@@ -154,7 +156,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {isSigningOut ? (
-                                                <Loader2 size={18} className="animate-spin" />
+                                                <BrandLoader size={18} className="" />
                                             ) : (
                                                 <LogOut size={18} />
                                             )}

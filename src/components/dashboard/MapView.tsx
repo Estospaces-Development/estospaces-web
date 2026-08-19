@@ -6,6 +6,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from '@/lib/leafletRea
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 // Fix for Leaflet marker icons
 import 'leaflet/dist/leaflet.css';
 
@@ -89,7 +91,7 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
     if (!isMounted) {
         return (
             <div className="w-full h-full bg-gray-100 dark:bg-gray-800 animate-pulse flex items-center justify-center rounded-lg">
-                <span className="text-gray-400">Loading map component...</span>
+                <BrandLoader size="md" label="Loading map" showLabel />
             </div>
         );
     }

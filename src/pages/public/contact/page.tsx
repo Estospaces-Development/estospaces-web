@@ -1,8 +1,10 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle, Clock, MessageSquare, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
 import { contactService } from '@/services/contactService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -265,7 +267,7 @@ export default function ContactPage() {
                                         >
                                             {isSubmitting ? (
                                                 <>
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    <BrandLoader className="w-5 h-5" />
                                                     <span>Sending...</span>
                                                 </>
                                             ) : (

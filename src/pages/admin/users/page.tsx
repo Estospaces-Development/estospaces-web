@@ -1,10 +1,12 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     UserPlus, Users,
-    Filter, Search, Eye, Download, Shield, TrendingUp, UserCheck, Loader2, Power, RefreshCw
+    Filter, Search, Eye, Download, Shield, TrendingUp, UserCheck, Power, RefreshCw
 } from 'lucide-react';
 
 import { userService } from '@/services/userService';
@@ -572,7 +574,7 @@ function UserManagementContent() {
                         disabled={adminLeadLoading}
                         className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white"
                     >
-                        <RefreshCw size={16} className={adminLeadLoading ? 'animate-spin' : ''} />
+                        {adminLeadLoading ? <BrandLoader size="xs" label="Refreshing users" /> : <RefreshCw size={16} />}
                         Refresh
                     </button>
                 </div>
@@ -651,7 +653,7 @@ function UserManagementContent() {
                             {adminLeadLoading ? (
                                 <tr>
                                     <td colSpan={4} className="px-8 py-10 text-center text-sm font-bold text-gray-500">
-                                        Loading lead reassignment queue...
+                                        <BrandLoader size="sm" label="Loading lead reassignment queue" showLabel />
                                     </td>
                                 </tr>
                             ) : visibleReassignableLeads.length === 0 ? (
@@ -719,7 +721,7 @@ function UserManagementContent() {
                                                     disabled={isActionDisabled}
                                                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
                                                 >
-                                                    {isBusy ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
+                                                    {isBusy ? <BrandLoader size={16} className="" /> : <UserCheck size={16} />}
                                                     Reassign
                                                 </button>
                                             </td>
@@ -813,7 +815,7 @@ function UserManagementContent() {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-10 py-14 text-center text-sm font-bold text-gray-500">
-                                        Loading user registry...
+                                        <BrandLoader size="sm" label="Loading user registry" showLabel />
                                     </td>
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (
@@ -893,7 +895,7 @@ function UserManagementContent() {
                                                                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                                                         } disabled:opacity-60`}
                                                     >
-                                                        {actionBusy ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+                                                        {actionBusy ? <BrandLoader size={16} className="" /> : <Power size={16} />}
                                                         {user.is_active ? 'Deactivate' : 'Activate'}
                                                     </button>
                                                 </div>
@@ -981,7 +983,7 @@ function UserManagementContent() {
                                     stateChangeUser.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'
                                 }`}
                             >
-                                {actionUserId === stateChangeUser.id && <Loader2 size={16} className="animate-spin" />}
+                                {actionUserId === stateChangeUser.id && <BrandLoader size={16} className="" />}
                                 Confirm {stateChangeUser.is_active ? 'Deactivate' : 'Activate'}
                             </button>
                         </div>

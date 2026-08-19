@@ -1,8 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Info, BellRing, Loader2, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Info, BellRing, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
     formatWorkspaceReference,
@@ -702,7 +704,7 @@ const BrokerResponseWidget: React.FC = () => {
                                 : 'brand-orange-action'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                    {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                    {availabilityLoading ? <BrandLoader className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
                     {availabilityBlockedReason
                         ? 'Open verification'
                         : availableForFastResponse
@@ -741,7 +743,9 @@ const BrokerResponseWidget: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {loading ? (
-                    <div className="col-span-full py-8 text-center text-gray-400">Loading requests...</div>
+                    <div className="col-span-full flex justify-center py-8 text-gray-500 dark:text-gray-400">
+                        <BrandLoader size="md" label="Loading requests" showLabel />
+                    </div>
                 ) : visibleRequests.length > 0 ? (
                     visibleRequests.map((request, requestIndex) => (
                         <BrokerRequestItem
@@ -995,7 +999,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                             disabled={isSaving || selectedIds.length === 0}
                                                             className="brand-orange-action inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                                         >
-                                                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                                            {isSaving ? <BrandLoader className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                                                             {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}
                                                         </button>
                                                     </div>

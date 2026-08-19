@@ -1,5 +1,7 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -14,7 +16,6 @@ import {
     FileImage,
     FileText,
     Home,
-    Loader2,
     RefreshCw,
     SendHorizontal,
     ShieldCheck,
@@ -452,7 +453,7 @@ const ActionButton = ({
             title={title}
             className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-950 ${toneClass} ${className}`.trim()}
         >
-            {busy ? <Loader2 size={16} className="animate-spin" /> : null}
+            {busy ? <BrandLoader size={16} className="" /> : null}
             {children}
         </button>
     );
@@ -2401,7 +2402,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label={role === 'user' ? 'Journey messages' : 'Case chat transcript'}>
                     {threadLoading ? (
                         <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <BrandLoader className="h-4 w-4" />
                             {role === 'user' ? 'Loading your messages' : 'Loading case messages'}
                         </div>
                     ) : threadMessages.length === 0 ? (
@@ -3595,7 +3596,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 >
                     {managerReviewLoading ? (
                         <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
-                            <Loader2 size={16} className="animate-spin" />
+                            <BrandLoader size={16} className="" />
                             Loading your feedback...
                         </div>
                     ) : isApproved ? (
@@ -3957,7 +3958,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
             {loading ? (
                 <div role="status" className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4 text-sm font-medium text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <BrandLoader className="h-4 w-4" />
                     {role === 'user' ? 'Loading your fast-track journeys...' : 'Loading fast-track cases...'}
                 </div>
             ) : null}

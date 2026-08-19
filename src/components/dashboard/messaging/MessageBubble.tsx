@@ -1,7 +1,9 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState } from 'react';
-import { Check, CheckCheck, FileText, Download, Loader2 } from 'lucide-react';
+import { Check, CheckCheck, FileText, Download } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import Avatar from '@/components/ui/Avatar';
@@ -82,7 +84,7 @@ const MessageBubble = ({ message, isUser, isSupportConversation = false, showAva
                         </p>
                     </div>
                     {isOpening ? (
-                        <Loader2 size={16} className={`animate-spin ${isUser ? 'text-orange-100' : 'text-gray-500 dark:text-gray-400'}`} />
+                        <BrandLoader size={16} className={`${isUser ? 'text-orange-100' : 'text-gray-500 dark:text-gray-400'}`} />
                     ) : (
                         <Download size={16} className={isUser ? 'text-orange-100' : 'text-gray-600 dark:text-gray-400'} />
                     )}

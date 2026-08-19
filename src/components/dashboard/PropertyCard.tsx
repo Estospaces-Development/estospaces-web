@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,7 +17,6 @@ import {
     CheckCircle,
     Clock,
     Eye,
-    Loader2,
 } from 'lucide-react';
 import ShareModal from './ShareModal';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
@@ -314,7 +315,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                 aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
                                 title={isSaved ? 'Saved' : 'Save property'}
                             >
-                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
+                                {isSaving ? <BrandLoader size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
                             </button>
                         )}
                         {isApplied && (

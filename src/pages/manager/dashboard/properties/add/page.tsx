@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -47,7 +49,6 @@ import {
   Settings,
   Star,
   AlertCircle,
-  Loader2,
   Save,
   ArrowLeft,
 } from "lucide-react";
@@ -2171,7 +2172,7 @@ export default function AddPropertyPage() {
       <div className="max-w-6xl mx-auto font-sans pb-8">
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12">
           <div className="flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <BrandLoader className="w-12 h-12 text-primary" />
             <p className="text-lg text-gray-600 dark:text-gray-400">
               Loading property details...
             </p>
@@ -3279,7 +3280,7 @@ export default function AddPropertyPage() {
                   disabled={mediaListLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
-                  {mediaListLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {mediaListLoading && <BrandLoader className="h-4 w-4" />}
                   Refresh
                 </button>
               </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,7 +9,6 @@ import {
     Phone,
     MapPin,
     ArrowLeft,
-    Loader2,
     Camera,
     Edit3,
     Building,
@@ -224,7 +225,7 @@ export default function ProfilePage() {
     if (authLoading || (isAuthenticated && !currentUser)) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <BrandLoader className="w-10 h-10 text-orange-500" />
             </div>
         );
     }
@@ -282,7 +283,7 @@ export default function ProfilePage() {
                                     )}
                                     {uploadingImage && (
                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                            <Loader2 size={24} className="text-white animate-spin" />
+                                            <BrandLoader size={24} className="text-white" />
                                         </div>
                                     )}
                                 </div>
@@ -448,7 +449,7 @@ export default function ProfilePage() {
                                     >
                                         {savingProfile ? (
                                             <>
-                                                <Loader2 size={24} className="animate-spin" />
+                                                <BrandLoader size={24} className="" />
                                                 <span>Updating Profile...</span>
                                             </>
                                         ) : (

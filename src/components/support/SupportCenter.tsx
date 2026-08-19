@@ -1,7 +1,9 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, CircleHelp, LifeBuoy, Loader2, RefreshCw, Ticket } from 'lucide-react';
+import { BookOpen, CircleHelp, LifeBuoy, RefreshCw, Ticket } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -583,7 +585,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <button onClick={() => void fetchTickets()} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 dark:border-orange-500/20 dark:text-orange-200" aria-label="Refresh support tickets"><RefreshCw className="h-4 w-4" /></button>
                         </div>
                     </div>
-                    {loading && tickets.length === 0 ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
+                    {loading && tickets.length === 0 ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><BrandLoader className="h-6 w-6 text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
                         const ticket = tickets.find((item) => item.id === ticketId);
                         const next = new URLSearchParams({ ticket: ticketId });
                         if (ticket?.conversation_id) {
@@ -594,7 +596,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
                     {loading && tickets.length > 0 && (
                         <div className="flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-sm text-gray-600 dark:border-orange-500/15 dark:bg-gray-900/60 dark:text-gray-300" aria-live="polite">
-                            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                            <BrandLoader className="h-4 w-4 text-orange-500" />
                             <span>Refreshing tickets…</span>
                         </div>
                     )}
@@ -631,7 +633,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                 {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
-                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
+                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <BrandLoader className="h-5 w-5 text-orange-500" />}</div>
                                 <SupportTranscript
                                     messages={messages}
                                     currentUserId={user?.id}

@@ -1,7 +1,9 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useRef, useState } from 'react';
-import { FileText, Image as ImageIcon, Loader2, Paperclip, Send, Smile, X } from 'lucide-react';
+import { FileText, Image as ImageIcon, Paperclip, Send, Smile, X } from 'lucide-react';
 import { useMessages } from '@/contexts/MessagesContext';
 import EmojiPicker from '@/components/ui/EmojiPicker';
 import { uploadMediaFile } from '@/services/mediaService';
@@ -170,7 +172,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                     className="p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                     aria-label="Send message"
                 >
-                    {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                    {isSending ? <BrandLoader size={20} className="" /> : <Send size={20} />}
                 </button>
             </form>
             <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">

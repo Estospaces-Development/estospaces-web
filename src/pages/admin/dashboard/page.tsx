@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -13,7 +15,6 @@ import {
     MessageSquare,
     Zap,
     ArrowRight,
-    Loader2,
     FileText,
     Info,
     ClipboardList,
@@ -201,7 +202,7 @@ export default function AdminDashboard() {
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-6 lg:p-10">
-                <Loader2 size={48} className="animate-spin text-orange-500 mb-4" />
+                <BrandLoader size={48} className="text-orange-500 mb-4" />
                 <p className="text-gray-500 font-medium">Initializing Command Center...</p>
             </div>
         );
@@ -583,7 +584,7 @@ export default function AdminDashboard() {
 
                         {notificationsLoading && recentNotifications.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
-                                <Loader2 size={20} className="mx-auto mb-3 animate-spin text-orange-500" />
+                                <BrandLoader size={20} className="mx-auto mb-3 text-orange-500" />
                                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                                     Loading recent notifications...
                                 </p>

@@ -1,7 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowLeft, Loader2, MessageSquare, PlusCircle, RefreshCw, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, MessageSquare, PlusCircle, RefreshCw, UserRound } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -458,13 +461,13 @@ function MessagesContent() {
                                         disabled={openingRecommendedConversation}
                                         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {openingRecommendedConversation ? <Loader2 size={17} className="animate-spin" /> : <MessageSquare size={17} />}
+                                        {openingRecommendedConversation ? <BrandLoader size={17} className="" /> : <MessageSquare size={17} />}
                                         {openingRecommendedConversation ? 'Opening chat' : 'Open manager chat'}
                                     </button>
                                 </div>
                             ) : recommendationLoading ? (
                                 <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
-                                    <Loader2 size={16} className="animate-spin" />
+                                    <BrandLoader size={16} className="" />
                                     Checking assigned manager
                                 </div>
                             ) : null}
@@ -478,7 +481,7 @@ function MessagesContent() {
 
 export default function MessagesPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div></div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading messages..." />}>
             <MessagesContent />
         </Suspense>
     );

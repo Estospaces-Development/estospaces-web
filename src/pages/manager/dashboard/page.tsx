@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
@@ -27,7 +29,7 @@ import {
   getManagerDashboardAccessState,
   type ManagerDashboardAccessState,
 } from '@/lib/managerDashboardAccess';
-import { Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
 // Components
@@ -493,7 +495,7 @@ function DashboardContent() {
 
       {managerVerificationLoading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={28} className="animate-spin text-orange-500 mr-3" />
+          <BrandLoader size={28} className="text-orange-500 mr-3" />
           <span className="text-sm text-gray-500 dark:text-gray-400">Loading your dashboard…</span>
         </div>
       )}
@@ -639,7 +641,7 @@ function DashboardContent() {
                     disabled={confirmingBookingID === booking.id}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {confirmingBookingID === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {confirmingBookingID === booking.id ? <BrandLoader className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     Confirm Reservation
                   </button>
                 </div>

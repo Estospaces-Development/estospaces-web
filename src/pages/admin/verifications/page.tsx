@@ -1,11 +1,13 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Shield, Clock, CheckCircle, XCircle,
   Search, RefreshCw, Eye, Sparkles,
-  ArrowRight, LayoutGrid, List, Loader2
+  ArrowRight, LayoutGrid, List
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
@@ -238,7 +240,7 @@ function VerificationsContent() {
                 title="Refresh manager verification queue"
                 className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
               >
-                <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                {isRefreshing ? <BrandLoader size="sm" label="Refreshing verifications" /> : <RefreshCw size={20} />}
               </button>
             </div>
           </div>
@@ -320,7 +322,7 @@ function VerificationsContent() {
         <div className="p-4 sm:p-10">
           {loading ? (
              <div className="flex justify-center py-20">
-               <Loader2 className="animate-spin text-orange-500" size={40} />
+               <BrandLoader className="text-orange-500" size={40} />
              </div>
           ) : filteredManagers.length > 0 ? (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'grid grid-cols-1 gap-6'}>

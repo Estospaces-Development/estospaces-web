@@ -1,7 +1,8 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import { useNavigate } from 'react-router-dom';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap, X } from 'lucide-react';
+import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, RefreshCw, Eye, ArrowRight, TrendingUp, Zap, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ManagerDocument, ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName, isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
@@ -301,7 +302,7 @@ export default function VerificationPage() {
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
+                <BrandLoader className="w-12 h-12 text-orange-500 mb-4" />
                 <p className="text-gray-500 font-medium">Loading verification status...</p>
             </div>
         );
@@ -399,7 +400,7 @@ export default function VerificationPage() {
                         disabled={isSubmitting}
                         className="bg-gray-900 dark:bg-orange-500 hover:scale-105 active:scale-95 text-white px-12 py-4 rounded-2xl font-bold shadow-2xl transition-all disabled:opacity-50 flex items-center gap-3"
                     >
-                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue to Verification"}
+                        {isSubmitting ? <BrandLoader className="w-5 h-5" /> : "Continue to Verification"}
                         <ChevronRight className="w-5 h-5" />
                     </button>
                 </div>
@@ -531,7 +532,7 @@ export default function VerificationPage() {
                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-sm ${
                                         step.status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-900 dark:bg-gray-800 text-white dark:text-orange-500'
                                     }`}>
-                                        {isSubmitting ? <Loader2 className="w-7 h-7 animate-spin" /> : <step.icon className="w-7 h-7" />}
+                                        {isSubmitting ? <BrandLoader className="w-7 h-7" /> : <step.icon className="w-7 h-7" />}
                                     </div>
                                 )}
                             </div>
@@ -654,7 +655,7 @@ export default function VerificationPage() {
                             }`}
                         >
                             {isSubmitting ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <BrandLoader className="w-5 h-5" />
                             ) : profileNeedsCompletion ? (
                                 <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             ) : (
@@ -749,7 +750,7 @@ export default function VerificationPage() {
                                     disabled={isSubmitting || missingFirstTimeFiles.length > 0}
                                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-orange-500 dark:hover:bg-orange-600"
                                 >
-                                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                    {isSubmitting ? <BrandLoader className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
                                     Upload all documents
                                 </button>
                             </div>

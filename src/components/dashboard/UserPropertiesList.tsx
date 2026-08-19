@@ -1,7 +1,9 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { Loader2, AlertCircle, Filter, Map, Square } from 'lucide-react';
+import { AlertCircle, Filter, Map, Square } from 'lucide-react';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
@@ -121,7 +123,7 @@ const UserPropertiesList = () => {
     if (loading && !properties.length) {
         return (
             <div className="flex items-center justify-center p-8">
-                <Loader2 className="animate-spin text-orange-500" size={32} />
+                <BrandLoader className="text-orange-500" size={32} />
                 <span className="ml-3 text-gray-600 dark:text-gray-400">Loading properties...</span>
             </div>
         );

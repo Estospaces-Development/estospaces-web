@@ -1,5 +1,7 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
@@ -7,7 +9,6 @@ import {
     ClipboardList,
     ExternalLink,
     FileText,
-    Loader2,
     MessageSquare,
     Plus,
     RefreshCw,
@@ -981,7 +982,7 @@ export default function AdminResearchPage() {
                                 aria-disabled={!canSaveSession}
                                 className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:opacity-60"
                             >
-                                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                                {saving && <BrandLoader className="h-4 w-4" />}
                                 Save session
                             </button>
                         </div>

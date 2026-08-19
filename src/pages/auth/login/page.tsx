@@ -8,6 +8,8 @@ import { getPublicHomeHref, isExternalHref } from '@/lib/utils/hostUtils';
 import { ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
 
 export default function LoginPage() {
@@ -98,7 +100,7 @@ export default function LoginPage() {
   if (authLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+        <BrandLoader size="lg" className="mb-4" label="Signing in" />
         <p className="text-gray-500 dark:text-gray-400 text-sm">Checking session...</p>
       </div>
     );

@@ -1,5 +1,6 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import React, { useRef } from 'react';
-import { Loader2, Paperclip, Send, X } from 'lucide-react';
+import { Paperclip, Send, X } from 'lucide-react';
 import type { SupportAttachmentDraft } from '@/services/supportService';
 
 interface SupportComposerProps {
@@ -115,7 +116,7 @@ export function SupportComposer({
                     onClick={onSubmit}
                     className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {disabled ? <BrandLoader className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                     {submitLabel}
                 </button>
             </div>

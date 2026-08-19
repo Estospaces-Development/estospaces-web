@@ -1,3 +1,4 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -8,7 +9,6 @@ import {
   FileCheck2,
   FolderLock,
   ListChecks,
-  Loader2,
   Plus,
   Save,
   ShieldCheck,
@@ -497,7 +497,7 @@ export function UserVirtualStoragePageContent({
           <div className="mt-4 space-y-3">
             {fastTrackLoading ? (
               <div className="flex items-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm font-semibold text-gray-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-gray-400">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <BrandLoader className="h-4 w-4" />
                 Loading fast-track activity
               </div>
             ) : fastTrackError ? (
@@ -574,7 +574,7 @@ export function UserVirtualStoragePageContent({
                   onClick={() => void handleCreateCategory()}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {savingKey === "category" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {savingKey === "category" ? <BrandLoader className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                   Add
                 </button>
               </div>
@@ -638,7 +638,7 @@ export function UserVirtualStoragePageContent({
                 disabled={!selectedFile || savingKey === "upload"}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {savingKey === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {savingKey === "upload" ? <BrandLoader className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
                 Upload
               </button>
             </div>
@@ -667,7 +667,7 @@ export function UserVirtualStoragePageContent({
                       disabled={savingKey === `save:${document.id}`}
                       className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {savingKey === `save:${document.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      {savingKey === `save:${document.id}` ? <BrandLoader className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                       Save
                     </button>
                     <button
@@ -694,7 +694,7 @@ export function UserVirtualStoragePageContent({
           <div className="mt-4 space-y-3">
             {loading ? (
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <BrandLoader className="h-4 w-4" />
                 Loading Virtual Storage
               </div>
             ) : storedDocumentGroups.length > 0 ? (
@@ -780,7 +780,7 @@ export default function UserVirtualStoragePage() {
   if (authLoading || (isAuthenticated && !currentUser)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+        <BrandLoader className="h-10 w-10 text-orange-500" />
       </div>
     );
   }

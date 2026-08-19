@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle, PenTool, Download } from 'lucide-react';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import { useToast } from '@/contexts/ToastContext';
 import { signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
@@ -209,7 +211,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
                                 >
                                     {isLoading ? (
                                         <>
-                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <BrandLoader size="xs" label="Signing contract" />
                                             Signing...
                                         </>
                                     ) : (

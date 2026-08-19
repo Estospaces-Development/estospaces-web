@@ -1,10 +1,11 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertCircle,
     CheckCircle,
-    Loader2,
     MessageSquare,
     RefreshCw,
     Star,
@@ -150,7 +151,7 @@ export default function AdminReviewsPage() {
                     aria-label="Refresh review moderation queue"
                     className="rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
                 >
-                    <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                    {isRefreshing ? <BrandLoader size="sm" label="Refreshing reviews" /> : <RefreshCw size={20} />}
                 </button>
             </div>
 
@@ -202,7 +203,7 @@ export default function AdminReviewsPage() {
 
             {isLoading ? (
                 <div className="flex justify-center py-20">
-                    <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                    <BrandLoader className="h-10 w-10 text-orange-500" />
                 </div>
             ) : displayedItems.length === 0 ? (
                 <div className="rounded-3xl bg-white p-16 text-center shadow-sm dark:bg-gray-800">
@@ -250,7 +251,7 @@ export default function AdminReviewsPage() {
                                         aria-label={`Approve review for property ${review.property_id}`}
                                         className="flex items-center gap-1.5 rounded-xl bg-green-700 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
                                     >
-                                        {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                        {actionId === review.id ? <BrandLoader size={14} className="" /> : <CheckCircle size={14} />}
                                         Approve
                                     </button>
                                 ) : null}
@@ -261,7 +262,7 @@ export default function AdminReviewsPage() {
                                     aria-label={`Delete review for property ${review.property_id}`}
                                     className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
                                 >
-                                    {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                    {actionId === review.id ? <BrandLoader size={14} className="" /> : <Trash2 size={14} />}
                                     Delete
                                 </button>
                             </div>
@@ -317,7 +318,7 @@ export default function AdminReviewsPage() {
                                                 aria-label={`Approve manager review from ${review.user_name || review.user_id}`}
                                                 className="flex items-center gap-1.5 rounded-xl bg-green-700 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
                                             >
-                                                {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                                {actionId === review.id ? <BrandLoader size={14} className="" /> : <CheckCircle size={14} />}
                                                 Approve
                                             </button>
                                         ) : null}
@@ -329,7 +330,7 @@ export default function AdminReviewsPage() {
                                                 aria-label={`Reject manager review from ${review.user_name || review.user_id}`}
                                                 className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
                                             >
-                                                {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                                {actionId === review.id ? <BrandLoader size={14} className="" /> : <Trash2 size={14} />}
                                                 Reject
                                             </button>
                                         ) : null}
@@ -397,7 +398,7 @@ export default function AdminReviewsPage() {
                                         : 'bg-red-700 hover:bg-red-800'
                                 }`}
                             >
-                                {actionId === pendingAction.id ? <Loader2 size={14} className="animate-spin" /> : null}
+                                {actionId === pendingAction.id ? <BrandLoader size={14} className="" /> : null}
                                 {pendingAction.action === 'approve' ? 'Approve' : pendingAction.mode === 'property' ? 'Delete' : 'Reject'}
                             </button>
                         </div>

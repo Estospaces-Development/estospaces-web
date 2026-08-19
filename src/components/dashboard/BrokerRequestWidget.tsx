@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {  useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -9,7 +11,6 @@ import {
     Building2,
     CheckCircle2,
     Clock,
-    Loader2,
     MapPin,
     MessageSquare,
     Phone,
@@ -1077,7 +1078,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                         disabled={openingConversation}
                                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                     >
-                                        {openingConversation ? <Loader2 size={15} className="animate-spin" /> : <MessageSquare size={15} />}
+                                        {openingConversation ? <BrandLoader size={15} className="" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
                                     </button>
                                 </div>
@@ -1300,7 +1301,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                                             disabled={Boolean(selectingPropertyId)}
                                                                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                                                                         >
-                                                                            {isSelecting && <Loader2 size={15} className="animate-spin" />}
+                                                                            {isSelecting && <BrandLoader size={15} className="" />}
                                                                             {isSelecting ? 'Starting your journey...' : 'Choose this home'}
                                                                         </button>
                                                                         <button
@@ -1337,7 +1338,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                 disabled={rematching || Boolean(selectingPropertyId)}
                                                 className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                             >
-                                                {rematching && <Loader2 size={15} className="animate-spin" />}
+                                                {rematching && <BrandLoader size={15} className="" />}
                                                 {rematching ? 'Finding another agent...' : 'Find another agent'}
                                             </button>
                                         ) : null}
@@ -1591,7 +1592,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                     {loading ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        <BrandLoader size="xs" label="Submitting request" />
                     ) : (
                         <Send size={16} />
                     )}

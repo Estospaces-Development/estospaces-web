@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useEffect, useState } from 'react';
 import {
     FileText,
@@ -16,7 +18,6 @@ import {
     Calendar,
     Home,
     Building2,
-    Loader2,
     TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -452,7 +453,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 title={openingConversation ? 'Opening thread' : 'Message Agent'}
                                 aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
                             >
-                                {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                {openingConversation ? <BrandLoader size={18} className="" /> : <MessageSquare size={18} />}
                             </button>
                             {canWithdraw && (
                                 <button

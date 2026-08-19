@@ -1,7 +1,9 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Shield } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Save, CheckCircle, Hash, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
@@ -187,7 +189,7 @@ export default function AdminProfilePage() {
     if (isInitialLoading) {
         return (
             <div className="flex justify-center items-center py-20">
-                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <BrandLoader className="w-10 h-10 text-orange-500" />
             </div>
         );
     }
@@ -350,7 +352,7 @@ export default function AdminProfilePage() {
                                     </span>
                                 )}
                                 <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors shadow-sm">
-                                    {isLoading ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : <><Save size={18} /> Save Admin Profile</>}
+                                    {isLoading ? <><BrandLoader size={18} className="" /> Saving...</> : <><Save size={18} /> Save Admin Profile</>}
                                 </button>
                             </div>
                         </form>

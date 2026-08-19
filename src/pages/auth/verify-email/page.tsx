@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle, XCircle, Loader, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
@@ -97,7 +99,7 @@ export default function VerifyEmailPage() {
             {status === 'loading' && (
                 <>
                     <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
-                        <Loader className="text-blue-500 h-8 w-8 animate-spin" />
+                        <BrandLoader size="lg" label="Verifying email" />
                     </div>
                     <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                         Verifying your email...
@@ -157,7 +159,7 @@ export default function VerifyEmailPage() {
                             disabled={resending || resendCooldown > 0 || !resendEmail}
                             className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            <RefreshCw size={16} className={resending ? 'animate-spin' : ''} />
+                            {resending ? <BrandLoader size="xs" label="Resending email" /> : <RefreshCw size={16} />}
                             {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : resending ? 'Sending...' : 'Resend Verification Email'}
                         </button>
                     </div>

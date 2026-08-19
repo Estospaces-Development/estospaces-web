@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -12,7 +14,6 @@ import {
     CheckCircle,
     Home,
     ImageOff,
-    Loader2,
     Mail,
     MapPin,
     Maximize,
@@ -322,7 +323,7 @@ export default function AdminPropertyDetailPage() {
         return (
             <div className="flex min-h-[420px] items-center justify-center rounded-[2rem] border bg-white p-10 dark:border-gray-700 dark:bg-gray-800">
                 <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <BrandLoader className="h-6 w-6" />
                     <span className="font-bold">Loading property registry entry...</span>
                 </div>
             </div>

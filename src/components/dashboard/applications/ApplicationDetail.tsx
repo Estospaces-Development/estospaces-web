@@ -1,3 +1,4 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -20,7 +21,6 @@ import {
     History,
     Shield,
     Key,
-    Loader2,
     LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -485,7 +485,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         disabled={openingConversation}
                                         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                     >
-                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                        {openingConversation ? <BrandLoader size={18} className="" /> : <MessageSquare size={18} />}
                                         <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                                     </button>
                                 </div>
@@ -644,7 +644,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                         disabled={openingConversation}
                                                         className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                                     >
-                                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                                        {openingConversation ? <BrandLoader size={18} className="" /> : <MessageSquare size={18} />}
                                                         <span>{openingConversation ? 'Opening thread' : 'Contact Agent'}</span>
                                                     </button>
 

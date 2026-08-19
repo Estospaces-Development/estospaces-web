@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
     Heart,
@@ -13,7 +15,6 @@ import {
     Bookmark,
     Bell,
     BellOff,
-    Loader2,
     History,
     SlidersHorizontal
 } from 'lucide-react';
@@ -392,7 +393,7 @@ function SavedSearchesTab() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+                <BrandLoader className="w-10 h-10 text-indigo-600 mb-4" />
                 <span className="text-gray-500 font-medium">Loading saved searches...</span>
             </div>
         );

@@ -1,9 +1,11 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import {
     BarChart3, Users, Eye, RefreshCw,
-    Activity, Zap, Globe2, Loader2, TrendingUp, Building2, FileText
+    Activity, Zap, Globe2, TrendingUp, Building2, FileText
 } from 'lucide-react';
 import PieChart from '@/components/ui/PieChart';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -130,7 +132,7 @@ function AnalyticsContent() {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-100px)]">
                 <div className="text-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-4" />
+                    <BrandLoader className="w-10 h-10 text-indigo-600 mx-auto mb-4" />
                     <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Synchronizing Intelligence...</p>
                 </div>
             </div>
@@ -160,7 +162,7 @@ function AnalyticsContent() {
                         disabled={isRefreshing}
                         className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-105 transition-all disabled:opacity-50"
                     >
-                        <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                        {isRefreshing ? <BrandLoader size="sm" label="Refreshing analytics" /> : <RefreshCw size={20} />}
                     </button>
                 </div>
             </div>

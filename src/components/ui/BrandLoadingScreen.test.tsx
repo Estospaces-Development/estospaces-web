@@ -22,7 +22,19 @@ test('brand loading screen presents the Estospaces identity and an accessible st
 test('section variant keeps the branded loader inside an existing workspace shell', () => {
     const markup = renderToStaticMarkup(<BrandLoadingScreen variant="section" />);
 
-    assert.match(markup, /min-h-\[18rem\]/);
+    assert.match(markup, /min-h-\[14rem\]/);
+    assert.match(markup, /sm:min-h-\[18rem\]/);
+    assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
+});
+
+test('panel variant preserves nearby content while remaining branded and responsive', () => {
+    const markup = renderToStaticMarkup(
+        <BrandLoadingScreen variant="panel" label="Loading the map..." description="Property locations will appear here." />,
+    );
+
+    assert.match(markup, /min-h-32/);
+    assert.match(markup, /Loading the map\.\.\./);
+    assert.match(markup, /Property locations will appear here\./);
     assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
 });
 
@@ -54,6 +66,7 @@ test('brand loader motion has a reduced-motion fallback', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
 
     assert.match(styles, /@keyframes estospaces-loading-progress/);
+    assert.match(styles, /@keyframes estospaces-loader-breathe/);
     assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
     assert.match(styles, /\.brand-loading-progress/);
 });

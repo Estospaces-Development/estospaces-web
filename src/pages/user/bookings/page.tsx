@@ -1,8 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, ArrowLeft, Loader2, Search, Plus } from 'lucide-react';
+import { Calendar, MapPin, ArrowLeft, Search, Plus } from 'lucide-react';
 import { bookingsService, type Booking } from '../../../services/bookingsService';
 import { useToast } from '../../../contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
@@ -313,7 +315,7 @@ export default function BookingsPage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <BrandLoader className="w-10 h-10 text-orange-500" />
             </div>
         );
     }
@@ -494,7 +496,7 @@ export default function BookingsPage() {
                             disabled={savingReservation}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {savingReservation && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {savingReservation && <BrandLoader className="h-4 w-4" />}
                             Create Reservation
                         </button>
                     </div>
@@ -671,7 +673,7 @@ export default function BookingsPage() {
                             disabled={Boolean(cancellingBookingID)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {cancellingBookingID && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {cancellingBookingID && <BrandLoader className="h-4 w-4" />}
                             Cancel Booking
                         </button>
                     </div>

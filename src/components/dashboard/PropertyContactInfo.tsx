@@ -1,7 +1,9 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { useEffect, useMemo, useState } from 'react';
-import { Mail, Phone, MapPin, Calendar, MessageCircle, Loader2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, MessageCircle } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
@@ -323,7 +325,7 @@ ${contactForm.message}
                                 disabled={isSubmitting}
                                 className="flex flex-1 items-center justify-center gap-2 rounded-[1rem] bg-orange-500 px-4 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
                             >
-                                {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                                {isSubmitting && <BrandLoader size={16} className="" />}
                                 Send Message
                             </button>
                             <button

@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -9,7 +11,6 @@ import {
     Globe,
     Home,
     Layers,
-    Loader2,
     MapPin,
     Plus,
     Search,
@@ -607,7 +608,7 @@ function PropertyManagementContent() {
             {loading && properties.length === 0 ? (
                 <div className="flex min-h-[280px] items-center justify-center rounded-[3rem] border bg-white p-20 dark:border-gray-700 dark:bg-gray-800">
                     <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <BrandLoader className="h-6 w-6" />
                         <span className="font-bold">Loading full property registry...</span>
                     </div>
                 </div>
@@ -647,7 +648,7 @@ function PropertyManagementContent() {
                                     <div className="absolute right-6 top-6">
                                         {isBusy ? (
                                             <span className="inline-flex items-center gap-2 rounded-xl bg-gray-900/90 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-lg">
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                <BrandLoader className="h-3.5 w-3.5" />
                                                 Updating
                                             </span>
                                         ) : null}

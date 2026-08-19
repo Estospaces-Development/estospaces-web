@@ -1,7 +1,9 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
+import { MapPin, Star, Building2, Clock, BadgeCheck, Search, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
@@ -352,7 +354,7 @@ const NearbyAgenciesList = () => {
 
             {loading ? (
                 <div className="flex justify-center py-8">
-                    <Loader2 className="animate-spin text-gray-400" size={24} />
+                    <BrandLoader className="text-gray-400" size={24} />
                 </div>
             ) : loadError ? (
                 <div className="text-center py-8 text-sm text-gray-500">

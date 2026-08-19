@@ -1,5 +1,6 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import React, { useEffect, useState } from 'react';
-import { Loader2, Video } from 'lucide-react';
+import { Video } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 import ImmersiveVirtualTourViewer, { type PublicVirtualTour } from '@/components/virtual-tour/ImmersiveVirtualTourViewer';
@@ -41,7 +42,7 @@ export default function PublicVirtualTourPage() {
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-950 text-white">
                 <div className="flex items-center gap-3 rounded-full bg-white/10 px-5 py-4 text-sm font-black">
-                    <Loader2 className="h-5 w-5 animate-spin text-orange-400" />
+                    <BrandLoader className="h-5 w-5 text-orange-400" />
                     Loading Estospaces 360 tour...
                 </div>
             </div>

@@ -10,6 +10,8 @@ import {
     ArrowLeft,
     AlertCircle
 } from 'lucide-react';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
@@ -867,7 +869,7 @@ export default function DiscoverPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                <BrandLoader size="xl" label="Loading properties" />
             </div>
         }>
             <DiscoverContent />

@@ -1,7 +1,9 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Loader2, Search, Zap } from 'lucide-react';
+import { ArrowRight, Search, Zap } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -316,7 +318,7 @@ export default function ManualFastTrackModal({
 
                 {loading ? (
                     <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-                        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                        <BrandLoader className="h-8 w-8 text-orange-500" />
                         <p className="text-sm font-medium">Loading manager leads...</p>
                     </div>
                 ) : error ? (
@@ -391,7 +393,7 @@ export default function ManualFastTrackModal({
                                                     : 'bg-orange-500 text-white hover:bg-orange-600'
                                             }`}
                                         >
-                                            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                            {isBusy ? <BrandLoader className="h-4 w-4" /> : null}
                                             <span>
                                                 {activeCase
                                                     ? 'Open active case'

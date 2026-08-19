@@ -9,6 +9,8 @@ import VirtualTourControls from './VirtualTourControls';
 import VirtualTourHotspots from './VirtualTourHotspots';
 import VirtualTourViewer3D from './VirtualTourViewer3D';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 interface VirtualTourViewerProps {
     tour: VirtualTour;
     initialSceneId?: string;
@@ -190,7 +192,7 @@ const VirtualTourViewer: React.FC<VirtualTourViewerProps> = ({
                         {loading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black">
                                 <div className="text-white text-center">
-                                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                                    <BrandLoader size="xl" className="mx-auto mb-4" label="Loading virtual tour" />
                                     <p className="text-lg">Loading 360° View...</p>
                                 </div>
                             </div>
