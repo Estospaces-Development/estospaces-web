@@ -12,14 +12,29 @@ export default function BrandLoadingScreen({
     className = '',
 }: BrandLoadingScreenProps) {
     const heightClass = {
-        screen: 'min-h-[100dvh]',
-        section: 'min-h-[14rem] sm:min-h-[18rem]',
+        screen: 'fixed inset-0 z-[120] h-[100dvh] min-h-[100dvh] w-screen overscroll-contain',
+        section: 'min-h-[18rem] sm:min-h-[22rem]',
         panel: 'min-h-32 sm:min-h-40',
     }[variant];
-    const spacingClass = variant === 'screen' ? 'px-5 py-12 sm:px-8' : 'px-4 py-8 sm:px-6';
-    const logoClass = variant === 'panel'
-        ? 'h-14 w-24 rounded-2xl p-3 sm:h-16 sm:w-28'
-        : 'h-18 w-32 rounded-[1.5rem] p-4 sm:h-22 sm:w-40';
+    const spacingClass = variant === 'screen' ? 'p-6 sm:p-10' : 'px-4 py-8 sm:px-6';
+    const logoClass = {
+        screen: 'h-28 w-52 rounded-[2rem] p-5 sm:h-32 sm:w-60 sm:p-6',
+        section: 'h-20 w-40 rounded-[1.75rem] p-4 sm:h-24 sm:w-48 sm:p-5',
+        panel: 'h-16 w-32 rounded-2xl p-3 sm:h-18 sm:w-36',
+    }[variant];
+    const brandClass = {
+        screen: 'mt-7 text-3xl sm:text-4xl',
+        section: 'mt-6 text-2xl sm:text-3xl',
+        panel: 'mt-4 text-lg sm:text-xl',
+    }[variant];
+    const labelClass = variant === 'screen'
+        ? 'mt-3 text-base leading-7 sm:text-lg'
+        : 'mt-2 text-sm leading-6';
+    const trackClass = variant === 'screen'
+        ? 'mt-7 h-2 w-48 sm:w-56'
+        : variant === 'section'
+            ? 'mt-6 h-1.5 w-40'
+            : 'mt-4 h-1.5 w-28';
 
     return (
         <div
@@ -32,7 +47,7 @@ export default function BrandLoadingScreen({
         >
             <div className="brand-loading-ambient pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
 
-            <div className="flex w-full max-w-sm flex-col items-center text-center">
+            <div className={`flex w-full flex-col items-center text-center ${variant === 'screen' ? 'max-w-lg' : 'max-w-sm'}`}>
                 <div className="brand-loading-emblem relative grid place-items-center" aria-hidden="true">
                     <span className="brand-loading-halo absolute inset-0 rounded-[2rem]" />
                     <div className={`brand-loading-logo relative grid place-items-center ${logoClass}`}>
@@ -46,10 +61,10 @@ export default function BrandLoadingScreen({
                     </div>
                 </div>
 
-                <p className={`${variant === 'panel' ? 'mt-4 text-base sm:text-lg' : 'mt-5 text-xl sm:text-2xl'} font-display font-bold tracking-tight text-zinc-950 dark:text-white`}>
+                <p className={`${brandClass} font-display font-bold tracking-[-0.035em] text-zinc-950 dark:text-white`}>
                     Estospaces
                 </p>
-                <p className="mt-2 max-w-[32ch] text-sm font-medium leading-6 text-zinc-600 dark:text-zinc-300">
+                <p className={`${labelClass} max-w-[34ch] font-medium text-zinc-600 dark:text-zinc-300`}>
                     {label}
                 </p>
                 {description ? (
@@ -58,7 +73,7 @@ export default function BrandLoadingScreen({
                     </p>
                 ) : null}
 
-                <div className={`brand-loading-track ${variant === 'panel' ? 'mt-4 w-28' : 'mt-5 w-36'} h-1.5 overflow-hidden rounded-full`} aria-hidden="true">
+                <div className={`brand-loading-track ${trackClass} overflow-hidden rounded-full`} aria-hidden="true">
                     <span className="brand-loading-progress block h-full w-1/2 rounded-full" />
                 </div>
             </div>

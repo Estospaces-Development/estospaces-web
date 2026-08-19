@@ -16,7 +16,13 @@ test('brand loading screen presents the Estospaces identity and an accessible st
     assert.match(markup, /src="\/logo-icon\.png"/);
     assert.match(markup, />Estospaces</);
     assert.match(markup, /Loading your dashboard\.\.\./);
+    assert.match(markup, /fixed inset-0/);
+    assert.match(markup, /z-\[120\]/);
+    assert.match(markup, /h-\[100dvh\]/);
     assert.match(markup, /min-h-\[100dvh\]/);
+    assert.match(markup, /w-screen/);
+    assert.match(markup, /h-28 w-52/);
+    assert.match(markup, /sm:h-32 sm:w-60/);
     assert.match(markup, /data-loading-variant="screen"/);
     assert.match(markup, /brand-loading-ambient/);
     assert.match(markup, /brand-loading-halo/);
@@ -25,9 +31,11 @@ test('brand loading screen presents the Estospaces identity and an accessible st
 test('section variant keeps the branded loader inside an existing workspace shell', () => {
     const markup = renderToStaticMarkup(<BrandLoadingScreen variant="section" />);
 
-    assert.match(markup, /min-h-\[14rem\]/);
-    assert.match(markup, /sm:min-h-\[18rem\]/);
+    assert.match(markup, /min-h-\[18rem\]/);
+    assert.match(markup, /sm:min-h-\[22rem\]/);
+    assert.match(markup, /h-20 w-40/);
     assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
+    assert.doesNotMatch(markup, /fixed inset-0/);
 });
 
 test('panel variant preserves nearby content while remaining branded and responsive', () => {
@@ -39,7 +47,9 @@ test('panel variant preserves nearby content while remaining branded and respons
     assert.match(markup, /Loading the map\.\.\./);
     assert.match(markup, /Property locations will appear here\./);
     assert.match(markup, /data-loading-variant="panel"/);
+    assert.match(markup, /h-16 w-32/);
     assert.doesNotMatch(markup, /min-h-\[100dvh\]/);
+    assert.doesNotMatch(markup, /fixed inset-0/);
 });
 
 test('all loading surfaces use the same theme-aware tokens and indeterminate progress treatment', () => {
@@ -49,6 +59,7 @@ test('all loading surfaces use the same theme-aware tokens and indeterminate pro
     assert.match(styles, /\.dark \.brand-loading-surface/);
     assert.match(styles, /\.brand-loading-track\s*\{/);
     assert.match(styles, /\.brand-loading-progress\s*\{[\s\S]*linear-gradient/);
+    assert.match(styles, /\.brand-loading-surface\[data-loading-variant='screen'\] \.brand-loading-ambient/);
 });
 
 test('global route and role session gates share the branded loading screen', () => {

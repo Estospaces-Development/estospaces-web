@@ -81,6 +81,24 @@
 .brand-loading-surface[data-loading-variant='screen'] {
   border: 0;
   border-radius: 0;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72);
+}
+
+.brand-loading-surface[data-loading-variant='screen'] .brand-loading-ambient {
+  background:
+    radial-gradient(circle at 50% 44%, rgb(249 115 22 / 0.18), transparent 28%),
+    radial-gradient(circle at 15% 15%, rgb(251 146 60 / 0.09), transparent 24%),
+    radial-gradient(circle at 85% 82%, rgb(234 88 12 / 0.07), transparent 28%),
+    linear-gradient(115deg, transparent 35%, rgb(251 146 60 / 0.055) 50%, transparent 65%);
+}
+
+.dark .brand-loading-surface[data-loading-variant='screen'] .brand-loading-ambient,
+.brand-loading-surface[data-loading-variant='screen'] .brand-loading-ambient:where(.dark *) {
+  background:
+    radial-gradient(circle at 50% 44%, rgb(249 115 22 / 0.22), transparent 29%),
+    radial-gradient(circle at 15% 15%, rgb(251 146 60 / 0.07), transparent 25%),
+    radial-gradient(circle at 85% 82%, rgb(194 65 12 / 0.08), transparent 30%),
+    linear-gradient(115deg, transparent 35%, rgb(251 146 60 / 0.06) 50%, transparent 65%);
 }
 
 .brand-loading-ambient {
