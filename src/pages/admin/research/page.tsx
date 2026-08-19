@@ -18,6 +18,7 @@ import {
     Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useToast } from '@/contexts/ToastContext';
 import {
     buildResearchEvidenceTarget,
@@ -348,12 +349,7 @@ export default function AdminResearchPage() {
     }) : false;
 
     if (loading) {
-        return (
-            <div className="flex min-h-screen flex-col items-center justify-center p-8">
-                <Loader2 className="mb-4 h-10 w-10 animate-spin text-orange-500" />
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">Loading observational research...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading observational research..." />;
     }
 
     return (

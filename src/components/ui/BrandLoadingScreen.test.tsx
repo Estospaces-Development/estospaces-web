@@ -43,6 +43,13 @@ test('global route and role session gates share the branded loading screen', () 
     }
 });
 
+test('observational research uses the branded section loader for its initial data request', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/admin/research/page.tsx'), 'utf8');
+
+    assert.match(source, /if \(loading\) \{[\s\S]*BrandLoadingScreen variant="section" label="Loading observational research\.\.\." \/>/);
+    assert.doesNotMatch(source, /Loader2[^\n]*Loading observational research/);
+});
+
 test('brand loader motion has a reduced-motion fallback', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
 
