@@ -9,6 +9,19 @@ const isEstospacesMediaHost = (hostname: string) => (
     hostname.startsWith('estospaces-media-service-') && hostname.endsWith('.a.run.app')
 );
 
+const isGoogleStorageHost = (hostname: string) => (
+    hostname === 'storage.googleapis.com' || hostname === 'storage.cloud.google.com'
+);
+
+const getEstospacesBucketObjectPath = (url: URL) => {
+    if (!isGoogleStorageHost(url.hostname)) {
+        return '';
+    }
+
+    const [, bucketName, objectPath] = url.pathname.match(/^\/(estospaces-media-[^/]+)\/(.+)$/) || [];
+    return bucketName && objectPath ? objectPath : '';
+};
+
 const getConfiguredMediaUploadPrefix = (mediaBaseUrl: URL) => (
     `${mediaBaseUrl.pathname.replace(/\/$/, '')}/uploads/`.replace(/^\/\//, '/')
 );
@@ -56,6 +69,16 @@ export const resolveMediaUrlForBase = (
 
     try {
         const url = new URL(trimmed);
+        const bucketObjectPath = getEstospacesBucketObjectPath(url);
+        if (bucketObjectPath) {
+            const absoluteBase = /^https?:\/\//i.test(normalizedMediaBase)
+                ? normalizedMediaBase
+                : `${browserOrigin}${normalizedMediaBase}`;
+            return addPublicMediaCacheVersion(
+                new URL(`${absoluteBase}/uploads/${bucketObjectPath}`),
+                mediaBaseUrl,
+            );
+        }
         if (url.origin === mediaBaseUrl.origin || isEstospacesMediaHost(url.hostname)) {
             return addPublicMediaCacheVersion(url, mediaBaseUrl);
         }

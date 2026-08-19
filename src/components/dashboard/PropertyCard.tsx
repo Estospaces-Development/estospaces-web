@@ -18,6 +18,7 @@ import {
     Eye,
 } from 'lucide-react';
 import ShareModal from './ShareModal';
+import PropertyMediaImage from './PropertyMediaImage';
 import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useProperties } from '@/contexts/PropertyContext';
@@ -226,14 +227,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 {/* Image Carousel */}
                 <div className="relative h-56 bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
                     <>
-                        <img
+                        <PropertyMediaImage
                             src={displayImages[currentImageIndex] || PROPERTY_PLACEHOLDER_IMAGE}
                             alt={displayTitle}
                             className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            onError={(event) => {
-                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                            }}
                         />
 
                         {hasMultipleImages && (

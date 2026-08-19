@@ -50,7 +50,7 @@ test('getPropertyImages passes GCS media bucket URLs through resolveMediaUrl', (
         ],
     });
 
-    assert.ok(images.some(img => img.includes('estospaces-media-dev')));
+    assert.ok(images.some(img => img.includes('/uploads/property/listing.jpg')));
     assert.equal(images.filter(img => new URL(img).hostname === 'example.com').length, 0);
     assert.ok(images.includes('https://assets.estospaces.com/listing.jpg'));
 });
@@ -62,5 +62,8 @@ test('getPrimaryPropertyImage resolves GCS media URLs through the media service'
         },
         '/images/fallback.jpg',
     );
-    assert.ok(result && result.includes('estospaces-media-dev'));
+    assert.equal(
+        result,
+        `http://localhost:8085/uploads/property/listing.jpg?esto_media=${PUBLIC_MEDIA_CACHE_VERSION}`,
+    );
 });
