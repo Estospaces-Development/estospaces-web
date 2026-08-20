@@ -89,6 +89,21 @@ export function validateRegisterEmail(value: string): string | null {
     return null;
 }
 
+export function getRegistrationDeliveryCopy(email: string, verificationEmailSent: boolean) {
+    if (!verificationEmailSent) {
+        return {
+            title: 'Account created — email delayed',
+            message: `Your account was created for ${email}, but we could not confirm delivery of the verification email.`,
+            guidance: 'Use Resend Verification Email below to make another delivery attempt. Your account details are safe.',
+        };
+    }
+    return {
+        title: 'Account created',
+        message: `We sent a verification link to ${email}. Check your inbox and open the link to activate your account.`,
+        guidance: 'The activation link expires in 24 hours. Check your spam or promotions folder too.',
+    };
+}
+
 function normalizeRegisterRole(value: string): string {
     return value === 'manager' ? 'manager' : 'user';
 }
@@ -341,6 +356,7 @@ export default function RegisterPage() {
     const [country, setCountry] = useState('');
     const [countryError, setCountryError] = useState('');
     const [success, setSuccess] = useState(false);
+	const [verificationEmailSent, setVerificationEmailSent] = useState(true);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
     const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
@@ -521,6 +537,7 @@ export default function RegisterPage() {
             }
 
             clearRegisterDraft();
+			setVerificationEmailSent(result.verificationEmailSent !== false);
             setSuccess(true);
         } catch {
             setError('An unexpected error occurred. Please try again.');
@@ -575,27 +592,28 @@ export default function RegisterPage() {
     }
 
     if (success) {
+		const deliveryCopy = getRegistrationDeliveryCopy(email, verificationEmailSent);
         return (
             <div className="flex flex-col items-center text-center">
                 <AuthBrand />
 
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
-                    <Check className="text-green-600 dark:text-green-400" size={32} />
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${verificationEmailSent ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`}>
+					<Check className={verificationEmailSent ? 'text-green-600 dark:text-green-400' : 'text-amber-700 dark:text-amber-300'} size={32} />
                 </div>
 
                 <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-                    Account Created!
+					{deliveryCopy.title}
                 </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                    We sent a verification link to <strong>{email}</strong>.
-                    <br />
-                    Please check your inbox and click the link to activate your account.
+					{deliveryCopy.message}
                 </p>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3 mb-6 w-full text-left">
-                    <p className="text-blue-700 dark:text-blue-300 text-xs font-medium mb-1">Check your email</p>
-                    <p className="text-blue-600 dark:text-blue-400 text-xs">The activation link expires in 24 hours. Check your spam folder too.</p>
+				<div className={`rounded-lg border px-4 py-3 mb-6 w-full text-left ${verificationEmailSent ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'}`}>
+					<p className={`text-xs font-medium mb-1 ${verificationEmailSent ? 'text-blue-700 dark:text-blue-300' : 'text-amber-800 dark:text-amber-200'}`}>
+						{verificationEmailSent ? 'Check your email' : 'Delivery needs another attempt'}
+					</p>
+					<p className={`text-xs ${verificationEmailSent ? 'text-blue-600 dark:text-blue-400' : 'text-amber-700 dark:text-amber-300'}`}>{deliveryCopy.guidance}</p>
                 </div>
 
                 {resendMessage && (
@@ -609,7 +627,7 @@ export default function RegisterPage() {
                         setResendMessage('');
                         try {
                             await axios.post(`${API_URL}/api/v1/auth/resend-verification`, { email });
-                            setResendMessage('Verification email resent! Check your inbox.');
+							setResendMessage('If the account is awaiting verification, another delivery attempt was made. Check your inbox and spam folder.');
                             setResendCooldown(60);
                             if (resendCooldownTimerRef.current !== null) {
                                 window.clearInterval(resendCooldownTimerRef.current);
