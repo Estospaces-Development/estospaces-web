@@ -458,11 +458,11 @@ function DiscoverContent() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
+        <div className="min-h-screen bg-zinc-50 pb-12 dark:bg-gray-950">
             <p role="status" aria-live="polite" className="sr-only" data-discovery-status>
                 {resultStatusMessage}
             </p>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 {/* Back Button */}
                 <button
                     onClick={() => {
@@ -472,89 +472,96 @@ function DiscoverContent() {
                             navigate('/user/dashboard');
                         }
                     }}
-                    className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-orange-400 dark:focus:ring-offset-gray-900 group"
+                    className="group mb-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-white hover:text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-orange-300 dark:focus:ring-offset-gray-950"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                     <span>Back to Dashboard</span>
                 </button>
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Discover Properties</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            {statusFilter === 'sold'
-                                ? 'Showing sold properties'
-                                : activeTab === 'buy'
-                                    ? 'Showing properties for sale'
-                                    : activeTab === 'rent'
-                                        ? 'Showing properties for rent'
-                                        : 'Find your next home across India'}
-                        </p>
-                    </div>
+                <header className="mb-6 overflow-hidden rounded-[2rem] border border-orange-100 bg-gradient-to-br from-white via-white to-orange-50/80 p-6 shadow-[0_18px_55px_-42px_rgba(154,52,18,0.55)] dark:border-orange-900/30 dark:from-gray-900 dark:via-gray-900 dark:to-orange-950/30 sm:p-8">
+                    <div className="flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+                        <div className="max-w-2xl">
+                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700 dark:text-orange-300">
+                                Homes on Estospaces
+                            </p>
+                            <h1 className="mt-3 max-w-xl font-display text-3xl font-bold tracking-[-0.04em] text-gray-950 dark:text-white sm:text-4xl">
+                                Find a home that fits your next move
+                            </h1>
+                            <p className="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
+                                {statusFilter === 'sold'
+                                    ? 'Review homes that have already completed their journey.'
+                                    : activeTab === 'buy'
+                                        ? 'Compare homes for sale and request a guided Fast Track when you are ready.'
+                                        : activeTab === 'rent'
+                                            ? 'Explore rental homes and choose the place that works for you.'
+                                            : 'Browse homes for sale and rent, compare the essentials, and decide with confidence.'}
+                            </p>
+                        </div>
 
-                    <div className="flex gap-2 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('all')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === 'all'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            All
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('buy')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === 'buy'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            Buy
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('rent')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === 'rent'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            Rent
-                        </button>
-                    </div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <div role="group" aria-label="Listing type" className="flex min-h-12 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                {([
+                                    ['all', 'All homes'],
+                                    ['buy', 'For sale'],
+                                    ['rent', 'To rent'],
+                                ] as const).map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setActiveTab(value)}
+                                        aria-pressed={activeTab === value}
+                                        className={`min-h-10 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === value
+                                            ? 'bg-orange-600 text-white shadow-sm'
+                                            : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
 
-                    <div className="flex gap-2 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'grid'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            <Grid size={18} />
-                            <span>Grid</span>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('map')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'map'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            <MapIcon size={18} />
-                            <span>Map</span>
-                        </button>
+                            <div role="group" aria-label="Results view" className="flex min-h-12 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    aria-pressed={viewMode === 'grid'}
+                                    className={`flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'grid'
+                                        ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-950'
+                                        : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
+                                        }`}
+                                >
+                                    <Grid size={18} aria-hidden="true" />
+                                    <span>Cards</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('map')}
+                                    aria-pressed={viewMode === 'map'}
+                                    className={`flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'map'
+                                        ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-950'
+                                        : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
+                                        }`}
+                                >
+                                    <MapIcon size={18} aria-hidden="true" />
+                                    <span>Map</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </header>
 
                 {/* Search and Filters */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 mb-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <section aria-labelledby="discover-filters-heading" className="mb-6 rounded-[1.75rem] border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+                    <div className="mb-5">
+                        <h2 id="discover-filters-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-gray-950 dark:text-white">
+                            Narrow your search
+                        </h2>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Use only the details that matter to you.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
                         <div className="lg:col-span-2">
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Search</label>
+                            <label className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">Property or area</label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
@@ -609,7 +616,7 @@ function DiscoverContent() {
                         </div>
 
                         <div>
-                            <label htmlFor="discover-location" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                            <label htmlFor="discover-location" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">City or location code</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
@@ -627,7 +634,7 @@ function DiscoverContent() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Price Range</label>
+                            <label className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">Budget</label>
                             <div className="flex items-center gap-2">
                                 <div className="min-w-0 flex-1">
                                     <label htmlFor="discover-min-price" className="sr-only">Min Price</label>
@@ -749,7 +756,7 @@ function DiscoverContent() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </section>
 
                 {filterValidationMessage && (
                     <div role="alert" className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
@@ -757,30 +764,40 @@ function DiscoverContent() {
                     </div>
                 )}
 
-                {countryGroups.length > 0 && (
-                    <section
-                        aria-labelledby="discover-country-groups-heading"
-                        className="mb-8 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm dark:border-orange-900/30 dark:bg-gray-800"
-                    >
-                        <h2 id="discover-country-groups-heading" className="text-sm font-semibold uppercase text-gray-700 dark:text-gray-300">
-                            Country-aware groups
+                <section
+                    aria-labelledby="discover-results-heading"
+                    className="mb-5 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                    data-discover-results-summary
+                >
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700 dark:text-orange-300">Available homes</p>
+                        <h2 id="discover-results-heading" className="mt-1 font-display text-xl font-semibold tracking-[-0.025em] text-gray-950 dark:text-white">
+                            {total} {total === 1 ? 'home' : 'homes'} found
                         </h2>
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {paginatedProperties.length > 0
+                                ? `Showing ${paginatedProperties.length} on this page in ${viewMode === 'map' ? 'map' : 'card'} view.`
+                                : 'Adjust your search to find the right home.'}
+                        </p>
+                    </div>
+
+                    {countryGroups.length > 0 && (
+                        <div className="flex flex-wrap gap-2" aria-label="Markets represented in these results">
                             {countryGroups.map((group) => (
                                 <span
                                     key={group.key}
-                                    className="rounded-full bg-orange-50 px-3 py-1.5 text-sm font-medium text-orange-700 dark:bg-orange-900/20 dark:text-orange-200"
+                                    className="inline-flex min-h-9 items-center rounded-full border border-orange-200 bg-orange-50 px-3 text-sm font-semibold text-orange-800 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-200"
                                 >
-                                    {group.label}: {group.count}
+                                    {group.label} · {group.count} shown
                                 </span>
                             ))}
                         </div>
-                    </section>
-                )}
+                    )}
+                </section>
 
                 {/* Content */}
                 {viewMode === 'map' ? (
-                    <div className="h-[min(72vh,720px)] min-h-[520px]">
+                    <div className="h-[min(72vh,720px)] min-h-[520px] overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <NearbyPropertiesMap
                             properties={toDiscoverNearbyMapProperties(filteredProperties)}
                             onPropertyClick={(property) => navigate(`/user/properties/${property.id}`)}
@@ -791,7 +808,7 @@ function DiscoverContent() {
                 ) : (
                     <>
                         {loading ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
                                 {[...Array(8)].map((_, i) => (
                                     <PropertyCardSkeleton key={i} />
                                 ))}
@@ -816,13 +833,14 @@ function DiscoverContent() {
                                 </button>
                             </div>
                         ) : paginatedProperties.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
                                 {paginatedProperties.map((property) => (
                                     <PropertyCard
                                         key={property.id}
                                         property={property}
                                         onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
                                         showSaveAction
+                                        appearance="discovery"
                                     />
                                 ))}
                             </div>

@@ -41,6 +41,7 @@ interface PropertyCardProps {
     onClick?: () => void;
     showStatusBadge?: boolean;
     showSaveAction?: boolean;
+    appearance?: 'default' | 'discovery';
 }
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
@@ -50,6 +51,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     onClick,
     showStatusBadge = false,
     showSaveAction = false,
+    appearance = 'default',
 }) => {
     const navigate = useNavigate();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -65,12 +67,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     const isSaved = isPropertySaved(property.id);
     const viewCount = property.view_count || 0;
     const statusBadge = getManagerPropertyStatusBadge(property.status);
-    const _isPending = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
-
-    // #176/#225/#302: Only show "Awaiting Manager Submission" for pending submission statuses, not all properties
-    const isPendingSubmission = property.status === 'pending' || property.status === 'draft' || property.listingStatus === 'pending_submission';
-    const shouldShowAwaitingBadge = isPendingSubmission && !(property.type || showStatusBadge);
     const displayTitle = formatLaunchPropertyText(property.title);
+    const isDiscoveryCard = appearance === 'discovery';
 
     const handleViewDetails = (e: React.MouseEvent) => {
         e?.stopPropagation();
@@ -216,16 +214,43 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         );
     };
 
+    const fastTrackAction = onStartFastTrack ? (
+        <button
+            type="button"
+            onClick={handleStartFastTrack}
+            className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold leading-tight transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${isDiscoveryCard
+                ? 'border border-orange-200 bg-orange-50 text-orange-800 hover:border-orange-300 hover:bg-orange-100 active:bg-orange-200 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-200 dark:hover:bg-orange-950/70'
+                : 'bg-orange-500 text-white shadow-sm hover:bg-orange-600 hover:shadow-md active:bg-orange-700'
+                }`}
+        >
+            <Clock size={16} className="shrink-0" />
+            <span>{isDiscoveryCard ? 'Request Fast Track' : 'Request 24-Hour Fast Track'}</span>
+        </button>
+    ) : null;
+
+    const viewDetailsAction = (
+        <button
+            type="button"
+            onClick={handleViewDetails}
+            className="min-h-12 w-full rounded-xl bg-orange-600 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-orange-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-800 dark:focus:ring-offset-gray-900"
+        >
+            {isDiscoveryCard ? 'View home' : 'View Details'}
+        </button>
+    );
+
     return (
         <>
             <ToastNotification />
 
             <div
-                onClick={handleViewDetails}
-                className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:-translate-y-1.5 transition-all duration-300 group cursor-pointer h-full flex flex-col"
+                onClick={isDiscoveryCard ? undefined : handleViewDetails}
+                className={`group flex h-full flex-col overflow-hidden bg-white transition-all duration-300 dark:bg-gray-900 ${isDiscoveryCard
+                    ? 'rounded-[1.5rem] border border-gray-200 shadow-[0_16px_40px_-32px_rgba(24,24,27,0.65)] hover:border-orange-200 hover:shadow-[0_22px_48px_-30px_rgba(154,52,18,0.28)] dark:border-gray-800 dark:hover:border-orange-900/60'
+                    : 'cursor-pointer rounded-2xl shadow-sm hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50'
+                    }`}
             >
                 {/* Image Carousel */}
-                <div className="relative h-56 bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                <div className={`relative flex-shrink-0 overflow-hidden bg-gray-100 dark:bg-gray-800 ${isDiscoveryCard ? 'h-52 sm:h-56' : 'h-56'}`}>
                     <>
                         <PropertyMediaImage
                             src={displayImages[currentImageIndex] || PROPERTY_PLACEHOLDER_IMAGE}
@@ -240,7 +265,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                     type="button"
                                     onClick={prevImage}
                                     aria-label={`Show previous image for ${displayTitle}`}
-                                    className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 sm:opacity-0 sm:group-hover:opacity-100"
+                                    className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 sm:opacity-0 sm:group-hover:opacity-100"
                                 >
                                     <ChevronLeft size={16} className="text-gray-700" />
                                 </button>
@@ -248,12 +273,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                     type="button"
                                     onClick={nextImage}
                                     aria-label={`Show next image for ${displayTitle}`}
-                                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 sm:opacity-0 sm:group-hover:opacity-100"
+                                    className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 sm:opacity-0 sm:group-hover:opacity-100"
                                 >
                                     <ChevronRight size={16} className="text-gray-700" />
                                 </button>
 
-                                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                <div className="absolute bottom-10 left-1/2 flex max-w-[calc(100%-7rem)] -translate-x-1/2 items-center justify-center overflow-x-auto">
                                     {displayImages.map((_, index) => (
                                         <button
                                             key={index}
@@ -261,85 +286,92 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                                 e.stopPropagation();
                                                 setCurrentImageIndex(index);
                                             }}
-                                            className={`h-2 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${index === currentImageIndex
-                                                ? 'bg-white w-5'
-                                                : 'bg-white/50 w-2 hover:bg-white/75'
-                                                }`}
+                                            type="button"
+                                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                                             aria-label={`Show property image ${index + 1}`}
-                                        />
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={`h-2 rounded-full shadow-sm transition-all ${index === currentImageIndex
+                                                    ? 'w-5 bg-white'
+                                                    : 'w-2 bg-white/55 group-hover:bg-white/75'
+                                                    }`}
+                                            />
+                                        </button>
                                     ))}
                                 </div>
                             </>
                         )}
                     </>
 
-                    {(property.type || showStatusBadge || shouldShowAwaitingBadge) && (
-                        <div className="absolute top-3 left-3 right-20 flex flex-col items-start gap-2">
+                    <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 flex-col items-start gap-2 pr-2">
                             {property.type && (
-                                <span className={`px-3 py-1.5 rounded-lg text-xs font-bold font-manager shadow-sm ${property.type?.toLowerCase() === 'rent'
+                                <span className={`max-w-full truncate rounded-lg px-3 py-1.5 font-manager text-xs font-bold shadow-sm ${property.type?.toLowerCase() === 'rent'
                                     ? 'bg-blue-500 text-white'
                                     : property.type?.toLowerCase() === 'sale'
                                         ? 'bg-emerald-500 text-white'
-                                        : 'bg-white/95 backdrop-blur-sm text-gray-800'
+                                        : 'bg-white/95 text-gray-800 backdrop-blur-sm'
                                     }`}>
                                     {property.type === 'Sale' ? 'For Sale' : property.type === 'Rent' ? 'For Rent' : property.type}
                                 </span>
                             )}
                             {showStatusBadge && (
-                                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset backdrop-blur-sm ${statusBadge.badgeClassName}`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
-                                    <span>{statusBadge.label}</span>
+                                <span className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset backdrop-blur-sm ${statusBadge.badgeClassName}`}>
+                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusBadge.dotClassName}`} />
+                                    <span className="truncate">{statusBadge.label}</span>
                                 </span>
                             )}
                         </div>
-                    )}
 
-                    {/* Action Buttons */}
-                    <div className="absolute top-3 right-3 flex gap-2">
-                        {showSaveAction && (
-                            <button
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className={`p-2 rounded-full backdrop-blur-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${isSaved
-                                    ? 'bg-red-500 text-white shadow-lg'
-                                    : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 shadow-sm'
-                                    } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
-                                title={isSaved ? 'Saved' : 'Save property'}
-                            >
-                                {isSaving ? <BrandLoader size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
-                            </button>
-                        )}
-                        <PropertyShareAction
-                            propertyTitle={displayTitle}
-                            expanded={showShareModal}
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                setShowShareModal(true);
-                            }}
-                        />
-                        {viewCount > 0 && (
-                            <div
-                                className="p-2 rounded-full backdrop-blur-sm bg-blue-700 text-white flex items-center gap-1 shadow-lg"
-                                title={`Viewed ${viewCount} time${viewCount > 1 ? 's' : ''}`}
-                            >
-                                <Eye size={14} />
-                                <span className="text-[10px] font-bold">{viewCount}</span>
-                            </div>
-                        )}
+                        <div className="pointer-events-auto ml-auto flex shrink-0 gap-2">
+                            {showSaveAction && (
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className={`inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${isSaved
+                                        ? 'bg-red-500 text-white shadow-lg'
+                                        : 'bg-white/90 text-gray-700 shadow-sm hover:bg-white dark:bg-gray-800/90 dark:text-gray-200 dark:hover:bg-gray-800'
+                                        } ${isSaving ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
+                                    title={isSaved ? 'Saved' : 'Save property'}
+                                >
+                                    {isSaving ? <BrandLoader size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
+                                </button>
+                            )}
+                            <PropertyShareAction
+                                propertyTitle={displayTitle}
+                                expanded={showShareModal}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setShowShareModal(true);
+                                }}
+                            />
+                        </div>
                     </div>
 
                     <div className="absolute bottom-3 left-3">
-                        <span className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-xl font-bold font-manager text-lg shadow-sm">
+                        <span className="rounded-xl bg-white/95 px-3 py-1.5 font-display text-lg font-bold tracking-[-0.025em] text-gray-950 shadow-sm backdrop-blur-sm dark:bg-gray-900/95 dark:text-white">
                             {formatPrice(property.price)}
                         </span>
                     </div>
+                    {viewCount > 0 && (
+                        <div
+                            className={`absolute bottom-3 right-3 flex h-11 min-w-11 items-center justify-center gap-1 rounded-full px-3 text-white shadow-lg backdrop-blur-sm ${isDiscoveryCard ? 'bg-gray-950/70' : 'bg-blue-700'}`}
+                            title={`Viewed ${viewCount} time${viewCount > 1 ? 's' : ''}`}
+                            aria-label={`Viewed ${viewCount} time${viewCount > 1 ? 's' : ''}`}
+                            role="img"
+                        >
+                            <Eye size={14} aria-hidden="true" />
+                            <span className="text-xs font-bold">{viewCount}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Content */}
-                <div className="p-4 flex flex-col flex-1">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1">{displayTitle}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1">
+                <div className={`flex flex-1 flex-col ${isDiscoveryCard ? 'p-5' : 'p-4'}`}>
+                    <h3 className="mb-1 line-clamp-1 font-display text-lg font-semibold tracking-[-0.025em] text-gray-950 dark:text-white">{displayTitle}</h3>
+                    <p className="mb-4 flex items-center gap-1.5 text-sm leading-6 text-gray-600 dark:text-gray-400">
                         <MapPin size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
                         <span className="line-clamp-1">
                             {formatLaunchPropertyLocation(
@@ -348,7 +380,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         </span>
                     </p>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
                         {property.bedrooms && (
                             <div className="flex items-center gap-1">
                                 <Bed size={16} className="text-gray-400 dark:text-gray-500" />
@@ -403,22 +435,18 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         </div>
                     )}
 
-                    <div className="mt-auto pt-4">
-                        {onStartFastTrack && (
-                            <button
-                                onClick={handleStartFastTrack}
-                                className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold leading-tight text-white shadow-sm transition-all duration-200 hover:bg-orange-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-700 dark:focus:ring-offset-gray-900"
-                            >
-                                <Clock size={16} className="shrink-0" />
-                                <span>Request 24-Hour Fast Track</span>
-                            </button>
+                    <div className="mt-auto flex flex-col gap-2 pt-4">
+                        {isDiscoveryCard ? (
+                            <>
+                                {viewDetailsAction}
+                                {fastTrackAction}
+                            </>
+                        ) : (
+                            <>
+                                {fastTrackAction}
+                                {viewDetailsAction}
+                            </>
                         )}
-                        <button
-                            onClick={handleViewDetails}
-                            className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-orange-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-700 dark:focus:ring-offset-gray-900"
-                        >
-                            View Details
-                        </button>
                     </div>
                 </div>
             </div>

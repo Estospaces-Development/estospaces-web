@@ -20,7 +20,7 @@ test('property share action is a persistent accessible touch target that opens a
     assert.match(markup, /aria-label="Share Anna Nagar on social media"/);
     assert.match(markup, /aria-haspopup="dialog"/);
     assert.match(markup, /aria-expanded="true"/);
-    assert.match(markup, /h-10 w-10/);
+    assert.match(markup, /h-11 w-11/);
     assert.match(markup, /focus-visible:ring-2/);
 });
 
@@ -42,7 +42,7 @@ test('user and manager cards share one top-card action without the old green app
     const userCard = readFileSync(resolve(process.cwd(), 'src/components/dashboard/PropertyCard.tsx'), 'utf8');
     const managerCard = readFileSync(resolve(process.cwd(), 'src/components/dashboard/ManagerPropertyCard.tsx'), 'utf8');
 
-    assert.match(userCard, /absolute top-3 right-3[\s\S]*<PropertyShareAction/);
+    assert.match(userCard, /pointer-events-none absolute inset-x-3 top-3[\s\S]*pointer-events-auto ml-auto[\s\S]*<PropertyShareAction/);
     assert.match(managerCard, /absolute right-3 top-3[\s\S]*<PropertyShareAction/);
     assert.doesNotMatch(userCard, /aria-label="Already applied"/);
     assert.doesNotMatch(userCard, /bg-green-500 text-white shadow-lg/);
