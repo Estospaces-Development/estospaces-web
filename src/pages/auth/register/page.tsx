@@ -10,7 +10,7 @@ import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/l
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText, Shield } from 'lucide-react';
 import axios from 'axios';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 const API_URL = getServiceUrl('core');
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -547,12 +547,7 @@ export default function RegisterPage() {
     };
 
     if (authLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[300px]">
-                <BrandLoader size="lg" className="mb-4" label="Creating account" />
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Loading...</p>
-            </div>
-        );
+        return <BrandLoadingScreen label="Checking your session..." />;
     }
 
     if (isAuthenticated && !isSwitching) {
@@ -591,7 +586,24 @@ export default function RegisterPage() {
         );
     }
 
+    if (loading) {
+        return (
+            <BrandLoadingScreen
+                label="Creating your account..."
+                description="We are securing your account and sending the verification email."
+            />
+        );
+    }
+
     if (success) {
+		if (resending) {
+			return (
+				<BrandLoadingScreen
+					label="Sending a new verification email..."
+					description="Keep this page open while we contact the email provider."
+				/>
+			);
+		}
 		const deliveryCopy = getRegistrationDeliveryCopy(email, verificationEmailSent);
         return (
             <div className="flex flex-col items-center text-center">
@@ -653,7 +665,7 @@ export default function RegisterPage() {
                     disabled={resending || resendCooldown > 0}
                     className="w-full py-3 mb-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                    {resending ? <BrandLoader size="xs" label="Resending email" /> : <RefreshCw size={16} />}
+                    {!resending ? <RefreshCw size={16} /> : null}
                     {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : resending ? 'Resending...' : 'Resend Verification Email'}
                 </button>
 

@@ -141,6 +141,17 @@ test('global route and role session gates share the branded loading screen', () 
     }
 });
 
+test('registration and email verification actions use the global loader instead of button logos', () => {
+    for (const file of [
+        'src/pages/auth/register/page.tsx',
+        'src/pages/auth/verify-email/page.tsx',
+    ]) {
+        const source = readFileSync(resolve(process.cwd(), file), 'utf8');
+        assert.match(source, /BrandLoadingScreen/);
+        assert.doesNotMatch(source, /BrandLoader/);
+    }
+});
+
 test('observational research uses the branded section loader for its initial data request', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/pages/admin/research/page.tsx'), 'utf8');
 

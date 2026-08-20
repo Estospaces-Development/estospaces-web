@@ -1,17 +1,18 @@
 import React from 'react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { cn } from '@/lib/utils';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  loadingLabel?: string;
   children: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading, disabled, children, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', isLoading, loadingLabel = 'Please wait...', disabled, children, ...props }, ref) => {
     const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-[calc(var(--radius-control)-2px)] font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none';
 
     const variants = {
@@ -28,16 +29,17 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'h-12 px-6 text-base',
     };
 
+    if (isLoading) {
+      return <BrandLoadingScreen label={loadingLabel} />;
+    }
+
     return (
       <button
         ref={ref}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
-        disabled={disabled || isLoading}
+        disabled={disabled}
         {...props}
       >
-        {isLoading && (
-          <BrandLoader size="xs" className="mr-1" label="Working" />
-        )}
         {children}
       </button>
     );
