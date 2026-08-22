@@ -808,17 +808,17 @@ const DashboardClient = () => {
 
             <div className="relative z-10 flex min-h-[480px] lg:min-h-[540px] items-center px-4 py-10 md:px-6 lg:px-10">
               <div className="mx-auto w-full max-w-6xl">
-                <div className="max-w-3xl text-white">
+                <div className="mx-auto max-w-4xl text-center text-white">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-300/90">
                     Search sale and rental homes
                   </p>
                   <h1
-                    className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl"
+                    className="mt-4 text-balance text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl"
                     style={{ textShadow: '0 4px 20px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)' }}
                   >
                     Find your <span className="text-orange-400">perfect space</span>
                   </h1>
-                  <p className="mt-4 max-w-2xl text-base text-white/88 md:text-lg">
+                  <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-white/88 md:text-lg">
                     {dashboardCopy.searchSubtitle}
                   </p>
                 </div>
