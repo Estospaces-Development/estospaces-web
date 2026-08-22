@@ -1,6 +1,7 @@
 'use client';
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -994,7 +995,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                             >
                                 {isSubmitting ? (
                                     <>
-                                        <BrandLoader size={18} className="" />
+                                        <ActionSpinner size={18} className="" />
                                         Submitting...
                                     </>
                                 ) : (

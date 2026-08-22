@@ -1,6 +1,6 @@
 import React from 'react';
 
-import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { cn } from '@/lib/utils';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -29,18 +29,20 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'h-12 px-6 text-base',
     };
 
-    if (isLoading) {
-      return <BrandLoadingScreen label={loadingLabel} />;
-    }
-
     return (
       <button
         ref={ref}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
-        disabled={disabled}
         {...props}
+        disabled={disabled || isLoading}
+        aria-busy={isLoading || undefined}
       >
-        {children}
+        {isLoading ? (
+          <>
+            <ActionSpinner size="sm" aria-hidden />
+            <span>{loadingLabel}</span>
+          </>
+        ) : children}
       </button>
     );
   }

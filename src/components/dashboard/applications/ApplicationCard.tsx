@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -453,7 +453,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 title={openingConversation ? 'Opening thread' : 'Message Agent'}
                                 aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
                             >
-                                {openingConversation ? <BrandLoader size={18} className="" /> : <MessageSquare size={18} />}
+                                {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
                             </button>
                             {canWithdraw && (
                                 <button

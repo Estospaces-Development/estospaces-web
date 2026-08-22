@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -240,7 +241,7 @@ function VerificationsContent() {
                 title="Refresh manager verification queue"
                 className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
               >
-                {isRefreshing ? <BrandLoader size="sm" label="Refreshing verifications" /> : <RefreshCw size={20} />}
+                {isRefreshing ? <ActionSpinner size="sm" label="Refreshing verifications" /> : <RefreshCw size={20} />}
               </button>
             </div>
           </div>

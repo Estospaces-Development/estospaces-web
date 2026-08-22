@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, IndianRupee, AlertCircle } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import { createContract, CreateContractRequest } from '@/services/contractsService';
 import type { Contract } from '@/types/booking';
@@ -218,7 +218,7 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                     >
                         {isLoading ? (
                             <>
-                                <BrandLoader size="xs" label="Creating contract" />
+                                <ActionSpinner size="xs" label="Creating contract" />
                                 creating...
                             </>
                         ) : (

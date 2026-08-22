@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Clock3, Maximize2, Send, Video, X } from 'lucide-react';
@@ -211,7 +212,7 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
                                         onClick={() => void handleRequest()}
                                         className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {submitting ? <BrandLoader className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                                        {submitting ? <ActionSpinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                                         Request virtual tour
                                     </button>
                                 </div>

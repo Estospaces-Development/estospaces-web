@@ -1,4 +1,5 @@
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -574,7 +575,7 @@ export function UserVirtualStoragePageContent({
                   onClick={() => void handleCreateCategory()}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {savingKey === "category" ? <BrandLoader className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  {savingKey === "category" ? <ActionSpinner className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                   Add
                 </button>
               </div>
@@ -638,7 +639,7 @@ export function UserVirtualStoragePageContent({
                 disabled={!selectedFile || savingKey === "upload"}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {savingKey === "upload" ? <BrandLoader className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                {savingKey === "upload" ? <ActionSpinner className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
                 Upload
               </button>
             </div>
@@ -667,7 +668,7 @@ export function UserVirtualStoragePageContent({
                       disabled={savingKey === `save:${document.id}`}
                       className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {savingKey === `save:${document.id}` ? <BrandLoader className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                      {savingKey === `save:${document.id}` ? <ActionSpinner className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                       Save
                     </button>
                     <button

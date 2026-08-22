@@ -1,6 +1,6 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -267,7 +267,7 @@ export default function ContactPage() {
                                         >
                                             {isSubmitting ? (
                                                 <>
-                                                    <BrandLoader className="w-5 h-5" />
+                                                    <ActionSpinner className="w-5 h-5" />
                                                     <span>Sending...</span>
                                                 </>
                                             ) : (

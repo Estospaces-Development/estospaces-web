@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -1155,7 +1156,7 @@ const PropertySearch = () => {
                                         title={isSaved ? 'Saved' : 'Save property'}
                                     >
                                         {isSavingProperty ? (
-                                            <BrandLoader className="h-4 w-4" />
+                                            <ActionSpinner className="h-4 w-4" />
                                         ) : (
                                             <Heart className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
                                         )}
@@ -1260,7 +1261,7 @@ const PropertySearch = () => {
                             disabled={isSaving}
                             className="w-full py-3 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-orange-200 dark:shadow-none transition-all flex items-center justify-center gap-2 mt-4"
                         >
-                            {isSaving ? <BrandLoader className="w-5 h-5" /> : <BookmarkPlus className="w-5 h-5" />}
+                            {isSaving ? <ActionSpinner className="w-5 h-5" /> : <BookmarkPlus className="w-5 h-5" />}
                             Save Search
                         </button>
                     </div>

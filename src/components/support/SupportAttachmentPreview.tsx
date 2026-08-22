@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, FileText, Image as ImageIcon } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { getSupportAttachmentAccessUrl, type MessageAttachment } from '@/services/messagesService';
 
 interface SupportAttachmentPreviewProps {
@@ -97,7 +97,7 @@ export function SupportAttachmentPreview({
                     />
                 ) : (
                     <span className={`flex min-h-32 w-full items-center justify-center gap-2 px-4 text-sm ${emphasized ? 'text-orange-50' : 'text-gray-500 dark:text-gray-300'}`}>
-                        {previewFailed ? <ImageIcon className="h-5 w-5" /> : <BrandLoader size={22} />}
+                        {previewFailed ? <ImageIcon className="h-5 w-5" /> : <ActionSpinner size={22} />}
                         {previewFailed ? 'Preview unavailable — open image' : 'Loading secure preview'}
                     </span>
                 )}

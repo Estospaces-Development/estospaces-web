@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -336,7 +336,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                     aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
                                     title={isSaved ? 'Saved' : 'Save property'}
                                 >
-                                    {isSaving ? <BrandLoader size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
+                                    {isSaving ? <ActionSpinner size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
                                 </button>
                             )}
                             <PropertyShareAction

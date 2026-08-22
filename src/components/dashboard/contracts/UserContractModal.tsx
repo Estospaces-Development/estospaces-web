@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle, PenTool, Download } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import { signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
@@ -211,7 +211,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
                                 >
                                     {isLoading ? (
                                         <>
-                                            <BrandLoader size="xs" label="Signing contract" />
+                                            <ActionSpinner size="xs" label="Signing contract" />
                                             Signing...
                                         </>
                                     ) : (

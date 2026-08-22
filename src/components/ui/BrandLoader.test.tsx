@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import ts from 'typescript';
 
 import BrandLoader from './BrandLoader';
 
@@ -60,13 +61,52 @@ test('the logo asset is preloaded before the application renders a cold-start lo
     );
 });
 
-test('application loading indicators use the shared Estospaces primitives instead of generic circle spinners', () => {
+const findBrandedButtonLoaders = (file: string) => {
+    const source = readFileSync(file, 'utf8');
+    const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const violations: string[] = [];
+
+    const readTag = (node: ts.Node) => {
+        if (ts.isJsxElement(node)) return node.openingElement.tagName.getText(sourceFile);
+        if (ts.isJsxSelfClosingElement(node)) return node.tagName.getText(sourceFile);
+        return '';
+    };
+
+    const visit = (node: ts.Node) => {
+        if (readTag(node) === 'BrandLoader') {
+            let ancestor = node.parent;
+            while (ancestor) {
+                const ancestorTag = readTag(ancestor);
+                const actionTag = ancestorTag.toLowerCase();
+                if (ancestorTag && (
+                    actionTag === 'button'
+                    || actionTag === 'label'
+                    || actionTag === 'a'
+                    || /Button$/.test(ancestorTag)
+                )) {
+                    const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+                    violations.push(`${file}:${position.line + 1}`);
+                    break;
+                }
+                ancestor = ancestor.parent;
+            }
+        }
+        ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+    return violations;
+};
+
+test('buttons use neutral action spinners while page and section loading stays branded', () => {
     const files = collectSourceFiles(resolve(process.cwd(), 'src'));
+    const violations = files.flatMap(findBrandedButtonLoaders);
     const combinedSource = files
-        .filter((file) => !file.endsWith('BrandLoader.tsx'))
+        .filter((file) => !file.endsWith('BrandLoader.tsx') && !file.endsWith('ActionSpinner.tsx'))
         .map((file) => readFileSync(file, 'utf8'))
         .join('\n');
 
+    assert.deepEqual(violations, [], `BrandLoader must not appear inside action controls:\n${violations.join('\n')}`);
     assert.doesNotMatch(combinedSource, /\bLoader2\b/);
     assert.doesNotMatch(combinedSource, /<Loader\b/);
     assert.doesNotMatch(combinedSource, /animate-spin/);
@@ -83,6 +123,10 @@ test('application loading indicators use the shared Estospaces primitives instea
         const source = readFileSync(resolve(process.cwd(), file), 'utf8');
         assert.match(source, /BrandLoader|BrandLoadingScreen/, `${file} must use an Estospaces loading primitive`);
     }
+
+    const actionSpinnerSource = readFileSync(resolve(process.cwd(), 'src/components/ui/ActionSpinner.tsx'), 'utf8');
+    assert.match(actionSpinnerSource, /animate-spin/);
+    assert.doesNotMatch(actionSpinnerSource, /logo-icon|<img/);
 });
 
 test('compact loader inherits the surrounding theme and foreground instead of forcing a one-off color', () => {

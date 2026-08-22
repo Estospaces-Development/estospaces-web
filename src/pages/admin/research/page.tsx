@@ -1,6 +1,6 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -982,7 +982,7 @@ export default function AdminResearchPage() {
                                 aria-disabled={!canSaveSession}
                                 className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:opacity-60"
                             >
-                                {saving && <BrandLoader className="h-4 w-4" />}
+                                {saving && <ActionSpinner className="h-4 w-4" />}
                                 Save session
                             </button>
                         </div>

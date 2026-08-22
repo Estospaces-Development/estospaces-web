@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Clock3, FileText, Handshake, Home, MessageSquareText } from "lucide-react";
@@ -254,7 +254,7 @@ export default function FastTrackCompanionPanel({
               className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {activeAction === "confirm_viewing" ? (
-                <BrandLoader className="h-4 w-4" />
+                <ActionSpinner className="h-4 w-4" />
               ) : (
                 <CheckCircle2 className="h-4 w-4" />
               )}
@@ -338,7 +338,7 @@ export default function FastTrackCompanionPanel({
           >
             {activeAction === "schedule_viewing" ||
             activeAction === "reschedule_viewing" ? (
-              <BrandLoader className="h-4 w-4" />
+              <ActionSpinner className="h-4 w-4" />
             ) : (
               <Clock3 className="h-4 w-4" />
             )}
@@ -480,7 +480,7 @@ export default function FastTrackCompanionPanel({
             className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "record_decision" ? (
-              <BrandLoader className="h-4 w-4" />
+              <ActionSpinner className="h-4 w-4" />
             ) : (
               <CheckCircle2 className="h-4 w-4" />
             )}
@@ -533,7 +533,7 @@ export default function FastTrackCompanionPanel({
               className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {activeAction === "confirm_agreement" ? (
-                <BrandLoader className="h-4 w-4" />
+                <ActionSpinner className="h-4 w-4" />
               ) : (
                 <Handshake className="h-4 w-4" />
               )}
@@ -603,7 +603,7 @@ export default function FastTrackCompanionPanel({
             className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "publish_agreement" ? (
-              <BrandLoader className="h-4 w-4" />
+              <ActionSpinner className="h-4 w-4" />
             ) : (
               <FileText className="h-4 w-4" />
             )}
@@ -692,7 +692,7 @@ export default function FastTrackCompanionPanel({
             className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "confirm_handover" ? (
-              <BrandLoader className="h-4 w-4" />
+              <ActionSpinner className="h-4 w-4" />
             ) : (
               <Home className="h-4 w-4" />
             )}
@@ -736,7 +736,7 @@ export default function FastTrackCompanionPanel({
             className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "mark_handover_ready" ? (
-              <BrandLoader className="h-4 w-4" />
+              <ActionSpinner className="h-4 w-4" />
             ) : (
               <Handshake className="h-4 w-4" />
             )}
@@ -823,7 +823,7 @@ export default function FastTrackCompanionPanel({
             className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
           >
             {openingConversation ? (
-              <BrandLoader className="h-4 w-4" />
+              <ActionSpinner className="h-4 w-4" />
             ) : (
               <MessageSquareText className="h-4 w-4" />
             )}

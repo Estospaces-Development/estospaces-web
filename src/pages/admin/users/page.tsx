@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -574,7 +575,7 @@ function UserManagementContent() {
                         disabled={adminLeadLoading}
                         className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white"
                     >
-                        {adminLeadLoading ? <BrandLoader size="xs" label="Refreshing users" /> : <RefreshCw size={16} />}
+                        {adminLeadLoading ? <ActionSpinner size="xs" label="Refreshing users" /> : <RefreshCw size={16} />}
                         Refresh
                     </button>
                 </div>
@@ -721,7 +722,7 @@ function UserManagementContent() {
                                                     disabled={isActionDisabled}
                                                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
                                                 >
-                                                    {isBusy ? <BrandLoader size={16} className="" /> : <UserCheck size={16} />}
+                                                    {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
                                                     Reassign
                                                 </button>
                                             </td>
@@ -895,7 +896,7 @@ function UserManagementContent() {
                                                                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                                                         } disabled:opacity-60`}
                                                     >
-                                                        {actionBusy ? <BrandLoader size={16} className="" /> : <Power size={16} />}
+                                                        {actionBusy ? <ActionSpinner size={16} className="" /> : <Power size={16} />}
                                                         {user.is_active ? 'Deactivate' : 'Activate'}
                                                     </button>
                                                 </div>
@@ -983,7 +984,7 @@ function UserManagementContent() {
                                     stateChangeUser.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'
                                 }`}
                             >
-                                {actionUserId === stateChangeUser.id && <BrandLoader size={16} className="" />}
+                                {actionUserId === stateChangeUser.id && <ActionSpinner size={16} className="" />}
                                 Confirm {stateChangeUser.is_active ? 'Deactivate' : 'Activate'}
                             </button>
                         </div>

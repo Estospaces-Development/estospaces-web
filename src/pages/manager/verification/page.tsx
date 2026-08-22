@@ -1,4 +1,5 @@
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useNavigate } from 'react-router-dom';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -400,7 +401,7 @@ export default function VerificationPage() {
                         disabled={isSubmitting}
                         className="bg-gray-900 dark:bg-orange-500 hover:scale-105 active:scale-95 text-white px-12 py-4 rounded-2xl font-bold shadow-2xl transition-all disabled:opacity-50 flex items-center gap-3"
                     >
-                        {isSubmitting ? <BrandLoader className="w-5 h-5" /> : "Continue to Verification"}
+                        {isSubmitting ? <ActionSpinner className="w-5 h-5" /> : "Continue to Verification"}
                         <ChevronRight className="w-5 h-5" />
                     </button>
                 </div>
@@ -655,7 +656,7 @@ export default function VerificationPage() {
                             }`}
                         >
                             {isSubmitting ? (
-                                <BrandLoader className="w-5 h-5" />
+                                <ActionSpinner className="w-5 h-5" />
                             ) : profileNeedsCompletion ? (
                                 <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             ) : (
@@ -750,7 +751,7 @@ export default function VerificationPage() {
                                     disabled={isSubmitting || missingFirstTimeFiles.length > 0}
                                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-orange-500 dark:hover:bg-orange-600"
                                 >
-                                    {isSubmitting ? <BrandLoader className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                                    {isSubmitting ? <ActionSpinner className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
                                     Upload all documents
                                 </button>
                             </div>

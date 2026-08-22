@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -661,7 +662,7 @@ export default function ViewingsPage() {
                             disabled={Boolean(cancellingViewingID)}
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {cancellingViewingID && <BrandLoader size={16} className="" />}
+                            {cancellingViewingID && <ActionSpinner size={16} className="" />}
                             Yes, Cancel
                         </button>
                     </div>

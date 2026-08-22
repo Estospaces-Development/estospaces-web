@@ -1,6 +1,7 @@
 'use client';
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -692,7 +693,7 @@ export const SaleOfferEntryCard = ({
             disabled={isSubmitting}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-emerald-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-            {isSubmitting && <BrandLoader size={15} className="" />}
+            {isSubmitting && <ActionSpinner size={15} className="" />}
             {isSubmitting ? 'Submitting offer...' : 'Submit Offer'}
         </button>
     </form>
@@ -891,7 +892,7 @@ const RentalApplicationEntryCard = ({
             disabled={isSubmitting || Boolean(submissionBlocker)}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-sky-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-700/20 transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-            {isSubmitting && <BrandLoader size={15} className="" />}
+            {isSubmitting && <ActionSpinner size={15} className="" />}
             {isSubmitting ? 'Submitting application...' : submissionBlocker ? 'Complete Fast Track first' : 'Submit Rental Application'}
         </button>
     </form>
@@ -2387,7 +2388,7 @@ const UserPropertyDetail = () => {
                     }`}
                 >
                     {isUpdatingSavedProperty ? (
-                        <BrandLoader size={16} className="" />
+                        <ActionSpinner size={16} className="" />
                     ) : (
                         <Heart size={16} className={isSaved ? 'fill-current' : 'text-gray-400 group-hover:text-orange-500'} />
                     )}
@@ -2567,7 +2568,7 @@ const UserPropertyDetail = () => {
                                                 disabled={isFastTrackCtaDisabled}
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
                                             >
-                                                {isFastTrackCtaBusy ? <BrandLoader size={16} className="" /> : <Upload size={16} className="text-orange-500" />}
+                                                {isFastTrackCtaBusy ? <ActionSpinner size={16} className="" /> : <Upload size={16} className="text-orange-500" />}
                                                 <span>{isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackSidebarActionLabel}</span>
                                             </button>
                                 </div>
@@ -2960,7 +2961,7 @@ const UserPropertyDetail = () => {
                                             className="group flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-orange-800 dark:hover:bg-zinc-900/80"
                                         >
                                             <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition group-hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200 dark:group-hover:bg-orange-950/70">
-                                                {isBusy ? <BrandLoader size={16} className="" /> : <Icon size={16} />}
+                                                {isBusy ? <ActionSpinner size={16} className="" /> : <Icon size={16} />}
                                             </div>
                                             <div>
                                                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">{item.label}</p>
@@ -3228,7 +3229,7 @@ const UserPropertyDetail = () => {
                                         disabled={isSchedulingViewing}
                                         className="flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-orange-500 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {isSchedulingViewing && <BrandLoader size={15} className="" />}
+                                        {isSchedulingViewing && <ActionSpinner size={15} className="" />}
                                         {isSchedulingViewing ? 'Scheduling...' : 'Request Viewing Appointment'}
                                     </button>
                                 </div>

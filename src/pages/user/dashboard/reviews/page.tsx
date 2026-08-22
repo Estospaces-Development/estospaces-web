@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -277,7 +278,7 @@ export default function ReviewsPage() {
                                 disabled={isSubmitting || !isReviewFormReady}
                                 className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                             >
-                                {isSubmitting ? <BrandLoader size={18} className="" /> : <Star size={18} />}
+                                {isSubmitting ? <ActionSpinner size={18} className="" /> : <Star size={18} />}
                                 {isSubmitting ? 'Submitting...' : 'Submit Review'}
                             </button>
                         </form>
@@ -318,7 +319,7 @@ export default function ReviewsPage() {
                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all disabled:opacity-40"
                                             title="Delete review"
                                         >
-                                            {deletingId === review.id ? <BrandLoader size={16} className="" /> : <Trash2 size={16} />}
+                                            {deletingId === review.id ? <ActionSpinner size={16} className="" /> : <Trash2 size={16} />}
                                         </button>
                                     </div>
                                 </div>

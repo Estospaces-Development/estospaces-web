@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import {
@@ -162,7 +163,7 @@ function AnalyticsContent() {
                         disabled={isRefreshing}
                         className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-105 transition-all disabled:opacity-50"
                     >
-                        {isRefreshing ? <BrandLoader size="sm" label="Refreshing analytics" /> : <RefreshCw size={20} />}
+                        {isRefreshing ? <ActionSpinner size="sm" label="Refreshing analytics" /> : <RefreshCw size={20} />}
                     </button>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -704,7 +705,7 @@ const BrokerResponseWidget: React.FC = () => {
                                 : 'brand-orange-action'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                    {availabilityLoading ? <BrandLoader className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                    {availabilityLoading ? <ActionSpinner className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
                     {availabilityBlockedReason
                         ? 'Open verification'
                         : availableForFastResponse
@@ -999,7 +1000,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                             disabled={isSaving || selectedIds.length === 0}
                                                             className="brand-orange-action inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                                         >
-                                                            {isSaving ? <BrandLoader className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                                                            {isSaving ? <ActionSpinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                                                             {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}
                                                         </button>
                                                     </div>

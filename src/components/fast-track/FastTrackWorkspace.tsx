@@ -1,6 +1,7 @@
 'use client';
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -453,7 +454,7 @@ const ActionButton = ({
             title={title}
             className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-950 ${toneClass} ${className}`.trim()}
         >
-            {busy ? <BrandLoader size={16} className="" /> : null}
+            {busy ? <ActionSpinner size={16} className="" /> : null}
             {children}
         </button>
     );

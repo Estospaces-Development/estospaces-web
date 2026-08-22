@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
@@ -461,7 +462,7 @@ function MessagesContent() {
                                         disabled={openingRecommendedConversation}
                                         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {openingRecommendedConversation ? <BrandLoader size={17} className="" /> : <MessageSquare size={17} />}
+                                        {openingRecommendedConversation ? <ActionSpinner size={17} className="" /> : <MessageSquare size={17} />}
                                         {openingRecommendedConversation ? 'Opening chat' : 'Open manager chat'}
                                     </button>
                                 </div>

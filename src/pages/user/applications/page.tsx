@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -489,7 +489,7 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                             disabled={openingConversation}
                             className="w-full py-3 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:cursor-wait disabled:opacity-70"
                         >
-                            {openingConversation ? <BrandLoader size={18} className="" /> : <MessageSquare size={18} />}
+                            {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
                             <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                         </button>
                         {canWithdraw && (
@@ -807,7 +807,7 @@ export default function ApplicationsPage() {
                             disabled={isSubmittingApplication}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {isSubmittingApplication && <BrandLoader className="h-4 w-4" />}
+                            {isSubmittingApplication && <ActionSpinner className="h-4 w-4" />}
                             Submit Application
                         </button>
                     </div>

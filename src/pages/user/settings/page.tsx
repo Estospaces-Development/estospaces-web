@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -177,7 +178,7 @@ export default function UserSettingsPage() {
                 >
                     {isSaving ? (
                         <>
-                            <BrandLoader size={18} className="" />
+                            <ActionSpinner size={18} className="" />
                             Saving...
                         </>
                     ) : (

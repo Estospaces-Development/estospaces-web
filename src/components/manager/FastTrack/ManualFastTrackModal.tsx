@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Search, Zap } from 'lucide-react';
@@ -393,7 +394,7 @@ export default function ManualFastTrackModal({
                                                     : 'bg-orange-500 text-white hover:bg-orange-600'
                                             }`}
                                         >
-                                            {isBusy ? <BrandLoader className="h-4 w-4" /> : null}
+                                            {isBusy ? <ActionSpinner className="h-4 w-4" /> : null}
                                             <span>
                                                 {activeCase
                                                     ? 'Open active case'

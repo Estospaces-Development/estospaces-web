@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -496,7 +497,7 @@ export default function BookingsPage() {
                             disabled={savingReservation}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {savingReservation && <BrandLoader className="h-4 w-4" />}
+                            {savingReservation && <ActionSpinner className="h-4 w-4" />}
                             Create Reservation
                         </button>
                     </div>
@@ -673,7 +674,7 @@ export default function BookingsPage() {
                             disabled={Boolean(cancellingBookingID)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {cancellingBookingID && <BrandLoader className="h-4 w-4" />}
+                            {cancellingBookingID && <ActionSpinner className="h-4 w-4" />}
                             Cancel Booking
                         </button>
                     </div>

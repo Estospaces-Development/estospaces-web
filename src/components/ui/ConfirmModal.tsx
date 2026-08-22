@@ -1,6 +1,6 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
@@ -113,7 +113,7 @@ const ConfirmModal = ({
                             disabled={loading}
                             className={`px-4 py-2.5 text-sm font-medium text-white rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${config.button}`}
                         >
-                            {loading && <BrandLoader size={16} className="" />}
+                            {loading && <ActionSpinner size={16} className="" />}
                             {confirmText}
                         </button>
                     </div>

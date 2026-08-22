@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Mail, Phone, MapPin, Camera, Save, CheckCircle, Hash, Shield } from 'lucide-react';
@@ -352,7 +353,7 @@ export default function AdminProfilePage() {
                                     </span>
                                 )}
                                 <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors shadow-sm">
-                                    {isLoading ? <><BrandLoader size={18} className="" /> Saving...</> : <><Save size={18} /> Save Admin Profile</>}
+                                    {isLoading ? <><ActionSpinner size={18} className="" /> Saving...</> : <><Save size={18} /> Save Admin Profile</>}
                                 </button>
                             </div>
                         </form>

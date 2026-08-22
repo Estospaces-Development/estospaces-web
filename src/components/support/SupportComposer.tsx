@@ -1,4 +1,4 @@
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import React, { useRef } from 'react';
 import { Paperclip, Send, X } from 'lucide-react';
 import type { SupportAttachmentDraft } from '@/services/supportService';
@@ -116,7 +116,7 @@ export function SupportComposer({
                     onClick={onSubmit}
                     className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    {disabled ? <BrandLoader className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                    {disabled ? <ActionSpinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                     {submitLabel}
                 </button>
             </div>

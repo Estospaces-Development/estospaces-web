@@ -1,6 +1,7 @@
 'use client';
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useState, useEffect } from 'react';
 import { Shield, Bell, Globe, Database, Save } from 'lucide-react';
@@ -106,7 +107,7 @@ export default function AdminSettingsPage() {
                     aria-disabled={isSaving || !canSaveSettings}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isSaving ? <BrandLoader size="sm" label="Saving settings" /> : <Save size={18} />}
+                    {isSaving ? <ActionSpinner size="sm" label="Saving settings" /> : <Save size={18} />}
                     {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>

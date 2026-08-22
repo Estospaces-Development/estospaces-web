@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -449,7 +450,7 @@ export default function ProfilePage() {
                                     >
                                         {savingProfile ? (
                                             <>
-                                                <BrandLoader size={24} className="" />
+                                                <ActionSpinner size={24} className="" />
                                                 <span>Updating Profile...</span>
                                             </>
                                         ) : (

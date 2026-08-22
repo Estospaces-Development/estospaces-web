@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, CheckCircle, KeyRound } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
@@ -267,7 +267,7 @@ export default function ResetPasswordPage() {
                 >
                     {loading ? (
                         <span className="flex items-center justify-center gap-2">
-                            <BrandLoader size="xs" label="Resetting password" />
+                            <ActionSpinner size="xs" label="Resetting password" />
                             Resetting Password...
                         </span>
                     ) : (

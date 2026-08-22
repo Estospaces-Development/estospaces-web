@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Clock3, Download, History, MessageSquare, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
@@ -1134,7 +1135,7 @@ export default function ManagerLeadsPage() {
                                                         aria-label={`Respond and message ${getLeadTitle(lead)}`}
                                                         className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 ${managerLeadFocusClass}`}
                                                     >
-                                                        {isBusy ? <BrandLoader className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+                                                        {isBusy ? <ActionSpinner className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
                                                         Respond And Message
                                                     </button>
                                                     {canRequestDocuments ? (
@@ -1319,7 +1320,7 @@ export default function ManagerLeadsPage() {
                             disabled={Boolean(actingLeadID)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {actingLeadID === scheduleLead.id ? <BrandLoader className="h-4 w-4" /> : null}
+                            {actingLeadID === scheduleLead.id ? <ActionSpinner className="h-4 w-4" /> : null}
                             Create Appointment
                         </button>
                     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -833,7 +834,7 @@ export default function ContractsPage() {
                             >
                               {signingId === contract.id ? (
                                 <>
-                                  <BrandLoader size={14} className="" />{" "}
+                                  <ActionSpinner size={14} className="" />{" "}
                                   Signing...
                                 </>
                               ) : (
@@ -1024,7 +1025,7 @@ export default function ContractsPage() {
                   disabled={signingId === viewContract.id}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {signingId === viewContract.id ? <BrandLoader size={16} className="" /> : <PenTool size={16} />}
+                  {signingId === viewContract.id ? <ActionSpinner size={16} className="" /> : <PenTool size={16} />}
                   {signingId === viewContract.id ? "Signing..." : "Sign Contract"}
                 </button>
               )}

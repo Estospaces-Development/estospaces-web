@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -3280,7 +3281,7 @@ export default function AddPropertyPage() {
                   disabled={mediaListLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
-                  {mediaListLoading && <BrandLoader className="h-4 w-4" />}
+                  {mediaListLoading && <ActionSpinner className="h-4 w-4" />}
                   Refresh
                 </button>
               </div>

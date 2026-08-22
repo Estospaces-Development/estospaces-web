@@ -1,4 +1,4 @@
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -1888,7 +1888,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       disabled={isUpdatingManualStatus || managerDecisionAction !== null}
                       className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
-                      {isUpdatingManualStatus && <BrandLoader size={16} className="" />}
+                      {isUpdatingManualStatus && <ActionSpinner size={16} className="" />}
                       Save status
                     </button>
                   </form>
@@ -1900,7 +1900,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     className="inline-flex items-center gap-2 px-4 py-2 border border-orange-300 dark:border-orange-700 rounded-lg text-sm font-medium text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {managerDecisionAction === "under_review" ? (
-                      <BrandLoader size={16} className="" />
+                      <ActionSpinner size={16} className="" />
                     ) : (
                       <Clock size={16} />
                     )}
@@ -1916,7 +1916,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     className="inline-flex items-center gap-2 px-4 py-2 border border-amber-300 dark:border-amber-700 rounded-lg text-sm font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {managerDecisionAction === "documents_requested" ? (
-                      <BrandLoader size={16} className="" />
+                      <ActionSpinner size={16} className="" />
                     ) : (
                       <FileCheck size={16} />
                     )}
@@ -1930,7 +1930,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     className="inline-flex items-center gap-2 px-4 py-2 border border-red-300 dark:border-red-700 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {managerDecisionAction === "rejected" ? (
-                      <BrandLoader size={16} className="" />
+                      <ActionSpinner size={16} className="" />
                     ) : (
                       <XCircle size={16} />
                     )}
@@ -1944,7 +1944,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {managerDecisionAction === "approved" ? (
-                      <BrandLoader size={16} className="" />
+                      <ActionSpinner size={16} className="" />
                     ) : (
                       <CheckCircle size={16} />
                     )}
@@ -2449,7 +2449,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           >
                             {purchaseWorkflowAction ===
                             "buyer_qualification" ? (
-                              <BrandLoader size={16} className="" />
+                              <ActionSpinner size={16} className="" />
                             ) : null}
                             {buyerQualificationReady
                               ? "Complete buyer qualification"
@@ -2548,7 +2548,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {purchaseWorkflowAction === "aml_review" ? (
-                              <BrandLoader size={16} className="" />
+                              <ActionSpinner size={16} className="" />
                             ) : null}
                             {amlReviewReady
                               ? "Complete AML review"
@@ -2706,7 +2706,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       {purchaseWorkflowAction === actionKey ? (
-                                        <BrandLoader
+                                        <ActionSpinner
                                           size={16}
                                           className=""
                                         />
@@ -2801,7 +2801,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {purchaseWorkflowAction === "create_offer" ? (
-                              <BrandLoader size={16} className="" />
+                              <ActionSpinner size={16} className="" />
                             ) : null}
                             Record buyer offer
                           </button>
@@ -2847,7 +2847,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {rentWorkflowAction ? (
-                            <BrandLoader size={16} className="" />
+                            <ActionSpinner size={16} className="" />
                           ) : (
                             <ChevronRight size={16} />
                           )}

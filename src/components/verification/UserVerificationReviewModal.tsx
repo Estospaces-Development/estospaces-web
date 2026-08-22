@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -845,7 +846,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                             disabled={verificationActionLoading || Boolean(activeDocumentId)}
                             className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
                         >
-                            {verificationActionLoading ? <BrandLoader size={16} className="" /> : <XCircle size={16} />}
+                            {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <XCircle size={16} />}
                             Revoke
                         </button>
                     </div>
@@ -856,7 +857,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         disabled={verificationActionLoading || Boolean(activeDocumentId)}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
                     >
-                        {verificationActionLoading ? <BrandLoader size={16} className="" /> : <XCircle size={16} />}
+                        {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <XCircle size={16} />}
                         Revoke
                     </button>
                     <button
@@ -865,7 +866,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         aria-describedby={approvalBlocker ? 'verification-approval-blocker' : undefined}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
-                        {verificationActionLoading ? <BrandLoader size={16} className="" /> : <CheckCircle size={16} />}
+                        {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <CheckCircle size={16} />}
                         {isFastTrackReview ? 'Complete fast-track verification' : 'Approve Verification'}
                     </button>
                     </div>
@@ -1079,7 +1080,7 @@ const DocumentReviewCard: React.FC<{
                             aria-label={`View ${document.file_name}`}
                             className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 sm:ml-auto"
                         >
-                            {viewLoading ? <BrandLoader size={12} className="" /> : <FileText size={12} />}
+                            {viewLoading ? <ActionSpinner size={12} className="" /> : <FileText size={12} />}
                             View
                         </button>
                     </div>

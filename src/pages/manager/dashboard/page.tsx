@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -641,7 +642,7 @@ function DashboardContent() {
                     disabled={confirmingBookingID === booking.id}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {confirmingBookingID === booking.id ? <BrandLoader className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {confirmingBookingID === booking.id ? <ActionSpinner className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     Confirm Reservation
                   </button>
                 </div>

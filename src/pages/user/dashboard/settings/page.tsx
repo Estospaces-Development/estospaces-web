@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -232,7 +233,7 @@ export default function SettingsPage() {
                             className="px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-all flex items-center gap-3"
                         >
                             {saving ? (
-                                <BrandLoader size={24} className="" />
+                                <ActionSpinner size={24} className="" />
                             ) : saveSuccess ? (
                                 <Check size={24} strokeWidth={3} />
                             ) : (
