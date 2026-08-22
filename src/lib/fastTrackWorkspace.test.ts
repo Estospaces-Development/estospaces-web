@@ -792,6 +792,16 @@ test('stage navigation clamps future URLs and follows a polled backend progressi
         visibleStage: 'selected',
         shouldReplaceStageParam: false,
     });
+
+    const appointmentCompleted = buildCase({
+        stage: 'decision',
+        viewingId: 'viewing-1',
+        viewing: { status: 'completed', scheduledAt: '2026-08-14T10:00:00Z' },
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', 'viewing'), {
+        visibleStage: 'decision',
+        shouldReplaceStageParam: true,
+    });
 });
 
 test('user can open and prepare documents before manager review starts', () => {

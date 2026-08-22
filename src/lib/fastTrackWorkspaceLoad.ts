@@ -47,6 +47,39 @@ export const sortFastTrackWorkspaceCases = (cases: FastTrackCase[]) => [...cases
   return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
 });
 
+const connectedRecordScore = (fastTrackCase: FastTrackCase) => [
+  fastTrackCase.applicationId,
+  fastTrackCase.viewingId,
+  fastTrackCase.contractId,
+  fastTrackCase.paymentId,
+].filter(Boolean).length;
+
+const sortFastTrackDeduplicationCandidates = (cases: FastTrackCase[]) => [...cases].sort((left, right) => {
+  if (left.workspaceFinalStatus !== right.workspaceFinalStatus) {
+    if (left.workspaceFinalStatus === "active") {
+      return -1;
+    }
+    if (right.workspaceFinalStatus === "active") {
+      return 1;
+    }
+  }
+
+  const viewingOwnershipDifference = Number(Boolean(right.viewingId)) - Number(Boolean(left.viewingId));
+  if (viewingOwnershipDifference !== 0) {
+    return viewingOwnershipDifference;
+  }
+
+  const connectionDifference = connectedRecordScore(right) - connectedRecordScore(left);
+  if (connectionDifference !== 0) {
+    return connectionDifference;
+  }
+
+  if (left.hoursRemaining !== right.hoursRemaining) {
+    return left.hoursRemaining - right.hoursRemaining;
+  }
+  return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
+});
+
 const getFastTrackCaseIdentityKeys = (fastTrackCase: FastTrackCase) => {
   const status = normalizeIdentityValue(fastTrackCase.workspaceFinalStatus);
   const strongKeys = [
@@ -89,7 +122,7 @@ export const dedupeFastTrackWorkspaceCases = (cases: FastTrackCase[]) => {
   const seenCaseByIdentity = new Map<string, FastTrackCase>();
   const dedupedCases: FastTrackCase[] = [];
 
-  for (const fastTrackCase of sortFastTrackWorkspaceCases(cases)) {
+  for (const fastTrackCase of sortFastTrackDeduplicationCandidates(cases)) {
     const identityKeys = getFastTrackCaseIdentityKeys(fastTrackCase);
     const duplicate = identityKeys.some((key) => seenCaseByIdentity.has(key));
     if (duplicate) {
@@ -100,7 +133,7 @@ export const dedupeFastTrackWorkspaceCases = (cases: FastTrackCase[]) => {
     identityKeys.forEach((key) => seenCaseByIdentity.set(key, fastTrackCase));
   }
 
-  return dedupedCases;
+  return sortFastTrackWorkspaceCases(dedupedCases);
 };
 
 export const buildFastTrackCasesSignature = (cases: FastTrackCase[]) => JSON.stringify(

@@ -208,6 +208,36 @@ test("dedupeFastTrackWorkspaceCases still collapses same lead and property dupli
   );
 });
 
+test("dedupeFastTrackWorkspaceCases keeps the journey that owns the linked viewing", () => {
+  const deduped = dedupeFastTrackWorkspaceCases([
+    fastTrackCase({
+      caseId: "case-stale-newer",
+      propertyId: "property-shared",
+      clientId: "client-shared",
+      journeyMode: "rent",
+      startedFrom: "direct_property",
+      applicationId: "application-stale",
+      contractId: "contract-stale",
+      paymentId: "payment-stale",
+      hoursRemaining: 2,
+      submittedAt: "2026-05-05T20:03:00Z",
+    }),
+    fastTrackCase({
+      caseId: "case-viewing-owner",
+      propertyId: "property-shared",
+      clientId: "client-shared",
+      journeyMode: "rent",
+      startedFrom: "direct_property",
+      applicationId: "application-owner",
+      viewingId: "viewing-owner",
+      hoursRemaining: 8,
+      submittedAt: "2026-05-05T20:01:00Z",
+    }),
+  ]);
+
+  assert.deepEqual(deduped.map((item) => item.caseId), ["case-viewing-owner"]);
+});
+
 test("loadFastTrackWorkspaceCases does not surface repeated journey cards", async () => {
   const result = await loadFastTrackWorkspaceCases(
     async () => ({
