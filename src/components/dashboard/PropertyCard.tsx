@@ -11,6 +11,7 @@ import {
     Maximize,
     MapPin,
     Star,
+    Trash2,
     ChevronLeft,
     ChevronRight,
     CheckCircle,
@@ -38,6 +39,7 @@ interface PropertyCardProps {
     property: any;
     onViewDetails?: (property: any) => void;
     onStartFastTrack?: (property: any) => void;
+    onRemoveFromSaved?: (event: React.MouseEvent<HTMLButtonElement>) => void;
     onClick?: () => void;
     showStatusBadge?: boolean;
     showSaveAction?: boolean;
@@ -48,6 +50,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     property,
     onViewDetails,
     onStartFastTrack,
+    onRemoveFromSaved,
     onClick,
     showStatusBadge = false,
     showSaveAction = false,
@@ -446,6 +449,19 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                 {fastTrackAction}
                                 {viewDetailsAction}
                             </>
+                        )}
+                        {onRemoveFromSaved && (
+                            <div className="mt-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                                <button
+                                    type="button"
+                                    onClick={onRemoveFromSaved}
+                                    aria-label={`Remove ${displayTitle} from saved properties`}
+                                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition-colors duration-200 hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 active:bg-red-100 dark:border-red-900/70 dark:bg-gray-900 dark:text-red-300 dark:hover:border-red-800 dark:hover:bg-red-950/40 dark:focus-visible:ring-offset-gray-900"
+                                >
+                                    <Trash2 size={16} aria-hidden="true" />
+                                    Remove from saved
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
