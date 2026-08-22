@@ -51,6 +51,7 @@ import {
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
     isFastTrackDocumentDraftDirty,
+    isFastTrackHistoricalStageForCase,
     isFastTrackCaseCompleteForRole,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
@@ -1236,6 +1237,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const previousBackendStage = previousBackendStageRef.current?.caseId === selectedCase.caseId
             ? previousBackendStageRef.current.stage
             : null;
+        const preserveHistoricalStage = isFastTrackHistoricalStageForCase(
+            selectionParams,
+            selectedCase.caseId,
+        );
         const pendingResolution = resolveFastTrackPendingStageSelection(
             pendingStageSelection,
             selectedCase.caseId,
@@ -1245,6 +1250,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             selectedCase,
             pendingResolution.requestedStage,
             previousBackendStage,
+            preserveHistoricalStage,
         );
         const pendingSelectionWasClamped = Boolean(
             pendingStageSelection?.caseId === selectedCase.caseId
@@ -1263,7 +1269,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         if (pendingResolution.awaitingURLSync || navigation.shouldReplaceStageParam) {
             setSearchParams(
-                (previous) => buildFastTrackStageSearchParams(previous, navigation.visibleStage),
+                (previous) => buildFastTrackStageSearchParams(
+                    previous,
+                    navigation.visibleStage,
+                    pendingResolution.awaitingURLSync,
+                ),
                 { replace: true },
             );
             return;
@@ -1276,6 +1286,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         pendingStageSelection,
         requestedCaseForStageNavigation,
         requestedStageParam,
+        selectionParams,
         selectedCase,
         setSearchParams,
     ]);
@@ -1523,7 +1534,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setStageConfirmDialog(null);
         setPendingStageSelection({ caseId: selectedCase.caseId, stage });
         setActiveStageOverride(stage);
-        setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage));
+        setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage, true));
         void runAction('start_documents', {}, 'Documents stage started.');
     }, [runAction, selectedCase, setSearchParams, stageConfirmDialog]);
 
@@ -3797,7 +3808,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPendingStageSelection({ caseId: selectedCase.caseId, stage: nextStage });
             setActiveStageOverride(nextStage);
             setSearchParams(
-                (previous) => buildFastTrackStageSearchParams(previous, nextStage),
+                (previous) => buildFastTrackStageSearchParams(previous, nextStage, true),
                 { preventScrollReset: true },
             );
             void runAction('start_documents', {}, 'Documents stage started.');
@@ -3807,7 +3818,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setPendingStageSelection({ caseId: selectedCase.caseId, stage: nextStage });
         setActiveStageOverride(nextStage);
         setSearchParams(
-            (previous) => buildFastTrackStageSearchParams(previous, nextStage),
+            (previous) => buildFastTrackStageSearchParams(previous, nextStage, true),
             { preventScrollReset: true },
         );
     }, [canNavigateToStage, role, runAction, selectedCase, setSearchParams, toast]);
@@ -3830,6 +3841,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 next.delete('document');
                 next.delete('file');
                 next.delete('celebrate');
+                next.delete('stageHistory');
                 return next;
             },
             { preventScrollReset: true },

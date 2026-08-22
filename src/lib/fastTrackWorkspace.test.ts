@@ -22,6 +22,7 @@ import {
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
+    isFastTrackHistoricalStageForCase,
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
@@ -211,6 +212,7 @@ test('stage search params preserve manager-selected viewing stage across refresh
     const next = buildFastTrackStageSearchParams(
         new URLSearchParams('case=case-1&section=documents&stage=documents&document=identity&file=preview'),
         'viewing',
+        true,
     );
 
     assert.equal(next.get('case'), 'case-1');
@@ -218,8 +220,21 @@ test('stage search params preserve manager-selected viewing stage across refresh
     assert.equal(next.has('stage'), false);
     assert.equal(next.has('document'), false);
     assert.equal(next.has('file'), false);
+    assert.equal(next.get('stageHistory'), 'case-1');
     assert.equal(resolveFastTrackStageSearchParam(next), 'viewing');
     assert.equal(resolveFastTrackStageSearchParam(new URLSearchParams('section=bad-stage')), null);
+});
+
+test('historical stage markers stay scoped to the case that created them', () => {
+    const historical = buildFastTrackStageSearchParams(
+        new URLSearchParams('case=case-1&section=decision'),
+        'viewing',
+        true,
+    );
+    assert.equal(isFastTrackHistoricalStageForCase(historical, 'case-1'), true);
+
+    const switched = buildFastTrackSelectionSearchParams(historical, 'case-2');
+    assert.equal(isFastTrackHistoricalStageForCase(switched, 'case-2'), false);
 });
 
 test('pending stage selection remains authoritative until the URL confirms the click', () => {
@@ -237,6 +252,18 @@ test('pending stage selection remains authoritative until the URL confirms the c
         resolveFastTrackPendingStageSelection(pendingViewing, 'case-2', 'documents'),
         { requestedStage: 'documents', awaitingURLSync: false },
     );
+
+    const delayedSync = resolveFastTrackPendingStageSelection(
+        pendingViewing,
+        'case-1',
+        'documents',
+    );
+    const delayedSyncParams = buildFastTrackStageSearchParams(
+        new URLSearchParams('case=case-1&section=documents'),
+        delayedSync.requestedStage ?? 'viewing',
+        delayedSync.awaitingURLSync,
+    );
+    assert.equal(delayedSyncParams.get('stageHistory'), 'case-1');
 
     const readinessRegressed = buildCase({
         stage: 'documents',
@@ -798,9 +825,21 @@ test('stage navigation clamps future URLs and follows a polled backend progressi
         viewingId: 'viewing-1',
         viewing: { status: 'completed', scheduledAt: '2026-08-14T10:00:00Z' },
     });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing'), {
+        visibleStage: 'decision',
+        shouldReplaceStageParam: true,
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', null, true), {
+        visibleStage: 'viewing',
+        shouldReplaceStageParam: false,
+    });
     assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', 'viewing'), {
         visibleStage: 'decision',
         shouldReplaceStageParam: true,
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', 'decision'), {
+        visibleStage: 'viewing',
+        shouldReplaceStageParam: false,
     });
 });
 

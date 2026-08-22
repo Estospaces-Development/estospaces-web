@@ -204,13 +204,29 @@ export const resolveFastTrackStageSearchParam = (params: URLSearchParams): FastT
     return null;
 };
 
+export const isFastTrackHistoricalStageForCase = (
+    params: URLSearchParams,
+    caseId: string | null | undefined,
+) => {
+    const historicalCaseId = String(params.get('stageHistory') || '').trim().toLowerCase();
+    const selectedCaseId = String(caseId || '').trim().toLowerCase();
+    return historicalCaseId !== '' && historicalCaseId === selectedCaseId;
+};
+
 export const buildFastTrackStageSearchParams = (
     current: URLSearchParams,
     stage: FastTrackStage,
+    preserveHistoricalStage = false,
 ) => {
     const next = new URLSearchParams(current);
     next.set('section', stage);
     next.delete('stage');
+    const selectedCaseId = String(next.get('case') || '').trim();
+    if (preserveHistoricalStage && selectedCaseId) {
+        next.set('stageHistory', selectedCaseId);
+    } else {
+        next.delete('stageHistory');
+    }
     if (stage !== 'documents') {
         next.delete('document');
         next.delete('file');
@@ -364,6 +380,7 @@ export const resolveFastTrackStageNavigation = (
     fastTrackCase: FastTrackCase | null | undefined,
     requestedStage: FastTrackStage | null,
     previousBackendStage: FastTrackStage | null = null,
+    preserveHistoricalStage = false,
 ) => {
     if (!fastTrackCase) {
         return {
@@ -372,9 +389,20 @@ export const resolveFastTrackStageNavigation = (
         };
     }
 
-    const stageAfterProgress = previousBackendStage
+    const currentStageIndex = FAST_TRACK_STAGE_KEYS.indexOf(fastTrackCase.stage);
+    const requestedStageIndex = requestedStage
+        ? FAST_TRACK_STAGE_KEYS.indexOf(requestedStage)
+        : -1;
+    const staleStageOnFreshLoad = previousBackendStage === null
+        && requestedStage !== null
+        && !preserveHistoricalStage
+        && requestedStageIndex < currentStageIndex;
+    const stageAdvancedWhileOpen = Boolean(
+        previousBackendStage
         && previousBackendStage !== fastTrackCase.stage
-        && requestedStage === previousBackendStage
+        && requestedStage === previousBackendStage,
+    );
+    const stageAfterProgress = staleStageOnFreshLoad || stageAdvancedWhileOpen
         ? fastTrackCase.stage
         : requestedStage;
     const visibleStage = resolveFastTrackVisibleStage(fastTrackCase, stageAfterProgress);
@@ -444,6 +472,12 @@ export const buildFastTrackDocumentSearchParams = (
     const next = new URLSearchParams(current);
     next.set('document', documentId.trim());
     next.set('section', 'documents');
+    const selectedCaseId = String(next.get('case') || '').trim();
+    if (selectedCaseId) {
+        next.set('stageHistory', selectedCaseId);
+    } else {
+        next.delete('stageHistory');
+    }
     return next;
 };
 
