@@ -874,7 +874,7 @@ function CustomizationToggleRow({
           onClick={onChange}
           data-fast-track-toggle={testId}
           className={cn(
-            'relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300',
+            'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200',
             fastTrackFocusRing,
             checked
               ? 'bg-orange-500 shadow-lg shadow-orange-500/30'
@@ -883,7 +883,7 @@ function CustomizationToggleRow({
         >
           <span
             className={cn(
-              'inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-all duration-300',
+              'pointer-events-none inline-block h-5 w-5 shrink-0 rounded-full bg-white shadow-sm transition-transform duration-200 motion-reduce:transition-none',
               checked ? 'translate-x-6' : 'translate-x-1',
             )}
           />

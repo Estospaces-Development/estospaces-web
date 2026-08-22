@@ -58,6 +58,9 @@ test('fast-track customization drawer exposes named switches, radios, and status
 
   assert.match(markup, /role="switch" aria-checked="false" aria-label="Metrics strip"/);
   assert.match(markup, /role="switch" aria-checked="true" aria-label="Start with journeys hidden"/);
+  const fixedSizeSwitches = markup.match(/relative inline-flex h-7 w-12 shrink-0 items-center rounded-full/g) || [];
+  assert.equal(fixedSizeSwitches.length, 2);
+  assert.doesNotMatch(markup, /transition-all duration-300/);
   assert.match(markup, /role="radiogroup" aria-label="Secondary density"/);
   assert.match(markup, /role="radio" aria-checked="true" aria-label="Use compact secondary density"/);
   assert.match(markup, /role="radio" aria-checked="false" aria-label="Use comfortable secondary density"/);
