@@ -1,6 +1,6 @@
 "use client";
 
-import { LucideIcon, TrendingUp } from 'lucide-react';
+import { LucideIcon, TrendingDown, TrendingUp } from 'lucide-react';
 
 interface StatCardProps {
     title: string;
@@ -14,6 +14,9 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor, loading, onClick }: StatCardProps) => {
+    const isNegativeChange = change.trim().startsWith('-');
+    const TrendIcon = isNegativeChange ? TrendingDown : TrendingUp;
+    const resolvedTrendColor = isNegativeChange ? 'text-red-600 dark:text-red-400' : trendColor;
     const className = `bg-white dark:bg-black rounded-3xl shadow-sm p-6 relative overflow-hidden group transition-all duration-500 font-outfit border border-gray-50 dark:border-gray-900 ${
         onClick ? 'appearance-none cursor-pointer hover:shadow-xl hover:-translate-y-1 text-left w-full' : ''
     }`;
@@ -31,8 +34,8 @@ const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor, loa
                     {loading ? (
                         <div className="h-4 w-16 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
                     ) : (
-                        <div className={`flex items-center gap-1.5 ${trendColor} transition-transform duration-500 group-hover:translate-x-1`}>
-                            <TrendingUp className="w-4 h-4 scale-110" />
+                        <div className={`flex items-center gap-1.5 ${resolvedTrendColor} transition-transform duration-500 group-hover:translate-x-1`}>
+                            <TrendIcon className="w-4 h-4 scale-110" aria-hidden="true" />
                             <span className="text-sm font-black tracking-tight">{change}</span>
                         </div>
                     )}
