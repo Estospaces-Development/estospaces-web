@@ -167,9 +167,15 @@ export const describeFastTrackCompanionSummary = (fastTrackCase: FastTrackCase) 
 export const getFastTrackViewingResponseConflictMessage = (
   fastTrackCase: Pick<FastTrackCase, "viewing">,
   action: string,
+  now = Date.now(),
 ) => {
   const hasPendingChange = Boolean(fastTrackCase.viewing.requestedChange?.trim());
   const isConfirmed = Boolean(fastTrackCase.viewing.confirmedByUser);
+  const scheduledAt = Date.parse(String(fastTrackCase.viewing.scheduledAt || ""));
+
+  if (action === "confirm_viewing" && Number.isFinite(scheduledAt) && scheduledAt < now) {
+    return "This viewing time has passed. Ask the manager to schedule a new slot.";
+  }
 
   if (action === "confirm_viewing" && hasPendingChange) {
     return "A change request is already pending. Wait for the manager to reschedule before confirming this slot.";
