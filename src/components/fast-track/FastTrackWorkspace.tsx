@@ -35,6 +35,8 @@ import {
 } from '@/contexts/WorkspaceSyncContext';
 import {
     buildFastTrackDocumentDraftStorageKey,
+    buildFastTrackDocumentRequestFieldKey,
+    buildFastTrackDocumentRequestPayload,
     buildFastTrackDocumentSearchParams,
     buildFastTrackSelectionSearchParams,
     buildFastTrackStageSearchParams,
@@ -50,6 +52,7 @@ import {
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
+    formatFastTrackDocumentRequestInputValue,
     isFastTrackDocumentDraftDirty,
     isFastTrackHistoricalStageForCase,
     isFastTrackCaseCompleteForRole,
@@ -277,6 +280,8 @@ const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
             return 'Reupload requested';
         case 'uploaded':
             return 'Waiting for review';
+        case 'requested':
+            return 'Requested';
         default:
             return 'Waiting for upload';
     }
@@ -285,6 +290,7 @@ const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
 const ADMIN_OVERRIDE_ACTION_LABELS: Record<string, string> = {
     claim_case: 'claim this case',
     start_documents: 'start document collection',
+    request_document: 'request a document',
     review_document: 'review a document',
     schedule_viewing: 'schedule a viewing',
     reschedule_viewing: 'reschedule a viewing',
@@ -367,6 +373,8 @@ const documentStatusTone = (status: FastTrackDocumentItem['status']) => {
             return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300';
         case 'uploaded':
             return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300';
+        case 'requested':
+            return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300';
         default:
             return 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
     }
@@ -515,6 +523,65 @@ export const FastTrackDocumentReviewControls = ({
     );
 };
 
+interface FastTrackDocumentRequestControlsProps {
+    item: Pick<FastTrackDocumentItem, 'label' | 'requestedAt'>;
+    reason: string;
+    dueAt: string;
+    busy: boolean;
+    onReasonChange: (value: string) => void;
+    onDueAtChange: (value: string) => void;
+    onRequest: () => void;
+}
+
+export const FastTrackDocumentRequestControls = ({
+    item,
+    reason,
+    dueAt,
+    busy,
+    onReasonChange,
+    onDueAtChange,
+    onRequest,
+}: FastTrackDocumentRequestControlsProps) => (
+    <div className="mt-3 space-y-3 rounded-2xl border border-orange-200 bg-orange-50/70 p-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+        <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Request {item.label.toLowerCase()} document</p>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">Tell the user why the file is needed and when it is due.</p>
+        </div>
+        <textarea
+            value={reason}
+            onChange={(event) => onReasonChange(event.target.value)}
+            aria-label={`Reason for ${item.label} document request`}
+            maxLength={500}
+            rows={3}
+            placeholder="Why is this document needed?"
+            className="w-full resize-y rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:border-orange-900/50 dark:bg-gray-950 dark:text-gray-200"
+        />
+        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200">
+            Deadline
+            <span className="mt-1.5 flex items-center gap-2 rounded-2xl border border-orange-200 bg-white px-3 dark:border-orange-900/50 dark:bg-gray-950">
+                <CalendarDays size={15} aria-hidden="true" className="shrink-0 text-orange-700 dark:text-orange-300" />
+                <input
+                    type="datetime-local"
+                    value={dueAt}
+                    onChange={(event) => onDueAtChange(event.target.value)}
+                    aria-label={`Deadline for ${item.label} document request`}
+                    className="h-11 min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none dark:text-gray-200"
+                />
+            </span>
+        </label>
+        <ActionButton
+            onClick={onRequest}
+            busy={busy}
+            disabled={!reason.trim() || !dueAt}
+            ariaLabel={`Request ${item.label} document`}
+            className="w-full"
+        >
+            <FileText size={16} />
+            Request document
+        </ActionButton>
+    </div>
+);
+
 export const FastTrackUserDocumentPreparationCallout = () => (
     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
         Open Share your documents now to upload and switch between Identity and Address. Your manager can review them when ready.
@@ -593,6 +660,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [handoverNote, setHandoverNote] = useState('');
     const [requestChangeNote, setRequestChangeNote] = useState('');
     const [documentNotes, setDocumentNotes] = useState<Record<string, string>>({});
+    const [documentRequestReasons, setDocumentRequestReasons] = useState<Record<string, string>>({});
+    const [documentRequestDeadlines, setDocumentRequestDeadlines] = useState<Record<string, string>>({});
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
     const documentUploadsInFlightRef = useRef(new Set<string>());
     const [documentFocusId, setDocumentFocusId] = useState<string | null>(null);
@@ -1537,6 +1606,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage, true));
         void runAction('start_documents', {}, 'Documents stage started.');
     }, [runAction, selectedCase, setSearchParams, stageConfirmDialog]);
+
+    const handleRequestDocument = useCallback((item: FastTrackDocumentItem, reason: string, dueAt: string) => {
+        const request = buildFastTrackDocumentRequestPayload(item.id, reason, dueAt);
+        if (!request.payload || request.error) {
+            toast.error(request.error || 'Complete the document request.');
+            return;
+        }
+        void runAction('request_document', request.payload, `${item.label} document requested.`);
+    }, [runAction, toast]);
 
     const handleUploadDocument = useCallback(async (item: FastTrackDocumentItem) => {
         if (!selectedCase) {
@@ -2778,6 +2856,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         });
                         const focused = focusedDocumentItem?.id === item.id;
                         const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
+                        const canRequestDocument = role !== 'user'
+                            && selectedCase.workspaceFinalStatus === 'active'
+                            && selectedCase.stage === 'documents'
+                            && !canPreview
+                            && item.status === 'pending';
+                        const documentRequestFieldKey = buildFastTrackDocumentRequestFieldKey(selectedCase.caseId, item.id);
+                        const documentRequestReason = documentRequestReasons[documentRequestFieldKey] ?? item.requestReason ?? '';
+                        const documentRequestDeadline = documentRequestDeadlines[documentRequestFieldKey]
+                            ?? formatFastTrackDocumentRequestInputValue(item.requestDueAt);
                         return (
                             <div
                                 key={documentCardKeyFor(item.id, itemIndex)}
@@ -2848,6 +2935,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             ? 'Add a file and one short upload note.'
                                             : 'Review the file, leave one short note, and move on.')}
                                     </div>
+                                    {item.requestReason || item.requestDueAt ? (
+                                        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
+                                            <p className="font-semibold">Manager request</p>
+                                            {item.requestReason ? <p className="mt-1 break-words">{item.requestReason}</p> : null}
+                                            {item.requestDueAt ? <p className="mt-2 text-xs font-semibold">Due {formatDateTime(item.requestDueAt)}</p> : null}
+                                        </div>
+                                    ) : null}
                                     {canUpload ? (
                                         <>
                                             <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
@@ -2898,7 +2992,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                     </div>
 
-                                    <input
+                                    {canUpload || canPreview ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
                                         onChange={(event) => setDocumentNotes((previous) => ({
@@ -2908,7 +3002,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         aria-label={`Note for ${item.label}`}
                                         placeholder={canUpload ? 'Short upload note' : 'Short review note'}
                                         className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                                    />
+                                    /> : null}
 
                                     {canUpload ? (
                                         <div className="mt-3 space-y-3">
@@ -2945,6 +3039,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 {uploadCopy.actionLabel}
                                             </ActionButton>
                                         </div>
+                                    ) : canRequestDocument ? (
+                                        <FastTrackDocumentRequestControls
+                                            item={item}
+                                            reason={documentRequestReason}
+                                            dueAt={documentRequestDeadline}
+                                            busy={activeAction === 'request_document'}
+                                            onReasonChange={(value) => setDocumentRequestReasons((previous) => ({
+                                                ...previous,
+                                                [documentRequestFieldKey]: value,
+                                            }))}
+                                            onDueAtChange={(value) => setDocumentRequestDeadlines((previous) => ({
+                                                ...previous,
+                                                [documentRequestFieldKey]: value,
+                                            }))}
+                                            onRequest={() => handleRequestDocument(item, documentRequestReason, documentRequestDeadline)}
+                                        />
                                     ) : (
                                         <FastTrackDocumentReviewControls
                                             item={item}

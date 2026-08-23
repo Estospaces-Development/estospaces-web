@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 
 import {
   buildAdminOverrideConfirmationMessage,
+  FastTrackDocumentRequestControls,
   FastTrackDocumentReviewControls,
   FastTrackDocumentFileChooser,
   FastTrackUserDocumentPreparationCallout,
@@ -138,6 +139,25 @@ test("approved fast-track documents cannot be approved twice", () => {
 
   assert.match(uploadedMarkup, /aria-label="Approve Address"/);
   assert.match(uploadedMarkup, /aria-label="Request replacement for Address"/);
+});
+
+test("manager Fast Track document request collects a reason and deadline", () => {
+  const markup = renderToStaticMarkup(
+    <FastTrackDocumentRequestControls
+      item={{ label: "Identity" }}
+      reason="Confirm the named applicant."
+      dueAt="2026-08-22T12:00"
+      busy={false}
+      onReasonChange={() => {}}
+      onDueAtChange={() => {}}
+      onRequest={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Request identity document/);
+  assert.match(markup, /aria-label="Reason for Identity document request"/);
+  assert.match(markup, /type="datetime-local"/);
+  assert.match(markup, /aria-label="Request Identity document"/);
 });
 
 const workspaceSource = () => readFileSync(

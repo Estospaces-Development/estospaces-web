@@ -7,6 +7,8 @@ import type { FastTrackCase } from '@/services/fastTrackService';
 
 import {
     buildFastTrackDocumentDraftStorageKey,
+    buildFastTrackDocumentRequestFieldKey,
+    buildFastTrackDocumentRequestPayload,
     buildFastTrackSelectionSearchParams,
     buildFastTrackDocumentSearchParams,
     buildFastTrackStageSearchParams,
@@ -907,6 +909,33 @@ test('replacement document upload accepts a corrected file with the original fil
         canStartFastTrackDocumentUpload(requestedReplacement, correctedScan, true),
         false,
     );
+});
+
+test('requested document remains uploadable and request payload requires a future deadline', () => {
+    const requestedDocument = {
+        status: 'requested' as const,
+        documentRecordId: undefined,
+        fileUrl: undefined,
+        fileName: undefined,
+    };
+    const file = { name: 'passport.pdf', size: 4096, lastModified: 1786543200000 };
+    assert.equal(canStartFastTrackDocumentUpload(requestedDocument, file, false), true);
+
+    const now = Date.parse('2026-08-21T08:00:00.000Z');
+    assert.deepEqual(
+        buildFastTrackDocumentRequestPayload(' identity ', ' Please upload a current passport. ', '2026-08-21T14:00:00.000Z', now),
+        {
+            payload: {
+                document_id: 'identity',
+                reason: 'Please upload a current passport.',
+                due_at: '2026-08-21T14:00:00.000Z',
+            },
+            error: null,
+        },
+    );
+    assert.match(buildFastTrackDocumentRequestPayload('identity', '', '2026-08-21T14:00:00.000Z', now).error || '', /reason/i);
+    assert.match(buildFastTrackDocumentRequestPayload('identity', 'Needed', '2026-08-21T07:59:00.000Z', now).error || '', /future/i);
+    assert.equal(buildFastTrackDocumentRequestFieldKey('case-one', 'identity'), 'case-one:identity');
 });
 
 test('document focus remains switchable after upload refresh and polling replacements', () => {

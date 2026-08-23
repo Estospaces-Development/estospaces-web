@@ -424,8 +424,59 @@ export const canStartFastTrackDocumentUpload = (
 ) => Boolean(
     file
     && !uploadInFlight
-    && ['pending', 'uploaded', 'reupload_needed', 'approved'].includes(item.status),
+    && ['pending', 'requested', 'uploaded', 'reupload_needed', 'approved'].includes(item.status),
 );
+
+export const buildFastTrackDocumentRequestFieldKey = (
+    caseId: string,
+    documentId: string,
+) => `${caseId.trim()}:${documentId.trim()}`;
+
+export const buildFastTrackDocumentRequestPayload = (
+    documentId: string,
+    reason: string,
+    dueAtValue: string,
+    now = Date.now(),
+) => {
+    const normalizedDocumentId = documentId.trim();
+    const normalizedReason = reason.trim();
+    if (!normalizedDocumentId) {
+        return { payload: null, error: 'Choose a document to request.' };
+    }
+    if (!normalizedReason) {
+        return { payload: null, error: 'Add a reason for this document request.' };
+    }
+    if ([...normalizedReason].length > 500) {
+        return { payload: null, error: 'Keep the document request reason to 500 characters or fewer.' };
+    }
+
+    const dueAtTimestamp = Date.parse(dueAtValue);
+    if (!Number.isFinite(dueAtTimestamp)) {
+        return { payload: null, error: 'Choose a valid deadline for this document request.' };
+    }
+    if (dueAtTimestamp <= now) {
+        return { payload: null, error: 'Choose a future deadline for this document request.' };
+    }
+
+    return {
+        payload: {
+            document_id: normalizedDocumentId,
+            reason: normalizedReason,
+            due_at: new Date(dueAtTimestamp).toISOString(),
+        },
+        error: null,
+    };
+};
+
+export const formatFastTrackDocumentRequestInputValue = (value?: string) => {
+    const timestamp = Date.parse(String(value || ''));
+    if (!Number.isFinite(timestamp)) {
+        return '';
+    }
+    const date = new Date(timestamp);
+    const localTimestamp = new Date(timestamp - date.getTimezoneOffset() * 60_000);
+    return localTimestamp.toISOString().slice(0, 16);
+};
 
 export const getFastTrackDocumentReviewActions = (
     status: FastTrackCase['documents']['items'][number]['status'],
