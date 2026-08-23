@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
@@ -178,6 +180,12 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 
     assert.equal(warning, '');
     assert.equal(finalizeCalled, false);
+});
+
+test('ticket creation refresh is silent so success is not followed by a contradictory load error', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+    assert.match(source, /await fetchTickets\(true\);[\s\S]*?toast\.success\('Support ticket created'\)/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
 });
 
 test('support category normalization maps UI-only labels to backend-safe values', () => {

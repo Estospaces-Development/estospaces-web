@@ -226,7 +226,9 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 }, { replace: true });
             }
         } catch (error: any) {
-            toast.error(error.message || 'Failed to load support tickets');
+            if (!silent) {
+                toast.error(error.message || 'Failed to load support tickets');
+            }
         } finally {
             fetchingRef.current = false;
             if (!silent) setLoading(false);
@@ -421,7 +423,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
             });
             resetTicketDraft();
             setComposer((current) => ({ ...current, subject: '', message: '' }));
-            await fetchTickets();
+            await fetchTickets(true);
             setSearchParams(new URLSearchParams({ ticket: created.id, conversation: created.conversation_id }), { replace: true });
             toast.success('Support ticket created');
             if (attachmentWarning) {
