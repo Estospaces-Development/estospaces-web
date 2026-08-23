@@ -260,6 +260,7 @@ const buildSectionSuggestions = (properties: SearchResult[], query: string): Aut
 function DiscoverContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const searchParamSnapshot = searchParams.toString();
     const { user } = useAuth();
     const { activeTab, setActiveTab } = usePropertyFilter();
 
@@ -311,12 +312,13 @@ function DiscoverContent() {
 
     // Initialize filters from URL/Context
     useEffect(() => {
-        const listingParam = searchParams.get('type') || searchParams.get('tab');
+        const currentSearchParams = new URLSearchParams(searchParamSnapshot);
+        const listingParam = currentSearchParams.get('type') || currentSearchParams.get('tab');
         const nextTab = mapListingTypeParamToTab(listingParam);
         if (nextTab === 'rent') setActiveTab('rent');
         else if (nextTab === 'buy') setActiveTab('buy');
         else setActiveTab('all');
-    }, [searchParams, setActiveTab]);
+    }, [searchParamSnapshot, setActiveTab]);
 
     useEffect(() => {
         let isMounted = true;
@@ -336,10 +338,11 @@ function DiscoverContent() {
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
-        const urlFilters = readSearchUrlFilters(searchParams);
+        const currentSearchParams = new URLSearchParams(searchParamSnapshot);
+        const urlFilters = readSearchUrlFilters(currentSearchParams);
         setSearchQuery(urlFilters.query);
         setLocationQuery(urlFilters.location);
-        setStatusFilter(searchParams.get('status') || '');
+        setStatusFilter(currentSearchParams.get('status') || '');
         setPropertyType(urlFilters.propertyType || 'all');
         setPriceRange({
             min: urlFilters.minPrice,
@@ -347,10 +350,10 @@ function DiscoverContent() {
         });
         setBeds(urlFilters.bedrooms);
         setBaths(urlFilters.baths);
-        setDashboardFilter(searchParams.get('filter') || '');
-        setSortBy(normalizePropertySearchSort(searchParams.get('sort') || searchParams.get('sortBy') || mapDashboardFilterToSearchSort(searchParams.get('filter') || '')));
-        setCurrentPage(parsePositivePage(searchParams.get('page')));
-    }, [searchParams]);
+        setDashboardFilter(currentSearchParams.get('filter') || '');
+        setSortBy(normalizePropertySearchSort(currentSearchParams.get('sort') || currentSearchParams.get('sortBy') || mapDashboardFilterToSearchSort(currentSearchParams.get('filter') || '')));
+        setCurrentPage(parsePositivePage(currentSearchParams.get('page')));
+    }, [searchParamSnapshot]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);

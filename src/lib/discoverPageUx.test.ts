@@ -22,6 +22,12 @@ test('discover page uses clear task-led copy and pressed-state controls', () => 
     assert.match(discoverPage, /aria-pressed=\{viewMode === 'map'\}/);
 });
 
+test('discover listing tabs are not reset by a new search params object with the same URL', () => {
+    assert.match(discoverPage, /const searchParamSnapshot = searchParams\.toString\(\)/);
+    assert.match(discoverPage, /\[searchParamSnapshot, setActiveTab\]/);
+    assert.doesNotMatch(discoverPage, /\[searchParams, setActiveTab\]/);
+});
+
 test('discover result summary is compact, honest, and responsive', () => {
     assert.match(discoverPage, /data-discover-results-summary/);
     assert.match(discoverPage, /Available homes/);
