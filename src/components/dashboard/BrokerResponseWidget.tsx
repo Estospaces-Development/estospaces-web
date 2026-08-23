@@ -41,6 +41,11 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
+    isPortfolioPropertyEligibleForRequest,
+    selectShareablePortfolioProperties,
+    type ManagerPortfolioProperty,
+} from '@/lib/managerPropertyShortlist';
+import {
     formatLaunchCurrencyForCountry,
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
@@ -142,18 +147,6 @@ const getMatchedWorkspaceCardId = (requestId: string) => `matched-workspace-${re
 type TrackerFilter = 'all' | 'pending' | 'responded' | 'expired';
 type TrackerSort = 'priority' | 'newest' | 'oldest';
 type TrackerRequest = BrokerRequest & ManagerTrackerItem;
-
-type ManagerPortfolioProperty = {
-    id: string;
-    title: string;
-    city?: string;
-    postcode?: string;
-    country?: string;
-    currency?: string;
-    price?: number;
-    listing_type?: string;
-    image_urls?: string;
-};
 
 const BrokerResponseWidget: React.FC = () => {
     const navigate = useNavigate();
@@ -366,33 +359,6 @@ const BrokerResponseWidget: React.FC = () => {
 
         return () => window.clearTimeout(timeout);
     }, [focusedWorkspaceRequestId]);
-
-    const visibleManagerProperties = useMemo(() => {
-        const search = propertyPickerSearch.trim().toLowerCase();
-        const filtered = managerProperties.filter((property) => {
-            if (!search) {
-                return true;
-            }
-            return [
-                property.title,
-                property.city,
-                property.postcode,
-                property.listing_type,
-            ].some((value) => String(value || '').toLowerCase().includes(search));
-        });
-
-        filtered.sort((left, right) => {
-            if (propertyPickerSort === 'price_asc') {
-                return (left.price || 0) - (right.price || 0);
-            }
-            if (propertyPickerSort === 'title_asc') {
-                return left.title.localeCompare(right.title, undefined, { sensitivity: 'base' });
-            }
-            return (right.price || 0) - (left.price || 0);
-        });
-
-        return filtered.slice(0, PROPERTY_SHARE_PICKER_LIMIT);
-    }, [managerProperties, propertyPickerSearch, propertyPickerSort]);
 
     const visibleRequests = useMemo(() => {
         const filtered = trackerFilter === 'all'
@@ -791,6 +757,15 @@ const BrokerResponseWidget: React.FC = () => {
                             const selectedWorkspaceAction = getManagerWorkspaceAction(request);
                             const isSaving = shareSavingRequestId === request.id;
                             const propertyKeyFor = createDuplicateSafeKeyResolver(`broker-response-property-${request.id}`);
+                            const eligibleManagerPropertyCount = managerProperties.filter((property) => (
+                                isPortfolioPropertyEligibleForRequest(property, request.request_type)
+                            )).length;
+                            const visibleManagerProperties = selectShareablePortfolioProperties(managerProperties, {
+                                requestType: request.request_type,
+                                search: propertyPickerSearch,
+                                sort: propertyPickerSort,
+                                limit: PROPERTY_SHARE_PICKER_LIMIT,
+                            });
 
                             return (
                                 <div
@@ -931,7 +906,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                         </label>
                                                     </div>
                                                     <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                                                        Showing {visibleManagerProperties.length} of {managerProperties.length} portfolio properties
+                                                        Showing {visibleManagerProperties.length} of {eligibleManagerPropertyCount} matching portfolio properties
                                                     </p>
                                                     <div className="mt-5 grid gap-3 lg:grid-cols-2">
                                                         {visibleManagerProperties.map((property, propertyIndex) => {
