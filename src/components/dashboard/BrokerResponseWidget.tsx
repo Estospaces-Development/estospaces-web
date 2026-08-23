@@ -142,6 +142,7 @@ const MATCHED_WORKSPACES_ID = 'matched-client-workspaces';
 const LIVE_RESPONSE_OPTIONS_MENU_ID = 'live-response-options-menu';
 const PROPERTY_SHARE_PICKER_LIMIT = 12;
 const TRACKER_ITEM_LIMIT = 4;
+const MATCHED_WORKSPACE_PAGE_SIZE = 6;
 const getMatchedWorkspaceCardId = (requestId: string) => `matched-workspace-${requestId}`;
 
 type TrackerFilter = 'all' | 'pending' | 'responded' | 'expired';
@@ -168,6 +169,8 @@ const BrokerResponseWidget: React.FC = () => {
     const [availabilityStatusMessage, setAvailabilityStatusMessage] = useState('');
     const [trackerFilter, setTrackerFilter] = useState<TrackerFilter>('all');
     const [trackerSort, setTrackerSort] = useState<TrackerSort>('priority');
+    const [matchedWorkspaceSearch, setMatchedWorkspaceSearch] = useState('');
+    const [matchedWorkspacePage, setMatchedWorkspacePage] = useState(1);
     const [liveResponseOptionsOpen, setLiveResponseOptionsOpen] = useState(false);
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
@@ -347,6 +350,38 @@ const BrokerResponseWidget: React.FC = () => {
             return next;
         });
     }, [matchedRequests]);
+
+    const filteredMatchedRequests = useMemo(() => {
+        const query = matchedWorkspaceSearch.trim().toLowerCase();
+        if (!query) {
+            return matchedRequests;
+        }
+
+        return matchedRequests.filter((request) => [
+            request.requester_name,
+            request.requester_email,
+            request.location,
+            request.location_postcode,
+            request.details,
+            request.selected_property?.title,
+            formatWorkspaceReference(request.id),
+        ].some((value) => String(value || '').toLowerCase().includes(query)));
+    }, [matchedRequests, matchedWorkspaceSearch]);
+
+    const matchedWorkspacePageCount = Math.max(1, Math.ceil(filteredMatchedRequests.length / MATCHED_WORKSPACE_PAGE_SIZE));
+    const visibleMatchedRequests = useMemo(() => {
+        const page = Math.min(matchedWorkspacePage, matchedWorkspacePageCount);
+        const start = (page - 1) * MATCHED_WORKSPACE_PAGE_SIZE;
+        return filteredMatchedRequests.slice(start, start + MATCHED_WORKSPACE_PAGE_SIZE);
+    }, [filteredMatchedRequests, matchedWorkspacePage, matchedWorkspacePageCount]);
+
+    useEffect(() => {
+        setMatchedWorkspacePage(1);
+    }, [matchedWorkspaceSearch]);
+
+    useEffect(() => {
+        setMatchedWorkspacePage((current) => Math.min(current, matchedWorkspacePageCount));
+    }, [matchedWorkspacePageCount]);
 
     useEffect(() => {
         if (!focusedWorkspaceRequestId) {
@@ -749,8 +784,26 @@ const BrokerResponseWidget: React.FC = () => {
                         </button>
                     </div>
 
+                    <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-black sm:flex-row sm:items-center sm:justify-between">
+                        <label className="relative block min-w-0 flex-1">
+                            <span className="sr-only">Search matched client workspaces</span>
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="search"
+                                aria-label="Search matched client workspaces"
+                                value={matchedWorkspaceSearch}
+                                onChange={(event) => setMatchedWorkspaceSearch(event.target.value)}
+                                placeholder="Search client, property, location, or workspace..."
+                                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-800 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            />
+                        </label>
+                        <p className="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                            {filteredMatchedRequests.length} workspace{filteredMatchedRequests.length === 1 ? '' : 's'}
+                        </p>
+                    </div>
+
                     <div className="mt-5 space-y-5">
-                        {matchedRequests.map((request, requestIndex) => {
+                        {visibleMatchedRequests.map((request, requestIndex) => {
                             const selectedIds = shareSelections[request.id] || [];
                             const sharedCount = request.property_shares?.length || 0;
                             const selectedProperty = request.selected_property;
@@ -991,6 +1044,30 @@ const BrokerResponseWidget: React.FC = () => {
                             );
                         })}
                     </div>
+
+                    {filteredMatchedRequests.length > MATCHED_WORKSPACE_PAGE_SIZE ? (
+                        <nav aria-label="Matched client workspace pages" className="mt-5 flex items-center justify-between gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setMatchedWorkspacePage((page) => Math.max(1, page - 1))}
+                                disabled={matchedWorkspacePage <= 1}
+                                className="min-h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-black dark:text-gray-200"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+                                Page {matchedWorkspacePage} of {matchedWorkspacePageCount}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setMatchedWorkspacePage((page) => Math.min(matchedWorkspacePageCount, page + 1))}
+                                disabled={matchedWorkspacePage >= matchedWorkspacePageCount}
+                                className="min-h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-black dark:text-gray-200"
+                            >
+                                Next
+                            </button>
+                        </nav>
+                    ) : null}
                 </div>
             )}
 
