@@ -72,6 +72,21 @@ const getRequestSubmissionSignature = (request: BrokerRequestRecord) => {
     return [requesterKey, ...requestDetails].join('|');
 };
 
+const getSelectedPropertyWorkspaceSignature = (request: BrokerRequestRecord) => {
+    const requesterKey = normalizeSubmissionToken(request.user_id)
+        || normalizeSubmissionToken(request.requester_email)
+        || normalizeSubmissionToken(request.requester_phone);
+    const propertyKey = normalizeSubmissionToken(request.selected_property_id)
+        || normalizeSubmissionToken(request.selected_property?.id);
+    const managerKey = normalizeSubmissionToken(request.matched_broker_id);
+
+    if (!requesterKey || !propertyKey) {
+        return '';
+    }
+
+    return `selected-property|${requesterKey}|${managerKey}|${propertyKey}`;
+};
+
 const getRequestProgressScore = (request: BrokerRequestRecord) => {
     if (request.selected_property_id || request.selected_fast_track_case_id || request.selected_property) {
         return 4;
@@ -108,7 +123,7 @@ export const dedupeBrokerRequestsBySubmissionSignature = (
     const indexBySignature = new Map<string, number>();
 
     for (const request of requests) {
-        const signature = getRequestSubmissionSignature(request);
+        const signature = getSelectedPropertyWorkspaceSignature(request) || getRequestSubmissionSignature(request);
         if (!signature) {
             deduped.push(request);
             continue;

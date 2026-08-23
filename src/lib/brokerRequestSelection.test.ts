@@ -298,6 +298,29 @@ test('dedupeBrokerRequestsBySubmissionSignature keeps separate users with the sa
 
     assert.deepEqual(deduped.map((request) => request.id), ['second-client-workspace', 'first-client-workspace']);
 });
+
+test('dedupeBrokerRequestsBySubmissionSignature collapses parallel workspaces for the same client and selected property', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'selected-four-minutes-earlier',
+            user_id: 'user-parallel',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            details: 'First search details',
+            created_at: '2026-08-21T17:56:13.000Z',
+        }),
+        makeRequest({
+            id: 'selected-four-minutes-later',
+            user_id: 'user-parallel',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            details: 'Different request details',
+            created_at: '2026-08-21T18:00:21.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['selected-four-minutes-later']);
+});
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
     const sorted = sortBrokerRequestsByPriority([
         makeRequest({
