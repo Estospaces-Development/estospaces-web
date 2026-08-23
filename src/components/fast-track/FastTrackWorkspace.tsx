@@ -247,6 +247,11 @@ export const isFastTrackCaseVisibleForFilter = (
     filter: FilterMode,
 ) => filter === 'all' || fastTrackCase.workspaceFinalStatus === filter;
 
+export const isFastTrackStageReadOnly = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
+    role: WorkspaceRole,
+) => role !== 'user' && fastTrackCase.workspaceFinalStatus !== 'active';
+
 export const formatFastTrackCaseDeadline = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
     if (fastTrackCase.workspaceFinalStatus === 'completed') {
         if (role === 'user' && canUserConfirmFastTrackHandover(fastTrackCase)) {
@@ -473,6 +478,7 @@ interface FastTrackDocumentReviewControlsProps {
     item: Pick<FastTrackDocumentItem, 'id' | 'label' | 'status'>;
     hasAttachedFile: boolean;
     busy: boolean;
+    readOnly?: boolean;
     onReview: (outcome: 'approved' | 'reupload_needed') => void;
 }
 
@@ -480,6 +486,7 @@ export const FastTrackDocumentReviewControls = ({
     item,
     hasAttachedFile,
     busy,
+    readOnly = false,
     onReview,
 }: FastTrackDocumentReviewControlsProps) => {
     const actions = getFastTrackDocumentReviewActions(item.status, hasAttachedFile);
@@ -490,6 +497,7 @@ export const FastTrackDocumentReviewControls = ({
                 <ActionButton
                     onClick={() => onReview('approved')}
                     busy={busy}
+                    disabled={readOnly}
                     ariaLabel={`Approve ${item.label}`}
                     className="flex-1 px-3 py-2 text-xs"
                 >
@@ -513,6 +521,7 @@ export const FastTrackDocumentReviewControls = ({
                     tone="secondary"
                     onClick={() => onReview('reupload_needed')}
                     busy={busy}
+                    disabled={readOnly}
                     ariaLabel={`Request replacement for ${item.label}`}
                     className="flex-1 px-3 py-2 text-xs"
                 >
@@ -1502,6 +1511,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        if (isFastTrackStageReadOnly(selectedCase, role)) {
+            setPendingAdminOverrideAction(null);
+            setStageConfirmDialog(null);
+            setCancelCaseDialogOpen(false);
+            toast.info('This Fast Track is closed and available for viewing only.');
+            return;
+        }
+
         const actionPayload = adminOverride
             ? {
                 ...payload,
@@ -1550,7 +1567,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
-    }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase, user?.id]);
+    }, [publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
 
     const runAction = useCallback((
         action: string,
@@ -1599,13 +1616,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        if (isFastTrackStageReadOnly(selectedCase, role)) {
+            setStageConfirmDialog(null);
+            toast.info('This Fast Track is closed and available for viewing only.');
+            return;
+        }
+
         const { stage } = stageConfirmDialog;
         setStageConfirmDialog(null);
         setPendingStageSelection({ caseId: selectedCase.caseId, stage });
         setActiveStageOverride(stage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage, true));
         void runAction('start_documents', {}, 'Documents stage started.');
-    }, [runAction, selectedCase, setSearchParams, stageConfirmDialog]);
+    }, [role, runAction, selectedCase, setSearchParams, stageConfirmDialog, toast]);
 
     const handleRequestDocument = useCallback((item: FastTrackDocumentItem, reason: string, dueAt: string) => {
         const request = buildFastTrackDocumentRequestPayload(item.id, reason, dueAt);
@@ -2995,13 +3018,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {canUpload || canPreview ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
+                                        readOnly={isFastTrackStageReadOnly(selectedCase, role)}
+                                        aria-readonly={isFastTrackStageReadOnly(selectedCase, role)}
                                         onChange={(event) => setDocumentNotes((previous) => ({
                                             ...previous,
                                             [item.id]: event.target.value,
                                         }))}
                                         aria-label={`Note for ${item.label}`}
                                         placeholder={canUpload ? 'Short upload note' : 'Short review note'}
-                                        className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                                        className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 read-only:cursor-default read-only:bg-gray-50 read-only:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:read-only:bg-gray-900 dark:read-only:text-gray-400"
                                     /> : null}
 
                                     {canUpload ? (
@@ -3060,6 +3085,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             item={item}
                                             hasAttachedFile={canPreview}
                                             busy={activeAction === 'review_document'}
+                                            readOnly={isFastTrackStageReadOnly(selectedCase, role)}
                                             onReview={(outcome) => void runAction(
                                                 'review_document',
                                                 {
@@ -4217,7 +4243,25 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
                             )}>
                                 <div ref={contentRef} className="min-w-0 max-w-full space-y-6">
-                                    {renderActiveStage()}
+                                    {isFastTrackStageReadOnly(selectedCase, role) ? (
+                                        <div
+                                            role="status"
+                                            data-fast-track-closed-case-read-only
+                                            className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-200"
+                                        >
+                                            <p className="font-semibold">Closed case — view only</p>
+                                            <p className="mt-1 text-gray-500 dark:text-gray-400">
+                                                This Fast Track is finished. Historical stages remain available for records, but approvals, rejections, requests, and other workflow changes are disabled.
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                    <fieldset
+                                        disabled={isFastTrackStageReadOnly(selectedCase, role) && effectiveVisibleStage !== 'documents'}
+                                        aria-label={isFastTrackStageReadOnly(selectedCase, role) ? 'Closed Fast Track stage — view only' : undefined}
+                                        className="m-0 min-w-0 border-0 p-0 disabled:cursor-not-allowed disabled:opacity-75"
+                                    >
+                                        {renderActiveStage()}
+                                    </fieldset>
                                     {renderManagerReviewCard()}
                                 </div>
                                 {role === 'user' ? (

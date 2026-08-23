@@ -20,6 +20,7 @@ import {
   isAdminOverrideActivityEntry,
   isAdminOverrideFastTrackCase,
   isFastTrackCaseVisibleForFilter,
+  isFastTrackStageReadOnly,
 } from "./FastTrackWorkspace";
 import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
 import type { Message } from "@/services/messagesService";
@@ -139,6 +140,19 @@ test("approved fast-track documents cannot be approved twice", () => {
 
   assert.match(uploadedMarkup, /aria-label="Approve Address"/);
   assert.match(uploadedMarkup, /aria-label="Request replacement for Address"/);
+
+  const readOnlyMarkup = renderToStaticMarkup(
+    <FastTrackDocumentReviewControls
+      item={{ id: "address", label: "Address", status: "uploaded" }}
+      hasAttachedFile
+      busy={false}
+      readOnly
+      onReview={() => {}}
+    />,
+  );
+
+  assert.match(readOnlyMarkup, /<button[^>]*disabled=""[^>]*aria-label="Approve Address"/);
+  assert.match(readOnlyMarkup, /<button[^>]*disabled=""[^>]*aria-label="Request replacement for Address"/);
 });
 
 test("manager Fast Track document request collects a reason and deadline", () => {
@@ -289,6 +303,25 @@ test("completed fast-track cases show completed handover instead of old SLA and 
 
   assert.equal(formatFastTrackCaseDeadline(completedCase, "manager"), "Completed");
   assert.equal(formatFastTrackCaseStage(completedCase, "manager"), "Handover");
+});
+
+test("closed manager and admin Fast Track stages are read-only while user records remain navigable", () => {
+  const activeCase = buildFastTrackCase({ workspaceFinalStatus: "active" });
+  const completedCase = buildFastTrackCase({ workspaceFinalStatus: "completed" });
+  const cancelledCase = buildFastTrackCase({ workspaceFinalStatus: "cancelled" });
+
+  assert.equal(isFastTrackStageReadOnly(activeCase, "manager"), false);
+  assert.equal(isFastTrackStageReadOnly(completedCase, "manager"), true);
+  assert.equal(isFastTrackStageReadOnly(cancelledCase, "admin"), true);
+  assert.equal(isFastTrackStageReadOnly(completedCase, "user"), false);
+
+  const source = workspaceSource();
+  assert.match(source, /data-fast-track-closed-case-read-only/);
+  assert.match(source, /Closed case — view only/);
+  assert.match(source, /disabled=\{isFastTrackStageReadOnly\(selectedCase, role\) && effectiveVisibleStage !== 'documents'\}/);
+  assert.match(source, /readOnly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
+  assert.match(source, /aria-readonly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
+  assert.match(source, /if \(isFastTrackStageReadOnly\(selectedCase, role\)\) \{\s*setPendingAdminOverrideAction\(null\);\s*setStageConfirmDialog\(null\);\s*setCancelCaseDialogOpen\(false\);/);
 });
 
 test("user still sees handover confirmation when manager has completed the case", () => {
