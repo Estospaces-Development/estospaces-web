@@ -388,12 +388,18 @@ const BrokerResponseWidget: React.FC = () => {
             return undefined;
         }
 
+        const matchedWorkspaceCard = document.getElementById(getMatchedWorkspaceCardId(focusedWorkspaceRequestId));
+        matchedWorkspaceCard?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+
         const timeout = window.setTimeout(() => {
             setFocusedWorkspaceRequestId((current) => current === focusedWorkspaceRequestId ? null : current);
         }, 4000);
 
         return () => window.clearTimeout(timeout);
-    }, [focusedWorkspaceRequestId]);
+    }, [focusedWorkspaceRequestId, visibleMatchedRequests]);
 
     const visibleRequests = useMemo(() => {
         const filtered = trackerFilter === 'all'
@@ -449,6 +455,11 @@ const BrokerResponseWidget: React.FC = () => {
     const handleSecondaryAction = (id: string) => {
         const selectedRequest = requests.find((request) => request.id === id);
         if (selectedRequest?.requestKind === 'offer' && selectedRequest.dispatchStatus === 'broker_matched') {
+            const targetIndex = matchedRequests.findIndex((request) => request.id === id);
+            if (targetIndex >= 0) {
+                setMatchedWorkspaceSearch('');
+                setMatchedWorkspacePage(Math.floor(targetIndex / MATCHED_WORKSPACE_PAGE_SIZE) + 1);
+            }
             setFocusedWorkspaceRequestId(id);
             const matchedWorkspaceCard = document.getElementById(getMatchedWorkspaceCardId(id));
             if (matchedWorkspaceCard) {

@@ -11,5 +11,7 @@ test('matched client workspaces are searchable and bounded by pagination', () =>
     assert.match(source, /visibleMatchedRequests\.map/);
     assert.match(source, /aria-label="Matched client workspace pages"/);
     assert.match(source, /Page \{matchedWorkspacePage\} of \{matchedWorkspacePageCount\}/);
+    assert.match(source, /setMatchedWorkspaceSearch\(''\)/);
+    assert.match(source, /setMatchedWorkspacePage\(Math\.floor\(targetIndex \/ MATCHED_WORKSPACE_PAGE_SIZE\) \+ 1\)/);
     assert.doesNotMatch(source, /\{matchedRequests\.map/);
 });

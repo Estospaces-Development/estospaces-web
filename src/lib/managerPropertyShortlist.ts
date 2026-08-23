@@ -28,7 +28,14 @@ export const isPortfolioPropertyEligibleForRequest = (
         return ['sale', 'buy', 'for_sale'].includes(normalizedListingType);
     }
     if (normalizedRequestType === 'rent') {
-        return ['rent', 'rental', 'for_rent'].includes(normalizedListingType);
+        return [
+            'rent',
+            'rental',
+            'for_rent',
+            'lease',
+            'short_term',
+            'short_term_rental',
+        ].includes(normalizedListingType);
     }
     return true;
 };
