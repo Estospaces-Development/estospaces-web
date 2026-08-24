@@ -522,7 +522,9 @@ export const buildFastTrackDocumentSearchParams = (
 ) => {
     const next = new URLSearchParams(current);
     next.set('document', documentId.trim());
-    next.set('section', 'documents');
+    if (!next.get('section')) {
+        next.set('section', 'documents');
+    }
     const selectedCaseId = String(next.get('case') || '').trim();
     if (selectedCaseId) {
         next.set('stageHistory', selectedCaseId);

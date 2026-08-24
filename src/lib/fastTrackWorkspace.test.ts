@@ -294,6 +294,17 @@ test('document search params preserve selected address row across refresh', () =
     assert.equal(resolveFastTrackDocumentSearchParam(new URLSearchParams('document=missing'), ['identity', 'address']), null);
 });
 
+test('document focus does not overwrite an in-flight stage selection', () => {
+    const next = buildFastTrackDocumentSearchParams(
+        new URLSearchParams('case=case-1&section=viewing&stage=viewing'),
+        'identity',
+    );
+
+    assert.equal(next.get('section'), 'viewing');
+    assert.equal(next.get('stage'), 'viewing');
+    assert.equal(next.get('document'), 'identity');
+});
+
 test('manager selecting documents on an assigned selected case starts document collection', () => {
     const selectedCase = buildCase({
         stage: 'selected',

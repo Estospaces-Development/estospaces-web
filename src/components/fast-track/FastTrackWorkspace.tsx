@@ -26,7 +26,7 @@ import {
     ZoomIn,
     ZoomOut,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -143,6 +143,7 @@ import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from '@/lib/laun
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { getFastTrackGeoMarketSignals } from '@/lib/fastTrackGeoMarket';
 import { useGeoMarket } from '@/lib/useGeoMarket';
+import { useSerializedSearchParams } from '@/lib/useSerializedSearchParams';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -642,7 +643,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const navigate = useNavigate();
     const { user } = useAuth();
     const toast = useToast();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSerializedSearchParams();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
     const [activeStageOverride, setActiveStageOverride] = useState<FastTrackStage | null>(null);

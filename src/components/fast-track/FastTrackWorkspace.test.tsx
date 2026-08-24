@@ -558,6 +558,8 @@ test("fast-track stage navigation uses workflow readiness instead of current plu
     'should retain the clicked stage until the URL confirms navigation');
   assert.ok(source.includes('setActiveStageOverride(nextStage)'),
     'should immediately display an explicitly selected unlocked stage');
+  assert.ok(source.includes('useSerializedSearchParams()'),
+    'should serialize stage and document-focus URL updates before the router renders');
   assert.ok(source.includes('if (pendingSelectionWasClamped) {'),
     'should clear a pending click when polling makes its target unavailable');
   assert.ok(source.includes("toast.info('Complete the current stage before moving to the next one.')"),
