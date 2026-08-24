@@ -41,6 +41,117 @@ test("getCoordinatesFromAddress resolves India using only the entered PIN", asyn
   }
 });
 
+test("getCoordinatesFromAddress supports the current India PIN provider response", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({
+      success: true,
+      data: {
+        pincode: "600001",
+        post_offices: [
+          {
+            office_name: "Office without map data",
+            district: "Chennai",
+            state: "Tamil Nadu",
+            latitude: null,
+            longitude: null,
+          },
+          {
+            office_name: "Chennai G. P. O.",
+            district: "Chennai",
+            state: "Tamil Nadu",
+            latitude: 13.0929722,
+            longitude: 80.2915,
+          },
+        ],
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+
+  try {
+    assert.deepEqual(
+      await getCoordinatesFromAddress({
+        postalCode: "600001",
+        countryCode: "IN",
+      }),
+      { latitude: 13.0929722, longitude: 80.2915 },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getCoordinatesFromAddress rejects current provider coordinates for another PIN", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({
+      success: true,
+      data: {
+        pincode: "600002",
+        post_offices: [
+          {
+            district: "Chennai",
+            state: "Tamil Nadu",
+            latitude: 13.0929722,
+            longitude: 80.2915,
+          },
+        ],
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+
+  try {
+    assert.equal(
+      await getCoordinatesFromAddress({
+        postalCode: "600001",
+        countryCode: "IN",
+      }),
+      null,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getCoordinatesFromAddress skips malformed current provider coordinates", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({
+      success: true,
+      data: {
+        pincode: "600001",
+        post_offices: [
+          {
+            district: "Invalid",
+            latitude: true,
+            longitude: false,
+          },
+          {
+            district: "Chennai",
+            latitude: "13.0929722",
+            longitude: "80.2915",
+          },
+        ],
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+
+  try {
+    assert.deepEqual(
+      await getCoordinatesFromAddress({
+        postalCode: "600001",
+        countryCode: "IN",
+      }),
+      { latitude: 13.0929722, longitude: 80.2915 },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("getCoordinatesFromAddress returns null when no real postal position exists", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({ status: "success", data: [] }), {

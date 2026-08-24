@@ -103,6 +103,22 @@ const isIndianPinCode = (code: string): boolean => INDIA_PIN_CODE_PATTERN.test(c
  */
 const isUkPostcode = (code: string): boolean => UK_POSTCODE_PATTERN.test(code);
 
+const parseProviderCoordinate = (
+    value: unknown,
+    minimum: number,
+    maximum: number,
+): number | null => {
+    if (typeof value !== 'number' && typeof value !== 'string') return null;
+    const normalized = typeof value === 'string' ? value.trim() : value;
+    if (normalized === '' || (typeof normalized === 'string' && !/^-?\d+(?:\.\d+)?$/.test(normalized))) {
+        return null;
+    }
+    const coordinate = Number(normalized);
+    return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum
+        ? coordinate
+        : null;
+};
+
 /**
  * Fetch coordinates from a PIN-only directory sourced from India Post data.
  * No street, manager, or property information is sent to the provider.
@@ -115,19 +131,27 @@ const fetchIndianPinCoords = async (pinCode: string) => {
         );
         if (response.ok) {
             const data = await response.json();
-            const offices = Array.isArray(data?.data) ? data.data : [];
-            const office = offices.find((entry: unknown) => {
-                if (!entry || typeof entry !== 'object') return false;
+            const providerData = data?.data;
+            const offices = Array.isArray(providerData)
+                ? providerData
+                : data?.success === true &&
+                    String(providerData?.pincode || '').trim() === pinCode &&
+                    Array.isArray(providerData?.post_offices)
+                    ? providerData.post_offices
+                    : [];
+            for (const entry of offices) {
+                if (!entry || typeof entry !== 'object') continue;
                 const record = entry as Record<string, unknown>;
-                return Number.isFinite(Number(record.latitude)) &&
-                    Number.isFinite(Number(record.longitude));
-            }) as Record<string, unknown> | undefined;
-            if (office) {
+                const latitude = parseProviderCoordinate(record.latitude, -90, 90);
+                const longitude = parseProviderCoordinate(record.longitude, -180, 180);
+                if (latitude === null || longitude === null || (latitude === 0 && longitude === 0)) {
+                    continue;
+                }
                 return {
-                    latitude: Number(office.latitude),
-                    longitude: Number(office.longitude),
+                    latitude,
+                    longitude,
                     postcode: pinCode,
-                    city: String(office.district || office.statename || ''),
+                    city: String(record.district || record.state || record.statename || ''),
                 };
             }
         }
