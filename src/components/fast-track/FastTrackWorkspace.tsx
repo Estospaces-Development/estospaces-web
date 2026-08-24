@@ -141,7 +141,8 @@ import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { getFastTrackGeoMarketSignals } from '@/lib/fastTrackGeoMarket';
+import { useGeoMarket } from '@/lib/useGeoMarket';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -1243,7 +1244,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const selectedCaseDisplayTitle = selectedCase
         ? getFastTrackWorkspaceDisplayTitle(selectedCase, role)
         : '';
-    const geoMarket = useUserGeoMarket(user, { countryName: selectedCase?.propertyCountry });
+    const geoMarket = useGeoMarket(getFastTrackGeoMarketSignals(selectedCase?.propertyCountry, user));
     const documentGuidance = getCountryDocumentGuidance(geoMarket);
 
     useEffect(() => {
