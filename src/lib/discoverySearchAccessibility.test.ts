@@ -8,6 +8,8 @@ const searchPage = readFileSync(resolve(root, "src/pages/user/search/page.tsx"),
 const propertySearchControls = readFileSync(resolve(root, "src/lib/propertySearchControls.ts"), "utf8");
 const publicHeader = readFileSync(resolve(root, "src/components/layout/PublicHeader.tsx"), "utf8");
 const propertyDetailPage = readFileSync(resolve(root, "src/pages/user/properties/[id]/page.tsx"), "utf8");
+const welcomeModal = readFileSync(resolve(root, "src/components/dashboard/WelcomeModal.tsx"), "utf8");
+const seoMetadata = readFileSync(resolve(root, "src/lib/seo.ts"), "utf8");
 
 test("user search exposes filter and result view state to assistive tech", () => {
   assert.match(searchPage, /aria-expanded=\{showFilters\}/);
@@ -33,6 +35,8 @@ test("user search visibly summarizes active URL filters and broader fallback sta
   assert.match(searchPage, /const activeFilterChips = useMemo/);
   assert.match(searchPage, /aria-label="Active search filters"/);
   assert.match(searchPage, /Active filters/);
+  assert.doesNotMatch(searchPage, /chips\.push\(\{ label: 'Market'/);
+  assert.doesNotMatch(searchPage, /value: market === 'GB' \? 'England'/);
   assert.match(searchPage, /const buildBroaderSearchAttempts = useCallback/);
   assert.match(propertySearchControls, /No exact matches for the selected budget/);
   assert.doesNotMatch(searchPage, /No exact matches for this location/);
@@ -96,4 +100,16 @@ test("property detail action and gallery controls expose stable button state", (
   assert.doesNotMatch(propertyDetailPage, /createFastTrackCase/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?Open live workspace/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?Open Message Thread/);
+});
+
+test("property detail describes listing type without internal market terminology", () => {
+  assert.match(propertyDetailPage, /\{ label: 'Listing type', value: listingLabel \}/);
+  assert.doesNotMatch(propertyDetailPage, /\{ label: 'Market', value: listingLabel \}/);
+});
+
+test("property discovery copy uses user-facing location terminology", () => {
+  assert.match(welcomeModal, /properties across supported locations/);
+  assert.match(seoMetadata, /listings across supported locations/);
+  assert.doesNotMatch(welcomeModal, /supported markets/);
+  assert.doesNotMatch(seoMetadata, /supported markets/);
 });

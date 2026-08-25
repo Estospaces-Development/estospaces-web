@@ -785,7 +785,7 @@ function DiscoverContent() {
                     </div>
 
                     {countryGroups.length > 0 && (
-                        <div className="flex flex-wrap gap-2" aria-label="Markets represented in these results">
+                        <div className="flex flex-wrap gap-2" aria-label="Countries represented in these results">
                             {countryGroups.map((group) => (
                                 <span
                                     key={group.key}

@@ -145,9 +145,6 @@ const PropertySearch = () => {
         if (query) {
             chips.push({ label: 'Keyword', value: query });
         }
-        if (market) {
-            chips.push({ label: 'Market', value: market === 'GB' ? 'England' : 'India' });
-        }
         if (location) {
             chips.push({ label: 'Location', value: location });
         }
@@ -170,7 +167,7 @@ const PropertySearch = () => {
         }
 
         return chips;
-    }, [baths, bedrooms, formatSearchCurrency, listingType, location, market, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
+    }, [baths, bedrooms, formatSearchCurrency, listingType, location, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
 
     const buildBroaderSearchAttempts = useCallback(() => {
         return buildBroaderPropertySearchAttempts({

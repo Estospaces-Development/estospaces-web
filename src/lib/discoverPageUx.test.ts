@@ -31,7 +31,8 @@ test('discover listing tabs are not reset by a new search params object with the
 test('discover result summary is compact, honest, and responsive', () => {
     assert.match(discoverPage, /data-discover-results-summary/);
     assert.match(discoverPage, /Available homes/);
-    assert.match(discoverPage, /Markets represented in these results/);
+    assert.match(discoverPage, /Countries represented in these results/);
+    assert.doesNotMatch(discoverPage, /Markets represented in these results/);
     assert.match(discoverPage, /\{group\.label\} · \{group\.count\} shown/);
     assert.doesNotMatch(discoverPage, /Country-aware groups/);
     assert.match(discoverPage, /sm:flex-row sm:items-center sm:justify-between/);

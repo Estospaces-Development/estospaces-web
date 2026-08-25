@@ -1292,7 +1292,7 @@ const UserPropertyDetail = () => {
         },
     ], [property?.bathrooms, property?.bedrooms, property?.property_size_sqft, propertyTypeLabel]);
     const snapshotDetails = useMemo(() => [
-        { label: 'Market', value: listingLabel },
+        { label: 'Listing type', value: listingLabel },
         { label: 'Condition', value: conditionLabel },
         { label: 'Availability', value: availableFromLabel },
         { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },

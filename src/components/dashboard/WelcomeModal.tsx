@@ -24,7 +24,7 @@ const WelcomeModal = ({ isOpen, onClose }: WelcomeModalProps) => {
             icon: Search,
             iconBg: 'from-violet-500 to-purple-600',
             title: 'Find Your Perfect Property',
-            description: "Search properties across supported markets. Filter by location, price, and features to find exactly what you're looking for.",
+            description: "Search properties across supported locations. Filter by location, price, and features to find exactly what you're looking for.",
         },
         {
             icon: Heart,
