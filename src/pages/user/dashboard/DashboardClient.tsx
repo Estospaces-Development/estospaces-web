@@ -739,9 +739,7 @@ const DashboardClient = () => {
   const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
   const mapProperties = useMemo(() => (
     activeMapProperties.filter((property): property is SearchResult & { latitude: number; longitude: number } => (
-      property
-      && typeof property.latitude === 'number'
-      && typeof property.longitude === 'number'
+      Boolean(property) && hasValidMapCoordinates(property)
     ))
   ), [activeMapProperties]);
   const hasNearbyMapPreview = Boolean(

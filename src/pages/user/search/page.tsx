@@ -38,7 +38,6 @@ import {
     readSearchUrlFilters,
     serializeSearchMarketParam,
 } from '@/lib/propertySearchControls';
-import { buildPopularSearchTerms } from '@/lib/popularSearchChips';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { getLoginPath } from '@/lib/authUtils';
 import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSearchValidation';
@@ -113,7 +112,6 @@ const PropertySearch = () => {
     const [propertyTypeMenuOpen, setPropertyTypeMenuOpen] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [popularSearchTerms, setPopularSearchTerms] = useState<string[]>([]);
     const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [savingPropertyId, setSavingPropertyId] = useState<string | null>(null);
@@ -247,22 +245,6 @@ const PropertySearch = () => {
             if (opts) setFilterOptions(opts);
         };
         loadFilters();
-    }, []);
-
-    useEffect(() => {
-        let isMounted = true;
-
-        const loadPopularSearches = async () => {
-            const popular = await searchService.getPopularSearches(8);
-            if (isMounted) {
-                setPopularSearchTerms(buildPopularSearchTerms(popular, 8));
-            }
-        };
-
-        void loadPopularSearches();
-        return () => {
-            isMounted = false;
-        };
     }, []);
 
     useEffect(() => {
@@ -588,19 +570,6 @@ const PropertySearch = () => {
         void fetchProperties();
     };
 
-    const handlePopularSearch = (term: string) => {
-        const previousInference = inferredLocationRef.current;
-        inferredLocationRef.current = '';
-        locationInferenceSuppressedRef.current = false;
-        if (location === previousInference) {
-            setLocation('');
-            setMarket('');
-        }
-        setQuery(normalizeSearchQueryInput(term));
-        setPage(1);
-        setShowSuggestions(false);
-    };
-
     const handleSearchHistoryReuse = (entry: SearchHistoryEntry) => {
         const params = buildSearchHistoryUrlParams(entry);
         navigate(`${USER_SEARCH_PATH}?${params.toString()}`);
@@ -788,27 +757,6 @@ const PropertySearch = () => {
                     </button>
                 )}
             </div>
-
-            {popularSearchTerms.length > 0 && (
-                <section aria-label="Popular searches" className="min-w-0">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Popular</span>
-                        <div className="flex min-w-0 flex-wrap gap-2">
-                            {popularSearchTerms.map((term) => (
-                                <button
-                                    key={term}
-                                    type="button"
-                                    aria-label={`Search for ${term}`}
-                                    onClick={() => handlePopularSearch(term)}
-                                    className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:border-primary/30 hover:bg-orange-50 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-500/70 dark:hover:bg-orange-950/30"
-                                >
-                                    {term}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
 
             <section aria-label="Recent searches" className="min-w-0">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

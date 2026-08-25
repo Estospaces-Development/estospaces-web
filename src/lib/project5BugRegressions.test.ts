@@ -34,6 +34,7 @@ const managerApplicationsPage = readFileSync(resolve(root, 'src/pages/manager/ap
 const managerDashboardPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
+const userSearchPage = readFileSync(resolve(root, 'src/pages/user/search/page.tsx'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'src/globals.css'), 'utf8');
 
 const hasMojibake = (text: string) => {
@@ -138,6 +139,11 @@ test('discover map properties preserve coordinates for real map markers', () => 
     assert.equal(property.latitude, 51.501);
     assert.equal(property.longitude, -0.141);
     assert.equal(property.address_line_1, '10 Test Street');
+});
+
+test('user search keeps the results surface focused without popular-search clutter', () => {
+    assert.doesNotMatch(userSearchPage, /aria-label="Popular searches"/);
+    assert.doesNotMatch(userSearchPage, /getPopularSearches\(/);
 });
 
 test('user dashboard property cards expose a manager-approval Fast Track request action', () => {

@@ -383,6 +383,19 @@ test('core property sections map to discovery search results', () => {
     assert.deepEqual(section.properties[0].images, ['https://example.com/house.jpg']);
 });
 
+test('core property sections normalize persisted string coordinates for map results', () => {
+    const section = mapCorePropertySectionToSearchSection({
+        properties: [{
+            id: 'property-with-string-coordinates',
+            latitude: '13.0827' as unknown as number,
+            longitude: '80.2707' as unknown as number,
+        }],
+    });
+
+    assert.equal(section.properties[0].latitude, 13.0827);
+    assert.equal(section.properties[0].longitude, 80.2707);
+});
+
 test('core property sections normalize stored country names to market codes', () => {
     const section = mapCorePropertySectionToSearchSection({
         properties: [

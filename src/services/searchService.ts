@@ -90,6 +90,21 @@ const toNumber = (value: unknown, fallback = 0) => {
     return fallback;
 };
 
+const toCoordinate = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value.trim());
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+
+    return null;
+};
+
 const normalizeListingType = (value?: string) => {
     const normalized = (value || '').toString().trim().toLowerCase();
 
@@ -255,8 +270,8 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
         response_time_badge: '',
         view_count: toNumber(property.views),
         created_at: property.created_at || '',
-        latitude: typeof property.latitude === 'number' ? property.latitude : null,
-        longitude: typeof property.longitude === 'number' ? property.longitude : null,
+        latitude: toCoordinate(property.latitude),
+        longitude: toCoordinate(property.longitude),
     };
 };
 
@@ -828,7 +843,11 @@ export const searchService = {
                 },
             );
 
-            const primaryResults = response.data || [];
+            const primaryResults = (response.data || []).map((property) => ({
+                ...property,
+                latitude: toCoordinate(property.latitude),
+                longitude: toCoordinate(property.longitude),
+            }));
             clearPrimarySearchServiceFallback();
             const authoritativeFallback = await resolveAuthoritativeSearchFallback(
                 primaryResults,
