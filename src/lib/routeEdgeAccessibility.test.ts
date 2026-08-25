@@ -25,10 +25,10 @@ test('route-edge pages keep secondary controls named and readable', () => {
   assert.match(adminPropertyDetail, /bg-amber-700 px-5 py-4/);
 });
 
-test('manager property detail keeps passive views local and mobile icon actions named', () => {
+test('manager property detail does not count passive views and keeps mobile icon actions named', () => {
   const managerPropertyDetail = readSource('src/pages/manager/dashboard/properties/[id]/page.tsx');
 
-  assert.match(managerPropertyDetail, /incrementViews\(id\);/);
+  assert.doesNotMatch(managerPropertyDetail, /incrementViews\(id\);/);
   assert.doesNotMatch(managerPropertyDetail, /analytics:\s*\{\s*\.\.\.property\.analytics,/);
   assert.match(managerPropertyDetail, /aria-label=\{isFavorited \? 'Remove property from saved' : 'Save property'\}/);
   assert.match(managerPropertyDetail, /aria-label=\{canSharePublicly \? "Share property" : "Publish property before sharing"\}/);
