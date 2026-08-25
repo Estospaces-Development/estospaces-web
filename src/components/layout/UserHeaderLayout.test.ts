@@ -29,3 +29,9 @@ test('user header search expands between the brand and account actions', () => {
   assert.match(searchClasses, /\bmd:max-w-none\b/);
   assert.doesNotMatch(searchClasses, /\bmd:max-w-xl\b/);
 });
+
+test('user header renders the official high-contrast brand mark at every viewport size', () => {
+  assert.match(headerSource, /aria-label="Estospaces dashboard"/);
+  assert.match(headerSource, /src="\/logo-icon\.png"/);
+  assert.match(headerSource, /h-8 w-8 shrink-0 object-contain brightness-0 invert sm:h-9 sm:w-9/);
+});

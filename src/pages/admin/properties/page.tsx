@@ -305,7 +305,7 @@ function PropertyManagementContent() {
                             event.stopPropagation();
                             openRejectDialog(propertyId);
                         }}
-                        className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex-1 rounded-xl bg-red-700 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Reject
                     </button>

@@ -530,14 +530,30 @@ const buildFallbackFilters = (properties: SearchResult[]): FilterOptions => {
     };
 };
 
-const looksLikePlaceholderSearchResults = (results: SearchResult[]) => {
-    return results.length > 0 && results.every((property) =>
+export const shouldUseCoreSearchFallback = (results: SearchResult[]) => {
+    return results.length === 0 || results.every((property) =>
         /^Dummy Property \d+$/i.test(property.title || '') &&
         (!property.listing_type || property.listing_type.trim() === '') &&
         (!property.property_type || property.property_type.trim() === '') &&
         Number(property.price || 0) === 0 &&
         /^Dummy /i.test(property.location || property.city || ''),
     );
+};
+
+export const resolveAuthoritativeSearchFallback = async (
+    primaryResults: SearchResult[],
+    filters: Record<string, any>,
+    loadFallback: () => Promise<SearchResponse>,
+): Promise<SearchResponse | null> => {
+    if (!shouldUseCoreSearchFallback(primaryResults)) {
+        return null;
+    }
+
+    try {
+        return await loadFallback();
+    } catch {
+        return failedSearchResponse(filters, 'Search is temporarily unavailable. Please try again.');
+    }
 };
 
 const looksLikePlaceholderFilters = (filters: FilterOptions | null) => {
@@ -812,15 +828,20 @@ export const searchService = {
                 },
             );
 
-            if (looksLikePlaceholderSearchResults(response.data || [])) {
-                return await coreSearchFallback(normalizedQuery, filters);
-            }
-
+            const primaryResults = response.data || [];
             clearPrimarySearchServiceFallback();
+            const authoritativeFallback = await resolveAuthoritativeSearchFallback(
+                primaryResults,
+                filters,
+                () => coreSearchFallback(normalizedQuery, filters),
+            );
+            if (authoritativeFallback) {
+                return authoritativeFallback;
+            }
 
             return {
                 success: true,
-                data: response.data || [],
+                data: primaryResults,
                 pagination: {
                     total: response.pagination?.total || 0,
                     page: response.pagination?.page || Number(filters.page || 1),

@@ -13,7 +13,9 @@ import {
     mapCorePropertySectionToSearchSection,
     mapSearchFiltersToCoreQuery,
     PRIMARY_SEARCH_SERVICE_TIMEOUT_MS,
+    resolveAuthoritativeSearchFallback,
     searchService,
+    shouldUseCoreSearchFallback,
 } from '@/services/searchService';
 
 test('exact city autocomplete identifies explicit location intent', () => {
@@ -101,6 +103,120 @@ test('empty property sections can fall back to real public property records', ()
         properties: [property],
     }]);
     assert.deepEqual(buildFallbackPropertySections([]), []);
+});
+
+test('empty or placeholder search projections fall back to authoritative core properties', () => {
+    assert.equal(shouldUseCoreSearchFallback([]), true);
+    assert.equal(shouldUseCoreSearchFallback([{
+        id: 'dummy-1',
+        title: 'Dummy Property 1',
+        description: '',
+        price: 0,
+        property_type: '',
+        listing_type: '',
+        location: 'Dummy City',
+        city: 'Dummy City',
+        postcode: '',
+        bedrooms: 0,
+        bathrooms: 0,
+        square_feet: 0,
+        images: [],
+        is_verified: false,
+        is_fast_track: false,
+        broker_name: '',
+        broker_rating: 0,
+        response_time_badge: '',
+        view_count: 0,
+        created_at: '',
+    }]), true);
+    assert.equal(shouldUseCoreSearchFallback([{
+        id: 'real-1',
+        title: 'Anna Nagar',
+        description: '',
+        price: 2300000,
+        property_type: 'apartment',
+        listing_type: 'sale',
+        location: 'Chennai',
+        city: 'Chennai',
+        postcode: '600040',
+        bedrooms: 3,
+        bathrooms: 2,
+        square_feet: 1200,
+        images: [],
+        is_verified: true,
+        is_fast_track: true,
+        broker_name: 'Agent',
+        broker_rating: 4.8,
+        response_time_badge: 'Fast',
+        view_count: 10,
+        created_at: '2026-08-24T00:00:00Z',
+    }]), false);
+});
+
+test('placeholder search projections never escape when the authoritative catalog is empty', async () => {
+    const placeholder = {
+        id: 'dummy-1',
+        title: 'Dummy Property 1',
+        description: '',
+        price: 0,
+        property_type: '',
+        listing_type: '',
+        location: 'Dummy City',
+        city: 'Dummy City',
+        postcode: '',
+        bedrooms: 0,
+        bathrooms: 0,
+        square_feet: 0,
+        images: [],
+        is_verified: false,
+        is_fast_track: false,
+        broker_name: '',
+        broker_rating: 0,
+        response_time_badge: '',
+        view_count: 0,
+        created_at: '',
+    };
+    const emptyFallback = {
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 12 },
+    };
+
+    assert.deepEqual(
+        await resolveAuthoritativeSearchFallback([placeholder], { page: 1, limit: 12 }, async () => emptyFallback),
+        emptyFallback,
+    );
+});
+
+test('placeholder search projections fail closed when the authoritative catalog is unavailable', async () => {
+    const response = await resolveAuthoritativeSearchFallback([{
+        id: 'dummy-1',
+        title: 'Dummy Property 1',
+        description: '',
+        price: 0,
+        property_type: '',
+        listing_type: '',
+        location: 'Dummy City',
+        city: 'Dummy City',
+        postcode: '',
+        bedrooms: 0,
+        bathrooms: 0,
+        square_feet: 0,
+        images: [],
+        is_verified: false,
+        is_fast_track: false,
+        broker_name: '',
+        broker_rating: 0,
+        response_time_badge: '',
+        view_count: 0,
+        created_at: '',
+    }], { page: 2, limit: 12 }, async () => {
+        throw new Error('catalog unavailable');
+    });
+
+    assert.equal(response?.success, false);
+    assert.deepEqual(response?.data, []);
+    assert.deepEqual(response?.pagination, { total: 0, page: 2, limit: 12 });
 });
 
 test('property sections use the signed-in core contract', () => {

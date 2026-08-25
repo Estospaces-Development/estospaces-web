@@ -39,3 +39,12 @@ test('legacy application hydration retains viewing snapshot context', () => {
   const source = readSource('src/contexts/ApplicationsContext.tsx');
   assert.match(source, /refreshedApplicationPropertyContextById\.get\(application\.property_id\)[\s\S]{0,100}\|\| propertyContextById\.get\(application\.property_id\)/);
 });
+
+test('application data stays idle on pages without an application consumer', () => {
+  const source = readSource('src/contexts/ApplicationsContext.tsx');
+  assert.match(source, /const \[consumerCount, setConsumerCount\] = useState\(0\);/);
+  assert.match(source, /const registerConsumer = useCallback\(\(\) => \{[\s\S]*setConsumerCount\(\(count\) => count \+ 1\)/);
+  assert.match(source, /if \(!user\) \{[\s\S]{0,160}setApplications\(\[\]\)/);
+  assert.match(source, /if \(consumerCount === 0\) \{/);
+  assert.match(source, /enabled: Boolean\(user\) && consumerCount > 0/);
+});

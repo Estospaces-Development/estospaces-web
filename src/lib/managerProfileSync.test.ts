@@ -72,6 +72,7 @@ test('falls back to manager contact data without removing spaces from branch nam
 
     assert.equal(payload.company_name, 'Thai Lal');
     assert.equal(payload.branch_name, 'Chennai Branch');
+    assert.equal(payload.company_description, '');
     assert.equal(payload.business_phone, '+91 90000 00000');
     assert.equal(payload.company_address, '1 Main Street');
     assert.equal(payload.registered_office_address, '1 Main Street');

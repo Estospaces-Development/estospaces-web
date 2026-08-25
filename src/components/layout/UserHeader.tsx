@@ -53,8 +53,14 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                     <Link
                         to={getLinkPath('/user/dashboard')}
                         className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
-                        aria-label="Navigate to dashboard"
+                        aria-label="Estospaces dashboard"
                     >
+                        <img
+                            src="/logo-icon.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-8 w-8 shrink-0 object-contain brightness-0 invert sm:h-9 sm:w-9"
+                        />
                         <span className="text-lg font-bold text-white transition-colors duration-300 hover:text-white/90 sm:text-xl" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
                             Estospaces
                         </span>

@@ -177,6 +177,10 @@ interface ApplicationsContextType {
 
 const ApplicationsContext = createContext<ApplicationsContextType | undefined>(undefined);
 
+export const isCurrentApplicationsFetch = (fetchRevision: number, currentRevision: number) => (
+    fetchRevision === currentRevision
+);
+
 const buildReferenceId = (id: string) => `APP-${id.slice(0, 8).toUpperCase()}`;
 
 const toImageUrl = (value?: string | null) => {
@@ -624,11 +628,24 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         WORKSPACE_SYNC_TAGS.CONTRACTS,
         WORKSPACE_SYNC_TAGS.PAYMENTS,
     ], []);
-    const registerConsumer = useCallback(() => () => {}, []);
+    const [consumerCount, setConsumerCount] = useState(0);
+    const registerConsumer = useCallback(() => {
+        setConsumerCount((count) => count + 1);
+        let registered = true;
+
+        return () => {
+            if (!registered) {
+                return;
+            }
+            registered = false;
+            setConsumerCount((count) => Math.max(0, count - 1));
+        };
+    }, []);
     const fetchRevisionRef = useRef(0);
 
     const fetchApplications = useCallback(async () => {
         const fetchRevision = ++fetchRevisionRef.current;
+        const isCurrentFetch = () => isCurrentApplicationsFetch(fetchRevision, fetchRevisionRef.current);
         if (!user) {
             setApplications([]);
             setIsLoading(false);
@@ -644,6 +661,10 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             getViewings().catch(() => [] as Viewing[]),
             getSaleProgressions({ suppressErrorToast: true }),
         ]);
+
+        if (!isCurrentFetch()) {
+            return;
+        }
 
         if (applicationsResult.error) {
             setError(applicationsResult.error);
@@ -701,7 +722,14 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
         const backendApplications = applicationsResult.data || [];
         const saleProgressions = saleProgressionsResult.data || [];
+        if (!isCurrentFetch()) {
+            return;
+        }
         await hydrateMissingSaleProgressionPropertyContexts(saleProgressions, propertyContextById);
+
+        if (!isCurrentFetch()) {
+            return;
+        }
 
         const saleProgressionKeys = new Set(
             saleProgressions.map((progression) =>
@@ -716,6 +744,10 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
         const fastTrackCases = fastTrackCasesResult.data || [];
         const publishApplications = () => {
+            if (!isCurrentFetch()) {
+                return;
+            }
+
             const mappedApplications = backendApplications
                 .filter((application) => {
                     if (application.listing_type !== 'sale') {
@@ -766,7 +798,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         if (applicationsNeedingRefresh.length > 0) {
             void hydrateApplicationPropertyContexts(applicationsNeedingRefresh, refreshedApplicationPropertyContextById)
                 .then(() => {
-                    if (fetchRevision === fetchRevisionRef.current) {
+                    if (isCurrentFetch()) {
                         publishApplications();
                     }
                 })
@@ -784,13 +816,19 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return;
         }
 
+        if (consumerCount === 0) {
+            fetchRevisionRef.current += 1;
+            setIsLoading(false);
+            return;
+        }
+
         fetchApplications();
-    }, [fetchApplications, user]);
+    }, [consumerCount, fetchApplications, user]);
 
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchApplications,
-        enabled: Boolean(user),
+        enabled: Boolean(user) && consumerCount > 0,
     });
 
     const createApplication = async (data: any) => {
