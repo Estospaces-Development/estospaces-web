@@ -21,7 +21,7 @@ test('brand loading screen presents the Estospaces identity and an accessible st
     assert.match(markup, /z-\[9999\]/);
     assert.match(markup, /h-\[100dvh\]/);
     assert.match(markup, /min-h-\[100dvh\]/);
-    assert.match(markup, /w-screen/);
+    assert.match(markup, /w-full/);
     assert.match(markup, /size-36/);
     assert.match(markup, /sm:size-40/);
     assert.match(markup, /data-loading-variant="screen"/);
@@ -77,6 +77,8 @@ test('screen loader escapes dashboard stacking contexts through a body portal', 
     assert.match(source, /import \{ createPortal \} from 'react-dom'/);
     assert.match(source, /variant === 'screen' && typeof document !== 'undefined'/);
     assert.match(source, /createPortal\(loadingSurface, document\.body\)/);
+    assert.match(source, /const layoutClass = variant === 'screen' \? 'isolate flex' : 'relative isolate flex'/);
+    assert.doesNotMatch(source, /brand-loading-surface relative isolate flex w-full/);
 });
 
 test('screen loader mounts outside the dashboard shell at runtime', () => {

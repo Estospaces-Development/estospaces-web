@@ -8,7 +8,8 @@ import { getPublicHomeHref, isExternalHref } from '@/lib/utils/hostUtils';
 import { ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
 
@@ -98,12 +99,7 @@ export default function LoginPage() {
   };
 
   if (authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[300px]">
-        <BrandLoader size="lg" className="mb-4" label="Signing in" />
-        <p className="text-gray-500 dark:text-gray-400 text-sm">Checking session...</p>
-      </div>
-    );
+    return <BrandLoadingScreen label="Checking your session..." />;
   }
 
   const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
@@ -250,9 +246,15 @@ export default function LoginPage() {
                 <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${authFocusClass}`}
+                aria-busy={loading}
+                className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-primary py-3 font-medium text-white transition-all hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${authFocusClass}`}
                 >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? (
+                  <>
+                    <ActionSpinner size="sm" aria-hidden />
+                    <span>Signing in...</span>
+                  </>
+                ) : 'Sign In'}
                 </button>
 
                 {/* General Error Message */}
@@ -279,6 +281,8 @@ export default function LoginPage() {
         {' | '}
         <Link to="/privacy" className={`text-primary hover:underline ${authFocusClass}`}>privacy policy</Link>
       </p>
+
+      {loading ? <BrandLoadingScreen label="Signing you in..." /> : null}
     </section>
   );
 }
