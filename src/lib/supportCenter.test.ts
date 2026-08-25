@@ -195,7 +195,7 @@ test('support actions expose a visible pending state and avoid button-submit sid
     assert.match(source, /const resumeLiveSupport = useCallback/);
     assert.match(source, /Opening support…/);
     assert.match(source, /disabled=\{loading\}/);
-    assert.match(source, /loading \? 'animate-spin' : ''/);
+    assert.match(source, /loading \? <ActionSpinner size="sm" label="Refreshing support tickets" \/> : <RefreshCw className="h-4 w-4" \/>/);
     assert.match(source, /New ticket/);
     assert.match(ticketListSource, /type="button"/);
     assert.match(ticketListSource, /aria-current=\{active \? 'page' : undefined\}/);
