@@ -9,20 +9,24 @@ const activityItems = [
     icon: Heart,
     label: "Saved homes",
     description: "Homes you liked",
-    path: "/user/saved",
+    path: "/user/dashboard/saved",
   },
   {
     icon: FileText,
     label: "Applications",
     description: "Requests you sent",
-    path: "/user/applications",
+    path: "/user/dashboard/applications",
   },
   {
     icon: FolderLock,
     label: "Virtual Storage",
     description: "Document vault",
-    path: "/user/virtual-storage",
-    activePaths: ["/user/virtual-storage", "/user/docs"],
+    path: "/user/dashboard/virtual-storage",
+    activePaths: [
+      "/user/dashboard/virtual-storage",
+      "/user/dashboard/docs",
+      "/user/docs",
+    ],
   },
   {
     icon: Zap,

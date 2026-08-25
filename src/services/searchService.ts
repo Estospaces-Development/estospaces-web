@@ -1,5 +1,10 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '../lib/apiUtils';
-import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
+import {
+    normalizePriceBoundInput,
+    normalizeRoomBoundInput,
+    normalizeSearchComparisonText,
+    normalizeSearchQueryInput,
+} from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
 import { getSupportedLaunchCountry, LAUNCH_COUNTRY_CODE, UK_COUNTRY_CODE } from '@/lib/launchLocale';
 import { propertyTypes } from '@/lib/propertyTypeOptions';
@@ -150,14 +155,14 @@ export const getExactLocationSuggestion = (
     query: string,
     suggestions: AutocompleteSuggestion[],
 ): AutocompleteSuggestion | null => {
-    const normalizedQuery = normalizeSearchQueryInput(query);
+    const normalizedQuery = normalizeSearchComparisonText(query);
     if (!normalizedQuery) {
         return null;
     }
 
     const hasExactPropertyTitle = suggestions.some((suggestion) =>
         suggestion.type === 'property'
-        && normalizeSearchQueryInput(suggestion.text) === normalizedQuery);
+        && normalizeSearchComparisonText(suggestion.text) === normalizedQuery);
     if (hasExactPropertyTitle) {
         return null;
     }
@@ -170,7 +175,7 @@ export const getExactLocationSuggestion = (
         if (suggestion.type === 'postcode') {
             return normalizePostcodeText(suggestion.text) === normalizedLocationCode;
         }
-        return normalizeSearchQueryInput(suggestion.text) === normalizedQuery;
+        return normalizeSearchComparisonText(suggestion.text) === normalizedQuery;
     }) || null;
 };
 
@@ -179,17 +184,17 @@ export const getLocationScopedSearchQuery = (
     location: string,
     inferredLocation: string,
 ) => {
-    const normalizedLocation = normalizeSearchQueryInput(location);
+    const normalizedLocation = normalizeSearchComparisonText(location);
     if (!normalizedLocation) {
         return query;
     }
 
-    const normalizedInference = normalizeSearchQueryInput(inferredLocation);
+    const normalizedInference = normalizeSearchComparisonText(inferredLocation);
     if (!normalizedInference || normalizedLocation !== normalizedInference) {
         return query;
     }
 
-    const normalizedQuery = normalizeSearchQueryInput(query);
+    const normalizedQuery = normalizeSearchComparisonText(query);
     const sameText = normalizedQuery === normalizedLocation;
     const sameLocationCode = isFullLocationCodeSearch(location)
         && normalizePostcodeText(query) === normalizePostcodeText(location);
@@ -289,7 +294,7 @@ const isFullLocationCodeSearch = (value: string) => {
 };
 
 const normalizeStructuredSearchToken = (value?: string) =>
-    normalizeSearchQueryInput((value || '').replace(/[_-]+/g, ' '));
+    normalizeSearchComparisonText((value || '').replace(/[_-]+/g, ' '));
 
 const isQueryCoveredByPropertyTypeFilter = (query: string, propertyType?: string) => {
     const normalizedQuery = normalizeStructuredSearchToken(query);
@@ -883,12 +888,31 @@ export const searchService = {
         }
     },
 
-    getPropertySections: async (country = LAUNCH_COUNTRY_CODE): Promise<PropertySectionsResponse> => {
+    getPropertySections: async (country = ''): Promise<PropertySectionsResponse> => {
+        const requestedCountry = country.trim();
+
+        // The sections endpoint defaults an omitted country to UK. A browse-all
+        // request must therefore use the catalog, otherwise whole regions vanish
+        // before the user has chosen a location filter.
+        if (!requestedCountry) {
+            try {
+                const catalog = await fetchCompleteCoreSearchFallback('', {});
+                return {
+                    success: true,
+                    data: buildFallbackPropertySections(catalog.data),
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    data: [],
+                    error: getErrorMessage(error, 'Failed to fetch property sections.'),
+                };
+            }
+        }
+
         try {
             const params = new URLSearchParams();
-            if (country.trim()) {
-                params.set('country', country.trim());
-            }
+            params.set('country', requestedCountry);
 
             const response = await apiFetchEnvelope<CorePropertySectionsPayload>(
                 `${CORE_API_URL}/api/v1/properties/sections?${params.toString()}`,
@@ -901,9 +925,9 @@ export const searchService = {
             }
 
             const countryFallback = await fetchCompleteCoreSearchFallback('', {
-                country,
+                country: requestedCountry,
             });
-            if (countryFallback.data.length > 0 || !country.trim()) {
+            if (countryFallback.data.length > 0) {
                 return {
                     success: true,
                     data: buildFallbackPropertySections(countryFallback.data),
@@ -921,9 +945,9 @@ export const searchService = {
         } catch (error) {
             try {
                 const countryFallback = await fetchCompleteCoreSearchFallback('', {
-                    country,
+                    country: requestedCountry,
                 });
-                if (countryFallback.data.length > 0 || !country.trim()) {
+                if (countryFallback.data.length > 0) {
                     return {
                         success: true,
                         data: buildFallbackPropertySections(countryFallback.data),

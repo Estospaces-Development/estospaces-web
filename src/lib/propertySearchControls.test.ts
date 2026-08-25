@@ -91,12 +91,12 @@ test('price bound adjustment messages explain typed corrections', () => {
   assert.equal(getPriceBoundAdjustmentMessage('2500'), '');
 });
 
-test('search query normalization trims, lowercases, collapses spacing, and caps long values', () => {
+test('search query normalization preserves casing while trimming, collapsing spacing, and capping long values', () => {
   const longQuery = Array.from({ length: 80 }, () => 'ATTUR').join(' ');
 
-  assert.equal(normalizeSearchQueryInput('  ATTUR   ATTUR  '), 'attur attur');
+  assert.equal(normalizeSearchQueryInput('  ATTUR   ATTUR  '), 'ATTUR ATTUR');
   assert.equal(normalizeSearchQueryInput(longQuery).length <= 120, true);
-  assert.match(normalizeSearchQueryInput(longQuery), /^attur attur/);
+  assert.match(normalizeSearchQueryInput(longQuery), /^ATTUR ATTUR/);
 });
 
 test('search query validation rejects explicit blank invalid and over-limit queries', () => {
@@ -121,7 +121,7 @@ test('search URL filters normalize direct-link query and numeric filter values',
   const filters = readSearchUrlFilters(new URLSearchParams('q=%20%20ATTUR%20%20&type=sale&minPrice=-1&maxPrice=999999999&beds=1&baths=1&sort=price_desc'));
 
   assert.deepEqual(filters, {
-    query: 'attur',
+    query: 'ATTUR',
     market: '',
     location: '',
     propertyType: '',

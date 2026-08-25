@@ -47,7 +47,7 @@ export default function FAQPage() {
         setOpenItems(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const normalizedSearchQuery = normalizeSearchQueryInput(searchQuery);
+    const normalizedSearchQuery = normalizeSearchQueryInput(searchQuery).toLocaleLowerCase();
 
     const filteredFaqs = faqs.filter(faq => {
         const matchesCategory = activeCategory === 'all' || faq.category === activeCategory;

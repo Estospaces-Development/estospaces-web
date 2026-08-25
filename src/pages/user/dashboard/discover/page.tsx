@@ -152,7 +152,7 @@ const filterSectionProperties = (
         maxPrice: string;
         beds: string;
         baths: string;
-        countryCode: string;
+        countryCode?: string;
     },
 ) => {
     const normalizedSearch = filters.searchQuery.trim().toLowerCase();
@@ -359,7 +359,7 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections(geoMarket);
+            const result = await searchService.getPropertySections();
 
             if (!result.success) {
                 setProperties([]);
@@ -383,7 +383,7 @@ function DiscoverContent() {
                 maxPrice: priceRange.max,
                 beds,
                 baths,
-                countryCode: geoMarket,
+                countryCode: undefined,
             });
             const sorted = sortSectionProperties(
                 filtered,
@@ -405,7 +405,7 @@ function DiscoverContent() {
         } finally {
             setLoading(false);
         }
-    }, [activeTab, baths, beds, currentPage, dashboardFilter, geoMarket, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
+    }, [activeTab, baths, beds, currentPage, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {
@@ -413,7 +413,7 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, geoMarket, fetchData]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, fetchData]);
 
     // Autocomplete location suggestions
     useEffect(() => {

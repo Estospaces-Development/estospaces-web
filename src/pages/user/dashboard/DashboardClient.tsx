@@ -42,7 +42,6 @@ import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/user
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
-import { extractPostcodeFromAddress } from '@/services/locationService';
 import { hasValidMapCoordinates, loadCompleteMapCandidates } from '@/lib/nearbyMap';
 import { syncDashboardMapLocation } from '@/lib/dashboardMapLocation';
 import {
@@ -1259,13 +1258,7 @@ const DashboardClient = () => {
             </div>
             <button
               onClick={() => {
-                const params = new URLSearchParams();
-                const userPostcode = user?.postcode || extractPostcodeFromAddress(user?.address || '');
-                if (userPostcode) {
-                  params.set('location', userPostcode);
-                }
-                const queryString = params.toString();
-                navigate(`/user/dashboard/discover${queryString ? `?${queryString}` : ''}`);
+                navigate('/user/dashboard/discover');
               }}
               className="flex items-center gap-2 px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 text-sm font-medium transition-colors"
             >

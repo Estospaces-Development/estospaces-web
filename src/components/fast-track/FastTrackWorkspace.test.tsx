@@ -15,11 +15,13 @@ import {
   findRecoveredThreadMessage,
   formatFastTrackCaseDeadline,
   formatFastTrackCaseStage,
+  getFastTrackCaseStatusChip,
   getFastTrackDocumentUploadCopy,
   isThreadSendTimeoutError,
   isAdminOverrideActivityEntry,
   isAdminOverrideFastTrackCase,
   isFastTrackCaseVisibleForFilter,
+  isFastTrackCaseOverdue,
   isFastTrackStageReadOnly,
 } from "./FastTrackWorkspace";
 import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
@@ -303,6 +305,49 @@ test("completed fast-track cases show completed handover instead of old SLA and 
 
   assert.equal(formatFastTrackCaseDeadline(completedCase, "manager"), "Completed");
   assert.equal(formatFastTrackCaseStage(completedCase, "manager"), "Handover");
+});
+
+test("active fast-track cases show a live 24-hour countdown and become overdue at their exact deadline", () => {
+  const activeCase = buildFastTrackCase({
+    expiresAt: "2026-04-14T01:01:02Z",
+    hoursRemaining: 2,
+  });
+
+  assert.equal(
+    formatFastTrackCaseDeadline(activeCase, "user", Date.parse("2026-04-14T00:00:00Z")),
+    "1:01:02 left",
+  );
+  assert.equal(
+    formatFastTrackCaseDeadline(activeCase, "manager", Date.parse("2026-04-14T01:01:03Z")),
+    "Overdue",
+  );
+
+  const source = workspaceSource();
+  assert.match(source, /window\.setInterval\(\(\) => setDeadlineNow\(Date\.now\(\)\), 1000\)/);
+});
+
+test("overdue Fast Track cases visibly escalate without closing the active journey", () => {
+  const overdueCase = buildFastTrackCase({
+    workspaceFinalStatus: "active",
+    overdue: true,
+  });
+
+  assert.deepEqual(getFastTrackCaseStatusChip(overdueCase), {
+    label: "Attention required",
+    tone: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200",
+  });
+});
+
+test("Fast Track status chips switch to attention required at the exact deadline before the next API poll", () => {
+  const activeCase = buildFastTrackCase({
+    expiresAt: "2026-04-14T01:01:02Z",
+    hoursRemaining: 1,
+    overdue: false,
+  });
+  const afterDeadline = Date.parse("2026-04-14T01:01:03Z");
+
+  assert.equal(isFastTrackCaseOverdue(activeCase, afterDeadline), true);
+  assert.equal(getFastTrackCaseStatusChip(activeCase, afterDeadline).label, "Attention required");
 });
 
 test("closed manager and admin Fast Track stages are read-only while user records remain navigable", () => {

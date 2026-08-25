@@ -331,7 +331,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                                         : 'bg-white/90 text-gray-700 shadow-sm hover:bg-white dark:bg-gray-800/90 dark:text-gray-200 dark:hover:bg-gray-800'
                                         } ${isSaving ? 'cursor-not-allowed opacity-50' : ''}`}
                                     aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
-                                    title={isSaved ? 'Saved' : 'Save property'}
+                                    title={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
                                 >
                                     {isSaving ? <ActionSpinner size={16} className="" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
                                 </button>

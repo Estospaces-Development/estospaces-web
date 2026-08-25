@@ -30,6 +30,10 @@ test('launch locale formats India currency and preserves India plus UK display d
   assert.equal(formatLaunchPropertyLocation('Buy request - Westminster'), 'Buy request - Westminster');
   assert.equal(formatLaunchPropertyLocation(['Bristol', 'BT1 1AA']), 'Bristol, BT1 1AA');
   assert.equal(formatLaunchPropertyLocation(['Apt 5D', 'BT9 7GG']), 'Apt 5D, BT9 7GG');
+  assert.equal(
+    formatLaunchPropertyLocation(['Chennai123', 'Chennai', '987123', 'Chennai', '987123']),
+    'Chennai123, Chennai, 987123',
+  );
   assert.equal(formatLaunchPropertyText('Luxurious 3BHK in Preston - JEEVI Groups'), 'Luxurious 3BHK in Preston - JEEVI Groups');
   assert.equal(formatLaunchPinCode('600001'), '600001');
   assert.equal(formatLaunchPinCode('SW1A 1AA'), '');

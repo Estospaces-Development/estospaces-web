@@ -299,8 +299,8 @@ const PropertySearch = () => {
         if (location) next.set('location', location.trim());
         if (
             location
-            && normalizeSearchQueryInput(inferredLocationRef.current)
-                === normalizeSearchQueryInput(location)
+                            && normalizeSearchQueryInput(inferredLocationRef.current).toLocaleLowerCase()
+                                === normalizeSearchQueryInput(location).toLocaleLowerCase()
         ) {
             next.set('autoLocation', '1');
         } else if (query && locationInferenceSuppressedRef.current) {
@@ -1098,7 +1098,7 @@ const PropertySearch = () => {
                                             ? 'bg-rose-500 text-white hover:bg-rose-600'
                                             : 'bg-white/95 text-gray-700 hover:bg-orange-50 hover:text-primary dark:bg-zinc-900/90 dark:text-gray-200 dark:hover:bg-zinc-800'
                                             }`}
-                                        title={isSaved ? 'Saved' : 'Save property'}
+                                        title={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
                                     >
                                         {isSavingProperty ? (
                                             <ActionSpinner className="h-4 w-4" />

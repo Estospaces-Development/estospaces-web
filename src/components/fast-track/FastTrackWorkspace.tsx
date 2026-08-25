@@ -214,7 +214,19 @@ const formatStageLabel = (
     return getJourneyStageLabel(stage, journeyMode, role);
 };
 
-const formatStatusChip = (fastTrackCase: FastTrackCase) => {
+export const isFastTrackCaseOverdue = (fastTrackCase: FastTrackCase, now = Date.now()) => {
+    if (fastTrackCase.workspaceFinalStatus !== 'active') {
+        return false;
+    }
+    if (fastTrackCase.overdue) {
+        return true;
+    }
+
+    const expiresAtMs = Date.parse(fastTrackCase.expiresAt || '');
+    return Number.isFinite(expiresAtMs) && now >= expiresAtMs;
+};
+
+export const getFastTrackCaseStatusChip = (fastTrackCase: FastTrackCase, now = Date.now()) => {
     switch (fastTrackCase.workspaceFinalStatus) {
         case 'completed':
             return {
@@ -227,6 +239,12 @@ const formatStatusChip = (fastTrackCase: FastTrackCase) => {
                 tone: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300',
             };
         default:
+            if (isFastTrackCaseOverdue(fastTrackCase, now)) {
+                return {
+                    label: 'Attention required',
+                    tone: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200',
+                };
+            }
             return {
                 label: 'Active',
                 tone: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300',
@@ -244,6 +262,23 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     return `${hoursRemaining}h left`;
 };
 
+const formatCountdown = (expiresAt: string, now: number) => {
+    const expiresAtMs = Date.parse(expiresAt);
+    if (!Number.isFinite(expiresAtMs)) {
+        return null;
+    }
+
+    const secondsRemaining = Math.ceil((expiresAtMs - now) / 1000);
+    if (secondsRemaining <= 0) {
+        return 'expired';
+    }
+
+    const hours = Math.floor(secondsRemaining / 3600);
+    const minutes = Math.floor((secondsRemaining % 3600) / 60);
+    const seconds = secondsRemaining % 60;
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} left`;
+};
+
 export const isFastTrackCaseVisibleForFilter = (
     fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
     filter: FilterMode,
@@ -254,7 +289,11 @@ export const isFastTrackStageReadOnly = (
     role: WorkspaceRole,
 ) => role !== 'user' && fastTrackCase.workspaceFinalStatus !== 'active';
 
-export const formatFastTrackCaseDeadline = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
+export const formatFastTrackCaseDeadline = (
+    fastTrackCase: FastTrackCase,
+    role: WorkspaceRole,
+    now = Date.now(),
+) => {
     if (fastTrackCase.workspaceFinalStatus === 'completed') {
         if (role === 'user' && canUserConfirmFastTrackHandover(fastTrackCase)) {
             return 'Confirm handover';
@@ -264,6 +303,17 @@ export const formatFastTrackCaseDeadline = (fastTrackCase: FastTrackCase, role: 
     if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
         return role === 'user' ? 'Closed' : 'Cancelled';
     }
+
+    if (fastTrackCase.expiresAt) {
+        const countdown = formatCountdown(fastTrackCase.expiresAt, now);
+        if (countdown === 'expired') {
+            return formatDeadline(0, role);
+        }
+        if (countdown) {
+            return countdown;
+        }
+    }
+
     return formatDeadline(fastTrackCase.hoursRemaining, role);
 };
 
@@ -654,6 +704,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [stageConfirmDialog, setStageConfirmDialog] = useState<{ open: boolean; stage: FastTrackStage } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [deadlineNow, setDeadlineNow] = useState(() => Date.now());
     const [query, setQuery] = useState(() => (
         searchParams.get('search') || searchParams.get('q') || ''
     ));
@@ -725,6 +776,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => setDeadlineNow(Date.now()), 1000);
+        return () => window.clearInterval(intervalId);
+    }, []);
     const recoveredCaseNoticeRef = useRef<HTMLDivElement | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
@@ -1738,7 +1794,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
-    const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
+    const statusChip = selectedCase ? getFastTrackCaseStatusChip(selectedCase, deadlineNow) : null;
     const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
     const hasValidAgreementPaymentAmount = Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
     const publishAgreementNeedsAmount = PAYMENTS_ENABLED && paymentRequired && !hasValidAgreementPaymentAmount;
@@ -3900,7 +3956,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const caseRailItems = useMemo(
         () => paginatedCases.map((item) => {
-            const chip = formatStatusChip(item);
+            const chip = getFastTrackCaseStatusChip(item, deadlineNow);
             return {
                 caseId: item.caseId,
                 title: getFastTrackWorkspaceDisplayTitle(item, role),
@@ -3908,13 +3964,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     ? `${item.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home`
                     : item.clientName,
                 stageLabel: formatFastTrackCaseStage(item, role),
-                deadlineLabel: formatFastTrackCaseDeadline(item, role),
+                deadlineLabel: formatFastTrackCaseDeadline(item, role, deadlineNow),
                 statusLabel: chip.label,
                 statusTone: chip.tone,
                 selected: selectedCaseId === item.caseId,
             };
         }),
-        [paginatedCases, role, selectedCaseId],
+        [deadlineNow, paginatedCases, role, selectedCaseId],
     );
 
     const caseRailLayout = useMemo(
@@ -4217,7 +4273,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 subtitle={selectedCaseSubtitle}
                                 statusLabel={statusChip?.label || 'Active'}
                                 statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
-                                deadlineLabel={formatFastTrackCaseDeadline(selectedCase, role)}
+                                deadlineLabel={formatFastTrackCaseDeadline(selectedCase, role, deadlineNow)}
                                 currentStage={formatFastTrackCaseStage(selectedCase, role)}
                                 focus={workspaceFocus}
                                 statusSummary={workspaceStatus}

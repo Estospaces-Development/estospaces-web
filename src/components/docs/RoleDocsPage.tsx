@@ -35,7 +35,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
     const pageRootRef = useRef<HTMLDivElement | null>(null);
     const rawQuery = query.trim();
     const queryTooLong = rawQuery.length > MAX_DOCS_SEARCH_LENGTH;
-    const normalizedQuery = queryTooLong ? '' : normalizeSearchQueryInput(query);
+    const normalizedQuery = queryTooLong ? '' : normalizeSearchQueryInput(query).toLocaleLowerCase();
     const deferredQuery = useDeferredValue(normalizedQuery);
 
     useEffect(() => {

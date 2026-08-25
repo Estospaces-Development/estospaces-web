@@ -188,6 +188,28 @@ test('ticket creation refresh is silent so success is not followed by a contradi
     assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
 });
 
+test('support actions expose a visible pending state and avoid button-submit side effects', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+    const ticketListSource = readFileSync(resolve(process.cwd(), 'src/components/support/SupportTicketList.tsx'), 'utf8');
+
+    assert.match(source, /const resumeLiveSupport = useCallback/);
+    assert.match(source, /Opening support…/);
+    assert.match(source, /disabled=\{loading\}/);
+    assert.match(source, /loading \? 'animate-spin' : ''/);
+    assert.match(source, /New ticket/);
+    assert.match(ticketListSource, /type="button"/);
+    assert.match(ticketListSource, /aria-current=\{active \? 'page' : undefined\}/);
+});
+
+test('background support polling never surfaces repeated detail-load errors', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /const loadingTicketDetailsRef = useRef\(new Set<string>\(\)\)/);
+    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*return;/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{[\s\S]*?toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
+    assert.doesNotMatch(source, /catch \(error: any\) \{\s*if \(!silent\) \{[\s\S]*?\}\s*toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
+});
+
 test('support category normalization maps UI-only labels to backend-safe values', () => {
     assert.equal(normalizeSupportTicketCategory('Buying Help'), 'general inquiry');
     assert.equal(normalizeSupportTicketCategory('Billing'), 'contracts');

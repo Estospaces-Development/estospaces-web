@@ -358,6 +358,13 @@ const NearbyPropertiesMap = ({
                         <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
                             Use your profile {lowerLocationCodeLabel} or search a location to see nearby homes without leaving the dashboard.
                         </p>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/user/dashboard/settings')}
+                            className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
+                        >
+                            Open location settings
+                        </button>
                     </div>
                 </div>
             </div>

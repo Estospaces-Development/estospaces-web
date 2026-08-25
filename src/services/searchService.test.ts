@@ -263,7 +263,7 @@ test('core property search keeps non-type keyword and city as separate filters',
         limit: 12,
     });
 
-    assert.equal(params.get('search'), 'garden');
+    assert.equal(params.get('search'), 'Garden');
     assert.equal(params.get('city'), 'Chennai');
     assert.equal(params.get('type'), 'apartment');
     assert.equal(params.get('listing_type'), 'rent');
@@ -329,7 +329,7 @@ test('core property search normalizes route-loaded query text', () => {
         listingType: 'sale',
     });
 
-    assert.equal(params.get('search'), 'attur attur');
+    assert.equal(params.get('search'), 'ATTUR ATTUR');
 });
 
 test('core property search preserves zero-valued numeric boundaries', () => {
@@ -461,6 +461,45 @@ test('signed-in empty sections load every authenticated catalog page', async () 
         ]);
         assert.equal(requestedUrls.filter((url) => url.includes('/properties/catalog?')).length, 3);
         assert.equal(requestedUrls.every((url) => !url.includes('/api/v1/properties?')), true);
+    } finally {
+        clearAuthToken();
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('unfiltered discovery uses the catalog instead of the country-defaulted sections endpoint', async () => {
+    const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = async (input) => {
+        const url = String(input);
+        requestedUrls.push(url);
+        return new Response(JSON.stringify({
+            success: true,
+            data: {
+                data: [
+                    { id: 'india-property', title: 'Chennai Home', country: 'India', postcode: '600001' },
+                    { id: 'uk-property', title: 'London Home', country: 'United Kingdom', postcode: 'SW1A 1AA' },
+                ],
+                pagination: { total: 2, page: 1, limit: 100, total_pages: 1 },
+            },
+        }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    setAuthToken('signed-in-token');
+    try {
+        const result = await searchService.getPropertySections();
+
+        assert.equal(result.success, true);
+        assert.deepEqual(result.data[0].properties.map((property) => property.id), [
+            'india-property',
+            'uk-property',
+        ]);
+        assert.equal(requestedUrls.some((url) => url.includes('/properties/sections?')), false);
+        assert.equal(requestedUrls.every((url) => url.includes('/properties/catalog?')), true);
     } finally {
         clearAuthToken();
         globalThis.fetch = originalFetch;

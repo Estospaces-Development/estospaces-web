@@ -2395,6 +2395,7 @@ const UserPropertyDetail = () => {
                     disabled={isUpdatingSavedProperty}
                     aria-pressed={isSaved}
                     aria-label={isSaved ? `Remove ${property.title} from saved properties` : `Save ${property.title}`}
+                    title={isSaved ? `Remove ${property.title} from saved properties` : `Save ${property.title}`}
                     className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
                         isSaved
                             ? 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:text-orange-800 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:border-orange-800 dark:hover:text-orange-200'

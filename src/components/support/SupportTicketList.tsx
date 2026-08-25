@@ -55,8 +55,10 @@ export function SupportTicketList({
                 return (
                     <button
                         key={ticketKeyFor(ticket.id, ticketIndex)}
+                        type="button"
                         onClick={() => onSelect(ticket.id)}
-                        className={`w-full rounded-[1.75rem] border p-4 text-left transition-all ${
+                        aria-current={active ? 'page' : undefined}
+                        className={`w-full rounded-[1.75rem] border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 active:scale-[0.995] dark:focus-visible:ring-offset-gray-950 ${
                             active
                                 ? 'border-orange-300 bg-orange-50 shadow-lg shadow-orange-500/10 dark:border-orange-500/40 dark:bg-orange-500/10'
                                 : 'border-gray-100 bg-white hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900/75 dark:hover:border-orange-500/20'

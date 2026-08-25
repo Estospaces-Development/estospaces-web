@@ -135,8 +135,11 @@ export function normalizeSearchQueryInput(value: string): string {
     .trim()
     .replace(/\s+/g, ' ')
     .slice(0, MAX_SEARCH_QUERY_LENGTH)
-    .trim()
-    .toLowerCase();
+    .trim();
+}
+
+export function normalizeSearchComparisonText(value: string): string {
+  return normalizeSearchQueryInput(value).toLocaleLowerCase();
 }
 
 export function getSearchQueryValidationMessage(value: string, required = false): string {
@@ -288,8 +291,6 @@ export function getSearchFilterValidationMessage(params: URLSearchParams): strin
 
   if (queryValidation) {
     messages.push(queryValidation.replace(/\.$/, ''));
-  } else if (normalizeSearchQueryInput(firstParam(params, ['q', 'keyword'])) !== firstParam(params, ['q', 'keyword']).trim().toLowerCase()) {
-    messages.push('search text was normalized and capped');
   }
   if (hasInvalidPriceParam(params)) {
     messages.push('price values must be numbers');
