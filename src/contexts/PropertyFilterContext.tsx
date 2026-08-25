@@ -15,16 +15,18 @@ export const PropertyFilterProvider = ({ children }: { children: React.ReactNode
     const pathname = useLocation().pathname;
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const searchParamSnapshot = searchParams.toString();
 
     // Get initial tab from URL or default to 'all'
     const getInitialTab = useCallback(() => {
         if (pathname === '/user/dashboard/discover') {
-            const type = searchParams.get('type') || searchParams.get('tab');
+            const currentSearchParams = new URLSearchParams(searchParamSnapshot);
+            const type = currentSearchParams.get('type') || currentSearchParams.get('tab');
             if (type === 'buy' || type === 'sale') return 'buy';
             if (type === 'rent') return 'rent';
         }
         return 'all';
-    }, [pathname, searchParams]);
+    }, [pathname, searchParamSnapshot]);
 
     const [activeTab, setActiveTabState] = useState(getInitialTab);
 
@@ -36,7 +38,7 @@ export const PropertyFilterProvider = ({ children }: { children: React.ReactNode
         if (shouldNavigate) {
             if (pathname === '/user/dashboard/discover') {
                 // If already on discover page, just update the URL
-                const params = new URLSearchParams(searchParams.toString());
+                const params = new URLSearchParams(searchParamSnapshot);
                 if (tab === 'all') {
                     params.delete('type');
                 } else if (tab === 'buy') {
@@ -54,15 +56,12 @@ export const PropertyFilterProvider = ({ children }: { children: React.ReactNode
                 }
             }
         }
-    }, [pathname, navigate, searchParams]);
+    }, [navigate, pathname, searchParamSnapshot]);
 
     // Sync with URL when location changes
     useEffect(() => {
-        const newTab = getInitialTab();
-        if (newTab !== activeTab) {
-            setActiveTabState(newTab);
-        }
-    }, [pathname, searchParams, getInitialTab, activeTab]);
+        setActiveTabState(getInitialTab());
+    }, [getInitialTab]);
 
     return (
         <PropertyFilterContext.Provider
