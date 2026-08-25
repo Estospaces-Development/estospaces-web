@@ -135,3 +135,22 @@ test('user dashboard clear search removes stale dashboard URL filters', () => {
     assert.match(userDashboardSource, /const next = new URLSearchParams\(previous\);[\s\S]*dashboardSearchParamKeys\.forEach\(\(key\) => next\.delete\(key\)\);[\s\S]*return next;/);
     assert.match(userDashboardSource, /\}, \{ replace: true \}\);[\s\S]*\}, \[setSearchParams\]\);/);
 });
+
+test('user dashboard property navigation preserves the active browser search cache', () => {
+    assert.match(userDashboardSource, /savePropertySearchReturnState\(window\.sessionStorage, \{[\s\S]*pathname: USER_DASHBOARD_PATH,[\s\S]*search: dashboardReturnSearch,[\s\S]*scrollY: window\.scrollY/);
+    assert.match(userDashboardSource, /const dashboardReturnPath = `\$\{USER_DASHBOARD_PATH\}\$\{dashboardReturnSearch \? `\?\$\{dashboardReturnSearch\}` : ''\}`;/);
+    assert.match(userDashboardSource, /const openPropertyFromDashboard[\s\S]*cacheDashboardSearchReturn\(\);[\s\S]*backTo: dashboardReturnPath/);
+    assert.match(userDashboardSource, /const openFastTrackFromDashboard[\s\S]*cacheDashboardSearchReturn\(\);[\s\S]*backTo: dashboardReturnPath/);
+    assert.match(userDashboardSource, /if \(!cachedSearch \|\| searchLoading \|\| !filteredSearchCompleted \|\| !showFilteredResults\)/);
+    assert.doesNotMatch(userDashboardSource, /backTo: '\/user\/dashboard'/);
+});
+
+test('user dashboard search URL preserves quick filters and pagination', () => {
+    assert.match(userDashboardSource, /buildDashboardReturnSearchParams[\s\S]*new URLSearchParams\(currentSearchParams\)[\s\S]*if \(currentPage > 1\)[\s\S]*params\.set\('page', String\(currentPage\)\)/);
+    assert.match(userDashboardSource, /dashboardReturnSearchParams\.forEach\(\(value, key\) => next\.set\(key, value\)\)/);
+});
+
+test('user dashboard keeps unrelated return context and rejects a mismatched stale cache', () => {
+    assert.match(userDashboardSource, /const params = new URLSearchParams\(currentSearchParams\);/);
+    assert.match(userDashboardSource, /hasExplicitDashboardSearch[\s\S]*!searchParamsMatch\(searchParams, new URLSearchParams\(cachedSearch\)\)[\s\S]*clearPropertySearchReturnState\(window\.sessionStorage, USER_DASHBOARD_PATH\);[\s\S]*cachedDashboardSearchRef\.current = null;/);
+});

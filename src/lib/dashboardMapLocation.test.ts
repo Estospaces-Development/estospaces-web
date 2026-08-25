@@ -60,6 +60,6 @@ test('latest dashboard map lookup wins and clearing invalidates an in-flight loo
 test('dashboard synchronizes map location from URL changes as well as form submits', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
 
-  assert.match(source, /const dashboardLocationParam = searchParams\.get\('location'\) \|\| ''/);
+  assert.match(source, /const dashboardLocationParam = \([\s\S]*hasDashboardSearchParams\(searchParams\)[\s\S]*initialDashboardSearchParams[\s\S]*\)\.get\('location'\) \|\| ''/);
   assert.match(source, /syncDashboardMapLocation\(\s*dashboardLocationParam,/);
 });
