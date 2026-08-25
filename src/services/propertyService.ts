@@ -363,6 +363,28 @@ export const getPropertyById = async (
 };
 
 /**
+ * Record an intentional end-user property detail view.
+ * Reading a property is deliberately side-effect free; callers should invoke
+ * this once when a signed-in user actually opens the detail page.
+ */
+export const recordPropertyView = async (
+  id: string,
+): Promise<{ recorded: boolean; error: string | null }> => {
+  try {
+    await apiFetch<{ property_id: string; recorded: boolean }>(
+      `${CORE_URL()}/api/v1/properties/${encodeURIComponent(id.trim())}/view`,
+      {
+        method: "POST",
+        suppressErrorToast: true,
+      },
+    );
+    return { recorded: true, error: null };
+  } catch (error: unknown) {
+    return { recorded: false, error: getErrorMessage(error) };
+  }
+};
+
+/**
  * Fetch a single property by ID for admin review
  * GET /api/v1/admin/properties/:id (core-service, admin only)
  */

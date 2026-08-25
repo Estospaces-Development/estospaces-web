@@ -27,7 +27,7 @@ import {
     Star,
     Video,
 } from 'lucide-react';
-import { getPropertyById, Property } from '../../../../services/propertyService';
+import { getPropertyById, recordPropertyView, Property } from '../../../../services/propertyService';
 import { recordPropertyNavigation } from '@/lib/propertyNavigation';
 import {
     clearFastTrackRequestPending,
@@ -1126,6 +1126,27 @@ const UserPropertyDetail = () => {
 
         fetchProperty();
     }, [id]);
+
+    useEffect(() => {
+        const role = String(user?.role || '').trim().toLowerCase();
+        if (!id || !property || !user?.id || role !== 'user') {
+            return;
+        }
+
+        const viewedKey = `property_viewed:${user.id}:${id}`;
+        if (sessionStorage.getItem(viewedKey)) {
+            return;
+        }
+
+        // Mark before sending so a rerender cannot issue duplicate events. If
+        // the request fails, remove the marker so the next visit can retry.
+        sessionStorage.setItem(viewedKey, 'pending');
+        void recordPropertyView(id).then(({ recorded }) => {
+            if (!recorded) {
+                sessionStorage.removeItem(viewedKey);
+            }
+        });
+    }, [id, property, user?.id, user?.role]);
 
     useEffect(() => {
         if (!id) {

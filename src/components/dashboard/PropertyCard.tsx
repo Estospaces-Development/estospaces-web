@@ -22,8 +22,6 @@ import ShareModal from './ShareModal';
 import PropertyMediaImage from './PropertyMediaImage';
 import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
-import { useProperties } from '@/contexts/PropertyContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
@@ -64,8 +62,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     const [showSaveToast, setShowSaveToast] = useState(false);
 
     const { toggleProperty, isPropertySaved } = useSavedProperties();
-    const { user } = useAuth();
-    const { incrementViews } = useProperties();
 
     const isSaved = isPropertySaved(property.id);
     const viewCount = property.view_count || 0;
@@ -75,8 +71,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
     const handleViewDetails = (e: React.MouseEvent) => {
         e?.stopPropagation();
-        if (user) incrementViews(property.id);
-
         if (onClick) {
             onClick();
         } else if (onViewDetails) {
