@@ -99,7 +99,7 @@ test("property detail action and gallery controls expose stable button state", (
   assert.match(propertyDetailPage, /type="button"[\s\S]*?Request 24-Hour Fast Track/);
   assert.doesNotMatch(propertyDetailPage, /createFastTrackCase/);
   assert.match(propertyDetailPage, /type="button"[\s\S]*?Open live workspace/);
-  assert.match(propertyDetailPage, /type="button"[\s\S]*?Open Message Thread/);
+  assert.doesNotMatch(propertyDetailPage, /type="button"[\s\S]*?Open Message Thread/);
 });
 
 test("property detail describes listing type without internal market terminology", () => {

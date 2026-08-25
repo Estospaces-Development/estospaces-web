@@ -17,7 +17,6 @@ import {
     ChevronLeft,
     ChevronRight,
     ImageIcon,
-    MessageCircle,
     Clock,
     Sparkles,
     ExternalLink,
@@ -49,7 +48,6 @@ import { messagesService } from '@/services/messagesService';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
 import { createOffer } from '@/services/salesService';
 import { reviewsService, type Review } from '@/services/reviewsService';
-import PropertyContactInfo from '@/components/dashboard/PropertyContactInfo';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import {
@@ -970,7 +968,6 @@ const UserPropertyDetail = () => {
     const [isUpdatingSavedProperty, setIsUpdatingSavedProperty] = useState(false);
     const [savedPropertyStatusMessage, setSavedPropertyStatusMessage] = useState('');
     const [isStartingFastTrack, setIsStartingFastTrack] = useState(false);
-    const [isCreatingConversation, setIsCreatingConversation] = useState(false);
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
     const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
     const [isSubmittingRentalApplication, setIsSubmittingRentalApplication] = useState(false);
@@ -1376,7 +1373,6 @@ const UserPropertyDetail = () => {
     ];
     const conciergeHighlights = [
         { label: 'Response window', value: fastTrackConciergeActionLabel, icon: Clock },
-        { label: 'Private access', value: 'Message the broker directly', icon: MessageCircle },
         { label: 'Tour booking', value: 'Reserve a slot in minutes', icon: CalendarDays },
     ];
     const detailHighlights = useMemo(() => [
@@ -2074,7 +2070,6 @@ const UserPropertyDetail = () => {
             return;
         }
 
-        setIsCreatingConversation(true);
         try {
             const conversation = await messagesService.upsertDirectConversation(managerId, {
                 propertyId: property.id,
@@ -2095,8 +2090,6 @@ const UserPropertyDetail = () => {
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to open the message thread.');
-        } finally {
-            setIsCreatingConversation(false);
         }
     };
 
@@ -2939,7 +2932,6 @@ const UserPropertyDetail = () => {
                             )}
                         </section>
 
-                        <PropertyContactInfo property={property as any} propertyAddress={propertyAddress || locationLabel} />
                     </div>
                 </div>
 
@@ -2949,15 +2941,14 @@ const UserPropertyDetail = () => {
                             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing concierge</p>
                             <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Interested in this property?</h3>
                             <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                Request manager-approved Fast Track, open a direct chat, or send a polished viewing request without leaving the page.
+                                Request manager-approved Fast Track or send a polished viewing request without leaving the page.
                             </p>
                             <div className="mt-5 grid gap-2.5">
                                 {conciergeHighlights.map((item) => {
                                     const Icon = item.icon;
                                     const isResponseAction = item.label === 'Response window';
-                                    const isMessageAction = item.label === 'Private access';
                                     const isTourAction = item.label === 'Tour booking';
-                                    const isBusy = (isResponseAction && isFastTrackCtaBusy) || (isMessageAction && isCreatingConversation);
+                                    const isBusy = isResponseAction && isFastTrackCtaBusy;
                                     const isDisabled = isBusy || (isResponseAction && isFastTrackApprovalPending);
 
                                     return (
@@ -2968,10 +2959,6 @@ const UserPropertyDetail = () => {
                                                 if (isResponseAction) {
                                                     fastTrackTriggerRef.current = event.currentTarget;
                                                     void handleStartFastTrack();
-                                                    return;
-                                                }
-                                                if (isMessageAction) {
-                                                    void handleOpenConversation();
                                                     return;
                                                 }
                                                 if (isTourAction) {
@@ -3014,15 +3001,6 @@ const UserPropertyDetail = () => {
                                 className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                             >
                                 {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleOpenConversation}
-                                disabled={isCreatingConversation}
-                                className="flex w-full items-center justify-center gap-2 rounded-[1.35rem] border border-stone-200 bg-stone-50 py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:hover:border-orange-800 dark:hover:bg-zinc-900"
-                            >
-                                <MessageCircle size={18} />
-                                {isCreatingConversation ? 'Opening Messages...' : 'Open Message Thread'}
                             </button>
                         </div>
                         <div className="mt-4 rounded-[1.35rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
