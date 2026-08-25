@@ -185,3 +185,16 @@ test('country-aware groups provide a stable fallback group for India launch disc
   );
   assert.deepEqual(getCountryAwarePropertyGroups([]), []);
 });
+
+test('country-aware groups infer legacy UK listings from their postcode instead of labelling them as India', () => {
+  assert.deepEqual(
+    getCountryAwarePropertyGroups([
+      { id: 'in-1', city: 'Chennai', location: 'Chennai, 600040' },
+      { id: 'uk-1', city: 'Manchester', location: 'Manchester, PR15QH' },
+    ]),
+    [
+      { key: 'IN', label: 'India properties', count: 1 },
+      { key: 'GB', label: 'United Kingdom properties', count: 1 },
+    ],
+  );
+});

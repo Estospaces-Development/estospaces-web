@@ -138,6 +138,18 @@ export function normalizeSearchQueryInput(value: string): string {
     .trim();
 }
 
+const LOCATION_CODE_IN_TEXT_PATTERN = /\b(?:\d{6}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i;
+
+function getPropertyGroupCountry(property: CountryAwarePropertyInput): SupportedLaunchCountryCode {
+  const locationText = [property.location, property.city]
+    .filter(Boolean)
+    .join(' ');
+  const locationCode = locationText.match(LOCATION_CODE_IN_TEXT_PATTERN)?.[0] || locationText;
+
+  return getSupportedLaunchCountry(property.country_code, property.country, locationCode)
+    || LAUNCH_COUNTRY_CODE;
+}
+
 export function normalizeSearchComparisonText(value: string): string {
   return normalizeSearchQueryInput(value).toLocaleLowerCase();
 }
@@ -332,11 +344,13 @@ export function getCountryAwarePropertyGroups(
 
   const groups = new Map<string, CountryAwarePropertyGroup>();
   for (const property of properties) {
-    const key = (property.country_code || '').trim().toUpperCase() || LAUNCH_COUNTRY_CODE;
+    const key = getPropertyGroupCountry(property);
     const country = (property.country || '').trim();
-    const label = country && country.toLowerCase() !== LAUNCH_COUNTRY_CODE.toLowerCase()
+    const label = country
       ? `${country} properties`
-      : `${LAUNCH_COUNTRY_NAME} properties`;
+      : key === UK_COUNTRY_CODE
+        ? 'United Kingdom properties'
+        : `${LAUNCH_COUNTRY_NAME} properties`;
     const current = groups.get(key);
 
     if (current) {
