@@ -1,12 +1,14 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ArrowRight,
     BadgeCheck,
     Clock,
     FileText,
-    Loader2,
     Mail,
     MapPin,
     Phone,
@@ -231,12 +233,12 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         title="Refresh verification queue"
                         className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
                     >
-                        <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                        {isRefreshing ? <ActionSpinner size="sm" label="Refreshing verification queue" /> : <RefreshCw size={20} />}
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
                 {stats.map((stat) => (
                     <button
                         key={stat.id}
@@ -274,7 +276,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 <div className="p-4 sm:p-10">
                     {loading ? (
                         <div className="flex justify-center py-20">
-                            <Loader2 className={`animate-spin ${content.accentText}`} size={40} />
+                            <BrandLoader className={`${content.accentText}`} size={40} />
                         </div>
                     ) : filteredUsers.length > 0 ? (
                         <div className="grid grid-cols-1 gap-6">

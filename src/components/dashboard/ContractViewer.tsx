@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { FileText, Download, X } from 'lucide-react';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 interface Contract {
     id?: string;
     name?: string;
@@ -53,7 +55,7 @@ const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
                     {isLoading ? (
                         <div className="flex items-center justify-center h-full">
                             <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+                                <BrandLoader size="xl" className="mx-auto mb-4" label="Loading contract" />
                                 <p className="text-gray-600 dark:text-gray-400">Loading document...</p>
                             </div>
                         </div>

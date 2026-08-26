@@ -8,6 +8,7 @@ import {
   getProperties,
   invalidatePropertyDetailCache,
   invalidatePropertyListCache,
+  recordPropertyView,
 } from './propertyService';
 
 test('property list reads share one request and ignore legacy route cache keys', async () => {
@@ -120,6 +121,34 @@ test('signed-in property reads use authenticated catalog routes', async () => {
     clearAuthToken();
     invalidatePropertyListCache();
     invalidatePropertyDetailCache('property-123');
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('recordPropertyView uses an explicit authenticated view event', async () => {
+  const originalFetch = globalThis.fetch;
+  let request: { url: string; method: string } | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    request = { url: String(input), method: String(init?.method || 'GET') };
+    return new Response(JSON.stringify({
+      success: true,
+      data: { property_id: 'property-123', recorded: true },
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  clearAuthToken();
+  setAuthToken('signed-in-token');
+  try {
+    const result = await recordPropertyView('property-123');
+    assert.deepEqual(result, { recorded: true, error: null });
+    assert.equal(request?.method, 'POST');
+    assert.ok(request?.url.includes('/api/v1/properties/property-123/view'));
+  } finally {
+    clearAuthToken();
     globalThis.fetch = originalFetch;
   }
 });

@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildUserPropertyPortfolio } from "@/lib/userPropertyPortfolio";
+import {
+  buildUserPropertyPortfolio,
+  summarizeUserPropertyPortfolio,
+} from "@/lib/userPropertyPortfolio";
 import type { Application } from "@/services/applicationsService";
 import type { SaleProgression } from "@/services/salesService";
 import type { Contract } from "@/types/booking";
@@ -92,6 +95,27 @@ test("buildUserPropertyPortfolio returns rented and bought homes with deep links
     portfolio[1].targetPath,
     "/user/dashboard/contracts?application=rent-app-1&contract=contract-1&property=property-rent-1",
   );
+});
+
+test("summarizeUserPropertyPortfolio counts every visible rental card", () => {
+  const portfolio = buildUserPropertyPortfolio({
+    contracts: [
+      ...contracts,
+      {
+        ...contracts[0],
+        id: "contract-in-progress",
+        status: "pending_user_signature",
+      },
+    ],
+    applications,
+    saleProgressions,
+  });
+
+  assert.deepEqual(summarizeUserPropertyPortfolio(portfolio), {
+    total: 3,
+    bought: 1,
+    rented: 2,
+  });
 });
 
 test("buildUserPropertyPortfolio falls back to completed sale applications when no progression exists", () => {

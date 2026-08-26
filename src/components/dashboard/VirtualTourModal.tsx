@@ -1,7 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Clock3, Loader2, Maximize2, Send, Video, X } from 'lucide-react';
+import { Clock3, Maximize2, Send, Video, X } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { getVirtualTourByPropertyId, requestVirtualTour } from '@/services/virtualTourService';
 
@@ -154,7 +157,7 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
                 <div className="relative flex-1 bg-gray-100 dark:bg-black">
                     {loading ? (
                         <div className="flex h-full items-center justify-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                            <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+                            <BrandLoader className="h-5 w-5 text-orange-500" />
                             Syncing virtual tour status...
                         </div>
                     ) : status === 'ready' && tourUrl ? (
@@ -209,7 +212,7 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
                                         onClick={() => void handleRequest()}
                                         className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                        {submitting ? <ActionSpinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                                         Request virtual tour
                                     </button>
                                 </div>

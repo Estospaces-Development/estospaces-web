@@ -5,12 +5,73 @@ import { clearAuthToken, setAuthToken } from '@/lib/authToken';
 
 import {
     buildFallbackPropertySections,
+    getExactLocationSuggestion,
+    getLocationScopedSearchQuery,
+    isLocationAutocompleteSuggestion,
+    restorePersistedInferredLocation,
     getPropertySectionsRequestOptions,
     mapCorePropertySectionToSearchSection,
     mapSearchFiltersToCoreQuery,
     PRIMARY_SEARCH_SERVICE_TIMEOUT_MS,
+    resolveAuthoritativeSearchFallback,
     searchService,
+    shouldUseCoreSearchFallback,
 } from '@/services/searchService';
+
+test('exact city autocomplete identifies explicit location intent', () => {
+    const city = { text: 'Chennai', type: 'city' as const };
+
+    assert.deepEqual(getExactLocationSuggestion('  CHENNAI ', [city]), city);
+});
+
+test('exact postcode autocomplete ignores whitespace differences', () => {
+    const postcode = { text: 'SW1A 1AA', type: 'postcode' as const };
+
+    assert.deepEqual(getExactLocationSuggestion('sw1a1aa', [postcode]), postcode);
+});
+
+test('property-title suggestions do not reinterpret keyword searches as locations', () => {
+    const property = { id: 'property-1', text: 'Chennai', type: 'property' as const };
+    const city = { text: 'Chennai', type: 'city' as const };
+
+    assert.equal(getExactLocationSuggestion('Chennai', [property]), null);
+    assert.equal(getExactLocationSuggestion('Chennai', [city, property]), null);
+    assert.equal(getExactLocationSuggestion('Chennai House', [city]), null);
+    assert.equal(isLocationAutocompleteSuggestion(property), false);
+    assert.equal(isLocationAutocompleteSuggestion({ text: 'Popular homes', type: 'popular' }), false);
+    assert.equal(isLocationAutocompleteSuggestion(city), true);
+});
+
+test('property-title ambiguity is checked beyond the visible autocomplete limit', () => {
+    const city = { text: 'Oxford', type: 'city' as const };
+    const unrelated = Array.from({ length: 10 }, (_, index) => ({
+        text: `Oxford area ${index + 1}`,
+        type: 'location' as const,
+    }));
+    const property = { id: 'property-oxford', text: 'Oxford', type: 'property' as const };
+
+    assert.equal(getExactLocationSuggestion('Oxford', [city, ...unrelated, property]), null);
+});
+
+test('inferred postcode location is not duplicated in the core search keyword', () => {
+    const query = getLocationScopedSearchQuery('PR15QH', 'PR1 5QH', 'PR1 5QH');
+    const params = mapSearchFiltersToCoreQuery(query, { location: 'PR1 5QH' });
+
+    assert.equal(query, '');
+    assert.equal(params.get('search'), 'PR1 5QH');
+});
+
+test('only persisted inferred locations deduplicate equivalent query text after reload', () => {
+    assert.equal(getLocationScopedSearchQuery('PR15QH', 'PR1 5QH', 'PR1 5QH'), '');
+    assert.equal(getLocationScopedSearchQuery('Chennai', 'Chennai', 'Chennai'), '');
+    assert.equal(getLocationScopedSearchQuery('Chennai', 'Chennai', ''), 'Chennai');
+    assert.equal(restorePersistedInferredLocation('PR15QH', 'PR1 5QH', '1'), 'PR1 5QH');
+    assert.equal(restorePersistedInferredLocation('Chennai', 'Chennai', null), '');
+});
+
+test('explicit location filters retain independent property-name keywords', () => {
+    assert.equal(getLocationScopedSearchQuery('Chennai House', 'Chennai', ''), 'Chennai House');
+});
 
 test('empty property sections can fall back to real public property records', () => {
     const property = {
@@ -42,6 +103,120 @@ test('empty property sections can fall back to real public property records', ()
         properties: [property],
     }]);
     assert.deepEqual(buildFallbackPropertySections([]), []);
+});
+
+test('empty or placeholder search projections fall back to authoritative core properties', () => {
+    assert.equal(shouldUseCoreSearchFallback([]), true);
+    assert.equal(shouldUseCoreSearchFallback([{
+        id: 'dummy-1',
+        title: 'Dummy Property 1',
+        description: '',
+        price: 0,
+        property_type: '',
+        listing_type: '',
+        location: 'Dummy City',
+        city: 'Dummy City',
+        postcode: '',
+        bedrooms: 0,
+        bathrooms: 0,
+        square_feet: 0,
+        images: [],
+        is_verified: false,
+        is_fast_track: false,
+        broker_name: '',
+        broker_rating: 0,
+        response_time_badge: '',
+        view_count: 0,
+        created_at: '',
+    }]), true);
+    assert.equal(shouldUseCoreSearchFallback([{
+        id: 'real-1',
+        title: 'Anna Nagar',
+        description: '',
+        price: 2300000,
+        property_type: 'apartment',
+        listing_type: 'sale',
+        location: 'Chennai',
+        city: 'Chennai',
+        postcode: '600040',
+        bedrooms: 3,
+        bathrooms: 2,
+        square_feet: 1200,
+        images: [],
+        is_verified: true,
+        is_fast_track: true,
+        broker_name: 'Agent',
+        broker_rating: 4.8,
+        response_time_badge: 'Fast',
+        view_count: 10,
+        created_at: '2026-08-24T00:00:00Z',
+    }]), false);
+});
+
+test('placeholder search projections never escape when the authoritative catalog is empty', async () => {
+    const placeholder = {
+        id: 'dummy-1',
+        title: 'Dummy Property 1',
+        description: '',
+        price: 0,
+        property_type: '',
+        listing_type: '',
+        location: 'Dummy City',
+        city: 'Dummy City',
+        postcode: '',
+        bedrooms: 0,
+        bathrooms: 0,
+        square_feet: 0,
+        images: [],
+        is_verified: false,
+        is_fast_track: false,
+        broker_name: '',
+        broker_rating: 0,
+        response_time_badge: '',
+        view_count: 0,
+        created_at: '',
+    };
+    const emptyFallback = {
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 12 },
+    };
+
+    assert.deepEqual(
+        await resolveAuthoritativeSearchFallback([placeholder], { page: 1, limit: 12 }, async () => emptyFallback),
+        emptyFallback,
+    );
+});
+
+test('placeholder search projections fail closed when the authoritative catalog is unavailable', async () => {
+    const response = await resolveAuthoritativeSearchFallback([{
+        id: 'dummy-1',
+        title: 'Dummy Property 1',
+        description: '',
+        price: 0,
+        property_type: '',
+        listing_type: '',
+        location: 'Dummy City',
+        city: 'Dummy City',
+        postcode: '',
+        bedrooms: 0,
+        bathrooms: 0,
+        square_feet: 0,
+        images: [],
+        is_verified: false,
+        is_fast_track: false,
+        broker_name: '',
+        broker_rating: 0,
+        response_time_badge: '',
+        view_count: 0,
+        created_at: '',
+    }], { page: 2, limit: 12 }, async () => {
+        throw new Error('catalog unavailable');
+    });
+
+    assert.equal(response?.success, false);
+    assert.deepEqual(response?.data, []);
+    assert.deepEqual(response?.pagination, { total: 0, page: 2, limit: 12 });
 });
 
 test('property sections use the signed-in core contract', () => {
@@ -88,7 +263,7 @@ test('core property search keeps non-type keyword and city as separate filters',
         limit: 12,
     });
 
-    assert.equal(params.get('search'), 'garden');
+    assert.equal(params.get('search'), 'Garden');
     assert.equal(params.get('city'), 'Chennai');
     assert.equal(params.get('type'), 'apartment');
     assert.equal(params.get('listing_type'), 'rent');
@@ -154,7 +329,7 @@ test('core property search normalizes route-loaded query text', () => {
         listingType: 'sale',
     });
 
-    assert.equal(params.get('search'), 'attur attur');
+    assert.equal(params.get('search'), 'ATTUR ATTUR');
 });
 
 test('core property search preserves zero-valued numeric boundaries', () => {
@@ -206,6 +381,19 @@ test('core property sections map to discovery search results', () => {
     assert.equal(section.properties[0].countryCode, 'GB');
     assert.equal(section.properties[0].status, 'published');
     assert.deepEqual(section.properties[0].images, ['https://example.com/house.jpg']);
+});
+
+test('core property sections normalize persisted string coordinates for map results', () => {
+    const section = mapCorePropertySectionToSearchSection({
+        properties: [{
+            id: 'property-with-string-coordinates',
+            latitude: '13.0827' as unknown as number,
+            longitude: '80.2707' as unknown as number,
+        }],
+    });
+
+    assert.equal(section.properties[0].latitude, 13.0827);
+    assert.equal(section.properties[0].longitude, 80.2707);
 });
 
 test('core property sections normalize stored country names to market codes', () => {
@@ -273,6 +461,45 @@ test('signed-in empty sections load every authenticated catalog page', async () 
         ]);
         assert.equal(requestedUrls.filter((url) => url.includes('/properties/catalog?')).length, 3);
         assert.equal(requestedUrls.every((url) => !url.includes('/api/v1/properties?')), true);
+    } finally {
+        clearAuthToken();
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('unfiltered discovery uses the catalog instead of the country-defaulted sections endpoint', async () => {
+    const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = async (input) => {
+        const url = String(input);
+        requestedUrls.push(url);
+        return new Response(JSON.stringify({
+            success: true,
+            data: {
+                data: [
+                    { id: 'india-property', title: 'Chennai Home', country: 'India', postcode: '600001' },
+                    { id: 'uk-property', title: 'London Home', country: 'United Kingdom', postcode: 'SW1A 1AA' },
+                ],
+                pagination: { total: 2, page: 1, limit: 100, total_pages: 1 },
+            },
+        }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    setAuthToken('signed-in-token');
+    try {
+        const result = await searchService.getPropertySections();
+
+        assert.equal(result.success, true);
+        assert.deepEqual(result.data[0].properties.map((property) => property.id), [
+            'india-property',
+            'uk-property',
+        ]);
+        assert.equal(requestedUrls.some((url) => url.includes('/properties/sections?')), false);
+        assert.equal(requestedUrls.every((url) => url.includes('/properties/catalog?')), true);
     } finally {
         clearAuthToken();
         globalThis.fetch = originalFetch;

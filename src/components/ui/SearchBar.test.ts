@@ -3,11 +3,25 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildPropertyTypeOptions } from '../../lib/propertyTypeOptions';
+import { shouldClearSearchBarAfterNavigation, shouldHydrateSearchBarFromUrl } from './SearchBar';
 
 const source = readFileSync(resolve(process.cwd(), 'src/components/ui/SearchBar.tsx'), 'utf8');
 const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/search/page.tsx'), 'utf8');
 const userDashboardSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
 const discoverSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
+
+test('global and page search inputs keep independent draft state', () => {
+    const routeFilters = { keyword: 'chennai' };
+
+    assert.equal(shouldHydrateSearchBarFromUrl('compact'), false);
+    assert.equal(shouldHydrateSearchBarFromUrl('full'), true);
+    assert.equal(shouldHydrateSearchBarFromUrl('hero', routeFilters), false);
+    assert.equal(shouldClearSearchBarAfterNavigation('compact'), true);
+    assert.equal(shouldClearSearchBarAfterNavigation('full'), false);
+    assert.match(source, /aria-label="Search properties from the global header"/);
+    assert.match(source, /autoComplete="off"/);
+    assert.match(source, /shouldClearSearchBarAfterNavigation\(variant\)[\s\S]*setFilters\(defaultFilters\)/);
+});
 
 test('dashboard type options merge API filters with the shared property defaults', () => {
     const options = buildPropertyTypeOptions(['rent', 'apartment', 'sale', 'villa', 'Apartment']);
@@ -67,7 +81,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(source, /fallbackCountryName\?: string \| null;/);
     assert.match(source, /const locationContext = filters\.location \|\| locationContextCode \|\| user\?\.postcode/);
     assert.match(source, /const countryNameContext = countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
-    assert.match(source, /const searchMarket = getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
+    assert.match(source, /const searchMarket = inferSearchMarketFromText\(filters\.location\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
     assert.match(source, /const locationCodeLabel = getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
     assert.match(source, /const sentenceLocationCodeLabel = locationCodeLabel === 'PIN code' \? locationCodeLabel : lowerLocationCodeLabel/);
     assert.match(source, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
@@ -75,6 +89,12 @@ test('user dashboard search passes active request location context into shared s
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
     assert.match(userDashboardSource, /<BrokerRequestWidget onLocationContextChange=\{handleBrokerRequestLocationContextChange\} \/>/);
+});
+
+test('free-text property titles do not select a country market', () => {
+    assert.match(source, /const submittedMarket = nextFilters\.location[\s\S]*\? inferSearchMarketFromText\(nextFilters\.location\)[\s\S]*: null;/);
+    assert.doesNotMatch(source, /inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\)/);
+    assert.doesNotMatch(source, /inferSearchMarketFromText\(nextFilters\.location\) \|\| searchMarket/);
 });
 
 test('dashboard search lets a typed or active PIN code override stale country text', () => {
@@ -114,4 +134,23 @@ test('user dashboard clear search removes stale dashboard URL filters', () => {
     assert.match(userDashboardSource, /const clearFilteredResults = useCallback\(\(\) => \{[\s\S]*setShowFilteredResults\(false\);[\s\S]*setSearchParams\(\(previous\) => \{/);
     assert.match(userDashboardSource, /const next = new URLSearchParams\(previous\);[\s\S]*dashboardSearchParamKeys\.forEach\(\(key\) => next\.delete\(key\)\);[\s\S]*return next;/);
     assert.match(userDashboardSource, /\}, \{ replace: true \}\);[\s\S]*\}, \[setSearchParams\]\);/);
+});
+
+test('user dashboard property navigation preserves the active browser search cache', () => {
+    assert.match(userDashboardSource, /savePropertySearchReturnState\(window\.sessionStorage, \{[\s\S]*pathname: USER_DASHBOARD_PATH,[\s\S]*search: dashboardReturnSearch,[\s\S]*scrollY: window\.scrollY/);
+    assert.match(userDashboardSource, /const dashboardReturnPath = `\$\{USER_DASHBOARD_PATH\}\$\{dashboardReturnSearch \? `\?\$\{dashboardReturnSearch\}` : ''\}`;/);
+    assert.match(userDashboardSource, /const openPropertyFromDashboard[\s\S]*cacheDashboardSearchReturn\(\);[\s\S]*backTo: dashboardReturnPath/);
+    assert.match(userDashboardSource, /const openFastTrackFromDashboard[\s\S]*cacheDashboardSearchReturn\(\);[\s\S]*backTo: dashboardReturnPath/);
+    assert.match(userDashboardSource, /if \(!cachedSearch \|\| searchLoading \|\| !filteredSearchCompleted \|\| !showFilteredResults\)/);
+    assert.doesNotMatch(userDashboardSource, /backTo: '\/user\/dashboard'/);
+});
+
+test('user dashboard search URL preserves quick filters and pagination', () => {
+    assert.match(userDashboardSource, /buildDashboardReturnSearchParams[\s\S]*new URLSearchParams\(currentSearchParams\)[\s\S]*if \(currentPage > 1\)[\s\S]*params\.set\('page', String\(currentPage\)\)/);
+    assert.match(userDashboardSource, /dashboardReturnSearchParams\.forEach\(\(value, key\) => next\.set\(key, value\)\)/);
+});
+
+test('user dashboard keeps unrelated return context and rejects a mismatched stale cache', () => {
+    assert.match(userDashboardSource, /const params = new URLSearchParams\(currentSearchParams\);/);
+    assert.match(userDashboardSource, /hasExplicitDashboardSearch[\s\S]*!searchParamsMatch\(searchParams, new URLSearchParams\(cachedSearch\)\)[\s\S]*clearPropertySearchReturnState\(window\.sessionStorage, USER_DASHBOARD_PATH\);[\s\S]*cachedDashboardSearchRef\.current = null;/);
 });

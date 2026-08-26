@@ -1,9 +1,12 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    X, Loader2, Home, User, Briefcase, IndianRupee, PoundSterling,
+    X, Home, User, Briefcase, IndianRupee, PoundSterling,
     Phone, Mail, Building2, FileText, CheckCircle, Search,
     ArrowRight, ArrowLeft, Sparkles, MapPin, Bed, Bath, Edit2,
 } from 'lucide-react';
@@ -486,7 +489,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                 className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                                             />
                                             {loadingProperties && (
-                                                <Loader2 size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500 animate-spin" />
+                                                <BrandLoader size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500" />
                                             )}
                                         </div>
                                     </div>
@@ -992,7 +995,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                             >
                                 {isSubmitting ? (
                                     <>
-                                        <Loader2 size={18} className="animate-spin" />
+                                        <ActionSpinner size={18} className="" />
                                         Submitting...
                                     </>
                                 ) : (

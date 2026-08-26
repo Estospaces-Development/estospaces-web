@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -9,7 +12,6 @@ import {
   Clock,
   CheckCircle,
   ArrowLeft,
-  Loader2,
   Calendar,
   ChevronRight,
   Search,
@@ -58,7 +60,10 @@ import {
   sanitizeWorkspaceCaseId,
   stripCaseSearchParam,
 } from "@/lib/fastTrackCaseContext";
-import { buildUserPropertyPortfolio } from "@/lib/userPropertyPortfolio";
+import {
+  buildUserPropertyPortfolio,
+  summarizeUserPropertyPortfolio,
+} from "@/lib/userPropertyPortfolio";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
 
 const formatContractCurrency = (contract: Contract | null | undefined, amount?: number) => (
@@ -373,15 +378,7 @@ export default function ContractsPage() {
   }, [portfolioItems, searchQuery]);
 
   const portfolioSummary = React.useMemo(
-    () => ({
-      total: portfolioItems.length,
-      bought: portfolioItems.filter((item) => item.ownershipLabel === "Bought")
-        .length,
-      rented: portfolioItems.filter(
-        (item) =>
-          item.ownershipLabel === "Rented" && item.portfolioStatus === "Active",
-      ).length,
-    }),
+    () => summarizeUserPropertyPortfolio(portfolioItems),
     [portfolioItems],
   );
 
@@ -389,7 +386,7 @@ export default function ContractsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <h1 className="sr-only">My Properties</h1>
-        <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+        <BrandLoader className="w-10 h-10 text-orange-500" />
       </div>
     );
   }
@@ -443,7 +440,7 @@ export default function ContractsPage() {
           </p>
           {isRefreshing && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
-              <Loader2 size={12} className="animate-spin" />
+              <BrandLoader size={12} className="" />
               Refreshing workspace
             </div>
           )}
@@ -832,7 +829,7 @@ export default function ContractsPage() {
                             >
                               {signingId === contract.id ? (
                                 <>
-                                  <Loader2 size={14} className="animate-spin" />{" "}
+                                  <ActionSpinner size={14} className="" />{" "}
                                   Signing...
                                 </>
                               ) : (
@@ -1023,7 +1020,7 @@ export default function ContractsPage() {
                   disabled={signingId === viewContract.id}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {signingId === viewContract.id ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
+                  {signingId === viewContract.id ? <ActionSpinner size={16} className="" /> : <PenTool size={16} />}
                   {signingId === viewContract.id ? "Signing..." : "Sign Contract"}
                 </button>
               )}

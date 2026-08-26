@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getUserLocation, extractPostcodeFromAddress } from '../services/locationService';
+import { createDashboardMapLocationGate } from '../lib/dashboardMapLocation';
 import { useAuth } from './AuthContext';
 
 interface LocationContextType {
@@ -27,6 +28,10 @@ export const resolveProfileLocation = (user?: {
     return postcode ? { postcode } : null;
 };
 
+export const resolveSearchLocationCode = (searchInput: string) => (
+    extractPostcodeFromAddress(searchInput)
+);
+
 export const useUserLocation = () => {
     const context = useContext(LocationContext);
     if (!context) {
@@ -38,6 +43,8 @@ export const useUserLocation = () => {
 export const LocationProvider = ({ children }: { children: React.ReactNode }) => {
     const [userLocation, setUserLocation] = useState<any>(null);
     const [searchLocation, setSearchLocation] = useState<any>(null);
+    const [searchLocationActive, setSearchLocationActive] = useState(false);
+    const searchLocationGateRef = useRef(createDashboardMapLocationGate());
     const { user } = useAuth();
     const location = useLocation();
     const [loading, setLoading] = useState(true);
@@ -88,30 +95,56 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
     // Update location from search
     const updateLocationFromSearch = useCallback(async (searchInput: string) => {
+        const revision = searchLocationGateRef.current.begin();
+        const locationCode = resolveSearchLocationCode(searchInput);
+        setSearchLocationActive(true);
         setLoading(true);
         setError(null);
 
+        if (!locationCode) {
+            if (searchLocationGateRef.current.isCurrent(revision)) {
+                setSearchLocation(null);
+                setLoading(false);
+            }
+            return null;
+        }
+
         try {
             const location = await getUserLocation({
-                searchInput,
-                profileLocation: await getUserProfileLocation(),
+                searchInput: locationCode,
+                profileLocation: null,
                 useGeolocation: false,
             });
 
-            setSearchLocation(location);
+            if (searchLocationGateRef.current.isCurrent(revision)) {
+                setSearchLocation(location);
+            }
             return location;
         } catch (err: any) {
-            setError(err.message);
+            if (searchLocationGateRef.current.isCurrent(revision)) {
+                setError(err.message);
+                setSearchLocation(null);
+            }
             return null;
         } finally {
-            setLoading(false);
+            if (searchLocationGateRef.current.isCurrent(revision)) {
+                setLoading(false);
+            }
         }
-    }, [getUserProfileLocation]);
+    }, []);
+
+    const clearSearchLocation = useCallback(() => {
+        searchLocationGateRef.current.invalidate();
+        setSearchLocation(null);
+        setSearchLocationActive(false);
+        setError(null);
+        setLoading(false);
+    }, []);
 
     // Get active location (search takes priority over user location)
     const getActiveLocation = useCallback(() => {
-        return searchLocation || userLocation || null;
-    }, [searchLocation, userLocation]);
+        return searchLocationActive ? searchLocation : (userLocation || null);
+    }, [searchLocation, searchLocationActive, userLocation]);
 
     const value = {
         userLocation,
@@ -120,7 +153,7 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
         loading,
         error,
         updateLocationFromSearch,
-        clearSearchLocation: () => setSearchLocation(null),
+        clearSearchLocation,
     };
 
     return (

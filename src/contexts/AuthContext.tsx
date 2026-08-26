@@ -43,7 +43,7 @@ interface AuthContextType {
         password: string,
         role: string,
         termsAcceptance: { acceptedAt: string; version: string; country?: string },
-    ) => Promise<{ success: boolean; error?: string }>;
+    ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean }>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
     mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
@@ -135,6 +135,18 @@ export const splitRegistrationName = (name: string) => {
     const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
     return { first_name, last_name };
+};
+
+export const resolveVerificationEmailSent = (payload: unknown): boolean => {
+    if (!payload || typeof payload !== 'object') {
+        return true;
+    }
+    const response = payload as Record<string, unknown>;
+    const wrappedData = response.data && typeof response.data === 'object'
+        ? response.data as Record<string, unknown>
+        : undefined;
+    const status = wrappedData?.verification_email_sent ?? response.verification_email_sent;
+    return status !== false;
 };
 
 const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User => {
@@ -577,6 +589,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email, first_name, last_name, role };
             const userObj = buildStoredUser(userData, email);
+			const verificationEmailSent = resolveVerificationEmailSent(data);
 
             setProductAnalyticsIdentity({
                 email: userObj.email,
@@ -601,7 +614,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
                 }, 100);
             }
 
-            return { success: true };
+			return { success: true, verificationEmailSent };
         } catch (err: any) {
             const errorMessage = sanitizeRegistrationError(err);
             setError(errorMessage);

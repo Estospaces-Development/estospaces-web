@@ -10,11 +10,14 @@ import {
 } from "lucide-react";
 import { useMessages } from "../../contexts/MessagesContext";
 
-const UnreadCountBadge = ({ count }: { count: number }) => {
+const UnreadCountBadge = ({ count, mobile = false }: { count: number; mobile?: boolean }) => {
   if (count === 0) return null;
 
   return (
-    <span className="ml-1.5 flex h-5 min-w-[18px] items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-semibold text-white">
+    <span className={mobile
+      ? "absolute right-1.5 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm"
+      : "ml-1.5 flex h-5 min-w-[18px] items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-semibold text-white"
+    }>
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -99,7 +102,7 @@ const HorizontalNavigation = ({
 
   return (
     <nav
-      className="sticky top-16 z-20 border-b border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
+      className="workspace-chrome fixed inset-x-0 bottom-0 z-20 border-t border-gray-100 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:sticky md:top-16 md:border-b md:border-t-0 md:bg-white md:shadow-sm md:backdrop-blur-none dark:border-gray-800 dark:bg-gray-900/95 md:dark:bg-gray-900"
       role="navigation"
       aria-label="Main navigation"
     >
@@ -167,12 +170,12 @@ const HorizontalNavigation = ({
           })}
         </div>
 
-        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 py-3 scrollbar-hide md:hidden">
+        <div className="grid grid-cols-4 gap-1 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item);
             const commonClass = `
-              relative inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold
+              relative inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 text-[11px] font-semibold
               transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2
               focus-visible:ring-orange-500 focus-visible:ring-offset-2
               ${
@@ -186,9 +189,9 @@ const HorizontalNavigation = ({
             const content = (
               <>
                 <Icon size={16} className="flex-shrink-0" />
-                <span className="whitespace-nowrap">{item.label}</span>
+                <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
                 {item.showBadge && (item.badgeCount || 0) > 0 && (
-                  <UnreadCountBadge count={item.badgeCount || 0} />
+                  <UnreadCountBadge count={item.badgeCount || 0} mobile />
                 )}
               </>
             );

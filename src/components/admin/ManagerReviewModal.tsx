@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -14,7 +17,6 @@ import {
     Download,
     RefreshCw,
     AlertCircle,
-    Loader2,
     Calendar,
     Hash,
     Mail,
@@ -384,7 +386,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
             <ModalWrapper onClose={onClose}>
                 <div className="flex flex-col items-center justify-center py-20">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mb-4 shadow-lg">
-                        <Loader2 className="animate-spin text-white" size={28} />
+                        <BrandLoader className="text-white" size={28} />
                     </div>
                     <p className="text-gray-600 font-medium">Loading verification details...</p>
                 </div>
@@ -725,7 +727,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                     disabled={Boolean(revokeReasonError) || actionLoading === 'revoke'}
                                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all shadow-lg shadow-red-500/20"
                                 >
-                                    {actionLoading === 'revoke' && <Loader2 className="animate-spin" size={16} />}
+                                    {actionLoading === 'revoke' && <ActionSpinner className="" size={16} />}
                                     Confirm Revocation
                                 </button>
                                 <button
@@ -790,7 +792,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 disabled={Boolean(rejectReasonError) || actionLoading === 'reject'}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all shadow-lg shadow-red-500/20"
                             >
-                                {actionLoading === 'reject' && <Loader2 className="animate-spin" size={16} />}
+                                {actionLoading === 'reject' && <ActionSpinner className="" size={16} />}
                                 Confirm Rejection
                             </button>
                             <button
@@ -822,7 +824,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 disabled={approvalBlocker !== null || actionLoading === 'approve'}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
                             >
-                                {actionLoading === 'approve' && <Loader2 className="animate-spin" size={16} />}
+                                {actionLoading === 'approve' && <ActionSpinner className="" size={16} />}
                                 <CheckCircle size={16} />
                                 Confirm Approval
                             </button>
@@ -1051,7 +1053,7 @@ const DocumentCard: React.FC<{
                                 aria-label={`Request re-upload for ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700 disabled:opacity-50 transition-colors"
                             >
-                                {actionLoading && <Loader2 className="animate-spin" size={12} />}
+                                {actionLoading && <ActionSpinner className="" size={12} />}
                                 Request Re-upload
                             </button>
                             <button
@@ -1071,7 +1073,7 @@ const DocumentCard: React.FC<{
                             aria-label={`View ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
-                            {viewLoading ? <Loader2 className="animate-spin" size={12} /> : <Eye size={12} />}
+                            {viewLoading ? <ActionSpinner className="" size={12} /> : <Eye size={12} />}
                             View
                         </button>
                         <button

@@ -100,7 +100,7 @@ test('manager property upload controls expose button copy and format help', () =
   assert.deepEqual(getManagerPropertyUploadControlCopy('videos'), {
     buttonLabel: 'Click to upload videos',
     ariaLabel: 'Upload property videos',
-    helpText: 'MP4, WebM, MOV up to 50MB each',
+    helpText: 'MP4, WebM, MOV up to 30MB each',
   });
 });
 
@@ -180,6 +180,19 @@ test('manager property submit button is disabled until required fields are compl
   );
   assert.match(managerPropertyFormPage, /\? "Complete the required fields"/);
   assert.match(managerPropertyFormPage, /The submit action stays disabled until they are corrected\./);
+});
+
+test('manager property numeric requirements are visible before advancing', () => {
+  for (const fieldName of ['balconies', 'parkingSpaces', 'totalFloors']) {
+    const labelPattern = new RegExp(
+      `htmlFor=\\{getManagerPropertyFieldId\\("${fieldName}"\\)\\}[\\s\\S]*?aria-hidden="true">\\*<`,
+    );
+    const inputPattern = new RegExp(
+      `\\{\\.\\.\\.fieldState\\("${fieldName}"\\)\\}[\\s\\S]*?required`,
+    );
+    assert.match(managerPropertyFormPage, labelPattern, `${fieldName} must show a required marker`);
+    assert.match(managerPropertyFormPage, inputPattern, `${fieldName} must expose native required state`);
+  }
 });
 
 test('manager property money fields display the selected currency symbol', () => {

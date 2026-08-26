@@ -1,5 +1,7 @@
 "use client";
 
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {  useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -9,7 +11,6 @@ import {
     Building2,
     CheckCircle2,
     Clock,
-    Loader2,
     MapPin,
     MessageSquare,
     Phone,
@@ -29,7 +30,6 @@ import {
     getUserBrokerRequests,
     LeadBrokerSummary,
 } from '@/services/leadsService';
-import { createFastTrackCase } from '@/services/fastTrackService';
 import { messagesService } from '@/services/messagesService';
 import {
     formatRequestTypeLabel,
@@ -198,16 +198,6 @@ const formatRequirementsPreview = (value?: string | null) => {
     }
 
     return `${trimmedValue.slice(0, 137).trimEnd()}...`;
-};
-
-const mapListingTypeToFastTrackPropertyType = (listingType?: string) => {
-    if (listingType === 'sale') {
-        return 'buy' as const;
-    }
-    if (listingType === 'lease') {
-        return 'lease' as const;
-    }
-    return 'rent' as const;
 };
 
 const normalizePostcode = (value?: string | null) => normalizeLaunchLocationCode(value);
@@ -573,39 +563,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 throw new Error('The selected home could not be opened from this agent request.');
             }
 
-            const fastTrackResult = await createFastTrackCase({
-                property_id: selectedProperty.id,
-                broker_request_id: selectedRequest.id,
-                lead_id: selectedRequest.selected_lead_id || undefined,
-                manager_id: selectedRequest.matched_broker_id || undefined,
-                client_id: user.id,
-                client_name: displayName,
-                property_title: selectedProperty.title,
-                property_type: mapListingTypeToFastTrackPropertyType(selectedProperty.listing_type),
-                property_country: selectedProperty.country || undefined,
-                listing_type: selectedProperty.listing_type as 'rent' | 'sale' | 'lease' | undefined,
-                started_from: 'broker_request_selection',
-            });
-
-            if (fastTrackResult.error || !fastTrackResult.data) {
-                throw new Error(fastTrackResult.error || 'Unable to start your 24-hour journey.');
-            }
-
-            const nextFastTrackCaseId = fastTrackResult.data.caseId;
-
             const refreshedRequest = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
             const resolvedRequest = refreshedRequest.data || selectedRequest;
             setActiveRequest(resolvedRequest);
 
             const params = new URLSearchParams();
-            params.set('fast-track', '1');
             params.set('broker-request', resolvedRequest.id);
-            if (nextFastTrackCaseId) {
-                params.set('case', nextFastTrackCaseId);
-            }
 
-            setSelectionStatusMessage(brokerCopy.selectionSuccess);
-            toast.success(brokerCopy.selectionSuccess);
+            const selectedMessage = 'Home selected. Open it when you are ready to request Fast Track from your manager.';
+            setSelectionStatusMessage(selectedMessage);
+            toast.success(selectedMessage);
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -618,7 +585,6 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 ids: {
                     leadId: resolvedRequest.id,
                     propertyId,
-                    caseId: nextFastTrackCaseId || undefined,
                 },
             });
             navigate(`/user/properties/${propertyId}?${params.toString()}`);
@@ -824,7 +790,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const lockedRequestActionLabel = activeRequest?.selected_fast_track_case_id
         ? 'Continue in fast-track'
         : selectedProperty
-            ? 'Start fast-track with selected home'
+            ? 'Request fast-track for selected home'
             : 'Open matched agent request';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
@@ -972,7 +938,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
-                            <p className="mt-1 text-[11px] font-medium opacity-80">
+                            <p className="mt-1 text-[11px] font-medium text-gray-600 dark:text-gray-300">
                                 {countdownTone.caption}
                             </p>
                         </div>
@@ -1112,7 +1078,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                         disabled={openingConversation}
                                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                     >
-                                        {openingConversation ? <Loader2 size={15} className="animate-spin" /> : <MessageSquare size={15} />}
+                                        {openingConversation ? <ActionSpinner size={15} className="" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
                                     </button>
                                 </div>
@@ -1335,7 +1301,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                                             disabled={Boolean(selectingPropertyId)}
                                                                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                                                                         >
-                                                                            {isSelecting && <Loader2 size={15} className="animate-spin" />}
+                                                                            {isSelecting && <ActionSpinner size={15} className="" />}
                                                                             {isSelecting ? 'Starting your journey...' : 'Choose this home'}
                                                                         </button>
                                                                         <button
@@ -1372,7 +1338,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                 disabled={rematching || Boolean(selectingPropertyId)}
                                                 className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                             >
-                                                {rematching && <Loader2 size={15} className="animate-spin" />}
+                                                {rematching && <ActionSpinner size={15} className="" />}
                                                 {rematching ? 'Finding another agent...' : 'Find another agent'}
                                             </button>
                                         ) : null}
@@ -1626,7 +1592,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                     {loading ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        <ActionSpinner size="xs" label="Submitting request" />
                     ) : (
                         <Send size={16} />
                     )}

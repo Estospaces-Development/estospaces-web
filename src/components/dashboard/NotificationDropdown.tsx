@@ -5,6 +5,7 @@ import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, In
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import BrandLoader from '@/components/ui/BrandLoader';
 import {
     getNotificationNavigationPath,
     getNotificationsPagePath,
@@ -17,7 +18,11 @@ import { getNotificationIconColorClass } from '@/lib/notificationVisuals';
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 
-const NotificationDropdown = () => {
+interface NotificationDropdownProps {
+    appearance?: 'surface' | 'brand';
+}
+
+const NotificationDropdown = ({ appearance = 'surface' }: NotificationDropdownProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -168,36 +173,36 @@ const NotificationDropdown = () => {
         return date.toLocaleDateString();
     };
 
+    const hasUnreadNotifications = unreadCount > 0;
+    const notificationButtonLabel = hasUnreadNotifications
+        ? `Notifications, ${unreadCount} unread`
+        : 'Notifications';
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
                 ref={buttonRef}
                 onClick={() => setIsOpen(!isOpen)}
-                className={`relative rounded-2xl border p-2 transition-all ${
-                    unreadCount > 0
-                        ? 'border-orange-200 bg-orange-50 shadow-sm shadow-orange-500/10 dark:border-orange-900/50 dark:bg-orange-950/20'
-                        : 'border-transparent hover:bg-white/10'
+                className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                    appearance === 'brand'
+                        ? 'border-white/25 bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white focus-visible:ring-offset-orange-600'
+                        : hasUnreadNotifications
+                            ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 focus-visible:ring-orange-500 focus-visible:ring-offset-white dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-100 dark:hover:bg-orange-950/35 dark:focus-visible:ring-offset-gray-900'
+                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 focus-visible:ring-orange-500 focus-visible:ring-offset-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:focus-visible:ring-offset-gray-900'
                 }`}
-                aria-label="Notifications"
+                aria-label={notificationButtonLabel}
                 aria-expanded={isOpen}
                 aria-haspopup="dialog"
                 aria-controls={isOpen ? 'notification-dropdown-panel' : undefined}
-                title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+                title={hasUnreadNotifications ? `${unreadCount} unread notifications` : 'Notifications'}
             >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    unreadCount > 0
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                        : 'bg-gray-100 dark:bg-gray-700'
-                }`}>
-                    <Bell size={18} className={unreadCount > 0 ? 'text-white' : 'text-gray-600 dark:text-gray-200'} />
-                </div>
-                {unreadCount > 0 && (
-                    <>
-                        <span className="absolute -right-0.5 -top-0.5 h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
-                        <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 text-[10px] font-bold text-white shadow-lg ring-4 ring-white dark:ring-gray-900">
-                            {unreadCount > 9 ? '9+' : unreadCount}
-                        </span>
-                    </>
+                <Bell size={19} aria-hidden="true" />
+                {hasUnreadNotifications && (
+                    <span className={`absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ${
+                        appearance === 'brand' ? 'ring-orange-600' : 'ring-white dark:ring-gray-900'
+                    }`}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                 )}
             </button>
 
@@ -206,24 +211,28 @@ const NotificationDropdown = () => {
                     id="notification-dropdown-panel"
                     role="dialog"
                     aria-label="Notifications"
-                    className="absolute right-0 z-50 mt-3 w-[calc(100vw-2rem)] max-w-80 origin-top-right animate-fadeIn overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800 md:max-w-96"
+                    className={`fixed inset-x-3 z-50 flex origin-top-right flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:w-[min(24rem,calc(100vw-2rem))] sm:max-h-none ${
+                        appearance === 'brand'
+                            ? 'top-[6.75rem] max-h-[calc(100dvh-7.5rem)]'
+                            : 'top-[4.75rem] max-h-[calc(100dvh-5.5rem)]'
+                    }`}
                 >
-                    <div className="p-4 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm z-10">
+                    <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-white/95 p-4 backdrop-blur-sm dark:bg-gray-800/95">
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
                                 onClick={() => void markAllAsRead()}
-                                className="text-xs font-medium text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+                                className="inline-flex min-h-11 items-center text-xs font-medium text-orange-600 hover:text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-orange-400 dark:hover:text-orange-300"
                             >
                                 Mark all as read
                             </button>
                         )}
                     </div>
 
-                    <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
+                    <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin sm:max-h-[70vh]">
                         {loading && safeNotifications.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <p className="text-gray-500 dark:text-gray-400 text-sm">Loading...</p>
+                            <div className="flex justify-center p-8 text-gray-500 dark:text-gray-400">
+                                <BrandLoader size="sm" label="Loading notifications" showLabel />
                             </div>
                         ) : safeNotifications.length > 0 ? (
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
@@ -233,54 +242,56 @@ const NotificationDropdown = () => {
                                     return (
                                         <div
                                             key={notification.id}
-                                            onClick={() => void handleNotificationClick(notification)}
-                                            className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative group ${!notification.is_read ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
+                                            className={`group relative flex items-start gap-1 p-2 transition-colors hover:bg-gray-50 focus-within:bg-gray-50 dark:hover:bg-gray-700/50 dark:focus-within:bg-gray-700/50 ${!notification.is_read ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
                                         >
-                                        <div className="flex gap-3">
-                                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!notification.is_read ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                                                {getIcon(notification)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-start mb-0.5">
-                                                    <p className={`text-sm font-medium truncate pr-6 ${!notification.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
-                                                        {displayCopy.title}
-                                                    </p>
-                                                    <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
-                                                        {formatTime(notification.created_at)}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                                                    {displayCopy.message}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {!notification.is_read && (
-                                                <button
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        void markAsRead(notification.id);
-                                                    }}
-                                                    className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
-                                                    title="Mark as read"
-                                                    aria-label="Mark notification as read"
-                                                >
-                                                    <Check size={14} />
-                                                </button>
-                                            )}
                                             <button
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    deleteNotification(notification.id);
-                                                }}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
-                                                title="Remove"
-                                                aria-label="Remove notification"
+                                                type="button"
+                                                onClick={() => void handleNotificationClick(notification)}
+                                                className={`flex min-w-0 flex-1 gap-3 rounded-xl p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
+                                                    !notification.is_read ? 'sm:pr-[6.5rem]' : 'sm:pr-14'
+                                                }`}
+                                                aria-label={`${displayCopy.title}. ${displayCopy.message}. ${formatTime(notification.created_at)}`}
                                             >
-                                                <X size={14} />
+                                                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${!notification.is_read ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                                    {getIcon(notification)}
+                                                </span>
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="mb-0.5 flex items-start justify-between gap-2">
+                                                        <span className={`truncate text-sm font-medium ${!notification.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                                                            {displayCopy.title}
+                                                        </span>
+                                                        <span className="ml-auto whitespace-nowrap text-[10px] text-gray-500 dark:text-gray-400">
+                                                            {formatTime(notification.created_at)}
+                                                        </span>
+                                                    </span>
+                                                    <span className="line-clamp-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                                                        {displayCopy.message}
+                                                    </span>
+                                                </span>
                                             </button>
-                                        </div>
+
+                                            <div className="flex shrink-0 gap-1 pt-1 opacity-100 sm:absolute sm:right-2 sm:top-2 sm:pt-0 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                                                {!notification.is_read && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void markAsRead(notification.id)}
+                                                        className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-white hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-orange-300"
+                                                        title="Mark as read"
+                                                        aria-label="Mark notification as read"
+                                                    >
+                                                        <Check size={15} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => deleteNotification(notification.id)}
+                                                    className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-white hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-red-300"
+                                                    title="Remove"
+                                                    aria-label="Remove notification"
+                                                >
+                                                    <X size={15} />
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -295,7 +306,7 @@ const NotificationDropdown = () => {
                         )}
                     </div>
 
-                    <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
+                    <div className="shrink-0 bg-gray-50/50 p-3 text-center dark:bg-gray-800/50">
                         <button
                             onClick={() => {
                                 setIsOpen(false);

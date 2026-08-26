@@ -12,6 +12,7 @@ import Header from '../../components/layout/Header';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -85,7 +86,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
     }, [sidebarOpen]);
 
     if (shouldWaitForSession) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+        return <BrandLoadingScreen label="Opening the manager workspace..." />;
     }
 
     if (!isAuthenticated) {
@@ -101,7 +102,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
             <NotificationsProvider>
                 <ManagerVerificationProvider>
                     <ManagerOperationalProviders>
-                                <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
+                                <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300" data-workspace-role="manager">
                                     {sidebarOpen && (
                                         <button
                                             type="button"
@@ -119,7 +120,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                                         } as React.CSSProperties}
                                     >
                                         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                                        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
+                                        <main className="role-workspace-content flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-3 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
                                             <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">
                                                 {children}
                                             </div>

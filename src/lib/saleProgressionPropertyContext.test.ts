@@ -7,6 +7,7 @@ import {
     buildPropertyContextFromProperty,
     hydrateApplicationPropertyContexts,
     hydrateMissingSaleProgressionPropertyContexts,
+    isCurrentApplicationsFetch,
     mapBackendApplication,
     mergePropertyContexts,
 } from '../contexts/ApplicationsContext';
@@ -44,6 +45,23 @@ test('sign-out invalidates pending background application hydration', () => {
     assert.match(
         applicationsContextSource,
         /if \(!user\) \{\s*fetchRevisionRef\.current \+= 1;\s*setApplications\(\[\]\)/,
+    );
+});
+
+test('stale application fetch revisions cannot publish over the current workspace state', () => {
+    assert.equal(isCurrentApplicationsFetch(4, 4), true);
+    assert.equal(isCurrentApplicationsFetch(4, 5), false);
+    assert.match(
+        applicationsContextSource,
+        /await Promise\.all\([\s\S]*if \(!isCurrentFetch\(\)\) \{\s*return;/,
+    );
+    assert.match(
+        applicationsContextSource,
+        /await hydrateMissingSaleProgressionPropertyContexts\([\s\S]{0,180}if \(!isCurrentFetch\(\)\) \{\s*return;/,
+    );
+    assert.match(
+        applicationsContextSource,
+        /const publishApplications = \(\) => \{\s*if \(!isCurrentFetch\(\)\) \{\s*return;/,
     );
 });
 

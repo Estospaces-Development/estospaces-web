@@ -8,6 +8,7 @@ import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface AdminLayoutClientProps {
     children: React.ReactNode;
@@ -52,7 +53,7 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     }, [sidebarOpen]);
 
     if (shouldWaitForSession) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+        return <BrandLoadingScreen label="Opening the admin workspace..." />;
     }
 
     if (!isAuthenticated) {
@@ -66,7 +67,7 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     return (
         <ThemeProvider>
             <NotificationsProvider>
-                <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+                <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300" data-workspace-role="admin">
                     {sidebarOpen && (
                         <button
                             type="button"
@@ -83,7 +84,7 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
 
                     <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
                         <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
+                        <main className="role-workspace-content flex-1 overflow-x-hidden p-3 sm:p-6 lg:p-8">
                             <div className="mx-auto w-full max-w-[1600px] min-w-0">
                                 {children}
                             </div>

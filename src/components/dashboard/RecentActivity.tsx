@@ -8,6 +8,8 @@ import { getUserProperties } from '@/services/userPropertiesService';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 const SatelliteMap = lazy(() => import('./SatelliteMap'));
 
 interface Activity {
@@ -121,7 +123,9 @@ const RecentActivity = () => {
 
                 <div className="space-y-4 mb-6">
                     {loading ? (
-                        <div className="text-center py-4 text-gray-500 dark:text-gray-400">Loading activities...</div>
+                        <div className="flex justify-center py-4 text-gray-500 dark:text-gray-400">
+                            <BrandLoader size="sm" label="Loading activities" showLabel />
+                        </div>
                     ) : activities.length === 0 ? (
                         <div className="text-center py-4 text-gray-500 dark:text-gray-400">No recent activity</div>
                     ) : (
@@ -151,7 +155,7 @@ const RecentActivity = () => {
 
                 {/* Satellite Map */}
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-lg h-[500px] md:h-[650px] lg:h-[800px] relative overflow-hidden">
-                    <Suspense fallback={<div className="flex items-center justify-center h-full">Loading map...</div>}>
+                    <Suspense fallback={<div className="flex h-full items-center justify-center"><BrandLoader size="md" label="Loading map" showLabel /></div>}>
                         <SatelliteMap />
                     </Suspense>
                 </div>

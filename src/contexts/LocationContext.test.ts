@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveProfileLocation } from './LocationContext';
+import { resolveProfileLocation, resolveSearchLocationCode } from './LocationContext';
 
 test('profile location uses the saved postcode even when address is blank', () => {
     assert.deepEqual(resolveProfileLocation({ postcode: 'SW1A 1AA', address: '' }), {
@@ -22,4 +22,10 @@ test('profile location ignores an invalid saved postcode and uses the address po
     }), {
         postcode: 'SW1A 2AA',
     });
+});
+
+test('map search anchors only supported PIN and postcode values', () => {
+    assert.equal(resolveSearchLocationCode('Mumbai'), null);
+    assert.equal(resolveSearchLocationCode('Mumbai 400001'), '400001');
+    assert.equal(resolveSearchLocationCode('London SW1A 1AA'), 'SW1A 1AA');
 });

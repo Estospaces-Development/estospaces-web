@@ -1,7 +1,9 @@
 "use client";
 
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useEffect, useRef, useState } from 'react';
-import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash, Trash2, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building, Globe, Save, CheckCircle, Upload, Hash, Trash2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -480,7 +482,7 @@ export default function ManagerProfilePage() {
                                     )}
                                     {(uploadingImage || removingAvatar) && (
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/45">
-                                            <Loader2 className="h-7 w-7 animate-spin text-white" />
+                                            <ActionSpinner className="h-7 w-7 text-white" />
                                         </div>
                                     )}
                                     <div className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg transition-all duration-200 group-hover:bg-orange-600">
@@ -494,7 +496,7 @@ export default function ManagerProfilePage() {
                                 disabled={uploadingImage || removingAvatar}
                                 className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-70 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
                             >
-                                {uploadingImage || removingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={16} />}
+                                {uploadingImage || removingAvatar ? <ActionSpinner className="h-4 w-4" /> : <Upload size={16} />}
                                 {uploadingImage ? 'Preparing image...' : removingAvatar ? 'Removing photo...' : 'Upload profile photo'}
                             </button>
                             {(profileImagePreview || storedAvatarValue || selectedAvatarFile) && (
@@ -507,7 +509,7 @@ export default function ManagerProfilePage() {
                                         aria-label="Remove manager profile photo"
                                         aria-expanded={confirmingAvatarRemoval}
                                     >
-                                        {removingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
+                                        {removingAvatar ? <ActionSpinner className="h-4 w-4" /> : <Trash2 size={16} />}
                                         {removingAvatar ? 'Removing photo...' : 'Remove photo'}
                                     </button>
                                     {confirmingAvatarRemoval && (
@@ -522,7 +524,7 @@ export default function ManagerProfilePage() {
                                                     className="inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-wait disabled:opacity-70"
                                                     aria-label="Confirm remove manager profile photo"
                                                 >
-                                                    {removingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 size={14} />}
+                                                    {removingAvatar ? <ActionSpinner className="h-3.5 w-3.5" /> : <Trash2 size={14} />}
                                                     Remove now
                                                 </button>
                                                 <button
@@ -882,9 +884,9 @@ export default function ManagerProfilePage() {
                             <button type="submit" disabled={saveDisabled} aria-describedby={requiredHelpId}
                                 className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors shadow-sm">
                                 {isLoading ? (
-                                    <><Loader2 size={18} className="animate-spin" /> Saving...</>
+                                    <><ActionSpinner size={18} className="" /> Saving...</>
                                 ) : uploadingImage ? (
-                                    <><Loader2 size={18} className="animate-spin" /> Preparing image...</>
+                                    <><ActionSpinner size={18} className="" /> Preparing image...</>
                                 ) : (
                                     <><Save size={18} /> Save Changes</>
                                 )}

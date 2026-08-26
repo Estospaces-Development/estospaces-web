@@ -188,10 +188,44 @@ test("created property fast-track case accepts refreshed data for the same case"
   assert.equal(selectedCase.stage, "documents");
 });
 
-test("property detail keeps the newly created fast-track case available before refresh catches up", () => {
+test("property detail waits for the manager to create a Fast Track case", () => {
   const source = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
-  assert.match(source, /const createdFastTrackCase = fastTrackResult\.data/);
-  assert.match(source, /resolveCreatedPropertyFastTrackCase\(\s*createdFastTrackCase,\s*refreshedWorkspace\.fastTrackCase,\s*\)/);
-  assert.match(source, /setActiveFastTrackCase\(selectedFastTrackCase\)/);
+  assert.match(source, /await requestFastTrack\(fastTrackRequest\)/);
+  assert.match(source, /Your manager has been notified and will start it after review/);
+  assert.doesNotMatch(source, /const createdFastTrackCase = fastTrackResult\.data/);
+  assert.doesNotMatch(source, /createFastTrackCase\(fastTrackRequest\)/);
+  assert.match(source, /writeFastTrackRequestPending/);
+  assert.match(source, /shouldClearFastTrackRequestPending/);
+  assert.match(source, /getFastTrackDeepLinkOpenKey/);
+  assert.match(source, /handledFastTrackDeepLinkRef\.current !== deepLinkOpenKey/);
+  assert.doesNotMatch(source, /fastTrackRequestActionRef/);
+  assert.doesNotMatch(source, /automaticFastTrackRequestKeyRef/);
+  assert.match(source, /fastTrackRequestInFlightRef\.current/);
+  assert.match(source, /Waiting for manager approval/);
+  assert.match(source, /Workspace opens after manager approval/);
+  assert.match(source, /Request manager-approved Fast Track/);
+  assert.doesNotMatch(source, /Start fast-track, open a direct chat/);
+  assert.doesNotMatch(source, /localStorage\.setItem\(fastTrackRequestStorageKey, 'pending'\)/);
+});
+
+test("matched broker request asks the manager to start Fast Track", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/components/dashboard/BrokerRequestWidget.tsx"), "utf8");
+
+  assert.match(source, /Request fast-track for selected home/);
+  assert.doesNotMatch(source, /Start fast-track with selected home/);
+  assert.match(source, /Home selected\. Open it when you are ready to request Fast Track from your manager\./);
+  assert.doesNotMatch(source, /requestFastTrack/);
+  assert.doesNotMatch(source, /writeFastTrackRequestPending/);
+  assert.match(source, /navigate\(`\/user\/properties\/\$\{propertyId\}\?\$\{params\.toString\(\)\}`\)/);
+  assert.doesNotMatch(source, /params\.set\('fast-track', '1'\)/);
+});
+
+test("dashboard map prevents wrapped world copies and exposes only a Fast Track request action", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/components/dashboard/NearbyPropertiesMap.tsx"), "utf8");
+
+  assert.equal((source.match(/<TileLayer/g) || []).length, 2);
+  assert.equal((source.match(/\bnoWrap\b/g) || []).length, 2);
+  assert.match(source, />\s*Request fast-track\s*</);
+  assert.doesNotMatch(source, />\s*Open fast-track\s*</);
 });

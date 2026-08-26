@@ -17,7 +17,7 @@ test('search history parses serialized filter JSON', () => {
 });
 
 test('search history builds accessible labels and result status', () => {
-  assert.equal(buildSearchHistoryLabel({ query: '  ATTUR  ' }), 'attur');
+  assert.equal(buildSearchHistoryLabel({ query: '  ATTUR  ' }), 'ATTUR');
   assert.equal(buildSearchHistoryLabel({ filters: '{"location":"North London"}' }), 'North London');
   assert.equal(buildSearchHistoryMeta({ result_count: 1 }), '1 result');
   assert.equal(buildSearchHistoryMeta({ result_count: 4 }), '4 results');
@@ -30,7 +30,7 @@ test('search history builds refresh-safe URL params', () => {
     filters: '{"property_type":"apartment","listing_type":"rent","min_price":0,"max_price":2500,"bedrooms":2,"bathrooms":1}',
   });
 
-  assert.equal(params.get('q'), 'attur');
+  assert.equal(params.get('q'), 'Attur');
   assert.equal(params.get('location'), 'Bengaluru');
   assert.equal(params.get('propertyType'), 'apartment');
   assert.equal(params.get('type'), 'rent');

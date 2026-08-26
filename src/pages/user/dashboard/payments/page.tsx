@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -11,7 +13,6 @@ import {
     CreditCard,
     Download,
     FileText,
-    Loader2,
     Receipt,
     RefreshCw,
     Search,
@@ -267,7 +268,7 @@ export default function PaymentsPage() {
     if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                <BrandLoader className="h-10 w-10 text-orange-500" />
             </div>
         );
     }

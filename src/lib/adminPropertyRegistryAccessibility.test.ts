@@ -28,6 +28,8 @@ test('admin property rejection uses an in-app reason dialog instead of native pr
   assert.match(adminPropertiesPage, /role="dialog"/);
   assert.match(adminPropertiesPage, /aria-label="Reject property reason"/);
   assert.match(adminPropertiesPage, /A rejection reason is required to reject a property\./);
+  assert.match(adminPropertiesPage, /bg-red-700[\s\S]{0,160}text-white/);
+  assert.doesNotMatch(adminPropertiesPage, /bg-red-500[\s\S]{0,160}text-white/);
 });
 
 test('admin property destructive actions use in-app dialogs instead of native confirms', () => {

@@ -1,7 +1,10 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
@@ -540,7 +543,7 @@ export default function ManagerAppointmentsPage() {
                     disabled={loading || isRefreshing}
                     className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
                 >
-                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? <ActionSpinner size="xs" label="Refreshing appointments" /> : <RefreshCw className="h-4 w-4" />}
                     {isRefreshing ? 'Refreshing' : 'Refresh'}
                 </button>
             </div>
@@ -599,7 +602,7 @@ export default function ManagerAppointmentsPage() {
             <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
-                        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                        <BrandLoader className="h-10 w-10 text-orange-500" />
                         <p className="text-sm text-gray-500 dark:text-gray-400">Loading appointments...</p>
                     </div>
                 ) : error ? (
@@ -733,7 +736,7 @@ export default function ManagerAppointmentsPage() {
                                                     disabled={isBusy}
                                                         className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
-                                                    {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                                    {isBusy ? <ActionSpinner className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                                                     Confirm
                                                 </button>
                                             )}
@@ -810,7 +813,7 @@ export default function ManagerAppointmentsPage() {
                             disabled={isSavingReschedule}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {isSavingReschedule && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {isSavingReschedule && <ActionSpinner className="h-4 w-4" />}
                             Save Reschedule
                         </button>
                     </div>
@@ -897,7 +900,7 @@ export default function ManagerAppointmentsPage() {
                             disabled={isSavingCancel || !isCancelReasonValid}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {isSavingCancel && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {isSavingCancel && <ActionSpinner className="h-4 w-4" />}
                             Cancel Appointment
                         </button>
                     </div>

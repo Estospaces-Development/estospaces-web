@@ -1,17 +1,20 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Bell,
     ArrowLeft,
     Save,
-    Loader2,
     Check,
     Search,
     SlidersHorizontal,
     ShieldAlert,
     MapPin,
+    IndianRupee,
     PoundSterling,
     BedDouble,
     FileText,
@@ -20,7 +23,10 @@ import {
 import { getPreferences, updatePreferences, type UserPreferences } from '@/services/authService';
 import { useToast } from '@/contexts/ToastContext';
 import Toggle from '@/components/ui/Toggle';
+import { useOptionalAuth } from '@/contexts/AuthContext';
+import { LAUNCH_DEFAULT_CITY } from '@/lib/launchLocale';
 import { type PreferencesValidationErrors, validateUserPreferences, validateCityInput, hasNoSearchPreferences } from '@/lib/preferencesValidation';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const defaultPreferences: UserPreferences = {
     preferred_city: '',
@@ -40,6 +46,11 @@ type TabId = 'alerts' | 'search' | 'account' | 'contracts';
 export default function SettingsPage() {
     const navigate = useNavigate();
     const toast = useToast();
+    const authContext = useOptionalAuth();
+    const geoMarket = useUserGeoMarket(authContext?.user);
+    const budgetCurrencyCode = geoMarket === 'GB' ? 'GBP' : 'INR';
+    const preferredCityPlaceholder = geoMarket === 'GB' ? 'London' : LAUNCH_DEFAULT_CITY;
+    const BudgetCurrencyIcon = geoMarket === 'GB' ? PoundSterling : IndianRupee;
 
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -195,7 +206,7 @@ export default function SettingsPage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <BrandLoader className="w-10 h-10 text-orange-500" />
             </div>
         );
     }
@@ -231,7 +242,7 @@ export default function SettingsPage() {
                             className="px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-all flex items-center gap-3"
                         >
                             {saving ? (
-                                <Loader2 size={24} className="animate-spin" />
+                                <ActionSpinner size={24} className="" />
                             ) : saveSuccess ? (
                                 <Check size={24} strokeWidth={3} />
                             ) : (
@@ -339,7 +350,7 @@ export default function SettingsPage() {
                                                 aria-invalid={preferenceErrors.preferred_city ? 'true' : 'false'}
                                                 aria-describedby={preferenceErrors.preferred_city ? 'user-preferred-city-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
-                                                placeholder="London"
+                                                placeholder={preferredCityPlaceholder}
                                             />
                                         </div>
                                         {preferenceErrors.preferred_city && (
@@ -371,9 +382,9 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label htmlFor="user-min-budget" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Budget</label>
+                                        <label htmlFor="user-min-budget" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Budget ({budgetCurrencyCode})</label>
                                         <div className="relative">
-                                            <PoundSterling className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <BudgetCurrencyIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
                                                 id="user-min-budget"
                                                 type="number"
@@ -395,9 +406,9 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label htmlFor="user-max-budget" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Budget</label>
+                                        <label htmlFor="user-max-budget" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Budget ({budgetCurrencyCode})</label>
                                         <div className="relative">
-                                            <PoundSterling className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <BudgetCurrencyIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
                                                 id="user-max-budget"
                                                 type="number"

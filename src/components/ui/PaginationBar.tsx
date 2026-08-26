@@ -66,13 +66,13 @@ export default function PaginationBar({
                 )}
             </div>
 
-            <div className={`flex min-w-0 max-w-full flex-wrap items-center gap-2 ${stacked ? 'w-full' : ''}`}>
+            <div className={`grid min-w-0 max-w-full grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap ${stacked ? 'w-full' : ''}`}>
                 <button
                     type="button"
                     aria-label="First page"
                     onClick={() => navigation.canGoFirst && onPageChange(navigation.firstPage)}
                     disabled={!navigation.canGoFirst}
-                    className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950"
+                    className="hidden h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950 sm:inline-flex"
                 >
                     <ChevronsLeft className="h-4 w-4" />
                     First
@@ -82,7 +82,7 @@ export default function PaginationBar({
                     type="button"
                     onClick={() => navigation.canGoPrevious && onPageChange(navigation.previousPage)}
                     disabled={!navigation.canGoPrevious}
-                    className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950"
+                    className="order-2 inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-gray-200 px-3 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950 sm:order-none sm:shrink-0 sm:px-4"
                 >
                     <ChevronLeft className="h-4 w-4" />
                     Previous
@@ -93,7 +93,8 @@ export default function PaginationBar({
                     tabIndex={0}
                     className={[
                         'flex max-w-full min-w-0 items-center gap-2 overflow-x-auto rounded-2xl bg-gray-50/90 px-2 py-2 dark:bg-gray-800/80',
-                        stacked ? 'w-full justify-start sm:justify-center' : 'w-full sm:w-auto',
+                        'order-1 col-span-2 w-full sm:w-auto justify-start sm:order-none sm:col-span-1',
+                        stacked ? 'sm:justify-center' : '',
                     ].join(' ')}
                 >
                     {tokens.map((token, index) => {
@@ -132,7 +133,7 @@ export default function PaginationBar({
                     type="button"
                     onClick={() => navigation.canGoNext && onPageChange(navigation.nextPage)}
                     disabled={!navigation.canGoNext}
-                    className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950"
+                    className="order-3 inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-gray-200 px-3 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950 sm:order-none sm:shrink-0 sm:px-4"
                 >
                     Next
                     <ChevronRight className="h-4 w-4" />
@@ -143,7 +144,7 @@ export default function PaginationBar({
                     aria-label="Last page"
                     onClick={() => navigation.canGoLast && onPageChange(navigation.lastPage)}
                     disabled={!navigation.canGoLast}
-                    className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950"
+                    className="hidden h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 transition-all hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-300 dark:focus-visible:ring-offset-gray-950 sm:inline-flex"
                 >
                     Last
                     <ChevronsRight className="h-4 w-4" />

@@ -6,8 +6,15 @@ import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from '@/lib/leafletReact';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
 import { formatMapPropertyPrice } from '@/lib/mapCurrency';
+import {
+    calculateMapDistanceKm,
+    hasValidMapCoordinates,
+    selectDashboardNearbyProperties,
+} from '@/lib/nearbyMap';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -44,17 +51,6 @@ interface NearbyPropertiesMapProps {
     onStartFastTrack?: ((property: Property) => void) | null;
     compact?: boolean;
 }
-
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const radiusKm = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-        + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180)
-        * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return radiusKm * c;
-};
 
 const createPropertyIcon = (label: string, color: string, selected: boolean) => L.divIcon({
     className: 'nearby-property-marker',
@@ -99,7 +95,7 @@ const createPropertyIcon = (label: string, color: string, selected: boolean) => 
 function MapAutoFit({
     userLocation,
     properties,
-    fitSignal: _fitSignal,
+    fitSignal,
 }: {
     userLocation: UserLocation | null;
     properties: Property[];
@@ -112,13 +108,16 @@ function MapAutoFit({
             const points: [number, number][] = [];
 
             map.closePopup();
+            if (fitSignal > 0) {
+                map.invalidateSize();
+            }
 
-            if (userLocation?.latitude && userLocation?.longitude) {
+            if (hasValidMapCoordinates(userLocation)) {
                 points.push([userLocation.latitude, userLocation.longitude]);
             }
 
             properties.forEach((property) => {
-                if (typeof property.latitude === 'number' && typeof property.longitude === 'number') {
+                if (hasValidMapCoordinates(property)) {
                     points.push([property.latitude, property.longitude]);
                 }
             });
@@ -152,7 +151,7 @@ function MapAutoFit({
         } catch (err) {
             console.warn('[MapAutoFit] transient error:', err);
         }
-    }, [map, properties, userLocation]);
+    }, [fitSignal, map, properties, userLocation]);
 
     // Re-apply the bounds fit on every meaningful data change.
     useEffect(() => {
@@ -191,26 +190,23 @@ const NearbyPropertiesMap = ({
 
     const formatPropertyPrice = formatMapPropertyPrice;
 
+    const visibleProperties = useMemo(() => (
+        compact
+            ? selectDashboardNearbyProperties(properties, userLocation)
+            : properties.filter(hasValidMapCoordinates)
+    ), [compact, properties, userLocation]);
+
     const propertiesWithDistance = useMemo(() => {
-        if (!Array.isArray(properties) || properties.length === 0) {
+        if (visibleProperties.length === 0) {
             return [];
         }
 
-        if (!userLocation?.latitude || !userLocation?.longitude) {
-            return properties.map((property) => ({ ...property, distance: null, category: 'other' }));
+        if (!hasValidMapCoordinates(userLocation)) {
+            return visibleProperties.map((property) => ({ ...property, distance: null, category: 'other' }));
         }
 
-        return properties.map((property) => {
-            if (typeof property.latitude !== 'number' || typeof property.longitude !== 'number') {
-                return { ...property, distance: null, category: 'other' };
-            }
-
-            const distance = calculateDistance(
-                userLocation.latitude,
-                userLocation.longitude,
-                property.latitude,
-                property.longitude,
-            );
+        return visibleProperties.map((property) => {
+            const distance = calculateMapDistanceKm(userLocation, property as { latitude: number; longitude: number });
 
             let category = 'other';
             if (distance <= 1) category = 'very-near';
@@ -224,7 +220,7 @@ const NearbyPropertiesMap = ({
                 category,
             };
         });
-    }, [properties, userLocation]);
+    }, [userLocation, visibleProperties]);
 
     const sortedProperties = useMemo(() => (
         [...propertiesWithDistance].sort((left, right) => {
@@ -235,9 +231,7 @@ const NearbyPropertiesMap = ({
     ), [propertiesWithDistance]);
 
     const propertiesWithCoords = useMemo(() => (
-        sortedProperties.filter((property) => (
-            typeof property.latitude === 'number' && typeof property.longitude === 'number'
-        ))
+        sortedProperties.filter(hasValidMapCoordinates)
     ), [sortedProperties]);
 
     useEffect(() => {
@@ -279,19 +273,14 @@ const NearbyPropertiesMap = ({
         const points: [number, number][] = [];
 
         if (
-            typeof userLocation?.latitude === 'number' &&
-            typeof userLocation?.longitude === 'number' &&
-            // Skip the (0, 0) sentinel returned by locationService when geocoding fails.
-            !(userLocation.latitude === 0 && userLocation.longitude === 0)
+            hasValidMapCoordinates(userLocation)
         ) {
             points.push([userLocation.latitude, userLocation.longitude]);
         }
 
         for (const property of propertiesWithCoords) {
             if (
-                typeof property.latitude === 'number' &&
-                typeof property.longitude === 'number' &&
-                !(property.latitude === 0 && property.longitude === 0)
+                hasValidMapCoordinates(property)
             ) {
                 points.push([property.latitude, property.longitude]);
             }
@@ -308,10 +297,10 @@ const NearbyPropertiesMap = ({
         const bounds = L.latLngBounds(points);
         const center = bounds.getCenter();
         return { center: [center.lat, center.lng] as [number, number], zoom: 12 };
-    }, [propertiesWithCoords, userLocation?.latitude, userLocation?.longitude]);
+    }, [propertiesWithCoords, userLocation]);
 
     const hasMapData = Boolean(
-        (userLocation?.latitude && userLocation?.longitude) || propertiesWithCoords.length > 0,
+        hasValidMapCoordinates(userLocation) || propertiesWithCoords.length > 0,
     );
 
     const getMarkerColor = (category?: string) => {
@@ -369,6 +358,13 @@ const NearbyPropertiesMap = ({
                         <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
                             Use your profile {lowerLocationCodeLabel} or search a location to see nearby homes without leaving the dashboard.
                         </p>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/user/dashboard/settings')}
+                            className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
+                        >
+                            Open location settings
+                        </button>
                     </div>
                 </div>
             </div>
@@ -378,7 +374,7 @@ const NearbyPropertiesMap = ({
     if (!isMounted) {
         return (
             <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Loading nearby map...</span>
+                <BrandLoader size="md" label="Loading nearby map" showLabel />
             </div>
         );
     }
@@ -404,15 +400,17 @@ const NearbyPropertiesMap = ({
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        noWrap
                     />
                 ) : (
                     <TileLayer
                         attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        noWrap
                     />
                 )}
 
-                {userLocation?.latitude && userLocation?.longitude ? (
+                {hasValidMapCoordinates(userLocation) ? (
                     <CircleMarker
                         center={[userLocation.latitude, userLocation.longitude]}
                         radius={10}
@@ -470,7 +468,7 @@ const NearbyPropertiesMap = ({
                                             onClick={() => handleStartFastTrack(property)}
                                             className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
                                         >
-                                            Start fast-track
+                                            Request fast-track
                                         </button>
                                     </div>
                                 </div>
@@ -598,7 +596,7 @@ const NearbyPropertiesMap = ({
                             onClick={() => handleStartFastTrack(selectedProperty)}
                             className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
                         >
-                            Open fast-track
+                            Request fast-track
                         </button>
                     </div>
                 </div>

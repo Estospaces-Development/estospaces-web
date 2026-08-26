@@ -1,7 +1,9 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Users, Search, Plus, Loader2 } from 'lucide-react';
+import { Users, Search, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserCard from '../../../components/dashboard/UserCard';
 import Select from '../../../components/ui/Select';
@@ -114,7 +116,7 @@ const ClientsPage = () => {
             {/* Client List */}
             {loading ? (
                 <div className="flex justify-center py-20">
-                    <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+                    <BrandLoader className="w-10 h-10 text-indigo-600" />
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-12 text-center">

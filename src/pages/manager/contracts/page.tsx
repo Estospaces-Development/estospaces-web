@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck } from 'lucide-react';
+
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contractStatus';
 import {
     getDepositProtectionRecord,
@@ -470,7 +473,7 @@ export default function ManagerContractsPage() {
                         onClick={fetchContracts}
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
                     >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                        {loading ? <ActionSpinner size="xs" label="Refreshing contracts" /> : <RefreshCw size={16} />} Refresh
                     </button>
                 </div>
             </div>
@@ -499,7 +502,7 @@ export default function ManagerContractsPage() {
             {/* Loading */}
             {loading && (
                 <div className="flex items-center justify-center py-20">
-                    <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <BrandLoader size="lg" label="Loading contracts" />
                 </div>
             )}
 
@@ -704,7 +707,7 @@ export default function ManagerContractsPage() {
                                                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition-colors disabled:opacity-70"
                                             >
                                                 {signingId === contract.id ? (
-                                                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming...</>
+                                                    <><ActionSpinner size="xs" label="Confirming contract" /> Confirming...</>
                                                 ) : (
                                                     <><PenTool size={16} /> Confirm Contract</>
                                                 )}
@@ -721,7 +724,7 @@ export default function ManagerContractsPage() {
             {/* View Contract Modal */}
             {viewContract && renderManagerContractDetailPortal(
                 <div
-                    className="fixed bottom-0 right-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    className="fixed bottom-0 right-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
                     style={managerContractDetailOverlayStyle}
                     onClick={closeContractDetail}
                 >
@@ -729,7 +732,7 @@ export default function ManagerContractsPage() {
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="manager-contract-detail-title"
-                        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col"
+                        className="flex max-h-[calc(100dvh-var(--workspace-header-height,4rem))] w-full max-w-2xl flex-col rounded-t-3xl bg-white shadow-2xl dark:bg-gray-800 sm:max-h-[85vh] sm:rounded-2xl"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
@@ -740,7 +743,7 @@ export default function ManagerContractsPage() {
                                 type="button"
                                 onClick={closeContractDetail}
                                 aria-label="Close contract detail"
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500"
+                                className="inline-flex min-h-11 items-center justify-center rounded-full px-3 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                                 Close
                             </button>
@@ -905,7 +908,7 @@ export default function ManagerContractsPage() {
                                     className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2"
                                 >
                                     {signingId === viewContract.id ? (
-                                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming...</>
+                                        <><ActionSpinner size="xs" label="Confirming contract" /> Confirming...</>
                                     ) : (
                                         <><PenTool size={16} /> Confirm Contract</>
                                     )}

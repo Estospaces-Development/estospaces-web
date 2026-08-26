@@ -10,7 +10,11 @@ import {
     getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
-import { getSearchQueryValidationMessage, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
+import {
+    getSearchQueryValidationMessage,
+    inferSearchMarketFromText,
+    normalizeSearchQueryInput,
+} from '@/lib/propertySearchControls';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
 import { selectLocationSuggestions } from '@/lib/locationSuggestions';
@@ -53,6 +57,15 @@ const defaultFilters: SearchFilters = {
     maxBedrooms: null,
     minBathrooms: null,
 };
+
+export const shouldHydrateSearchBarFromUrl = (
+    variant: SearchBarProps['variant'],
+    initialFilters?: Partial<SearchFilters>,
+) => variant !== 'compact' && (!initialFilters || Object.keys(initialFilters).length === 0);
+
+export const shouldClearSearchBarAfterNavigation = (variant: SearchBarProps['variant']) => (
+    variant === 'compact'
+);
 
 const buildSearchPriceRanges = (countryCode: string) => {
     const format = (amount: number) => formatLaunchCurrencyForCountry(amount, {
@@ -116,7 +129,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const locationContext = filters.location || locationContextCode || user?.postcode;
     const userCountrySignal = user?.countryCode || user?.country_code || user?.country;
     const countryNameContext = countryContextName || (!locationContext && !userCountrySignal ? fallbackCountryName : undefined);
-    const searchMarket = getSupportedLaunchCountry(undefined, undefined, locationContext)
+    const searchMarket = inferSearchMarketFromText(filters.location)
+        || getSupportedLaunchCountry(undefined, undefined, locationContext)
         || getSupportedLaunchCountry(undefined, countryNameContext)
         || geoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(searchMarket, undefined, locationContext);
@@ -146,7 +160,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     useEffect(() => {
         if (initialFilters && Object.keys(initialFilters).length > 0) {
             setFilters(prev => ({ ...prev, ...initialFilters }));
-        } else {
+        } else if (shouldHydrateSearchBarFromUrl(variant, initialFilters)) {
             // Fallback to URL parsing if no initialFilters provided (e.g Header search)
             const urlFilters: Partial<SearchFilters> = {};
 
@@ -180,7 +194,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 setFilters((prev) => ({ ...prev, ...urlFilters }));
             }
         }
-    }, [initialFilters, searchParams]);
+    }, [initialFilters, searchParams, variant]);
 
     // Location autocomplete
     const fetchLocationSuggestions = useCallback(async (query: string) => {
@@ -229,6 +243,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
         }
         const trimmedKeyword = normalizeSearchQueryInput(rawKeyword);
         const submittedFilters = { ...nextFilters, keyword: trimmedKeyword };
+        const submittedMarket = nextFilters.location
+            ? inferSearchMarketFromText(nextFilters.location)
+            : null;
 
         const params = new URLSearchParams();
         if (trimmedKeyword) params.set('q', trimmedKeyword);
@@ -239,10 +256,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (nextFilters.maxPrice !== null) params.set('maxPrice', nextFilters.maxPrice.toString());
         if (nextFilters.minBedrooms !== null) params.set('beds', nextFilters.minBedrooms.toString());
         if (nextFilters.minBathrooms !== null) params.set('baths', nextFilters.minBathrooms.toString());
-        if (searchMarket) params.set('market', searchMarket === 'GB' ? 'england' : 'india');
+        if (submittedMarket) params.set('market', submittedMarket === 'GB' ? 'england' : 'india');
 
         if (onSearch) onSearch(submittedFilters);
-        if (navigateOnSearch) navigate(`${searchPath}?${params.toString()}`);
+        if (navigateOnSearch) {
+            navigate(`${searchPath}?${params.toString()}`);
+            if (shouldClearSearchBarAfterNavigation(variant)) {
+                setFilters(defaultFilters);
+            }
+        }
     };
 
     const handleCompactKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -454,6 +476,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
+                        aria-label="Search properties from the global header"
+                        autoComplete="off"
                         value={filters.keyword}
                         onChange={(e) => {
                             handleInputChange('keyword', e.target.value);

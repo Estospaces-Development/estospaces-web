@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, Edit, Trash2, MapPin, Home, Copy, Share2, Heart,
@@ -36,7 +36,7 @@ export default function PropertyDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementViews, incrementShares } = useProperties();
+    const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementShares } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user: _user } = useAuth();
 
@@ -54,26 +54,10 @@ export default function PropertyDetailPage() {
         visible: false,
     });
 
-    // Track if view has been counted for this session
-    const viewCountedRef = useRef(false);
 
     const property = id ? getProperty(id) : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
-
-    // Increment views on mount - only once per session per property
-    useEffect(() => {
-        if (id && !viewCountedRef.current && property) {
-            const viewedKey = `property_viewed_${id}`;
-            const alreadyViewed = sessionStorage.getItem(viewedKey);
-
-            if (!alreadyViewed) {
-                incrementViews(id);
-                sessionStorage.setItem(viewedKey, 'true');
-            }
-            viewCountedRef.current = true;
-        }
-    }, [id, property, incrementViews]);
 
     useEffect(() => {
         if (toast.visible) {
@@ -229,7 +213,7 @@ export default function PropertyDetailPage() {
         <div className="max-w-7xl mx-auto space-y-6 font-sans p-4 lg:p-6 pb-8">
             {/* Toast Notification */}
             {toast.visible && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                <div className={`fixed inset-x-4 top-4 z-50 min-w-0 rounded-lg px-4 py-3 text-center shadow-lg sm:left-auto sm:right-4 sm:max-w-sm sm:px-6 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
                     } text-white font-medium`}>
                     {toast.message}
                 </div>

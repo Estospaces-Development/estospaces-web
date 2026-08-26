@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
@@ -178,6 +180,34 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 
     assert.equal(warning, '');
     assert.equal(finalizeCalled, false);
+});
+
+test('ticket creation refresh is silent so success is not followed by a contradictory load error', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+    assert.match(source, /await fetchTickets\(true\);[\s\S]*?toast\.success\('Support ticket created'\)/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
+});
+
+test('support actions expose a visible pending state and avoid button-submit side effects', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+    const ticketListSource = readFileSync(resolve(process.cwd(), 'src/components/support/SupportTicketList.tsx'), 'utf8');
+
+    assert.match(source, /const resumeLiveSupport = useCallback/);
+    assert.match(source, /Opening support…/);
+    assert.match(source, /disabled=\{loading\}/);
+    assert.match(source, /loading \? <ActionSpinner size="sm" label="Refreshing support tickets" \/> : <RefreshCw className="h-4 w-4" \/>/);
+    assert.match(source, /New ticket/);
+    assert.match(ticketListSource, /type="button"/);
+    assert.match(ticketListSource, /aria-current=\{active \? 'page' : undefined\}/);
+});
+
+test('background support polling never surfaces repeated detail-load errors', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /const loadingTicketDetailsRef = useRef\(new Set<string>\(\)\)/);
+    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*return;/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{[\s\S]*?toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
+    assert.doesNotMatch(source, /catch \(error: any\) \{\s*if \(!silent\) \{[\s\S]*?\}\s*toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
 });
 
 test('support category normalization maps UI-only labels to backend-safe values', () => {

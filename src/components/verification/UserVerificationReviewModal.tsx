@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -8,7 +11,6 @@ import {
     CheckCircle,
     Clock,
     FileText,
-    Loader2,
     Mail,
     MapPin,
     MessageCircle,
@@ -516,7 +518,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         return (
             <ModalWrapper onClose={onClose}>
                 <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className={`animate-spin ${isAdmin ? 'text-orange-500' : 'text-blue-500'}`} size={40} />
+                    <BrandLoader className={`${isAdmin ? 'text-orange-500' : 'text-blue-500'}`} size={40} />
                     <p className="text-gray-600 mt-4 font-medium">
                         {isFastTrackReview ? 'Loading fast-track review...' : 'Loading user details...'}
                     </p>
@@ -757,7 +759,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         </div>
                         {directConversationsLoading ? (
                             <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <BrandLoader className="h-4 w-4" />
                                 Loading direct agent messages
                             </div>
                         ) : directConversationsError ? (
@@ -844,7 +846,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                             disabled={verificationActionLoading || Boolean(activeDocumentId)}
                             className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
                         >
-                            {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                            {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <XCircle size={16} />}
                             Revoke
                         </button>
                     </div>
@@ -855,7 +857,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         disabled={verificationActionLoading || Boolean(activeDocumentId)}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
                     >
-                        {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                        {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <XCircle size={16} />}
                         Revoke
                     </button>
                     <button
@@ -864,7 +866,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         aria-describedby={approvalBlocker ? 'verification-approval-blocker' : undefined}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
-                        {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                        {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <CheckCircle size={16} />}
                         {isFastTrackReview ? 'Complete fast-track verification' : 'Approve Verification'}
                     </button>
                     </div>
@@ -1078,7 +1080,7 @@ const DocumentReviewCard: React.FC<{
                             aria-label={`View ${document.file_name}`}
                             className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 sm:ml-auto"
                         >
-                            {viewLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                            {viewLoading ? <ActionSpinner size={12} className="" /> : <FileText size={12} />}
                             View
                         </button>
                     </div>

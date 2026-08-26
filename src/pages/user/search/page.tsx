@@ -1,11 +1,24 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
-import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion, SearchHistoryEntry } from '../../../services/searchService';
+import {
+    searchService,
+    getExactLocationSuggestion,
+    getLocationScopedSearchQuery,
+    isLocationAutocompleteSuggestion,
+    restorePersistedInferredLocation,
+    SearchResult,
+    FilterOptions,
+    AutocompleteSuggestion,
+    SearchHistoryEntry,
+} from '../../../services/searchService';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -13,17 +26,18 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import PaginationBar from '@/components/ui/PaginationBar';
 import {
     getPriceBoundAdjustmentMessage,
+    buildBroaderPropertySearchAttempts,
     getSearchFilterValidationMessage,
     getPropertySearchSortOptions,
     normalizePriceBoundInput,
     normalizePropertySearchSort,
     normalizeRoomBoundInput,
     normalizeSearchQueryInput,
+    inferSearchMarketFromText,
     getSearchQueryValidationMessage,
     readSearchUrlFilters,
     serializeSearchMarketParam,
 } from '@/lib/propertySearchControls';
-import { buildPopularSearchTerms } from '@/lib/popularSearchChips';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { getLoginPath } from '@/lib/authUtils';
 import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSearchValidation';
@@ -38,19 +52,12 @@ import {
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
 const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
-    const directLocationCountry = getSupportedLaunchCountry(undefined, undefined, location);
+    const directLocationCountry = inferSearchMarketFromText(location);
     if (directLocationCountry) {
         return directLocationCountry;
-    }
-
-    const normalizedLocation = location.trim().toLowerCase();
-    if (/\b(london|manchester|birmingham|bristol|leeds|liverpool|edinburgh|glasgow|cardiff|sheffield|nottingham|southampton|oxford|cambridge)\b/.test(normalizedLocation)) {
-        return 'GB';
-    }
-    if (/\b(chennai|mumbai|delhi|bengaluru|bangalore|hyderabad|pune|kolkata|ahmedabad|jaipur|kochi|coimbatore)\b/.test(normalizedLocation)) {
-        return 'IN';
     }
 
     for (const property of properties) {
@@ -105,7 +112,6 @@ const PropertySearch = () => {
     const [propertyTypeMenuOpen, setPropertyTypeMenuOpen] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [popularSearchTerms, setPopularSearchTerms] = useState<string[]>([]);
     const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [savingPropertyId, setSavingPropertyId] = useState<string | null>(null);
@@ -137,9 +143,6 @@ const PropertySearch = () => {
         if (query) {
             chips.push({ label: 'Keyword', value: query });
         }
-        if (market) {
-            chips.push({ label: 'Market', value: market === 'GB' ? 'England' : 'India' });
-        }
         if (location) {
             chips.push({ label: 'Location', value: location });
         }
@@ -162,41 +165,20 @@ const PropertySearch = () => {
         }
 
         return chips;
-    }, [baths, bedrooms, formatSearchCurrency, listingType, location, market, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
+    }, [baths, bedrooms, formatSearchCurrency, listingType, location, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
 
     const buildBroaderSearchAttempts = useCallback(() => {
-        const baseFilters = {
-            country: market || undefined,
-            propertyType: propertyType || undefined,
-            listingType: listingType || undefined,
-            minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
-            minBathrooms: baths ? parseInt(baths) : undefined,
-            sortBy: sortBy !== 'relevance' ? sortBy : undefined,
-            page: 1,
-            limit: 12,
-        };
-        const attempts: Array<{ notice: string; filters: Record<string, any> }> = [];
-
-        if (location && (minPrice || maxPrice)) {
-            attempts.push({
-                notice: 'No exact matches for the selected budget. Showing matches in this location without the price range.',
-                filters: { ...baseFilters, location },
-            });
-        }
-        if (location) {
-            attempts.push({
-                notice: 'No exact matches for this location. Showing broader matches for the selected home criteria.',
-                filters: baseFilters,
-            });
-        }
-        if (!location && (minPrice || maxPrice)) {
-            attempts.push({
-                notice: 'No exact matches for the selected budget. Showing broader matches without the price range.',
-                filters: baseFilters,
-            });
-        }
-
-        return attempts;
+        return buildBroaderPropertySearchAttempts({
+            market,
+            location,
+            propertyType,
+            listingType,
+            minPrice,
+            maxPrice,
+            bedrooms,
+            baths,
+            sortBy,
+        });
     }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
@@ -206,6 +188,39 @@ const PropertySearch = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const latestSearchRequestRef = useRef(0);
+    const inferredLocationRef = useRef(restorePersistedInferredLocation(
+        query,
+        location,
+        searchParams.get('autoLocation'),
+    ));
+    const locationInferenceSuppressedRef = useRef(searchParams.get('autoLocation') === '0');
+    const applyingUrlFiltersRef = useRef(false);
+    const currentUrlFiltersRef = useRef({
+        query,
+        market,
+        location,
+        propertyType,
+        minPrice,
+        maxPrice,
+        bedrooms,
+        listingType,
+        baths,
+        sortBy,
+        page,
+    });
+    currentUrlFiltersRef.current = {
+        query,
+        market,
+        location,
+        propertyType,
+        minPrice,
+        maxPrice,
+        bedrooms,
+        listingType,
+        baths,
+        sortBy,
+        page,
+    };
 
     const loadSearchHistory = useCallback(async () => {
         if (!isAuthenticated) {
@@ -233,28 +248,30 @@ const PropertySearch = () => {
     }, []);
 
     useEffect(() => {
-        let isMounted = true;
-
-        const loadPopularSearches = async () => {
-            const popular = await searchService.getPopularSearches(8);
-            if (isMounted) {
-                setPopularSearchTerms(buildPopularSearchTerms(popular, 8));
-            }
-        };
-
-        void loadPopularSearches();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    useEffect(() => {
         void loadSearchHistory();
     }, [loadSearchHistory]);
 
     // Sync URL params to state when searchParams change (navigation)
     useEffect(() => {
         const urlFilters = readSearchUrlFilters(searchParams);
+        locationInferenceSuppressedRef.current = searchParams.get('autoLocation') === '0';
+        inferredLocationRef.current = restorePersistedInferredLocation(
+            urlFilters.query,
+            urlFilters.location,
+            searchParams.get('autoLocation'),
+        );
+        const currentFilters = currentUrlFiltersRef.current;
+        applyingUrlFiltersRef.current = urlFilters.query !== currentFilters.query
+            || urlFilters.market !== currentFilters.market
+            || urlFilters.location !== currentFilters.location
+            || urlFilters.propertyType !== currentFilters.propertyType
+            || urlFilters.minPrice !== currentFilters.minPrice
+            || urlFilters.maxPrice !== currentFilters.maxPrice
+            || urlFilters.bedrooms !== currentFilters.bedrooms
+            || urlFilters.listingType !== currentFilters.listingType
+            || urlFilters.baths !== currentFilters.baths
+            || urlFilters.sortBy !== currentFilters.sortBy
+            || urlFilters.page !== currentFilters.page;
         setQuery(urlFilters.query);
         setMarket(urlFilters.market);
         setLocation(urlFilters.location);
@@ -269,12 +286,26 @@ const PropertySearch = () => {
     }, [searchParams]);
 
     useEffect(() => {
+        if (applyingUrlFiltersRef.current) {
+            applyingUrlFiltersRef.current = false;
+            return;
+        }
+
         setFallbackNotice('');
         const next = new URLSearchParams();
         const serializedMarket = serializeSearchMarketParam(market);
         if (query) next.set('q', query);
         if (serializedMarket) next.set('market', serializedMarket);
         if (location) next.set('location', location.trim());
+        if (
+            location
+                            && normalizeSearchQueryInput(inferredLocationRef.current).toLocaleLowerCase()
+                                === normalizeSearchQueryInput(location).toLocaleLowerCase()
+        ) {
+            next.set('autoLocation', '1');
+        } else if (query && locationInferenceSuppressedRef.current) {
+            next.set('autoLocation', '0');
+        }
         if (propertyType) next.set('propertyType', propertyType);
         if (minPrice) next.set('minPrice', minPrice);
         if (maxPrice) next.set('maxPrice', maxPrice);
@@ -321,8 +352,13 @@ const PropertySearch = () => {
         setError(null);
         try {
             setFallbackNotice('');
-            const result = await searchService.search(
+            const requestQuery = getLocationScopedSearchQuery(
                 query,
+                location,
+                inferredLocationRef.current,
+            );
+            const result = await searchService.search(
+                requestQuery,
                 {
                     location: location || undefined,
                     country: market || undefined,
@@ -346,7 +382,7 @@ const PropertySearch = () => {
                 const exactResults = result.data || [];
                 if (exactResults.length === 0) {
                     for (const attempt of buildBroaderSearchAttempts()) {
-                        const fallback = await searchService.search(query, attempt.filters);
+                        const fallback = await searchService.search(requestQuery, attempt.filters);
                         if (requestId !== latestSearchRequestRef.current) {
                             return;
                         }
@@ -405,13 +441,40 @@ const PropertySearch = () => {
 
     // Autocomplete location suggestions
     useEffect(() => {
+        let isMounted = true;
+
         const fetchSuggestions = async () => {
             if (query.length >= 2) {
                 try {
                     const suggestions = await searchService.autocomplete(query);
-                    setLocationSuggestions(suggestions.slice(0, 10));
+                    if (!isMounted) {
+                        return;
+                    }
+
+                    const visibleSuggestions = suggestions.slice(0, 10);
+                    setLocationSuggestions(visibleSuggestions);
+                    const exactLocation = getExactLocationSuggestion(query, suggestions);
+                    if (
+                        exactLocation
+                        && !locationInferenceSuppressedRef.current
+                        && (!location || location === inferredLocationRef.current)
+                    ) {
+                        locationInferenceSuppressedRef.current = false;
+                        inferredLocationRef.current = exactLocation.text;
+                        const nextMarket = inferSearchMarketFromText(exactLocation.text) || '';
+                        if (market !== nextMarket) {
+                            setMarket(nextMarket);
+                            setPage(1);
+                        }
+                        if (location !== exactLocation.text) {
+                            setLocation(exactLocation.text);
+                            setPage(1);
+                        }
+                    }
                 } catch {
-                    setLocationSuggestions([]);
+                    if (isMounted) {
+                        setLocationSuggestions([]);
+                    }
                 }
             } else {
                 setLocationSuggestions([]);
@@ -421,8 +484,11 @@ const PropertySearch = () => {
         const timer = setTimeout(() => {
             fetchSuggestions();
         }, 300);
-        return () => clearTimeout(timer);
-    }, [query]);
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
+    }, [location, market, query]);
 
     const openSaveSearchModal = () => {
         if (!isAuthenticated) {
@@ -447,7 +513,11 @@ const PropertySearch = () => {
         try {
             const res = await searchService.saveSearch({
                 name,
-                query,
+                query: getLocationScopedSearchQuery(
+                    query,
+                    location,
+                    inferredLocationRef.current,
+                ),
                 location,
                 property_type: propertyType,
                 min_price: minPrice ? parseInt(minPrice) : undefined,
@@ -476,6 +546,8 @@ const PropertySearch = () => {
     };
 
     const clearFilters = () => {
+        inferredLocationRef.current = '';
+        locationInferenceSuppressedRef.current = false;
         setQuery('');
         setMarket('');
         setLocation('');
@@ -498,15 +570,9 @@ const PropertySearch = () => {
         void fetchProperties();
     };
 
-    const handlePopularSearch = (term: string) => {
-        setQuery(normalizeSearchQueryInput(term));
-        setPage(1);
-        setShowSuggestions(false);
-    };
-
     const handleSearchHistoryReuse = (entry: SearchHistoryEntry) => {
         const params = buildSearchHistoryUrlParams(entry);
-        navigate(`/user/search?${params.toString()}`);
+        navigate(`${USER_SEARCH_PATH}?${params.toString()}`);
         setShowSuggestions(false);
     };
 
@@ -550,7 +616,7 @@ const PropertySearch = () => {
     const isInitialSearchLoading = loading && !hasLoadedSearch;
 
     return (
-        <div className="mx-auto w-full max-w-7xl space-y-6 overflow-x-hidden px-4 pb-20 pt-5 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+        <div className="mx-auto w-full max-w-7xl space-y-5 overflow-x-hidden px-3 pb-20 pt-4 sm:space-y-6 sm:px-6 sm:pt-5 lg:px-8 animate-in fade-in duration-500">
             {/* Navigation breadcrumb */}
             <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
                 <button
@@ -578,8 +644,7 @@ const PropertySearch = () => {
             {/* Search Header */}
             <div className="flex flex-col items-start justify-between gap-4 border-b border-gray-100 pb-2 sm:flex-row sm:items-center dark:border-zinc-800">
                 <div className="min-w-0">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Estospaces search</p>
-                    <h1 className="text-2xl font-bold text-gray-950 dark:text-white mb-1">Find Your Property</h1>
+                    <h1 className="mb-1 text-[clamp(1.5rem,6vw,2rem)] font-bold tracking-[-0.025em] text-gray-950 dark:text-white">Find Your Property</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Search verified homes and spaces across Estospaces.</p>
                 </div>
             </div>
@@ -601,6 +666,13 @@ const PropertySearch = () => {
                         aria-invalid={Boolean(queryValidationMessage)}
                         aria-describedby={queryValidationMessage ? 'search-query-error' : undefined}
                         onChange={(e) => {
+                            locationInferenceSuppressedRef.current = false;
+                            const previousInference = inferredLocationRef.current;
+                            inferredLocationRef.current = '';
+                            if (previousInference && location === previousInference) {
+                                setLocation('');
+                                setMarket('');
+                            }
                             setQuery(normalizeSearchQueryInput(e.target.value));
                             setPage(1);
                             setShowSuggestions(true);
@@ -633,8 +705,21 @@ const PropertySearch = () => {
                                     onClick={() => {
                                         if (suggestion.type === 'property' && suggestion.id) {
                                             navigate(`/user/properties/${suggestion.id}`);
-                                        } else {
+                                        } else if (isLocationAutocompleteSuggestion(suggestion)) {
+                                            locationInferenceSuppressedRef.current = false;
+                                            inferredLocationRef.current = suggestion.text;
                                             setQuery(suggestion.text);
+                                            setLocation(suggestion.text);
+                                            setMarket(inferSearchMarketFromText(suggestion.text) || '');
+                                        } else {
+                                            const previousInference = inferredLocationRef.current;
+                                            inferredLocationRef.current = '';
+                                            locationInferenceSuppressedRef.current = false;
+                                            setQuery(suggestion.text);
+                                            if (location === previousInference) {
+                                                setLocation('');
+                                                setMarket('');
+                                            }
                                         }
                                         setShowSuggestions(false);
                                         setPage(1);
@@ -673,27 +758,6 @@ const PropertySearch = () => {
                 )}
             </div>
 
-            {popularSearchTerms.length > 0 && (
-                <section aria-label="Popular searches" className="min-w-0">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Popular</span>
-                        <div className="flex min-w-0 flex-wrap gap-2">
-                            {popularSearchTerms.map((term) => (
-                                <button
-                                    key={term}
-                                    type="button"
-                                    aria-label={`Search for ${term}`}
-                                    onClick={() => handlePopularSearch(term)}
-                                    className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:border-primary/30 hover:bg-orange-50 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-500/70 dark:hover:bg-orange-950/30"
-                                >
-                                    {term}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
-
             <section aria-label="Recent searches" className="min-w-0">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
@@ -701,7 +765,7 @@ const PropertySearch = () => {
                         Recent
                     </span>
                     {historyLoading ? (
-                        <p role="status" className="text-sm text-gray-500 dark:text-gray-400">Loading recent searches...</p>
+                        <BrandLoader size="sm" label="Loading recent searches" showLabel />
                     ) : searchHistory.length > 0 ? (
                         <div className="flex min-w-0 flex-wrap gap-2">
                             {searchHistory.map((entry, index) => {
@@ -835,7 +899,14 @@ const PropertySearch = () => {
                                 id="public-search-location"
                                 type="text"
                                 value={location}
-                                onChange={(e) => { setLocation(e.target.value); setPage(1); }}
+                                onChange={(e) => {
+                                    const nextLocation = e.target.value;
+                                    inferredLocationRef.current = '';
+                                    locationInferenceSuppressedRef.current = true;
+                                    setLocation(nextLocation);
+                                    setMarket(inferSearchMarketFromText(nextLocation) || '');
+                                    setPage(1);
+                                }}
                                 placeholder={`City or ${lowerLocationCodeLabel}`}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
@@ -970,7 +1041,7 @@ const PropertySearch = () => {
             {/* Results Grid */}
             {isInitialSearchLoading ? (
                 <div className="flex justify-center flex-col items-center py-20 text-primary">
-                    <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                    <BrandLoader className="w-10 h-10 mb-4" />
                     <span className="text-sm font-medium text-gray-500">Searching properties...</span>
                 </div>
             ) : error ? (
@@ -1027,10 +1098,10 @@ const PropertySearch = () => {
                                             ? 'bg-rose-500 text-white hover:bg-rose-600'
                                             : 'bg-white/95 text-gray-700 hover:bg-orange-50 hover:text-primary dark:bg-zinc-900/90 dark:text-gray-200 dark:hover:bg-zinc-800'
                                             }`}
-                                        title={isSaved ? 'Saved' : 'Save property'}
+                                        title={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
                                     >
                                         {isSavingProperty ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <ActionSpinner className="h-4 w-4" />
                                         ) : (
                                             <Heart className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
                                         )}
@@ -1135,7 +1206,7 @@ const PropertySearch = () => {
                             disabled={isSaving}
                             className="w-full py-3 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-orange-200 dark:shadow-none transition-all flex items-center justify-center gap-2 mt-4"
                         >
-                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <BookmarkPlus className="w-5 h-5" />}
+                            {isSaving ? <ActionSpinner className="w-5 h-5" /> : <BookmarkPlus className="w-5 h-5" />}
                             Save Search
                         </button>
                     </div>

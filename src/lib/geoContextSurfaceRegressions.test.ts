@@ -39,6 +39,16 @@ test("manager property filters do not show hardcoded dollar price ranges", () =>
   assert.doesNotMatch(source, /\$100K - \$250K/);
 });
 
+test("user search preferences follow the signed-in user's market instead of hardcoding UK defaults", () => {
+  const settingsSource = readSource("pages/user/dashboard/settings/page.tsx");
+
+  assert.match(settingsSource, /useUserGeoMarket\(authContext\?\.user\)/);
+  assert.match(settingsSource, /preferredCityPlaceholder/);
+  assert.match(settingsSource, /budgetCurrencyCode/);
+  assert.match(settingsSource, /BudgetCurrencyIcon/);
+  assert.doesNotMatch(settingsSource, /placeholder="London"/);
+});
+
 test("shared search ranges and property cards format money by country context", () => {
   const searchBarSource = readSource("components/ui/SearchBar.tsx");
   const propertyCardSource = readSource("components/dashboard/PropertyCard.tsx");
@@ -95,10 +105,10 @@ test("active user manager and admin flows avoid default launch money on property
   const managerContractsSource = readSource("pages/manager/contracts/page.tsx");
   const adminPropertiesSource = readSource("pages/admin/properties/page.tsx");
 
-  assert.match(discoverSource, /searchService\.getPropertySections\(geoMarket\)/);
+  assert.match(discoverSource, /searchService\.getPropertySections\(\)/);
   assert.match(discoverSource, /getLaunchLocationCodeLabel\(geoMarket/);
   assert.match(discoverSource, /formatDiscoveryCurrency/);
-  assert.doesNotMatch(discoverSource, /getPropertySections\(LAUNCH_COUNTRY_CODE\)/);
+  assert.doesNotMatch(discoverSource, /getPropertySections\(geoMarket\)/);
   const publicSearchSource = readSource("pages/user/search/page.tsx");
   assert.match(publicSearchSource, /inferSearchGeoMarket/);
   assert.match(publicSearchSource, /inferredGeoMarket \|\| fallbackGeoMarket/);

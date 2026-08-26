@@ -1,15 +1,19 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Shield, Clock, CheckCircle, XCircle,
   Search, RefreshCw, Eye, Sparkles,
-  ArrowRight, LayoutGrid, List, Loader2
+  ArrowRight, LayoutGrid, List
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import Avatar from '@/components/ui/Avatar';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
 import {  useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
@@ -237,13 +241,13 @@ function VerificationsContent() {
                 title="Refresh manager verification queue"
                 className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
               >
-                <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                {isRefreshing ? <ActionSpinner size="sm" label="Refreshing verifications" /> : <RefreshCw size={20} />}
               </button>
             </div>
           </div>
 
           {/* Stats Quick Filter */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {stats.map((stat) => (
               <button
                 key={stat.id}
@@ -319,7 +323,7 @@ function VerificationsContent() {
         <div className="p-4 sm:p-10">
           {loading ? (
              <div className="flex justify-center py-20">
-               <Loader2 className="animate-spin text-orange-500" size={40} />
+               <BrandLoader className="text-orange-500" size={40} />
              </div>
           ) : filteredManagers.length > 0 ? (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'grid grid-cols-1 gap-6'}>
@@ -416,7 +420,7 @@ function VerificationsContent() {
 
 export default function VerificationsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold">Loading Queue...</div>}>
+    <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading verification queue..." />}>
       <VerificationsContent />
     </Suspense>
   );

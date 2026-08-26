@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -7,7 +10,6 @@ import {
     Clock,
     MapPin,
     Plus,
-    Loader2,
     ArrowLeft,
     Search,
 } from 'lucide-react';
@@ -442,7 +444,7 @@ export default function ViewingsPage() {
                 {/* Content */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">
-                        <Loader2 size={48} className="animate-spin text-orange-500 mb-4" />
+                        <BrandLoader size={48} className="text-orange-500 mb-4" />
                         <p className="text-gray-600 dark:text-gray-400 font-medium tracking-wide">Fetching your appointments...</p>
                     </div>
                 ) : loadError ? (
@@ -660,7 +662,7 @@ export default function ViewingsPage() {
                             disabled={Boolean(cancellingViewingID)}
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {cancellingViewingID && <Loader2 size={16} className="animate-spin" />}
+                            {cancellingViewingID && <ActionSpinner size={16} className="" />}
                             Yes, Cancel
                         </button>
                     </div>

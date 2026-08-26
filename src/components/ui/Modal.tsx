@@ -55,7 +55,7 @@ const Modal: React.FC<ModalProps> = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? 'modal-title' : undefined}
@@ -68,7 +68,7 @@ const Modal: React.FC<ModalProps> = ({
 
             {/* Panel */}
             <div
-                className={`relative flex max-h-[90vh] min-w-0 w-full ${sizeClasses[size]} flex-col rounded-2xl border border-gray-100 bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200 dark:border-zinc-800 dark:bg-zinc-900`}
+                className={`relative flex max-h-[calc(100dvh-1rem)] min-w-0 w-full ${sizeClasses[size]} flex-col rounded-t-3xl border border-gray-100 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200 dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[90dvh] sm:rounded-2xl sm:pb-0 sm:zoom-in-95`}
             >
                 {/* Header */}
                 {(title || showCloseButton) && (
@@ -83,8 +83,9 @@ const Modal: React.FC<ModalProps> = ({
                         )}
                         {showCloseButton && (
                             <button
+                                type="button"
                                 onClick={onClose}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors ml-auto"
+                                className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-zinc-800"
                                 aria-label="Close"
                             >
                                 <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -98,7 +99,7 @@ const Modal: React.FC<ModalProps> = ({
 
                 {/* Footer */}
                 {footer && (
-                    <div className="border-t border-gray-100 p-4 dark:border-zinc-800 sm:p-5">
+                    <div className="mobile-modal-footer border-t border-gray-100 p-4 dark:border-zinc-800 sm:p-5">
                         {footer}
                     </div>
                 )}

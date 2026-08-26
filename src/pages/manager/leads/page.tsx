@@ -1,7 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Clock3, Download, History, Loader2, MessageSquare, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
+import { AlertTriangle, Clock3, Download, History, MessageSquare, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
 import Modal from '@/components/ui/Modal';
@@ -874,7 +877,7 @@ export default function ManagerLeadsPage() {
             <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
-                        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                        <BrandLoader className="h-10 w-10 text-orange-500" />
                         <p className="text-sm text-gray-500 dark:text-gray-400">Loading live broker leads...</p>
                     </div>
                 ) : error ? (
@@ -1132,7 +1135,7 @@ export default function ManagerLeadsPage() {
                                                         aria-label={`Respond and message ${getLeadTitle(lead)}`}
                                                         className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 ${managerLeadFocusClass}`}
                                                     >
-                                                        {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                                                        {isBusy ? <ActionSpinner className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
                                                         Respond And Message
                                                     </button>
                                                     {canRequestDocuments ? (
@@ -1207,7 +1210,7 @@ export default function ManagerLeadsPage() {
                                                 <h3 className="text-sm font-bold text-gray-900 dark:text-white">Lead audit trail</h3>
                                                 {isAuditLoading ? (
                                                     <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        <BrandLoader className="h-3.5 w-3.5" />
                                                         Loading
                                                     </span>
                                                 ) : null}
@@ -1317,7 +1320,7 @@ export default function ManagerLeadsPage() {
                             disabled={Boolean(actingLeadID)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {actingLeadID === scheduleLead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            {actingLeadID === scheduleLead.id ? <ActionSpinner className="h-4 w-4" /> : null}
                             Create Appointment
                         </button>
                     </div>

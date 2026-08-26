@@ -1,7 +1,10 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Loader2, Search, Zap } from 'lucide-react';
+import { ArrowRight, Search, Zap } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -16,6 +19,7 @@ import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 interface ManualFastTrackModalProps {
     open: boolean;
     existingCases: FastTrackCase[];
+    initialSearch?: string;
     backgroundBusy?: boolean;
     onClose: () => void;
     onCreated?: (createdCase: FastTrackCase) => void | Promise<void>;
@@ -69,6 +73,7 @@ const hasActiveFastTrackCase = (caseItem: FastTrackCase) => (
 export default function ManualFastTrackModal({
     open,
     existingCases,
+    initialSearch = '',
     backgroundBusy = false,
     onClose,
     onCreated,
@@ -87,6 +92,8 @@ export default function ManualFastTrackModal({
             setError(null);
             return;
         }
+
+        setSearchQuery(initialSearch.trim());
 
         let cancelled = false;
 
@@ -116,7 +123,7 @@ export default function ManualFastTrackModal({
         return () => {
             cancelled = true;
         };
-    }, [open]);
+    }, [initialSearch, open]);
 
     const activeCaseByLeadKey = useMemo(() => {
         const nextMap = new Map<string, FastTrackCase>();
@@ -161,6 +168,10 @@ export default function ManualFastTrackModal({
         return eligibleLeads.filter(({ lead, stage, activeCase }) => {
             const haystack = [
                 lead.lead_number,
+                lead.id,
+                lead.broker_request_id,
+                lead.user_id,
+                lead.property_id,
                 getLeadTitle(lead),
                 getLeadClientName(lead),
                 lead.email,
@@ -308,7 +319,7 @@ export default function ManualFastTrackModal({
 
                 {loading ? (
                     <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-                        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                        <BrandLoader className="h-8 w-8 text-orange-500" />
                         <p className="text-sm font-medium">Loading manager leads...</p>
                     </div>
                 ) : error ? (
@@ -383,7 +394,7 @@ export default function ManualFastTrackModal({
                                                     : 'bg-orange-500 text-white hover:bg-orange-600'
                                             }`}
                                         >
-                                            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                            {isBusy ? <ActionSpinner className="h-4 w-4" /> : null}
                                             <span>
                                                 {activeCase
                                                     ? 'Open active case'

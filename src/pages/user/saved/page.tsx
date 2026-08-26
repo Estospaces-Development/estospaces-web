@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
     Heart,
@@ -13,7 +15,6 @@ import {
     Bookmark,
     Bell,
     BellOff,
-    Loader2,
     History,
     SlidersHorizontal
 } from 'lucide-react';
@@ -264,18 +265,12 @@ function PropertiesTab({
                 visibleProperties.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-500">
                         {visibleProperties.map((property: any) => (
-                            <div key={property.id} className="relative group">
-                                <PropertyCard property={property} showSaveAction={false} />
-                                <button
-                                    type="button"
-                                    onClick={(e) => onRemove(e, property.id)}
-                                    aria-label={`Remove ${property.title || 'property'} from saved properties`}
-                                    className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/90 hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 rounded-full shadow-md backdrop-blur-sm transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 z-10"
-                                    title="Remove from saved"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
+                            <PropertyCard
+                                key={property.id}
+                                property={property}
+                                showSaveAction={false}
+                                onRemoveFromSaved={(event) => onRemove(event, property.id)}
+                            />
                         ))}
                     </div>
                 ) : (
@@ -392,7 +387,7 @@ function SavedSearchesTab() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+                <BrandLoader className="w-10 h-10 text-indigo-600 mb-4" />
                 <span className="text-gray-500 font-medium">Loading saved searches...</span>
             </div>
         );

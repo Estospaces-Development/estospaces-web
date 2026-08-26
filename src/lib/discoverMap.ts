@@ -22,9 +22,18 @@ export interface DiscoverNearbyMapProperty {
     longitude?: number;
 }
 
-const normalizeCoordinate = (value?: number | null) => (
-    typeof value === 'number' && Number.isFinite(value) ? value : undefined
-);
+const normalizeCoordinate = (value?: number | string | null) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value.trim());
+        return Number.isFinite(parsed) ? parsed : undefined;
+    }
+
+    return undefined;
+};
 
 export const toDiscoverNearbyMapProperties = (properties: SearchResult[]): DiscoverNearbyMapProperty[] => (
     properties.map((property) => ({

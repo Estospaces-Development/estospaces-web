@@ -37,6 +37,7 @@ import {
     isApplicationWorkflowStatusTitle,
     isInternalApplicationTitle,
 } from '@/lib/applicationDisplayTitle';
+import { applicationStatusMatches, normalizeApplicationStatus } from '@/lib/applicationStatus';
 
 export type PropertyContext = {
     title?: string;
@@ -176,6 +177,10 @@ interface ApplicationsContextType {
 }
 
 const ApplicationsContext = createContext<ApplicationsContextType | undefined>(undefined);
+
+export const isCurrentApplicationsFetch = (fetchRevision: number, currentRevision: number) => (
+    fetchRevision === currentRevision
+);
 
 const buildReferenceId = (id: string) => `APP-${id.slice(0, 8).toUpperCase()}`;
 
@@ -444,27 +449,28 @@ const getSaleJourneyCopy = (status: ApplicationStatus) => {
 };
 
 const deriveStatusFromViewing = (application: BackendApplication, viewing?: Viewing): ApplicationStatus => {
-    if (application.status === APPLICATION_STATUS.APPROVED) return APPLICATION_STATUS.APPROVED;
-    if (application.status === APPLICATION_STATUS.REJECTED) return APPLICATION_STATUS.REJECTED;
-    if (application.status === APPLICATION_STATUS.WITHDRAWN) return APPLICATION_STATUS.WITHDRAWN;
-    if (application.status === APPLICATION_STATUS.COMPLETED) return APPLICATION_STATUS.COMPLETED;
-    if (application.status === APPLICATION_STATUS.BUYER_QUALIFICATION) return APPLICATION_STATUS.BUYER_QUALIFICATION;
-    if (application.status === APPLICATION_STATUS.OFFER_READY) return APPLICATION_STATUS.OFFER_READY;
-    if (application.status === APPLICATION_STATUS.OFFER_SUBMITTED) return APPLICATION_STATUS.OFFER_SUBMITTED;
-    if (application.status === APPLICATION_STATUS.OFFER_UNDER_REVIEW) return APPLICATION_STATUS.OFFER_UNDER_REVIEW;
-    if (application.status === APPLICATION_STATUS.OFFER_ACCEPTED) return APPLICATION_STATUS.OFFER_ACCEPTED;
-    if (application.status === APPLICATION_STATUS.SALE_AGREED) return APPLICATION_STATUS.SALE_AGREED;
-    if (application.status === APPLICATION_STATUS.MEMORANDUM_ISSUED) return APPLICATION_STATUS.MEMORANDUM_ISSUED;
-    if (application.status === APPLICATION_STATUS.CONVEYANCING) return APPLICATION_STATUS.CONVEYANCING;
-    if (application.status === APPLICATION_STATUS.EXCHANGE) return APPLICATION_STATUS.EXCHANGE;
-    if (application.status === APPLICATION_STATUS.VIEWING_SCHEDULED) return APPLICATION_STATUS.VIEWING_SCHEDULED;
-    if (application.status === APPLICATION_STATUS.VIEWING_COMPLETED) return APPLICATION_STATUS.VIEWING_COMPLETED;
-    if (application.status === APPLICATION_STATUS.APPOINTMENT_BOOKED) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
-    if (application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED) return APPLICATION_STATUS.DOCUMENTS_REQUESTED;
-    if (application.status === APPLICATION_STATUS.UNDER_REVIEW) return APPLICATION_STATUS.UNDER_REVIEW;
-    if (application.status === APPLICATION_STATUS.VERIFICATION_IN_PROGRESS) return APPLICATION_STATUS.VERIFICATION_IN_PROGRESS;
-    if (application.status === APPLICATION_STATUS.DRAFT) return APPLICATION_STATUS.DRAFT;
-    if (application.status === APPLICATION_STATUS.PENDING) return APPLICATION_STATUS.PENDING;
+    const status = normalizeApplicationStatus(application.status);
+    if (applicationStatusMatches(status, APPLICATION_STATUS.APPROVED)) return APPLICATION_STATUS.APPROVED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.REJECTED)) return APPLICATION_STATUS.REJECTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.WITHDRAWN)) return APPLICATION_STATUS.WITHDRAWN;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.COMPLETED)) return APPLICATION_STATUS.COMPLETED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.BUYER_QUALIFICATION)) return APPLICATION_STATUS.BUYER_QUALIFICATION;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_READY)) return APPLICATION_STATUS.OFFER_READY;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_SUBMITTED)) return APPLICATION_STATUS.OFFER_SUBMITTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_UNDER_REVIEW)) return APPLICATION_STATUS.OFFER_UNDER_REVIEW;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_ACCEPTED)) return APPLICATION_STATUS.OFFER_ACCEPTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.SALE_AGREED)) return APPLICATION_STATUS.SALE_AGREED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.MEMORANDUM_ISSUED)) return APPLICATION_STATUS.MEMORANDUM_ISSUED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.CONVEYANCING)) return APPLICATION_STATUS.CONVEYANCING;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.EXCHANGE)) return APPLICATION_STATUS.EXCHANGE;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.VIEWING_SCHEDULED)) return APPLICATION_STATUS.VIEWING_SCHEDULED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.VIEWING_COMPLETED)) return APPLICATION_STATUS.VIEWING_COMPLETED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.APPOINTMENT_BOOKED)) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.DOCUMENTS_REQUESTED)) return APPLICATION_STATUS.DOCUMENTS_REQUESTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.UNDER_REVIEW)) return APPLICATION_STATUS.UNDER_REVIEW;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.VERIFICATION_IN_PROGRESS)) return APPLICATION_STATUS.VERIFICATION_IN_PROGRESS;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.DRAFT)) return APPLICATION_STATUS.DRAFT;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.PENDING)) return APPLICATION_STATUS.PENDING;
 
     if (viewing) {
         if (viewing.status === 'completed') {
@@ -624,11 +630,24 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         WORKSPACE_SYNC_TAGS.CONTRACTS,
         WORKSPACE_SYNC_TAGS.PAYMENTS,
     ], []);
-    const registerConsumer = useCallback(() => () => {}, []);
+    const [consumerCount, setConsumerCount] = useState(0);
+    const registerConsumer = useCallback(() => {
+        setConsumerCount((count) => count + 1);
+        let registered = true;
+
+        return () => {
+            if (!registered) {
+                return;
+            }
+            registered = false;
+            setConsumerCount((count) => Math.max(0, count - 1));
+        };
+    }, []);
     const fetchRevisionRef = useRef(0);
 
     const fetchApplications = useCallback(async () => {
         const fetchRevision = ++fetchRevisionRef.current;
+        const isCurrentFetch = () => isCurrentApplicationsFetch(fetchRevision, fetchRevisionRef.current);
         if (!user) {
             setApplications([]);
             setIsLoading(false);
@@ -644,6 +663,10 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             getViewings().catch(() => [] as Viewing[]),
             getSaleProgressions({ suppressErrorToast: true }),
         ]);
+
+        if (!isCurrentFetch()) {
+            return;
+        }
 
         if (applicationsResult.error) {
             setError(applicationsResult.error);
@@ -701,7 +724,14 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
         const backendApplications = applicationsResult.data || [];
         const saleProgressions = saleProgressionsResult.data || [];
+        if (!isCurrentFetch()) {
+            return;
+        }
         await hydrateMissingSaleProgressionPropertyContexts(saleProgressions, propertyContextById);
+
+        if (!isCurrentFetch()) {
+            return;
+        }
 
         const saleProgressionKeys = new Set(
             saleProgressions.map((progression) =>
@@ -716,6 +746,10 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
         const fastTrackCases = fastTrackCasesResult.data || [];
         const publishApplications = () => {
+            if (!isCurrentFetch()) {
+                return;
+            }
+
             const mappedApplications = backendApplications
                 .filter((application) => {
                     if (application.listing_type !== 'sale') {
@@ -766,7 +800,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         if (applicationsNeedingRefresh.length > 0) {
             void hydrateApplicationPropertyContexts(applicationsNeedingRefresh, refreshedApplicationPropertyContextById)
                 .then(() => {
-                    if (fetchRevision === fetchRevisionRef.current) {
+                    if (isCurrentFetch()) {
                         publishApplications();
                     }
                 })
@@ -784,13 +818,19 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return;
         }
 
+        if (consumerCount === 0) {
+            fetchRevisionRef.current += 1;
+            setIsLoading(false);
+            return;
+        }
+
         fetchApplications();
-    }, [fetchApplications, user]);
+    }, [consumerCount, fetchApplications, user]);
 
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchApplications,
-        enabled: Boolean(user),
+        enabled: Boolean(user) && consumerCount > 0,
     });
 
     const createApplication = async (data: any) => {
@@ -1024,7 +1064,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         let filtered = [...applications];
 
         if (statusFilter !== 'all') {
-            filtered = filtered.filter((application) => application.status === statusFilter);
+            filtered = filtered.filter((application) => applicationStatusMatches(application.status, statusFilter));
         }
 
         if (propertyTypeFilter !== 'all') {

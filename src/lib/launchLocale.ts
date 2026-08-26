@@ -96,11 +96,19 @@ export function formatLaunchPropertyLocation(
     return LAUNCH_COUNTRY_NAME;
   }
 
+  const seenParts = new Set<string>();
   const sanitized = raw
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
-    .filter((part, index, parts) => part.toLowerCase() !== parts[index - 1]?.toLowerCase())
+    .filter((part) => {
+      const key = part.toLocaleLowerCase();
+      if (seenParts.has(key)) {
+        return false;
+      }
+      seenParts.add(key);
+      return true;
+    })
     .join(", ")
     .replace(/\s{2,}/g, " ")
     .trim();

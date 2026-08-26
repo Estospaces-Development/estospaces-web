@@ -1,8 +1,11 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Info, BellRing, Loader2, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Info, BellRing, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
     formatWorkspaceReference,
@@ -37,6 +40,11 @@ import {
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import {
+    isPortfolioPropertyEligibleForRequest,
+    selectShareablePortfolioProperties,
+    type ManagerPortfolioProperty,
+} from '@/lib/managerPropertyShortlist';
 import {
     formatLaunchCurrencyForCountry,
     formatLaunchLocationCode,
@@ -134,23 +142,12 @@ const MATCHED_WORKSPACES_ID = 'matched-client-workspaces';
 const LIVE_RESPONSE_OPTIONS_MENU_ID = 'live-response-options-menu';
 const PROPERTY_SHARE_PICKER_LIMIT = 12;
 const TRACKER_ITEM_LIMIT = 4;
+const MATCHED_WORKSPACE_PAGE_SIZE = 6;
 const getMatchedWorkspaceCardId = (requestId: string) => `matched-workspace-${requestId}`;
 
 type TrackerFilter = 'all' | 'pending' | 'responded' | 'expired';
 type TrackerSort = 'priority' | 'newest' | 'oldest';
 type TrackerRequest = BrokerRequest & ManagerTrackerItem;
-
-type ManagerPortfolioProperty = {
-    id: string;
-    title: string;
-    city?: string;
-    postcode?: string;
-    country?: string;
-    currency?: string;
-    price?: number;
-    listing_type?: string;
-    image_urls?: string;
-};
 
 const BrokerResponseWidget: React.FC = () => {
     const navigate = useNavigate();
@@ -172,6 +169,8 @@ const BrokerResponseWidget: React.FC = () => {
     const [availabilityStatusMessage, setAvailabilityStatusMessage] = useState('');
     const [trackerFilter, setTrackerFilter] = useState<TrackerFilter>('all');
     const [trackerSort, setTrackerSort] = useState<TrackerSort>('priority');
+    const [matchedWorkspaceSearch, setMatchedWorkspaceSearch] = useState('');
+    const [matchedWorkspacePage, setMatchedWorkspacePage] = useState(1);
     const [liveResponseOptionsOpen, setLiveResponseOptionsOpen] = useState(false);
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
@@ -352,44 +351,55 @@ const BrokerResponseWidget: React.FC = () => {
         });
     }, [matchedRequests]);
 
+    const filteredMatchedRequests = useMemo(() => {
+        const query = matchedWorkspaceSearch.trim().toLowerCase();
+        if (!query) {
+            return matchedRequests;
+        }
+
+        return matchedRequests.filter((request) => [
+            request.requester_name,
+            request.requester_email,
+            request.location,
+            request.location_postcode,
+            request.details,
+            request.selected_property?.title,
+            formatWorkspaceReference(request.id),
+        ].some((value) => String(value || '').toLowerCase().includes(query)));
+    }, [matchedRequests, matchedWorkspaceSearch]);
+
+    const matchedWorkspacePageCount = Math.max(1, Math.ceil(filteredMatchedRequests.length / MATCHED_WORKSPACE_PAGE_SIZE));
+    const visibleMatchedRequests = useMemo(() => {
+        const page = Math.min(matchedWorkspacePage, matchedWorkspacePageCount);
+        const start = (page - 1) * MATCHED_WORKSPACE_PAGE_SIZE;
+        return filteredMatchedRequests.slice(start, start + MATCHED_WORKSPACE_PAGE_SIZE);
+    }, [filteredMatchedRequests, matchedWorkspacePage, matchedWorkspacePageCount]);
+
+    useEffect(() => {
+        setMatchedWorkspacePage(1);
+    }, [matchedWorkspaceSearch]);
+
+    useEffect(() => {
+        setMatchedWorkspacePage((current) => Math.min(current, matchedWorkspacePageCount));
+    }, [matchedWorkspacePageCount]);
+
     useEffect(() => {
         if (!focusedWorkspaceRequestId) {
             return undefined;
         }
+
+        const matchedWorkspaceCard = document.getElementById(getMatchedWorkspaceCardId(focusedWorkspaceRequestId));
+        matchedWorkspaceCard?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
 
         const timeout = window.setTimeout(() => {
             setFocusedWorkspaceRequestId((current) => current === focusedWorkspaceRequestId ? null : current);
         }, 4000);
 
         return () => window.clearTimeout(timeout);
-    }, [focusedWorkspaceRequestId]);
-
-    const visibleManagerProperties = useMemo(() => {
-        const search = propertyPickerSearch.trim().toLowerCase();
-        const filtered = managerProperties.filter((property) => {
-            if (!search) {
-                return true;
-            }
-            return [
-                property.title,
-                property.city,
-                property.postcode,
-                property.listing_type,
-            ].some((value) => String(value || '').toLowerCase().includes(search));
-        });
-
-        filtered.sort((left, right) => {
-            if (propertyPickerSort === 'price_asc') {
-                return (left.price || 0) - (right.price || 0);
-            }
-            if (propertyPickerSort === 'title_asc') {
-                return left.title.localeCompare(right.title, undefined, { sensitivity: 'base' });
-            }
-            return (right.price || 0) - (left.price || 0);
-        });
-
-        return filtered.slice(0, PROPERTY_SHARE_PICKER_LIMIT);
-    }, [managerProperties, propertyPickerSearch, propertyPickerSort]);
+    }, [focusedWorkspaceRequestId, visibleMatchedRequests]);
 
     const visibleRequests = useMemo(() => {
         const filtered = trackerFilter === 'all'
@@ -445,6 +455,11 @@ const BrokerResponseWidget: React.FC = () => {
     const handleSecondaryAction = (id: string) => {
         const selectedRequest = requests.find((request) => request.id === id);
         if (selectedRequest?.requestKind === 'offer' && selectedRequest.dispatchStatus === 'broker_matched') {
+            const targetIndex = matchedRequests.findIndex((request) => request.id === id);
+            if (targetIndex >= 0) {
+                setMatchedWorkspaceSearch('');
+                setMatchedWorkspacePage(Math.floor(targetIndex / MATCHED_WORKSPACE_PAGE_SIZE) + 1);
+            }
             setFocusedWorkspaceRequestId(id);
             const matchedWorkspaceCard = document.getElementById(getMatchedWorkspaceCardId(id));
             if (matchedWorkspaceCard) {
@@ -702,7 +717,7 @@ const BrokerResponseWidget: React.FC = () => {
                                 : 'brand-orange-action'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                    {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                    {availabilityLoading ? <ActionSpinner className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
                     {availabilityBlockedReason
                         ? 'Open verification'
                         : availableForFastResponse
@@ -741,7 +756,9 @@ const BrokerResponseWidget: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {loading ? (
-                    <div className="col-span-full py-8 text-center text-gray-400">Loading requests...</div>
+                    <div className="col-span-full flex justify-center py-8 text-gray-500 dark:text-gray-400">
+                        <BrandLoader size="md" label="Loading requests" showLabel />
+                    </div>
                 ) : visibleRequests.length > 0 ? (
                     visibleRequests.map((request, requestIndex) => (
                         <BrokerRequestItem
@@ -778,14 +795,41 @@ const BrokerResponseWidget: React.FC = () => {
                         </button>
                     </div>
 
+                    <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-black sm:flex-row sm:items-center sm:justify-between">
+                        <label className="relative block min-w-0 flex-1">
+                            <span className="sr-only">Search matched client workspaces</span>
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="search"
+                                aria-label="Search matched client workspaces"
+                                value={matchedWorkspaceSearch}
+                                onChange={(event) => setMatchedWorkspaceSearch(event.target.value)}
+                                placeholder="Search client, property, location, or workspace..."
+                                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-800 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            />
+                        </label>
+                        <p className="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                            {filteredMatchedRequests.length} workspace{filteredMatchedRequests.length === 1 ? '' : 's'}
+                        </p>
+                    </div>
+
                     <div className="mt-5 space-y-5">
-                        {matchedRequests.map((request, requestIndex) => {
+                        {visibleMatchedRequests.map((request, requestIndex) => {
                             const selectedIds = shareSelections[request.id] || [];
                             const sharedCount = request.property_shares?.length || 0;
                             const selectedProperty = request.selected_property;
                             const selectedWorkspaceAction = getManagerWorkspaceAction(request);
                             const isSaving = shareSavingRequestId === request.id;
                             const propertyKeyFor = createDuplicateSafeKeyResolver(`broker-response-property-${request.id}`);
+                            const eligibleManagerPropertyCount = managerProperties.filter((property) => (
+                                isPortfolioPropertyEligibleForRequest(property, request.request_type)
+                            )).length;
+                            const visibleManagerProperties = selectShareablePortfolioProperties(managerProperties, {
+                                requestType: request.request_type,
+                                search: propertyPickerSearch,
+                                sort: propertyPickerSort,
+                                limit: PROPERTY_SHARE_PICKER_LIMIT,
+                            });
 
                             return (
                                 <div
@@ -926,7 +970,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                         </label>
                                                     </div>
                                                     <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                                                        Showing {visibleManagerProperties.length} of {managerProperties.length} portfolio properties
+                                                        Showing {visibleManagerProperties.length} of {eligibleManagerPropertyCount} matching portfolio properties
                                                     </p>
                                                     <div className="mt-5 grid gap-3 lg:grid-cols-2">
                                                         {visibleManagerProperties.map((property, propertyIndex) => {
@@ -995,7 +1039,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                             disabled={isSaving || selectedIds.length === 0}
                                                             className="brand-orange-action inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                                         >
-                                                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                                            {isSaving ? <ActionSpinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                                                             {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}
                                                         </button>
                                                     </div>
@@ -1011,6 +1055,30 @@ const BrokerResponseWidget: React.FC = () => {
                             );
                         })}
                     </div>
+
+                    {filteredMatchedRequests.length > MATCHED_WORKSPACE_PAGE_SIZE ? (
+                        <nav aria-label="Matched client workspace pages" className="mt-5 flex items-center justify-between gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setMatchedWorkspacePage((page) => Math.max(1, page - 1))}
+                                disabled={matchedWorkspacePage <= 1}
+                                className="min-h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-black dark:text-gray-200"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+                                Page {matchedWorkspacePage} of {matchedWorkspacePageCount}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setMatchedWorkspacePage((page) => Math.min(matchedWorkspacePageCount, page + 1))}
+                                disabled={matchedWorkspacePage >= matchedWorkspacePageCount}
+                                className="min-h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-black dark:text-gray-200"
+                            >
+                                Next
+                            </button>
+                        </nav>
+                    ) : null}
                 </div>
             )}
 

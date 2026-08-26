@@ -1,8 +1,10 @@
 'use client';
 
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, AlertCircle, Loader2 } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -89,7 +91,7 @@ const ConfirmationModal = ({
                                     : 'bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20'
                             } disabled:opacity-50`}
                         >
-                            {isLoading && <Loader2 size={18} className="animate-spin" />}
+                            {isLoading && <ActionSpinner size={18} className="" />}
                             {confirmText}
                         </button>
                     </div>

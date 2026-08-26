@@ -6,26 +6,37 @@ import { MemoryRouter } from "react-router-dom";
 
 import UserActivitySubnav from "./UserActivitySubnav";
 
-test("user activity subnav includes virtual storage", () => {
-  const markup = renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/user/virtual-storage"]}>
-      <UserActivitySubnav />
-    </MemoryRouter>,
-  );
+const renderActivitySubnav = (path: string) => renderToStaticMarkup(
+  <MemoryRouter initialEntries={[path]}>
+    <UserActivitySubnav />
+  </MemoryRouter>,
+);
 
-  assert.match(markup, /Virtual Storage/);
-  assert.match(markup, /Document vault/);
-  assert.match(markup, /aria-current="page"/);
+const assertOnlyActive = (markup: string, path: string) => {
+  const links = [...markup.matchAll(/<a\s+([^>]+)>/g)].map((match) => match[1]);
+  const activeLinks = links.filter((attributes) => attributes.includes('aria-current="page"'));
+
+  assert.equal(activeLinks.length, 1);
+  assert.match(activeLinks[0] || '', new RegExp(`href="${path}"`));
+};
+
+test("user activity subnav highlights each canonical activity route", () => {
+  const savedMarkup = renderActivitySubnav("/user/dashboard/saved");
+  const applicationsMarkup = renderActivitySubnav("/user/dashboard/applications");
+  const storageMarkup = renderActivitySubnav("/user/dashboard/virtual-storage");
+
+  assert.match(storageMarkup, /Virtual Storage/);
+  assert.match(storageMarkup, /Document vault/);
+  assertOnlyActive(savedMarkup, "/user/dashboard/saved");
+  assertOnlyActive(applicationsMarkup, "/user/dashboard/applications");
+  assertOnlyActive(storageMarkup, "/user/dashboard/virtual-storage");
+  assert.doesNotMatch(storageMarkup, /href="\/user\/dashboard\/fast-track"[^>]*aria-current="page"/);
 });
 
 test("user activity subnav includes fast track", () => {
-  const markup = renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/user/dashboard/fast-track"]}>
-      <UserActivitySubnav />
-    </MemoryRouter>,
-  );
+  const markup = renderActivitySubnav("/user/dashboard/fast-track");
 
   assert.match(markup, /Fast Track/);
   assert.match(markup, /Active cases/);
-  assert.match(markup, /aria-current="page"/);
+  assertOnlyActive(markup, "/user/dashboard/fast-track");
 });

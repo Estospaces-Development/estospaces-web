@@ -26,3 +26,13 @@ test('login legal copy avoids mojibake separators', () => {
   assert.match(loginPage, /terms &amp; conditions<\/Link>\s*\{\s*' \| '\s*\}/);
   assert.doesNotMatch(loginPage, /Â|â|�|\\u00B7|·/);
 });
+
+test('login submit keeps the auth shell stable behind the global branded loader', () => {
+  assert.match(loginPage, /import ActionSpinner from ['"]@\/components\/ui\/ActionSpinner['"]/);
+  assert.match(loginPage, /import BrandLoadingScreen from ['"]@\/components\/ui\/BrandLoadingScreen['"]/);
+  assert.match(loginPage, /aria-busy=\{loading\}/);
+  assert.match(loginPage, /<ActionSpinner size="sm" aria-hidden \/>/);
+  assert.match(loginPage, /\{loading \? <BrandLoadingScreen label="Signing you in\.\.\." \/> : null\}/);
+  assert.match(loginPage, /if \(authLoading\) \{\s*return <BrandLoadingScreen label="Checking your session\.\.\." \/>;/);
+  assert.doesNotMatch(loginPage, /<BrandLoader/);
+});

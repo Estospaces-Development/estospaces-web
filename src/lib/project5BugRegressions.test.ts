@@ -34,6 +34,10 @@ const managerApplicationsPage = readFileSync(resolve(root, 'src/pages/manager/ap
 const managerDashboardPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
+const userSearchPage = readFileSync(resolve(root, 'src/pages/user/search/page.tsx'), 'utf8');
+const propertyCard = readFileSync(resolve(root, 'src/components/dashboard/PropertyCard.tsx'), 'utf8');
+const userDashboardClient = readFileSync(resolve(root, 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
+const discoverPage = readFileSync(resolve(root, 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'src/globals.css'), 'utf8');
 
 const hasMojibake = (text: string) => {
@@ -102,8 +106,6 @@ test('lead score input preserves empty typing state and serializes only on submi
 });
 
 test('discover map view uses the real nearby map with satellite controls', () => {
-    const discoverPage = readFileSync(resolve(root, 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
-
     assert.match(discoverPage, /NearbyPropertiesMap/);
     assert.doesNotMatch(discoverPage, /StableDiscoveryMap/);
     assert.match(discoverPage, /toDiscoverNearbyMapProperties/);
@@ -140,22 +142,45 @@ test('discover map properties preserve coordinates for real map markers', () => 
     assert.equal(property.address_line_1, '10 Test Street');
 });
 
-test('user dashboard property cards expose a direct fast-track start action', () => {
-    const propertyCard = readFileSync(resolve(root, 'src/components/dashboard/PropertyCard.tsx'), 'utf8');
+test('browse all opens an unfiltered cross-region discovery view', () => {
+    assert.match(userDashboardClient, /navigate\('\/user\/dashboard\/discover'\)/);
+    assert.doesNotMatch(userDashboardClient, /const userPostcode = user\?\.postcode[\s\S]{0,220}Browse All Properties/);
+    assert.match(discoverPage, /searchService\.getPropertySections\(\)/);
+    assert.match(discoverPage, /countryCode: undefined/);
+});
+
+test('user search keeps the results surface focused without popular-search clutter', () => {
+    assert.doesNotMatch(userSearchPage, /aria-label="Popular searches"/);
+    assert.doesNotMatch(userSearchPage, /getPopularSearches\(/);
+});
+
+test('user dashboard property cards expose a manager-approval Fast Track request action', () => {
     const dashboardClient = readFileSync(resolve(root, 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
     const discoverPage = readFileSync(resolve(root, 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 
     assert.match(propertyCard, /onStartFastTrack\?:/);
-    assert.match(propertyCard, /Start 24-Hour Fast Track/);
+    assert.match(propertyCard, /Request 24-Hour Fast Track/);
     assert.match(dashboardClient, /onStartFastTrack=\{openFastTrackFromDashboard\}/);
     assert.match(discoverPage, /onStartFastTrack=\{\(property\) => navigate\(`\/user\/properties\/\$\{property\.id\}\?fast-track=1`\)\}/);
+    assert.doesNotMatch(dashboardClient, /\{!showFilteredResults && \(\s*<div>\s*<div className="flex items-center justify-between mb-4">\s*<div>\s*<div className="flex items-center gap-2">\s*<MapIcon/);
 });
 
-test('direct property fast-track start refreshes manager live queue surfaces', () => {
+test('saved-property actions reset their pending state and describe the next action', () => {
+    assert.match(propertyCard, /finally \{\s*setIsSaving\(false\);/);
+    assert.match(propertyCard, /Remove \$\{displayTitle\} from saved properties/);
+    assert.match(userSearchPage, /finally \{\s*setSavingPropertyId\(null\);/);
+    assert.match(userSearchPage, /Remove \$\{displayTitle\} from saved properties/);
+    assert.match(userPropertyDetailPage, /finally \{\s*setIsUpdatingSavedProperty\(false\);/);
+    assert.match(userPropertyDetailPage, /title=\{isSaved \? `Remove \$\{property\.title\} from saved properties`/);
+});
+
+test('direct property Fast Track request refreshes manager live queue surfaces', () => {
     assert.match(userPropertyDetailPage, /publishWorkspaceSync/);
     assert.match(userPropertyDetailPage, /WORKSPACE_SYNC_TAGS\.FAST_TRACK/);
     assert.match(userPropertyDetailPage, /WORKSPACE_SYNC_TAGS\.MANAGER_DASHBOARD/);
-    assert.match(userPropertyDetailPage, /User started fast-track from property detail/);
+    assert.match(userPropertyDetailPage, /User requested fast-track from property detail/);
+    assert.match(userPropertyDetailPage, /requestFastTrack/);
+    assert.doesNotMatch(userPropertyDetailPage, /createFastTrackCase/);
 });
 
 test('rental application submission opens the real applications workspace and keeps applications fetching active', () => {

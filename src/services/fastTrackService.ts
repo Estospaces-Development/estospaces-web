@@ -48,6 +48,7 @@ export type FastTrackLegacyFinalStatus =
 
 export type FastTrackDocumentStatus =
   | "pending"
+  | "requested"
   | "uploaded"
   | "reupload_needed"
   | "approved";
@@ -58,6 +59,10 @@ export interface FastTrackDocumentItem {
   id: string;
   label: string;
   status: FastTrackDocumentStatus;
+  requestReason?: string;
+  requestDueAt?: string;
+  requestedAt?: string;
+  requestedBy?: string;
   documentRecordId?: string;
   fileName?: string;
   fileUrl?: string;
@@ -157,6 +162,10 @@ interface BackendFastTrackWorkspaceCase {
       id: string;
       label: string;
       status: string;
+      request_reason?: string;
+      request_due_at?: string;
+      requested_at?: string;
+      requested_by?: string;
       document_record_id?: string;
       file_name?: string;
       file_url?: string;
@@ -291,6 +300,8 @@ export interface CreateFastTrackRequest {
   started_from?: "direct_property" | "broker_request_selection";
 }
 
+export type RequestFastTrackRequest = Omit<CreateFastTrackRequest, 'client_id' | 'manager_id' | 'started_from'>;
+
 export interface UpdateFastTrackRequest {
   current_step?: string;
   final_status?: string;
@@ -406,6 +417,8 @@ const normalizeDocumentStatus = (
     case "pending_review":
     case "submitted":
       return "uploaded";
+    case "requested":
+      return "requested";
     case "approved":
     case "verified":
       return "approved";
@@ -543,6 +556,10 @@ const mapBackendToFrontend = (
     id: item.id,
     label: item.label,
     status: normalizeDocumentStatus(item.status),
+    requestReason: item.request_reason,
+    requestDueAt: item.request_due_at,
+    requestedAt: item.requested_at,
+    requestedBy: item.requested_by,
     documentRecordId: item.document_record_id,
     fileName: item.file_name,
     fileUrl: item.file_url,
@@ -715,6 +732,39 @@ export const createFastTrackCase = async (
     return { data: result ? mapBackendToFrontend(result) : null, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const requestFastTrack = async (
+  req: RequestFastTrackRequest,
+  options: ServiceRequestOptions = {},
+): Promise<{ requested: boolean; requestedAt: string | null; error: string | null }> => {
+  try {
+    const payload: RequestFastTrackRequest & { request_id: string } = {
+      request_id: globalThis.crypto.randomUUID(),
+      property_id: req.property_id,
+      broker_request_id: req.broker_request_id,
+      lead_id: req.lead_id,
+      client_name: req.client_name,
+      property_title: req.property_title,
+      property_type: req.property_type,
+      property_country: req.property_country,
+      listing_type: req.listing_type,
+    };
+    const result = await apiFetch<{ status: 'requested'; property_id: string; lead_id?: string; requested_at: string }>(
+      `${BOOKING_URL()}/api/v1/fast-track/request`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        ...options,
+      },
+    );
+    if (!result.requested_at || !Number.isFinite(Date.parse(result.requested_at))) {
+      throw new Error('Fast Track request confirmation is incomplete. Please try again.');
+    }
+    return { requested: true, requestedAt: result.requested_at, error: null };
+  } catch (error: any) {
+    return { requested: false, requestedAt: null, error: getErrorMessage(error) };
   }
 };
 

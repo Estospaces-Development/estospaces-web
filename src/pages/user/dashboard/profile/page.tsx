@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,7 +10,6 @@ import {
     Phone,
     MapPin,
     ArrowLeft,
-    Loader2,
     Camera,
     Edit3,
     Building,
@@ -224,7 +226,7 @@ export default function ProfilePage() {
     if (authLoading || (isAuthenticated && !currentUser)) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+                <BrandLoader className="w-10 h-10 text-orange-500" />
             </div>
         );
     }
@@ -282,7 +284,7 @@ export default function ProfilePage() {
                                     )}
                                     {uploadingImage && (
                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                            <Loader2 size={24} className="text-white animate-spin" />
+                                            <BrandLoader size={24} className="text-white" />
                                         </div>
                                     )}
                                 </div>
@@ -306,7 +308,7 @@ export default function ProfilePage() {
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.fullName || 'User'}</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{formData.email}</p>
 
-                            <div className="mt-8 pt-8 border-t dark:border-gray-800 grid grid-cols-3 gap-2">
+                            <div className="mt-8 grid grid-cols-1 gap-2 border-t pt-8 min-[360px]:grid-cols-3 dark:border-gray-800">
                                 <div className="text-center">
                                     <div className="text-lg font-black text-gray-900 dark:text-white">{savedCount}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Saved</div>
@@ -448,7 +450,7 @@ export default function ProfilePage() {
                                     >
                                         {savingProfile ? (
                                             <>
-                                                <Loader2 size={24} className="animate-spin" />
+                                                <ActionSpinner size={24} className="" />
                                                 <span>Updating Profile...</span>
                                             </>
                                         ) : (

@@ -1,4 +1,5 @@
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import { buildManagerFastTrackRequestPath } from '@/lib/managerFastTrackRequestNavigation';
 
 type NotificationNavigationData = Record<string, any> | null | undefined;
 
@@ -181,8 +182,10 @@ export function getNotificationNavigationPath(
     const viewingId = readString(data, 'viewingId', 'viewing_id');
     const contractId = readString(data, 'contractId', 'contract_id');
     const subjectUserId = readString(data, 'subject_user_id', 'subjectUserId', 'userId', 'user_id');
+    const clientId = readString(data, 'client_id', 'clientId');
     const fastTrackCaseId = readString(data, 'fast_track_id', 'fastTrackId', 'caseId', 'case_id');
     const leadId = readString(data, 'leadId', 'lead_id');
+    const brokerRequestId = readString(data, 'brokerRequestId', 'broker_request_id');
     const propertyId = readString(data, 'propertyId', 'property_id');
     const userFastTrackPath = buildWorkspacePath('/user/dashboard/fast-track', {
         applicationId,
@@ -315,6 +318,10 @@ export function getNotificationNavigationPath(
         case 'sale_journey_updated':
         case 'sale_journey_completed':
             return notificationRole === 'manager' ? managerFastTrackPath : userFastTrackPath;
+        case 'fast_track_requested':
+            return notificationRole === 'manager'
+                ? buildManagerFastTrackRequestPath({ brokerRequestId, leadId, clientId, propertyId })
+                : userFastTrackPath;
         case 'fast_track_started':
         case 'fast_track_updated':
         case 'fast_track_completed':

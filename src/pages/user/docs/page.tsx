@@ -1,6 +1,6 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useAuth, type User } from '@/contexts/AuthContext';
 import { getLoginPath, getRedirectPath } from '@/lib/authUtils';
 import { UserVirtualStoragePageContent } from '@/pages/user/virtual-storage/page';
@@ -48,7 +48,7 @@ export default function UserDocsPage() {
     if (authLoading || (isAuthenticated && !currentUser)) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                <BrandLoader className="h-10 w-10 text-orange-500" />
             </div>
         );
     }

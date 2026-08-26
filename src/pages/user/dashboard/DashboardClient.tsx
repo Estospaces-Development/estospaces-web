@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -9,7 +11,6 @@ import {
   Building2,
   Home,
   Key,
-  Loader2,
   Map as MapIcon,
   X,
 } from 'lucide-react';
@@ -41,10 +42,17 @@ import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/user
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
-import { extractPostcodeFromAddress } from '@/services/locationService';
+import { hasValidMapCoordinates, loadCompleteMapCandidates } from '@/lib/nearbyMap';
+import { syncDashboardMapLocation } from '@/lib/dashboardMapLocation';
+import {
+  clearPropertySearchReturnState,
+  readPropertySearchReturnState,
+  savePropertySearchReturnState,
+} from '@/lib/propertySearchReturnCache';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
+const USER_DASHBOARD_PATH = '/user/dashboard';
 
 const dashboardFilterOptions = [
   { id: 'recently_added', label: 'Recently Added' },
@@ -215,39 +223,91 @@ const buildDiscoverParams = (
   return params;
 };
 
+const hasDashboardSearchParams = (searchParams: URLSearchParams) => (
+  dashboardSearchParamKeys.some((key) => searchParams.has(key))
+);
+
+const buildDashboardReturnSearchParams = (
+  currentSearchParams: URLSearchParams,
+  selectedPropertyType: 'buy' | 'rent' | 'sold',
+  selectedFilters: string[],
+  searchFilters: DashboardSearchFilters,
+  currentPage: number,
+) => {
+  const params = new URLSearchParams(currentSearchParams);
+  dashboardSearchParamKeys.forEach((key) => params.delete(key));
+  buildDiscoverParams(selectedPropertyType, selectedFilters, searchFilters).forEach((value, key) => {
+    params.set(key, value);
+  });
+  if (currentPage > 1) {
+    params.set('page', String(currentPage));
+  }
+  return params;
+};
+
+const searchParamsMatch = (left: URLSearchParams, right: URLSearchParams) => {
+  const normalizedLeft = new URLSearchParams(left);
+  const normalizedRight = new URLSearchParams(right);
+  normalizedLeft.sort();
+  normalizedRight.sort();
+  return normalizedLeft.toString() === normalizedRight.toString();
+};
+
 const DashboardClient = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const cachedDashboardSearchRef = useRef(
+    typeof window === 'undefined'
+      ? null
+      : readPropertySearchReturnState(window.sessionStorage, USER_DASHBOARD_PATH),
+  );
+  const initialDashboardSearchParamsRef = useRef<URLSearchParams | null>(null);
+  if (!initialDashboardSearchParamsRef.current) {
+    const cachedSearch = cachedDashboardSearchRef.current?.search;
+    initialDashboardSearchParamsRef.current = !hasDashboardSearchParams(searchParams) && cachedSearch
+      ? new URLSearchParams(cachedSearch)
+      : new URLSearchParams(searchParams);
+  }
+  const initialDashboardSearchParams = initialDashboardSearchParamsRef.current;
   const { user } = useAuth();
   const toast = useToast();
-  const { activeLocation, loading: locationLoading } = useUserLocation();
+  const {
+    activeLocation,
+    loading: locationLoading,
+    updateLocationFromSearch,
+    clearSearchLocation,
+  } = useUserLocation();
   const { setActiveTab } = usePropertyFilter();
   const dashboardCelebrateRequested = searchParams.get('celebrate') === '1';
   const dashboardCelebrateCaseId = searchParams.get('fastTrackCase');
   const dashboardResetRequested = searchParams.get('reset') === '1';
 
   const [selectedPropertyType, setSelectedPropertyType] = useState<'buy' | 'rent' | 'sold'>(() => (
-    mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'))
+    mapSearchParamsToDashboardType(initialDashboardSearchParams.get('type'), initialDashboardSearchParams.get('status'))
   ));
   const [selectedFilters, setSelectedFilters] = useState<string[]>(() => {
-    const filterParam = searchParams.get('filter');
+    const filterParam = initialDashboardSearchParams.get('filter');
     return filterParam ? filterParam.split(',').filter(Boolean) : [];
   });
   const [dashboardSearchFilters, setDashboardSearchFilters] = useState<DashboardSearchFilters>(() => (
-    buildDashboardSearchFiltersFromParams(searchParams)
+    buildDashboardSearchFiltersFromParams(initialDashboardSearchParams)
   ));
+  const dashboardLocationParam = (
+    hasDashboardSearchParams(searchParams) ? searchParams : initialDashboardSearchParams
+  ).get('location') || '';
   const [searchLoading, setSearchLoading] = useState(false);
+  const [filteredSearchCompleted, setFilteredSearchCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [filteredProperties, setFilteredProperties] = useState<SearchResult[]>([]);
   const [showFilteredResults, setShowFilteredResults] = useState(() => {
-    const filters = buildDashboardSearchFiltersFromParams(searchParams);
-    const activeFilters = searchParams.get('filter');
-    return hasActiveDashboardSearch(filters) || Boolean(activeFilters) || searchParams.get('status') === 'sold';
+    const filters = buildDashboardSearchFiltersFromParams(initialDashboardSearchParams);
+    const activeFilters = initialDashboardSearchParams.get('filter');
+    return hasActiveDashboardSearch(filters) || Boolean(activeFilters) || initialDashboardSearchParams.get('status') === 'sold';
   });
   const [filteredCount, setFilteredCount] = useState(0);
   const [filteredTotalPages, setFilteredTotalPages] = useState(0);
-  const [currentFilteredPage, setCurrentFilteredPage] = useState(() => parsePositivePage(searchParams.get('page')));
+  const [currentFilteredPage, setCurrentFilteredPage] = useState(() => parsePositivePage(initialDashboardSearchParams.get('page')));
   const [nearbyProperties, setNearbyProperties] = useState<SearchResult[]>([]);
   const [_nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
   const [showFastTrackCelebration, setShowFastTrackCelebration] = useState(false);
@@ -262,6 +322,15 @@ const DashboardClient = () => {
   const celebratedDashboardCaseIdRef = useRef<string | null>(null);
   const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
   const dashboardCopy = useMemo(() => getDashboardSimplificationCopy(), []);
+  const dashboardReturnSearchParams = useMemo(() => buildDashboardReturnSearchParams(
+    searchParams,
+    selectedPropertyType,
+    selectedFilters,
+    dashboardSearchFilters,
+    currentFilteredPage,
+  ), [currentFilteredPage, dashboardSearchFilters, searchParams, selectedFilters, selectedPropertyType]);
+  const dashboardReturnSearch = dashboardReturnSearchParams.toString();
+  const dashboardReturnPath = `${USER_DASHBOARD_PATH}${dashboardReturnSearch ? `?${dashboardReturnSearch}` : ''}`;
 
   const openDashboardCelebration = useCallback((caseItem: FastTrackCase) => {
     celebratedDashboardCaseIdRef.current = caseItem.caseId;
@@ -271,12 +340,25 @@ const DashboardClient = () => {
   }, [toast]);
 
   useEffect(() => {
-    const nextDashboardType = mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'));
-    const nextFilters = searchParams.get('filter')
-      ? searchParams.get('filter')!.split(',').filter(Boolean)
+    const cachedSearch = cachedDashboardSearchRef.current?.search;
+    const hasExplicitDashboardSearch = hasDashboardSearchParams(searchParams);
+    if (
+      hasExplicitDashboardSearch
+      && cachedSearch
+      && !searchParamsMatch(searchParams, new URLSearchParams(cachedSearch))
+    ) {
+      clearPropertySearchReturnState(window.sessionStorage, USER_DASHBOARD_PATH);
+      cachedDashboardSearchRef.current = null;
+    }
+    const sourceSearchParams = !hasExplicitDashboardSearch && cachedSearch
+      ? new URLSearchParams(cachedSearch)
+      : searchParams;
+    const nextDashboardType = mapSearchParamsToDashboardType(sourceSearchParams.get('type'), sourceSearchParams.get('status'));
+    const nextFilters = sourceSearchParams.get('filter')
+      ? sourceSearchParams.get('filter')!.split(',').filter(Boolean)
       : [];
-    const nextSearchFilters = buildDashboardSearchFiltersFromParams(searchParams);
-    const nextPage = parsePositivePage(searchParams.get('page'));
+    const nextSearchFilters = buildDashboardSearchFiltersFromParams(sourceSearchParams);
+    const nextPage = parsePositivePage(sourceSearchParams.get('page'));
 
     setSelectedPropertyType(nextDashboardType);
     setSelectedFilters(nextFilters);
@@ -287,7 +369,19 @@ const DashboardClient = () => {
       || nextFilters.length > 0
       || nextDashboardType === 'sold',
     );
-  }, [searchParams]);
+
+    if (sourceSearchParams !== searchParams) {
+      setSearchParams(sourceSearchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    void syncDashboardMapLocation(
+      dashboardLocationParam,
+      updateLocationFromSearch,
+      clearSearchLocation,
+    );
+  }, [clearSearchLocation, dashboardLocationParam, updateLocationFromSearch]);
 
   const shouldFetchFilteredResults =
     hasActiveDashboardSearch(dashboardSearchFilters)
@@ -319,19 +413,36 @@ const DashboardClient = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    if (locationLoading) {
+      return;
+    }
+
     let active = true;
 
     const loadNearbyProperties = async () => {
       setNearbyPropertiesLoading(true);
 
       try {
-        const response = await searchService.search('', {
-          page: 1,
-          limit: 50,
-        });
+        if (!hasValidMapCoordinates(activeLocation)) {
+          if (active) {
+            setNearbyProperties([]);
+          }
+          return;
+        }
 
-        if (active && response.success) {
-          setNearbyProperties(response.data || []);
+        const candidates = await loadCompleteMapCandidates((page, limit) => (
+          searchService.search('', {
+            page,
+            limit,
+          })
+        ));
+
+        if (active) {
+          setNearbyProperties(candidates);
+        }
+      } catch {
+        if (active) {
+          setNearbyProperties([]);
         }
       } finally {
         if (active) {
@@ -345,7 +456,7 @@ const DashboardClient = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeLocation, locationLoading]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -535,6 +646,7 @@ const DashboardClient = () => {
     }
 
     setSearchLoading(true);
+    setFilteredSearchCompleted(false);
     setError(null);
     setShowFilteredResults(true);
 
@@ -588,6 +700,7 @@ const DashboardClient = () => {
       setFilteredTotalPages(0);
     } finally {
       setSearchLoading(false);
+      setFilteredSearchCompleted(true);
     }
   }, [currentFilteredPage, dashboardSearchFilters, selectedFilters, selectedPropertyType, shouldFetchFilteredResults]);
 
@@ -615,6 +728,7 @@ const DashboardClient = () => {
       setSelectedPropertyType('buy');
     }
     setCurrentFilteredPage(1);
+    setFilteredSearchCompleted(false);
     setError(null);
     setLocationMessage(null);
     setShowFilteredResults(
@@ -650,7 +764,24 @@ const DashboardClient = () => {
     });
   };
 
+  useEffect(() => {
+    if (!showFilteredResults) {
+      return;
+    }
+
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      dashboardSearchParamKeys.forEach((key) => next.delete(key));
+      dashboardReturnSearchParams.forEach((value, key) => next.set(key, value));
+      return next.toString() === previous.toString() ? previous : next;
+    }, { replace: true });
+  }, [dashboardReturnSearchParams, setSearchParams, showFilteredResults]);
+
   const clearFilteredResults = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      clearPropertySearchReturnState(window.sessionStorage, USER_DASHBOARD_PATH);
+    }
+    cachedDashboardSearchRef.current = null;
     setSelectedFilters([]);
     setSelectedPropertyType((current) => (current === 'rent' ? 'rent' : 'buy'));
     setDashboardSearchFilters(defaultDashboardSearchFilters);
@@ -658,15 +789,17 @@ const DashboardClient = () => {
     setFilteredCount(0);
     setFilteredTotalPages(0);
     setCurrentFilteredPage(1);
+    setFilteredSearchCompleted(false);
     setShowFilteredResults(false);
     setError(null);
     setLocationMessage(null);
+    clearSearchLocation();
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       dashboardSearchParamKeys.forEach((key) => next.delete(key));
       return next;
     }, { replace: true });
-  }, [setSearchParams]);
+  }, [clearSearchLocation, setSearchParams]);
 
   const handleBrokerRequestLocationContextChange = useCallback((locationCode: string | null) => {
     setBrokerRequestLocationContext(locationCode?.trim() || null);
@@ -704,9 +837,7 @@ const DashboardClient = () => {
   const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
   const mapProperties = useMemo(() => (
     activeMapProperties.filter((property): property is SearchResult & { latitude: number; longitude: number } => (
-      property
-      && typeof property.latitude === 'number'
-      && typeof property.longitude === 'number'
+      Boolean(property) && hasValidMapCoordinates(property)
     ))
   ), [activeMapProperties]);
   const hasNearbyMapPreview = Boolean(
@@ -727,23 +858,57 @@ const DashboardClient = () => {
               ? `Results for "${dashboardSearchFilters.keyword.trim()}"`
               : 'Search Results';
 
+  useEffect(() => {
+    const cachedSearch = cachedDashboardSearchRef.current;
+    if (!cachedSearch || searchLoading || !filteredSearchCompleted || !showFilteredResults) {
+      return;
+    }
+
+    const expectedSearch = dashboardReturnSearch ? `?${dashboardReturnSearch}` : '';
+    if (cachedSearch.search !== expectedSearch) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: cachedSearch.scrollY, behavior: 'auto' });
+      clearPropertySearchReturnState(window.sessionStorage, USER_DASHBOARD_PATH);
+      cachedDashboardSearchRef.current = null;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [dashboardReturnSearch, filteredSearchCompleted, searchLoading, showFilteredResults]);
+
+  const cacheDashboardSearchReturn = useCallback(() => {
+    if (typeof window === 'undefined' || !dashboardReturnSearch) {
+      return;
+    }
+
+    savePropertySearchReturnState(window.sessionStorage, {
+      pathname: USER_DASHBOARD_PATH,
+      search: dashboardReturnSearch,
+      scrollY: window.scrollY,
+    });
+  }, [dashboardReturnSearch]);
+
   const openPropertyFromDashboard = useCallback((property: { id: string }) => {
+    cacheDashboardSearchReturn();
     navigate(`/user/properties/${property.id}`, {
       state: {
-        backTo: '/user/dashboard',
+        backTo: dashboardReturnPath,
         backLabel: 'Back to Dashboard',
       },
     });
-  }, [navigate]);
+  }, [cacheDashboardSearchReturn, dashboardReturnPath, navigate]);
 
   const openFastTrackFromDashboard = useCallback((property: { id: string }) => {
+    cacheDashboardSearchReturn();
     navigate(`/user/properties/${property.id}?fast-track=1`, {
       state: {
-        backTo: '/user/dashboard',
+        backTo: dashboardReturnPath,
         backLabel: 'Back to Dashboard',
       },
     });
-  }, [navigate]);
+  }, [cacheDashboardSearchReturn, dashboardReturnPath, navigate]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto dark:bg-[#0a0a0a] min-h-screen transition-all duration-300">
@@ -1077,8 +1242,7 @@ const DashboardClient = () => {
         </div>
       )}
 
-      {!showFilteredResults && (
-        <div>
+      <div>
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -1094,13 +1258,7 @@ const DashboardClient = () => {
             </div>
             <button
               onClick={() => {
-                const params = new URLSearchParams();
-                const userPostcode = user?.postcode || extractPostcodeFromAddress(user?.address || '');
-                if (userPostcode) {
-                  params.set('location', userPostcode);
-                }
-                const queryString = params.toString();
-                navigate(`/user/dashboard/discover${queryString ? `?${queryString}` : ''}`);
+                navigate('/user/dashboard/discover');
               }}
               className="flex items-center gap-2 px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 text-sm font-medium transition-colors"
             >
@@ -1113,7 +1271,7 @@ const DashboardClient = () => {
             <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
               <div className="flex h-[240px] items-center justify-center sm:h-[270px] lg:h-[300px]">
                 <div className="text-center">
-                  <Loader2 className="animate-spin mx-auto mb-4 text-orange-500" size={48} />
+                  <BrandLoader className="mx-auto mb-4 text-orange-500" size={48} />
                   <p className="text-gray-600 dark:text-gray-300">Loading nearby properties...</p>
                 </div>
               </div>
@@ -1131,8 +1289,7 @@ const DashboardClient = () => {
               </div>
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 };

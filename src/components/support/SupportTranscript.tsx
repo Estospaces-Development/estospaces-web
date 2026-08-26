@@ -1,5 +1,6 @@
 import React from 'react';
 import { LifeBuoy, MessageSquareDashed } from 'lucide-react';
+import { SupportAttachmentPreview } from '@/components/support/SupportAttachmentPreview';
 import type { Message } from '@/services/messagesService';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { formatSupportTimestamp, resolveSupportTranscriptMessagePresentation, type SupportTranscriptPerspective } from '@/lib/supportTranscript';
@@ -72,21 +73,14 @@ export function SupportTranscript({
                             )}
                             <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
                             {message.attachments && message.attachments.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
                                     {message.attachments.map((attachment, attachmentIndex) => (
-                                        <button
+                                        <SupportAttachmentPreview
                                             key={attachmentKeyFor(attachment.id || attachment.file_url || attachment.file_name, attachmentIndex)}
-                                            type="button"
-                                            onClick={() => attachment.id && onOpenAttachment?.(attachment.id)}
-                                            disabled={!attachment.id || !onOpenAttachment}
-                                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                                                presentation.emphasized
-                                                    ? 'bg-white/20 text-white'
-                                                    : 'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-200'
-                                            } disabled:cursor-not-allowed disabled:opacity-70`}
-                                        >
-                                            {attachment.file_name}
-                                        </button>
+                                            attachment={attachment}
+                                            emphasized={presentation.emphasized}
+                                            onOpenAttachment={onOpenAttachment}
+                                        />
                                     ))}
                                 </div>
                             )}

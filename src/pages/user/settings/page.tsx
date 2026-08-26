@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useEffect, useState } from 'react';
 import {
     Settings,
@@ -8,7 +11,6 @@ import {
     ShieldAlert,
     Save,
     CheckCircle,
-    Loader2,
     MapPin,
     PoundSterling,
     BedDouble,
@@ -148,7 +150,7 @@ export default function UserSettingsPage() {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-200px)]">
                 <div className="text-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-orange-500 mx-auto mb-4" />
+                    <BrandLoader className="w-10 h-10 text-orange-500 mx-auto mb-4" />
                     <p className="text-gray-500">Loading your preferences...</p>
                 </div>
             </div>
@@ -176,7 +178,7 @@ export default function UserSettingsPage() {
                 >
                     {isSaving ? (
                         <>
-                            <Loader2 size={18} className="animate-spin" />
+                            <ActionSpinner size={18} className="" />
                             Saving...
                         </>
                     ) : (

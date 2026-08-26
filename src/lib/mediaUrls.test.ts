@@ -48,3 +48,15 @@ test('resolveMediaUrlForBase versions uploads behind the production same-origin 
     assert.equal(resolved.pathname, '/__api/media/uploads/property/property-1/image.jpg');
     assert.equal(resolved.searchParams.get('esto_media'), PUBLIC_MEDIA_CACHE_VERSION);
 });
+
+test('resolveMediaUrlForBase routes private Estospaces bucket URLs through the media proxy', () => {
+    const resolved = new URL(resolveMediaUrlForBase(
+        'https://storage.googleapis.com/estospaces-media-dev/property/property-1/image.jpg',
+        '/__api/media',
+        'https://app.estospaces.com',
+    ));
+
+    assert.equal(resolved.origin, 'https://app.estospaces.com');
+    assert.equal(resolved.pathname, '/__api/media/uploads/property/property-1/image.jpg');
+    assert.equal(resolved.searchParams.get('esto_media'), PUBLIC_MEDIA_CACHE_VERSION);
+});

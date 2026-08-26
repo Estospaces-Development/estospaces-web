@@ -2,6 +2,7 @@ import {
   LAUNCH_COUNTRY_CODE,
   LAUNCH_COUNTRY_NAME,
   UK_COUNTRY_CODE,
+  getSupportedLaunchCountry,
   type SupportedLaunchCountryCode,
 } from '@/lib/launchLocale';
 
@@ -39,6 +40,23 @@ export interface SearchUrlFilters {
   listingType: string;
   sortBy: PropertySearchSortValue;
   page: number;
+}
+
+export interface BroaderPropertySearchFilters {
+  country?: SupportedLaunchCountryCode;
+  location?: string;
+  propertyType?: string;
+  listingType?: string;
+  minBedrooms?: number;
+  minBathrooms?: number;
+  sortBy?: PropertySearchSortValue;
+  page: number;
+  limit: number;
+}
+
+export interface BroaderPropertySearchAttempt {
+  notice: string;
+  filters: BroaderPropertySearchFilters;
 }
 
 const MAX_SEARCH_QUERY_LENGTH = 120;
@@ -117,8 +135,23 @@ export function normalizeSearchQueryInput(value: string): string {
     .trim()
     .replace(/\s+/g, ' ')
     .slice(0, MAX_SEARCH_QUERY_LENGTH)
-    .trim()
-    .toLowerCase();
+    .trim();
+}
+
+const LOCATION_CODE_IN_TEXT_PATTERN = /\b(?:\d{6}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i;
+
+function getPropertyGroupCountry(property: CountryAwarePropertyInput): SupportedLaunchCountryCode {
+  const locationText = [property.location, property.city]
+    .filter(Boolean)
+    .join(' ');
+  const locationCode = locationText.match(LOCATION_CODE_IN_TEXT_PATTERN)?.[0] || locationText;
+
+  return getSupportedLaunchCountry(property.country_code, property.country, locationCode)
+    || LAUNCH_COUNTRY_CODE;
+}
+
+export function normalizeSearchComparisonText(value: string): string {
+  return normalizeSearchQueryInput(value).toLocaleLowerCase();
 }
 
 export function getSearchQueryValidationMessage(value: string, required = false): string {
@@ -169,6 +202,65 @@ export function normalizeSearchMarketParam(value: string | null | undefined): Su
   return '';
 }
 
+export function inferSearchMarketFromText(value: string | null | undefined): SupportedLaunchCountryCode | null {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const directCountry = getSupportedLaunchCountry(undefined, undefined, normalized);
+  if (directCountry) {
+    return directCountry;
+  }
+
+  if (/^(london|manchester|birmingham|bristol|leeds|liverpool|edinburgh|glasgow|cardiff|sheffield|nottingham|southampton|oxford|cambridge|belfast)(?:\s*,.*)?$/.test(normalized)) {
+    return UK_COUNTRY_CODE;
+  }
+  if (/^(chennai|coimbatore|madurai|bengaluru|bangalore|mysuru|mangaluru|hyderabad|warangal|mumbai|pune|nagpur|delhi|new delhi|dwarka|kolkata|ahmedabad|jaipur|kochi|thiruvananthapuram)(?:\s*,.*)?$/.test(normalized)) {
+    return LAUNCH_COUNTRY_CODE;
+  }
+
+  return null;
+}
+
+export function buildBroaderPropertySearchAttempts(input: {
+  market: SupportedLaunchCountryCode | '';
+  location: string;
+  propertyType: string;
+  listingType: string;
+  minPrice: string;
+  maxPrice: string;
+  bedrooms: string;
+  baths: string;
+  sortBy: PropertySearchSortValue;
+}): BroaderPropertySearchAttempt[] {
+  const baseFilters: BroaderPropertySearchFilters = {
+    country: input.market || undefined,
+    propertyType: input.propertyType || undefined,
+    listingType: input.listingType || undefined,
+    minBedrooms: input.bedrooms ? Number.parseInt(input.bedrooms, 10) : undefined,
+    minBathrooms: input.baths ? Number.parseInt(input.baths, 10) : undefined,
+    sortBy: input.sortBy !== 'relevance' ? input.sortBy : undefined,
+    page: 1,
+    limit: 12,
+  };
+
+  if (input.location && (input.minPrice || input.maxPrice)) {
+    return [{
+      notice: 'No exact matches for the selected budget. Showing matches in this location without the price range.',
+      filters: { ...baseFilters, location: input.location },
+    }];
+  }
+  if (!input.location && (input.minPrice || input.maxPrice)) {
+    return [{
+      notice: 'No exact matches for the selected budget. Showing broader matches without the price range.',
+      filters: baseFilters,
+    }];
+  }
+
+  return [];
+}
+
 export function serializeSearchMarketParam(value: SupportedLaunchCountryCode | ''): string {
   if (value === UK_COUNTRY_CODE) {
     return 'england';
@@ -211,8 +303,6 @@ export function getSearchFilterValidationMessage(params: URLSearchParams): strin
 
   if (queryValidation) {
     messages.push(queryValidation.replace(/\.$/, ''));
-  } else if (normalizeSearchQueryInput(firstParam(params, ['q', 'keyword'])) !== firstParam(params, ['q', 'keyword']).trim().toLowerCase()) {
-    messages.push('search text was normalized and capped');
   }
   if (hasInvalidPriceParam(params)) {
     messages.push('price values must be numbers');
@@ -254,11 +344,13 @@ export function getCountryAwarePropertyGroups(
 
   const groups = new Map<string, CountryAwarePropertyGroup>();
   for (const property of properties) {
-    const key = (property.country_code || '').trim().toUpperCase() || LAUNCH_COUNTRY_CODE;
+    const key = getPropertyGroupCountry(property);
     const country = (property.country || '').trim();
-    const label = country && country.toLowerCase() !== LAUNCH_COUNTRY_CODE.toLowerCase()
+    const label = country
       ? `${country} properties`
-      : `${LAUNCH_COUNTRY_NAME} properties`;
+      : key === UK_COUNTRY_CODE
+        ? 'United Kingdom properties'
+        : `${LAUNCH_COUNTRY_NAME} properties`;
     const current = groups.get(key);
 
     if (current) {

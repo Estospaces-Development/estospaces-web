@@ -1,5 +1,7 @@
 'use client';
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,7 +11,6 @@ import {
     XCircle,
     Shield,
     ChevronRight,
-    Loader2,
     LucideIcon,
 } from 'lucide-react';
 
@@ -83,7 +84,7 @@ const VerificationStatusBadge: React.FC<VerificationStatusBadgeProps> = ({
     if (isLoading && showLoading) {
         return (
             <div className={`inline-flex items-center gap-1.5 ${className}`}>
-                <Loader2 className="animate-spin text-gray-400" size={getSizeConfig(size).iconSize} />
+                <BrandLoader className="text-gray-400" size={getSizeConfig(size).iconSize} />
                 {!iconOnly && <span className="text-gray-400 text-sm">Loading...</span>}
             </div>
         );

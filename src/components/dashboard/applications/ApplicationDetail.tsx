@@ -1,3 +1,4 @@
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -20,7 +21,6 @@ import {
     History,
     Shield,
     Key,
-    Loader2,
     LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -378,7 +378,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                             </div>
 
                             {/* Quick Info */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+                            <div className="mt-6 grid grid-cols-1 gap-4 border-t border-gray-100 pt-6 min-[420px]:grid-cols-2 dark:border-gray-700 lg:grid-cols-4">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Submitted</p>
                                     <p className="font-semibold text-gray-900 dark:text-white">
@@ -485,7 +485,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         disabled={openingConversation}
                                         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                     >
-                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                        {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
                                         <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                                     </button>
                                 </div>
@@ -644,7 +644,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                         disabled={openingConversation}
                                                         className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                                     >
-                                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                                        {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
                                                         <span>{openingConversation ? 'Opening thread' : 'Contact Agent'}</span>
                                                     </button>
 

@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
+
+import BrandLoader from '@/components/ui/BrandLoader';
 import PieChart from '@/components/ui/PieChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
@@ -199,7 +201,7 @@ const Analytics = () => {
         return (
             <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
                 <div className="relative">
-                    <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
+                    <BrandLoader size="xl" label="Loading analytics" />
                     <div className="absolute inset-0 flex items-center justify-center">
                         <TrendingUp className="w-6 h-6 text-orange-500 animate-pulse" />
                     </div>

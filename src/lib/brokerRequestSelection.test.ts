@@ -298,6 +298,74 @@ test('dedupeBrokerRequestsBySubmissionSignature keeps separate users with the sa
 
     assert.deepEqual(deduped.map((request) => request.id), ['second-client-workspace', 'first-client-workspace']);
 });
+
+test('dedupeBrokerRequestsBySubmissionSignature collapses parallel workspaces for the same client and selected property', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'selected-four-minutes-earlier',
+            user_id: 'user-parallel',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            details: 'First search details',
+            created_at: '2026-08-21T17:56:13.000Z',
+        }),
+        makeRequest({
+            id: 'selected-four-minutes-later',
+            user_id: 'user-parallel',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            details: 'Different request details',
+            created_at: '2026-08-21T18:00:21.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['selected-four-minutes-later']);
+});
+
+test('selected-property dedupe preserves a later separate journey', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'earlier-journey',
+            user_id: 'user-repeat',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            selected_fast_track_case_id: 'case-1',
+            created_at: '2026-08-21T17:00:00.000Z',
+        }),
+        makeRequest({
+            id: 'later-journey',
+            user_id: 'user-repeat',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            selected_fast_track_case_id: 'case-2',
+            created_at: '2026-08-21T18:00:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['later-journey', 'earlier-journey']);
+});
+
+test('selected-property dedupe preserves closed historical workspaces', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'closed-history',
+            user_id: 'user-history',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            status: 'closed',
+            created_at: '2026-08-21T17:56:13.000Z',
+        }),
+        makeRequest({
+            id: 'new-active',
+            user_id: 'user-history',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            created_at: '2026-08-21T18:00:21.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['new-active', 'closed-history']);
+});
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
     const sorted = sortBrokerRequestsByPriority([
         makeRequest({

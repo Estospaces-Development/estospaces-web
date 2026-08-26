@@ -1,5 +1,7 @@
 "use client";
 
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useEffect, useState } from 'react';
 import {
     FileText,
@@ -16,7 +18,6 @@ import {
     Calendar,
     Home,
     Building2,
-    Loader2,
     TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -371,7 +372,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         </div>
 
                         {/* Info Grid */}
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-3 text-sm">
+                        <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm min-[420px]:grid-cols-2 lg:grid-cols-3">
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <User size={14} className="flex-shrink-0 text-gray-400" />
                                 <span className="truncate">{application.agentName || 'Agent'}</span>
@@ -452,7 +453,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 title={openingConversation ? 'Opening thread' : 'Message Agent'}
                                 aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
                             >
-                                {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
                             </button>
                             {canWithdraw && (
                                 <button

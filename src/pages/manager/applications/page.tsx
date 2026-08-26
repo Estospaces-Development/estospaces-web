@@ -14,6 +14,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
 import ApplicationDetail from '@/components/manager/applications/ApplicationDetail';
 import ApplicationFilters from '@/components/manager/applications/ApplicationFilters';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildCsvContent } from '@/lib/csvExport';
 import { resolveFocusedApplication } from '@/lib/workspaceLinks';
@@ -397,7 +398,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
 
 export default function ManagerApplicationsPage() {
     return (
-        <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Applications...</div>}>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading applications..." />}>
             <ApplicationsContent />
         </Suspense>
     );

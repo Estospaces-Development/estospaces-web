@@ -311,13 +311,17 @@ test("viewing calendar out-of-month days keep contrast-safe text", () => {
 
 test("viewing concierge highlight rows are actionable buttons", () => {
   assert.match(propertyDetailSource, /10-minute live broker response/);
-  assert.match(propertyDetailSource, /Message the broker directly/);
   assert.match(propertyDetailSource, /Reserve a slot in minutes/);
   assert.match(propertyDetailSource, /focusViewingRequestForm/);
   assert.match(propertyDetailSource, /void handleStartFastTrack\(\)/);
-  assert.match(propertyDetailSource, /void handleOpenConversation\(\)/);
   assert.match(propertyDetailSource, /<button\s+key=\{item\.label\}/);
   assert.match(propertyDetailSource, /ref=\{viewingFormRef\}/);
+});
+
+test("property detail does not advertise direct broker outreach", () => {
+  assert.doesNotMatch(propertyDetailSource, /Message the broker directly/);
+  assert.doesNotMatch(propertyDetailSource, /open a direct chat/);
+  assert.doesNotMatch(propertyDetailSource, /Open Message Thread/);
 });
 
 test("property detail fast-track CTA resumes active broker-request journeys instead of advertising a new start", () => {
@@ -343,7 +347,7 @@ test("property detail fast-track CTA never advertises a fresh start before statu
   assert.equal(resolvePropertyFastTrackCtaState({ ...base, lookupStatus: "error" }), "retry");
   assert.equal(resolvePropertyFastTrackCtaState({ ...base, isAuthenticated: false, lookupStatus: "idle" }), "start");
 
-  assert.match(propertyDetailSource, /disabled=\{isFastTrackCtaBusy\}/);
+  assert.match(propertyDetailSource, /disabled=\{isFastTrackCtaDisabled\}/);
   assert.match(propertyDetailSource, /Checking Fast Track Status/);
   assert.match(propertyDetailSource, /Check Fast Track Status/);
   assert.match(propertyDetailSource, /activePropertyIdRef\.current === property\.id/);

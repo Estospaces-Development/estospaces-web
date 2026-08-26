@@ -39,20 +39,16 @@ test("admin dashboard recent notification titles wrap on narrow screens", () => 
   );
 });
 
-test("admin header page titles wrap instead of truncating on small screens", () => {
+test("admin header page titles use compact mobile copy without losing the full title", () => {
   const source = readFileSync(
     resolve(root, "src/components/layout/AdminHeader.tsx"),
     "utf8",
   );
 
-  assert.doesNotMatch(
-    source,
-    /<h1 className="[^"]*\btruncate\b[^"]*">\{getPageTitle\(\)\}<\/h1>/,
-  );
-  assert.match(
-    source,
-    /<h1 className="[^"]*\bbreak-words\b[^"]*">\{getPageTitle\(\)\}<\/h1>/,
-  );
+  assert.match(source, /full === 'Observational Research'[\s\S]*\? 'Research'/);
+  assert.match(source, /<h1 className="[^"]*\btruncate\b[^"]*" title=\{pageTitles\.full\}>/);
+  assert.match(source, /<span className="sm:hidden">\{pageTitles\.compact\}<\/span>/);
+  assert.match(source, /<span className="hidden sm:inline">\{pageTitles\.full\}<\/span>/);
 });
 
 test("admin notifications can wrap generated property names inside messages", () => {

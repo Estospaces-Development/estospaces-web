@@ -1,3 +1,4 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import React, { useState, useMemo } from 'react';
 import {
     Bell,
@@ -8,7 +9,6 @@ import {
     Home,
     Inbox,
     Info,
-    Loader2,
     MessageSquare,
     Shield,
     Zap,
@@ -177,7 +177,7 @@ export default function ManagerNotificationsPage() {
     if (isLoading && safeNotifications.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
-                <Loader2 className="w-8 h-8 text-orange-500 animate-spin mb-4" />
+                <BrandLoader className="w-8 h-8 text-orange-500 mb-4" />
                 <p className="text-gray-500 text-sm font-medium">Fetching notifications...</p>
             </div>
         );

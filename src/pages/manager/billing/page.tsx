@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -8,7 +10,6 @@ import {
     CheckCircle2,
     CreditCard,
     FileText,
-    Loader2,
     Receipt,
     RefreshCw,
     Search,
@@ -217,7 +218,7 @@ export default function ManagerBillingPage() {
         return (
             <div className="flex min-h-[420px] items-center justify-center">
                 <div className="flex items-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                    <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+                    <BrandLoader className="h-6 w-6 text-orange-500" />
                     Loading billing workspace...
                 </div>
             </div>

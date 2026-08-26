@@ -7,6 +7,8 @@ import type { FastTrackCase } from '@/services/fastTrackService';
 
 import {
     buildFastTrackDocumentDraftStorageKey,
+    buildFastTrackDocumentRequestFieldKey,
+    buildFastTrackDocumentRequestPayload,
     buildFastTrackSelectionSearchParams,
     buildFastTrackDocumentSearchParams,
     buildFastTrackStageSearchParams,
@@ -22,6 +24,7 @@ import {
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
+    isFastTrackHistoricalStageForCase,
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
@@ -29,6 +32,7 @@ import {
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
+    resolveFastTrackPendingStageSelection,
     resolveFastTrackStageNavigation,
     resolveFastTrackThreadRecipientId,
     resolveFastTrackVisibleStage,
@@ -207,12 +211,76 @@ test('selection search params replace stale case ids when a completed journey is
 });
 
 test('stage search params preserve manager-selected viewing stage across refresh', () => {
-    const next = buildFastTrackStageSearchParams(new URLSearchParams('case=case-1'), 'viewing');
+    const next = buildFastTrackStageSearchParams(
+        new URLSearchParams('case=case-1&section=documents&stage=documents&document=identity&file=preview'),
+        'viewing',
+        true,
+    );
 
     assert.equal(next.get('case'), 'case-1');
     assert.equal(next.get('section'), 'viewing');
+    assert.equal(next.has('stage'), false);
+    assert.equal(next.has('document'), false);
+    assert.equal(next.has('file'), false);
+    assert.equal(next.get('stageHistory'), 'case-1');
     assert.equal(resolveFastTrackStageSearchParam(next), 'viewing');
     assert.equal(resolveFastTrackStageSearchParam(new URLSearchParams('section=bad-stage')), null);
+});
+
+test('historical stage markers stay scoped to the case that created them', () => {
+    const historical = buildFastTrackStageSearchParams(
+        new URLSearchParams('case=case-1&section=decision'),
+        'viewing',
+        true,
+    );
+    assert.equal(isFastTrackHistoricalStageForCase(historical, 'case-1'), true);
+
+    const switched = buildFastTrackSelectionSearchParams(historical, 'case-2');
+    assert.equal(isFastTrackHistoricalStageForCase(switched, 'case-2'), false);
+});
+
+test('pending stage selection remains authoritative until the URL confirms the click', () => {
+    const pendingViewing = { caseId: 'case-1', stage: 'viewing' as const };
+
+    assert.deepEqual(
+        resolveFastTrackPendingStageSelection(pendingViewing, 'case-1', 'documents'),
+        { requestedStage: 'viewing', awaitingURLSync: true },
+    );
+    assert.deepEqual(
+        resolveFastTrackPendingStageSelection(pendingViewing, 'case-1', 'viewing'),
+        { requestedStage: 'viewing', awaitingURLSync: false },
+    );
+    assert.deepEqual(
+        resolveFastTrackPendingStageSelection(pendingViewing, 'case-2', 'documents'),
+        { requestedStage: 'documents', awaitingURLSync: false },
+    );
+
+    const delayedSync = resolveFastTrackPendingStageSelection(
+        pendingViewing,
+        'case-1',
+        'documents',
+    );
+    const delayedSyncParams = buildFastTrackStageSearchParams(
+        new URLSearchParams('case=case-1&section=documents'),
+        delayedSync.requestedStage ?? 'viewing',
+        delayedSync.awaitingURLSync,
+    );
+    assert.equal(delayedSyncParams.get('stageHistory'), 'case-1');
+
+    const readinessRegressed = buildCase({
+        stage: 'documents',
+        documents: {
+            identityProof: 'pending',
+            addressProof: 'pending',
+            items: [],
+            allUploaded: false,
+            allApproved: false,
+        },
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(readinessRegressed, 'viewing'), {
+        visibleStage: 'documents',
+        shouldReplaceStageParam: true,
+    });
 });
 
 test('document search params preserve selected address row across refresh', () => {
@@ -224,6 +292,17 @@ test('document search params preserve selected address row across refresh', () =
     assert.equal(next.get('document'), 'address');
     assert.equal(resolveFastTrackDocumentSearchParam(next, ['identity', 'address']), 'address');
     assert.equal(resolveFastTrackDocumentSearchParam(new URLSearchParams('document=missing'), ['identity', 'address']), null);
+});
+
+test('document focus does not overwrite an in-flight stage selection', () => {
+    const next = buildFastTrackDocumentSearchParams(
+        new URLSearchParams('case=case-1&section=viewing&stage=viewing'),
+        'identity',
+    );
+
+    assert.equal(next.get('section'), 'viewing');
+    assert.equal(next.get('stage'), 'viewing');
+    assert.equal(next.get('document'), 'identity');
 });
 
 test('manager selecting documents on an assigned selected case starts document collection', () => {
@@ -753,6 +832,28 @@ test('stage navigation clamps future URLs and follows a polled backend progressi
         visibleStage: 'selected',
         shouldReplaceStageParam: false,
     });
+
+    const appointmentCompleted = buildCase({
+        stage: 'decision',
+        viewingId: 'viewing-1',
+        viewing: { status: 'completed', scheduledAt: '2026-08-14T10:00:00Z' },
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing'), {
+        visibleStage: 'decision',
+        shouldReplaceStageParam: true,
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', null, true), {
+        visibleStage: 'viewing',
+        shouldReplaceStageParam: false,
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', 'viewing'), {
+        visibleStage: 'decision',
+        shouldReplaceStageParam: true,
+    });
+    assert.deepEqual(resolveFastTrackStageNavigation(appointmentCompleted, 'viewing', 'decision'), {
+        visibleStage: 'viewing',
+        shouldReplaceStageParam: false,
+    });
 });
 
 test('user can open and prepare documents before manager review starts', () => {
@@ -819,6 +920,33 @@ test('replacement document upload accepts a corrected file with the original fil
         canStartFastTrackDocumentUpload(requestedReplacement, correctedScan, true),
         false,
     );
+});
+
+test('requested document remains uploadable and request payload requires a future deadline', () => {
+    const requestedDocument = {
+        status: 'requested' as const,
+        documentRecordId: undefined,
+        fileUrl: undefined,
+        fileName: undefined,
+    };
+    const file = { name: 'passport.pdf', size: 4096, lastModified: 1786543200000 };
+    assert.equal(canStartFastTrackDocumentUpload(requestedDocument, file, false), true);
+
+    const now = Date.parse('2026-08-21T08:00:00.000Z');
+    assert.deepEqual(
+        buildFastTrackDocumentRequestPayload(' identity ', ' Please upload a current passport. ', '2026-08-21T14:00:00.000Z', now),
+        {
+            payload: {
+                document_id: 'identity',
+                reason: 'Please upload a current passport.',
+                due_at: '2026-08-21T14:00:00.000Z',
+            },
+            error: null,
+        },
+    );
+    assert.match(buildFastTrackDocumentRequestPayload('identity', '', '2026-08-21T14:00:00.000Z', now).error || '', /reason/i);
+    assert.match(buildFastTrackDocumentRequestPayload('identity', 'Needed', '2026-08-21T07:59:00.000Z', now).error || '', /future/i);
+    assert.equal(buildFastTrackDocumentRequestFieldKey('case-one', 'identity'), 'case-one:identity');
 });
 
 test('document focus remains switchable after upload refresh and polling replacements', () => {

@@ -3,17 +3,14 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 export default function ManagerUserVerificationsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const initialSelectedUserId = searchParams.get('user');
 
     return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center font-bold">
-                Loading...
-            </div>
-        }>
+        <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading verification requests..." />}>
             <UserVerificationQueue
                 scope="manager"
                 initialSelectedUserId={initialSelectedUserId}

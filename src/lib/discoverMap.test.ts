@@ -40,3 +40,13 @@ test('discover map preserves the listing currency and country context', () => {
     assert.equal(mapped.country, 'United Kingdom');
     assert.equal(mapped.countryCode, 'GB');
 });
+
+test('discover map converts persisted string coordinates into real marker coordinates', () => {
+    const [mapped] = toDiscoverNearbyMapProperties([property({
+        latitude: '13.0827' as unknown as number,
+        longitude: '80.2707' as unknown as number,
+    })]);
+
+    assert.equal(mapped.latitude, 13.0827);
+    assert.equal(mapped.longitude, 80.2707);
+});

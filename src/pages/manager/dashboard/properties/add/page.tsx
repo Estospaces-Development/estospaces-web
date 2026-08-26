@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -47,7 +50,6 @@ import {
   Settings,
   Star,
   AlertCircle,
-  Loader2,
   Save,
   ArrowLeft,
 } from "lucide-react";
@@ -99,6 +101,11 @@ import {
   getManagerPropertySubmitIntent,
   getManagerPropertyUploadControlCopy,
 } from "@/lib/managerPropertyFormAccessibility";
+import {
+  createManagerPropertyVideoPreview,
+  revokeAllManagerPropertyVideoPreviews,
+  revokeManagerPropertyVideoPreview,
+} from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
@@ -562,6 +569,7 @@ export default function AddPropertyPage() {
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const formContentRef = useRef<HTMLFormElement | null>(null);
   const locationRevisionRef = useRef(0);
+  const ownedVideoPreviewURLsRef = useRef(new Set<string>());
 
   // Determine mode based on presence of ID
   const mode: FormMode = idValue ? "edit" : "create";
@@ -750,6 +758,10 @@ export default function AddPropertyPage() {
       void refreshMediaFiles();
     }
   }, [currentStep, refreshMediaFiles]);
+
+  useEffect(() => () => {
+    revokeAllManagerPropertyVideoPreviews(ownedVideoPreviewURLsRef.current);
+  }, []);
 
   useEffect(() => {
     scrollToFormTop();
@@ -1630,23 +1642,19 @@ export default function AddPropertyPage() {
         return;
       }
 
-      if (file.size > 50 * 1024 * 1024) {
-        showToast(`${file.name} is too large. Maximum size is 50MB.`, "error");
+      if (file.size > 30 * 1024 * 1024) {
+        showToast(`${file.name} is too large. Maximum size is 30MB.`, "error");
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setVideoPreviews((prev) => [...prev, event.target!.result as string]);
-          setFormData((prev) => ({
-            ...prev,
-            videos: [...prev.videos, file],
-          }));
-          setIsDirty(true);
-        }
-      };
-      reader.readAsDataURL(file);
+      const previewURL = createManagerPropertyVideoPreview(file);
+      ownedVideoPreviewURLsRef.current.add(previewURL);
+      setVideoPreviews((prev) => [...prev, previewURL]);
+      setFormData((prev) => ({
+        ...prev,
+        videos: [...prev.videos, file],
+      }));
+      setIsDirty(true);
     });
   };
 
@@ -1671,7 +1679,16 @@ export default function AddPropertyPage() {
   };
 
   const removeVideo = (index: number) => {
-    setVideoPreviews((prev) => prev.filter((_, i) => i !== index));
+    setVideoPreviews((prev) => {
+      const previewURL = prev[index];
+      if (previewURL) {
+        revokeManagerPropertyVideoPreview(
+          previewURL,
+          ownedVideoPreviewURLsRef.current,
+        );
+      }
+      return prev.filter((_, i) => i !== index);
+    });
     setFormData((prev) => ({
       ...prev,
       videos: prev.videos.filter((_, i) => i !== index),
@@ -2156,7 +2173,7 @@ export default function AddPropertyPage() {
       <div className="max-w-6xl mx-auto font-sans pb-8">
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12">
           <div className="flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <BrandLoader className="w-12 h-12 text-primary" />
             <p className="text-lg text-gray-600 dark:text-gray-400">
               Loading property details...
             </p>
@@ -2978,10 +2995,11 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("balconies")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Balconies
+                    Balconies <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     {...fieldState("balconies")}
+                    required
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.balconies)}
@@ -2999,10 +3017,12 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("parkingSpaces")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <Car className="w-4 h-4 inline mr-1" /> Parking Spaces
+                    <Car className="w-4 h-4 inline mr-1" /> Parking Spaces{" "}
+                    <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     {...fieldState("parkingSpaces")}
+                    required
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.parkingSpaces)}
@@ -3044,10 +3064,11 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("totalFloors")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Total Floors
+                    Total Floors <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     {...fieldState("totalFloors")}
+                    required
                     type="number"
                     min="1"
                     value={getNumericDisplayValue(formData.totalFloors)}
@@ -3260,7 +3281,7 @@ export default function AddPropertyPage() {
                   disabled={mediaListLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
-                  {mediaListLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {mediaListLoading && <ActionSpinner className="h-4 w-4" />}
                   Refresh
                 </button>
               </div>

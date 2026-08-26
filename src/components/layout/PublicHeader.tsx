@@ -120,7 +120,7 @@ const PublicHeader = () => {
 
                 <button
                     type="button"
-                    className="rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800 md:hidden"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-gray-100 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800 md:hidden"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     aria-label="Toggle navigation"
                     aria-expanded={isMenuOpen}
@@ -141,7 +141,7 @@ const PublicHeader = () => {
                                 <a
                                     key={link.href}
                                     href={link.href}
-                                    className="block rounded-lg px-3 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="flex min-h-11 items-center rounded-lg px-3 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800"
                                     onClick={closeMenu}
                                 >
                                     {link.label}
@@ -150,7 +150,7 @@ const PublicHeader = () => {
                                 <Link
                                     key={`${link.href}-${link.label}`}
                                     to={resolveNavHref(link)}
-                                    className={`block rounded-lg px-3 py-3 text-sm font-medium transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-800 ${
+                                    className={`flex min-h-11 items-center rounded-lg px-3 py-3 text-sm font-medium transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-800 ${
                                         isActive(link) ? 'text-primary' : 'text-gray-700 dark:text-gray-200'
                                     }`}
                                     onClick={(event) => handleNavLinkClick(event, link)}

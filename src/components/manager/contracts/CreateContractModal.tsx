@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, IndianRupee, AlertCircle } from 'lucide-react';
+
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import { createContract, CreateContractRequest } from '@/services/contractsService';
 import type { Contract } from '@/types/booking';
@@ -216,7 +218,7 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                     >
                         {isLoading ? (
                             <>
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <ActionSpinner size="xs" label="Creating contract" />
                                 creating...
                             </>
                         ) : (

@@ -36,6 +36,10 @@ test('share property modal exposes dialog semantics and named controls', () => {
   assert.match(markup, /aria-label="Share property via Email"/);
   assert.match(markup, /aria-label="Share property via WhatsApp"/);
   assert.match(markup, /aria-label="Share property via LinkedIn"/);
+  assert.match(markup, /max-h-\[calc\(100dvh-1\.5rem\)\]/);
+  assert.match(markup, /overflow-y-auto/);
+  assert.match(markup, /backdrop-blur-sm/);
+  assert.match(markup, /min-h-20/);
   assert.match(markup, /\/user\/properties\/property-123/);
   assert.doesNotMatch(markup, /\/property\/property-123/);
   assert.doesNotMatch(markup, /manager\/dashboard\/properties\/edit/);

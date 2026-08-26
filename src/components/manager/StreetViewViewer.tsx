@@ -1,5 +1,6 @@
+import BrandLoader from '@/components/ui/BrandLoader';
 import { useState } from 'react';
-import { MapPin, AlertCircle, Loader2 } from 'lucide-react';
+import { MapPin, AlertCircle } from 'lucide-react';
 
 interface StreetViewViewerProps {
     streetViewUrl: string;
@@ -45,7 +46,7 @@ const StreetViewViewer = ({ streetViewUrl, address, latitude, longitude }: Stree
         <div className="relative w-full aspect-video bg-gray-100 dark:bg-zinc-900 rounded-xl overflow-hidden shadow-lg border border-gray-100 dark:border-zinc-800">
             {isLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-zinc-900 z-10">
-                    <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
+                    <BrandLoader className="w-10 h-10 text-indigo-600 mb-3" />
                     <p className="text-sm text-gray-600 dark:text-gray-400">Loading Street View...</p>
                 </div>
             )}

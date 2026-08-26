@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 // Minimal error boundary for page-level crashes
 class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
@@ -24,6 +25,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
     }
 }
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { buildPreservedUserSearchRedirect } from '@/lib/userSearchRoute';
 
 const CHUNK_RELOAD_KEY = 'estospaces:lazy-route-reload';
 
@@ -75,9 +77,6 @@ import RegisterPage from './pages/auth/register/page';
 import ForgotPasswordPage from './pages/auth/forgot-password/page';
 import ResetPasswordPage from './pages/auth/reset-password/page';
 import VerifyEmailPage from './pages/auth/verify-email/page';
-
-// Loading component
-const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
 
 // Lazy loaded pages - Public
 const HomePage = lazyPage(() => import('./pages/public/home/page'));
@@ -181,7 +180,7 @@ function VerifiedManagerRoute({ children }: { children: ReactNode }) {
   const { isLoading, isVerified } = useManagerVerification();
 
   if (isLoading) {
-    return <Loading />;
+    return <BrandLoadingScreen label="Checking manager access..." />;
   }
 
   if (!isVerified) {
@@ -195,10 +194,21 @@ function PublicRootEntry() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <Loading />;
+    return <BrandLoadingScreen />;
   }
 
   return isAuthenticated ? <StartupRedirect /> : <HomePage />;
+}
+
+function LegacyUserSearchRedirect() {
+  const location = useLocation();
+
+  return (
+    <Navigate
+      to={buildPreservedUserSearchRedirect(location.search, location.hash)}
+      replace
+    />
+  );
 }
 
 const App: React.FC = () => {
@@ -209,7 +219,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<BrandLoadingScreen />}>
       <SubdomainRouter>
         <RouteScrollReset />
         <PageErrorBoundary>
@@ -323,7 +333,7 @@ const App: React.FC = () => {
             <Route path="profile" element={<Navigate to="/user/dashboard/profile" replace />} />
             <Route path="saved" element={<Navigate to="/user/dashboard/saved" replace />} />
             <Route path="virtual-storage" element={<Navigate to="/user/dashboard/virtual-storage" replace />} />
-            <Route path="search" element={<Navigate to="/user/dashboard/search" replace />} />
+            <Route path="search" element={<LegacyUserSearchRedirect />} />
             <Route path="properties/:id" element={<UserPropertyDetail />} />
             <Route path="settings" element={<Navigate to="/user/dashboard/settings" replace />} />
           </Route>

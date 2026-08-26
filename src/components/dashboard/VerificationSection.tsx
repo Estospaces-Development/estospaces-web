@@ -1,5 +1,7 @@
 "use client";
 
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Shield,
@@ -8,7 +10,6 @@ import {
     CheckCircle,
     Clock,
     AlertCircle,
-    Loader2,
     Info,
     Mail,
     Phone,
@@ -555,7 +556,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                             aria-label={`${canDelete ? 'Remove' : 'Delete'} ${document.file_name}`}
                                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/20"
                                         >
-                                            {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                            {isDeleting ? <ActionSpinner className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
                                             {canDelete ? 'Remove' : 'Delete'}
                                         </button>
                                     </div>
@@ -593,7 +594,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                     }}
                                 />
                                 <div className="w-16 h-16 bg-orange-50 dark:bg-orange-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                                    {uploadingFile ? <Loader2 className="animate-spin text-orange-500" /> : <Upload className="text-orange-500" />}
+                                    {uploadingFile ? <ActionSpinner size="sm" className="text-orange-500" aria-hidden /> : <Upload className="text-orange-500" />}
                                 </div>
                                 <p className="font-bold text-gray-900 dark:text-white">Choose a file</p>
                                 <p className="text-sm text-gray-500 mt-1">or drag and drop it here</p>
@@ -673,7 +674,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                     disabled={uploadingFile || missingFirstTimeFiles.length > 0}
                                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                    {uploadingFile ? <ActionSpinner className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
                                     Submit both documents
                                 </button>
                             </div>

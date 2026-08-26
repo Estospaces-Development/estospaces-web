@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, CircleHelp, LifeBuoy, Loader2, RefreshCw, Ticket } from 'lucide-react';
+import { BookOpen, CircleHelp, LifeBuoy, RefreshCw, Ticket } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+
+import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoader from '@/components/ui/BrandLoader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { SupportPriorityBadge, SupportStatusBadge } from '@/components/support/SupportBadges';
@@ -120,6 +123,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const [reply, setReply] = useState('');
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [resumingTicketId, setResumingTicketId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [adminUsers, setAdminUsers] = useState<User[]>([]);
     const [filters, setFilters] = useState<SupportFilterState>({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
@@ -148,10 +152,22 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const clearSupportFilters = useCallback(() => {
         setFilters({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
     }, []);
+    const resumeLiveSupport = useCallback(() => {
+        if (!resumableTicket) return;
+
+        setResumingTicketId(resumableTicket.id);
+        const next = new URLSearchParams({ ticket: resumableTicket.id });
+        if (resumableTicket.conversation_id) {
+            next.set('conversation', resumableTicket.conversation_id);
+        }
+        setSearchParams(next, { replace: true });
+    }, [resumableTicket, setSearchParams]);
     // Guard against duplicate / concurrent fetches that fire when filters change
     // (every `fetchTickets` identity change re-triggers the load useEffect). This
     // also prevents multiple "Request timed out" toasts when the API is slow.
     const fetchingRef = useRef(false);
+    const loadingTicketDetailsRef = useRef(new Set<string>());
+    const detailRequestVersionRef = useRef(0);
     const adminQueueTabs = useMemo(() => ADMIN_QUEUE_TABS.map((tab) => {
         const tabFilters: SupportFilterState = {
             search: filters.search,
@@ -224,7 +240,9 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 }, { replace: true });
             }
         } catch (error: any) {
-            toast.error(error.message || 'Failed to load support tickets');
+            if (!silent) {
+                toast.error(error.message || 'Failed to load support tickets');
+            }
         } finally {
             fetchingRef.current = false;
             if (!silent) setLoading(false);
@@ -232,18 +250,29 @@ export function SupportCenter({ role }: SupportCenterProps) {
     }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
 
     const loadDetail = useCallback(async (ticketId: string, silent = false) => {
+        if (loadingTicketDetailsRef.current.has(ticketId)) {
+            return;
+        }
+
+        loadingTicketDetailsRef.current.add(ticketId);
+        const requestVersion = ++detailRequestVersionRef.current;
         if (!silent) setDetailLoading(true);
         try {
             const detail = await supportService.getTicket(ticketId);
-            setSelectedTicket(detail);
-            setMessages(await supportService.getTranscript(detail.conversation_id));
+            const transcript = await supportService.getTranscript(detail.conversation_id);
+            if (requestVersion === detailRequestVersionRef.current) {
+                setSelectedTicket(detail);
+                setMessages(transcript);
+            }
         } catch (error: any) {
             if (!silent) {
                 setSelectedTicket(null);
                 setMessages([]);
+                setResumingTicketId((current) => current === ticketId ? null : current);
+                toast.error(error.message || 'Failed to load support thread');
             }
-            toast.error(error.message || 'Failed to load support thread');
         } finally {
+            loadingTicketDetailsRef.current.delete(ticketId);
             if (!silent) setDetailLoading(false);
         }
     }, [toast]);
@@ -284,6 +313,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
         setReplyAttachments([]);
         setReplyDraftId('');
     }, [selectedTicketId]);
+
+    useEffect(() => {
+        if (resumingTicketId && selectedTicket?.id === resumingTicketId && !detailLoading) {
+            setResumingTicketId(null);
+        }
+    }, [detailLoading, resumingTicketId, selectedTicket?.id]);
 
     useEffect(() => {
         if (isAdmin || !hasPrefilledComposerContext) {
@@ -419,7 +454,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
             });
             resetTicketDraft();
             setComposer((current) => ({ ...current, subject: '', message: '' }));
-            await fetchTickets();
+            await fetchTickets(true);
             setSearchParams(new URLSearchParams({ ticket: created.id, conversation: created.conversation_id }), { replace: true });
             toast.success('Support ticket created');
             if (attachmentWarning) {
@@ -499,10 +534,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
                         <p className="mt-3 text-base text-gray-600 dark:text-gray-300">{ROLE_COPY[role].subtitle}</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        {!isAdmin && <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200"><BookOpen className="h-4 w-4" /> Docs</Link>}
-                        {!isAdmin && <Link to={`${ROLE_COPY[role].docsPath}#faq`} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200"><CircleHelp className="h-4 w-4" /> FAQ</Link>}
+                        {!isAdmin && <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900"><BookOpen className="h-4 w-4" /> Docs</Link>}
+                        {!isAdmin && <Link to={`${ROLE_COPY[role].docsPath}#faq`} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 dark:focus-visible:ring-offset-gray-900"><CircleHelp className="h-4 w-4" /> FAQ</Link>}
                         {!isAdmin && resumableTicket && (
-                            <button onClick={() => setSearchParams(new URLSearchParams({ ticket: resumableTicket.id }), { replace: true })} className="rounded-full bg-orange-700 px-5 py-3 text-sm font-bold text-white">Resume live support</button>
+                            <button type="button" onClick={resumeLiveSupport} disabled={Boolean(resumingTicketId)} aria-busy={resumingTicketId === resumableTicket.id || undefined} className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-orange-800 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-900">
+                                {resumingTicketId === resumableTicket.id && <ActionSpinner size="xs" label="Opening support" />}
+                                {resumingTicketId === resumableTicket.id ? 'Opening support…' : 'Resume live support'}
+                            </button>
                         )}
                     </div>
                 </div>
@@ -579,11 +617,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{tickets.length} visible right now</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            {!isAdmin && <button onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">New ticket</button>}
-                            <button onClick={() => void fetchTickets()} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 dark:border-orange-500/20 dark:text-orange-200" aria-label="Refresh support tickets"><RefreshCw className="h-4 w-4" /></button>
+                            {!isAdmin && <button type="button" onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900">New ticket</button>}
+                            <button type="button" onClick={() => void fetchTickets()} disabled={loading} aria-busy={loading || undefined} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900" aria-label="Refresh support tickets">{loading ? <ActionSpinner size="sm" label="Refreshing support tickets" /> : <RefreshCw className="h-4 w-4" />}</button>
                         </div>
                     </div>
-                    {loading && tickets.length === 0 ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
+                    {loading && tickets.length === 0 ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><BrandLoader className="h-6 w-6 text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
                         const ticket = tickets.find((item) => item.id === ticketId);
                         const next = new URLSearchParams({ ticket: ticketId });
                         if (ticket?.conversation_id) {
@@ -594,7 +632,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
                     {loading && tickets.length > 0 && (
                         <div className="flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-sm text-gray-600 dark:border-orange-500/15 dark:bg-gray-900/60 dark:text-gray-300" aria-live="polite">
-                            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                            <BrandLoader className="h-4 w-4 text-orange-500" />
                             <span>Refreshing tickets…</span>
                         </div>
                     )}
@@ -631,7 +669,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                 {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
-                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
+                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <BrandLoader className="h-5 w-5 text-orange-500" />}</div>
                                 <SupportTranscript
                                     messages={messages}
                                     currentUserId={user?.id}

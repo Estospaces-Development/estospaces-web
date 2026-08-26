@@ -3,6 +3,20 @@ import assert from 'node:assert/strict';
 import { getNotificationNavigationPath } from '@/lib/notificationNavigation';
 import { getNotificationsPagePath } from '@/services/notificationsService';
 
+test('Fast Track request notification fallback opens the manager approval flow', () => {
+    const path = getNotificationNavigationPath({
+        type: 'fast_track_requested',
+        data: {
+            broker_request_id: 'request-42',
+            lead_id: 'lead-42',
+            client_id: 'user-42',
+            property_id: 'property-42',
+        },
+    }, 'manager');
+
+    assert.equal(path, '/manager/dashboard?fast-track=request&broker-request=request-42&lead=lead-42');
+});
+
 test('documents requested notifications deep-link the user into the exact fast-track workspace', () => {
     const path = getNotificationNavigationPath({
         type: 'documents_requested',

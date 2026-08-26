@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildBroaderPropertySearchAttempts,
   getCountryAwarePropertyGroups,
   getPropertySearchSortOptions,
   getSearchFilterValidationMessage,
   getPriceBoundAdjustmentMessage,
+  inferSearchMarketFromText,
   getSearchQueryValidationMessage,
   normalizePriceBoundInput,
   normalizePropertySearchSort,
@@ -15,6 +17,53 @@ import {
   readSearchUrlFilters,
   serializeSearchMarketParam,
 } from './propertySearchControls';
+
+test('search market inference lets a submitted city override stale account geography', () => {
+  assert.equal(inferSearchMarketFromText('Chennai'), 'IN');
+  assert.equal(inferSearchMarketFromText('Madurai'), 'IN');
+  assert.equal(inferSearchMarketFromText('Mysuru'), 'IN');
+  assert.equal(inferSearchMarketFromText('Mangaluru'), 'IN');
+  assert.equal(inferSearchMarketFromText('Warangal'), 'IN');
+  assert.equal(inferSearchMarketFromText('Nagpur'), 'IN');
+  assert.equal(inferSearchMarketFromText('Dwarka'), 'IN');
+  assert.equal(inferSearchMarketFromText('Thiruvananthapuram'), 'IN');
+  assert.equal(inferSearchMarketFromText('600001'), 'IN');
+  assert.equal(inferSearchMarketFromText('Belfast'), 'GB');
+  assert.equal(inferSearchMarketFromText('SW1A 1AA'), 'GB');
+  assert.equal(inferSearchMarketFromText('Chennai, Tamil Nadu'), 'IN');
+  assert.equal(inferSearchMarketFromText('Oxford Heights'), null);
+  assert.equal(inferSearchMarketFromText('Cambridge Apartments'), null);
+  assert.equal(inferSearchMarketFromText('luxury apartment'), null);
+});
+
+test('broader search never removes an explicitly selected location', () => {
+  const attempts = buildBroaderPropertySearchAttempts({
+    market: 'IN',
+    location: 'Chennai',
+    propertyType: '',
+    listingType: '',
+    minPrice: '1000000',
+    maxPrice: '2000000',
+    bedrooms: '',
+    baths: '',
+    sortBy: 'relevance',
+  });
+
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0]?.filters.location, 'Chennai');
+  assert.equal(attempts.some((attempt) => !attempt.filters.location), false);
+  assert.deepEqual(buildBroaderPropertySearchAttempts({
+    market: 'IN',
+    location: 'Chennai',
+    propertyType: '',
+    listingType: '',
+    minPrice: '',
+    maxPrice: '',
+    bedrooms: '',
+    baths: '',
+    sortBy: 'relevance',
+  }), []);
+});
 
 test('property search sort helpers expose stable visible options', () => {
   assert.deepEqual(getPropertySearchSortOptions(), [
@@ -42,12 +91,12 @@ test('price bound adjustment messages explain typed corrections', () => {
   assert.equal(getPriceBoundAdjustmentMessage('2500'), '');
 });
 
-test('search query normalization trims, lowercases, collapses spacing, and caps long values', () => {
+test('search query normalization preserves casing while trimming, collapsing spacing, and capping long values', () => {
   const longQuery = Array.from({ length: 80 }, () => 'ATTUR').join(' ');
 
-  assert.equal(normalizeSearchQueryInput('  ATTUR   ATTUR  '), 'attur attur');
+  assert.equal(normalizeSearchQueryInput('  ATTUR   ATTUR  '), 'ATTUR ATTUR');
   assert.equal(normalizeSearchQueryInput(longQuery).length <= 120, true);
-  assert.match(normalizeSearchQueryInput(longQuery), /^attur attur/);
+  assert.match(normalizeSearchQueryInput(longQuery), /^ATTUR ATTUR/);
 });
 
 test('search query validation rejects explicit blank invalid and over-limit queries', () => {
@@ -72,7 +121,7 @@ test('search URL filters normalize direct-link query and numeric filter values',
   const filters = readSearchUrlFilters(new URLSearchParams('q=%20%20ATTUR%20%20&type=sale&minPrice=-1&maxPrice=999999999&beds=1&baths=1&sort=price_desc'));
 
   assert.deepEqual(filters, {
-    query: 'attur',
+    query: 'ATTUR',
     market: '',
     location: '',
     propertyType: '',
@@ -135,4 +184,17 @@ test('country-aware groups provide a stable fallback group for India launch disc
     [{ key: 'IN', label: 'India properties', count: 2 }],
   );
   assert.deepEqual(getCountryAwarePropertyGroups([]), []);
+});
+
+test('country-aware groups infer legacy UK listings from their postcode instead of labelling them as India', () => {
+  assert.deepEqual(
+    getCountryAwarePropertyGroups([
+      { id: 'in-1', city: 'Chennai', location: 'Chennai, 600040' },
+      { id: 'uk-1', city: 'Manchester', location: 'Manchester, PR15QH' },
+    ]),
+    [
+      { key: 'IN', label: 'India properties', count: 1 },
+      { key: 'GB', label: 'United Kingdom properties', count: 1 },
+    ],
+  );
 });

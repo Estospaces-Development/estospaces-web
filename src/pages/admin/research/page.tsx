@@ -1,5 +1,7 @@
 'use client';
 
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
@@ -7,7 +9,6 @@ import {
     ClipboardList,
     ExternalLink,
     FileText,
-    Loader2,
     MessageSquare,
     Plus,
     RefreshCw,
@@ -18,6 +19,7 @@ import {
     Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useToast } from '@/contexts/ToastContext';
 import {
     buildResearchEvidenceTarget,
@@ -348,12 +350,7 @@ export default function AdminResearchPage() {
     }) : false;
 
     if (loading) {
-        return (
-            <div className="flex min-h-screen flex-col items-center justify-center p-8">
-                <Loader2 className="mb-4 h-10 w-10 animate-spin text-orange-500" />
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">Loading observational research...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading observational research..." />;
     }
 
     return (
@@ -985,7 +982,7 @@ export default function AdminResearchPage() {
                                 aria-disabled={!canSaveSession}
                                 className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:opacity-60"
                             >
-                                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                                {saving && <ActionSpinner className="h-4 w-4" />}
                                 Save session
                             </button>
                         </div>

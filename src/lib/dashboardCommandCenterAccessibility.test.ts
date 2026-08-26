@@ -9,7 +9,8 @@ test('dashboard command-center surfaces keep discovery counters readable and fil
   const propertyCard = readSource('src/components/dashboard/PropertyCard.tsx');
   const overseas = readSource('src/pages/user/dashboard/overseas/page.tsx');
 
-  assert.match(propertyCard, /bg-blue-700 text-white/);
+  assert.match(propertyCard, /isDiscoveryCard \? 'bg-gray-950\/70' : 'bg-blue-700'/);
+  assert.match(propertyCard, /aria-label=\{`Viewed \$\{viewCount\} time/);
   assert.match(propertyCard, /aria-label=\{`Show previous image for \$\{displayTitle\}`\}/);
   assert.match(propertyCard, /aria-label=\{`Show next image for \$\{displayTitle\}`\}/);
   assert.match(overseas, /aria-label="Select destination country"/);

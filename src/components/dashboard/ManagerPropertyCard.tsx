@@ -1,8 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye } from 'lucide-react';
-import type { ListingType, PriceInfo } from '@/contexts/PropertyContext';
+import { useProperties, type ListingType, type PriceInfo } from '@/contexts/PropertyContext';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
@@ -12,6 +12,9 @@ import {
     formatLaunchPropertyText,
     normalizeLaunchCurrencyText,
 } from '@/lib/launchLocale';
+import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import PropertyShareAction from './PropertyShareAction';
+import ShareModal from './ShareModal';
 
 interface ManagerPropertyCardProps {
     property: {
@@ -53,6 +56,8 @@ interface ManagerPropertyCardProps {
 }
 
 const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onEdit, onView }) => {
+    const [showShareModal, setShowShareModal] = useState(false);
+    const { incrementShares } = useProperties();
     const title = formatLaunchPropertyText(property.title || property.name, 'Untitled Property');
     const address =
         formatLaunchPropertyLocation(
@@ -112,10 +117,12 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
         property.dimensions?.occupiedUnits ?? property.occupied_units,
     );
     const formattedPrice = formatPrice(property.price);
+    const canSharePublicly = isPropertyPubliclyShareable(property.status);
 
     return (
-        <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
-            <div className="relative h-48 bg-gray-100 dark:bg-gray-900">
+        <>
+            <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
+                <div className="relative h-48 bg-gray-100 dark:bg-gray-900">
                 <div className="absolute inset-0 flex items-center justify-center">
                     <HomeIcon className="w-12 h-12 text-gray-300" />
                 </div>
@@ -133,6 +140,18 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                         <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotClassName}`} />
                         <span>{statusConfig.label}</span>
                     </span>
+                </div>
+
+                <div className="absolute right-3 top-3 z-10">
+                    <PropertyShareAction
+                        propertyTitle={title}
+                        disabled={!canSharePublicly}
+                        expanded={showShareModal}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setShowShareModal(true);
+                        }}
+                    />
                 </div>
 
                 {property.view_count !== undefined && (
@@ -201,8 +220,20 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                         View
                     </button>
                 </div>
+                </div>
             </div>
-        </div>
+            {showShareModal && (
+                <ShareModal
+                    property={{
+                        id: property.id,
+                        title,
+                        price: formattedPrice || 'Price on request',
+                    }}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={() => void incrementShares(property.id)}
+                />
+            )}
+        </>
     );
 };
 

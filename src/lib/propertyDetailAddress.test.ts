@@ -47,9 +47,9 @@ test("property detail address corrects stale UK city for Indian PIN code listing
   assert.doesNotMatch(address, /Edinburgh|SW1A/i);
 });
 
-test("property detail wires the sanitized address into maps and contact sections", () => {
+test("property detail wires the sanitized address into its map section", () => {
   const source = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
   assert.match(source, /displayAddress:\s*propertyAddress\s*\|\|\s*locationLabel/);
-  assert.match(source, /<PropertyContactInfo property=\{property as any\} propertyAddress=\{propertyAddress \|\| locationLabel\} \/>/);
+  assert.doesNotMatch(source, /PropertyContactInfo/);
 });

@@ -1,11 +1,13 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     CheckCircle2,
     Clock3,
     ExternalLink,
-    Loader2,
     MapPinned,
     Send,
     Video,
@@ -167,7 +169,7 @@ export default function VirtualTourRequestPanel({
         return (
             <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
                 <div className="flex items-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                    <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+                    <BrandLoader className="h-5 w-5 text-orange-500" />
                     Loading virtual tour workflow...
                 </div>
             </div>
@@ -325,7 +327,7 @@ export default function VirtualTourRequestPanel({
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-300 px-5 py-4 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                 >
                     {actionLoading && currentStatus !== 'ready' ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <ActionSpinner className="h-4 w-4" />
                     ) : (
                         <Clock3 className="h-4 w-4" />
                     )}
@@ -342,7 +344,7 @@ export default function VirtualTourRequestPanel({
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {actionLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <ActionSpinner className="h-4 w-4" />
                     ) : (
                         <Send className="h-4 w-4" />
                     )}

@@ -1,5 +1,7 @@
 "use client";
 
+import BrandLoader from '@/components/ui/BrandLoader';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -12,7 +14,6 @@ import {
     CheckCircle,
     Home,
     ImageOff,
-    Loader2,
     Mail,
     MapPin,
     Maximize,
@@ -322,7 +323,7 @@ export default function AdminPropertyDetailPage() {
         return (
             <div className="flex min-h-[420px] items-center justify-center rounded-[2rem] border bg-white p-10 dark:border-gray-700 dark:bg-gray-800">
                 <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <BrandLoader className="h-6 w-6" />
                     <span className="font-bold">Loading property registry entry...</span>
                 </div>
             </div>
@@ -525,7 +526,7 @@ export default function AdminPropertyDetailPage() {
                             )}
                         </div>
                         {imageUrls.length > 1 ? (
-                            <div className="grid grid-cols-2 gap-4 border-t p-4 dark:border-gray-700 md:grid-cols-4">
+                            <div className="grid grid-cols-1 gap-4 border-t p-4 min-[420px]:grid-cols-2 dark:border-gray-700 md:grid-cols-4">
                                 {imageUrls.slice(1, 5).map((url) => (
                                     <div key={url} className="h-24 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-900">
                                         <img src={url} alt={property.title} className="h-full w-full object-cover" />
