@@ -1,12 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 
 import type { FastTrackCase } from "@/services/fastTrackService";
 import type { UserDocument } from "@/services/leadsService";
-import { groupVirtualStorageDocuments, UserVirtualStoragePageContent } from "./page";
+import {
+  getVirtualStorageDocumentPage,
+  groupVirtualStorageDocuments,
+  UserVirtualStoragePageContent,
+} from "./page";
+
+const virtualStoragePageSource = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
 test("groups the same stored file once while preserving category and review history", () => {
   const baseDocument = {
@@ -104,4 +111,22 @@ test("virtual storage page renders vault metrics, categories, and current fast-t
   assert.doesNotMatch(markup, /Completed Villa/);
   assert.doesNotMatch(markup, /Older Active Villa/);
   assert.doesNotMatch(markup, /\/user\/dashboard\/fast-track\?case=case-my-activity-2&amp;section=handover/);
+});
+
+test("virtual storage documents paginate and remain visible on a single page", () => {
+  const groups = Array.from({ length: 9 }, (_, index) => ({
+    key: `document-${index + 1}`,
+    document: { id: `document-${index + 1}` } as UserDocument,
+    categoryStatuses: [],
+    storageStates: ["saved"],
+    linkedEntities: [],
+  }));
+
+  const secondPage = getVirtualStorageDocumentPage(groups, 2);
+  assert.equal(secondPage.totalPages, 2);
+  assert.equal(secondPage.currentPage, 2);
+  assert.equal(secondPage.items.length, 1);
+  assert.equal(secondPage.items[0].key, "document-9");
+  assert.match(virtualStoragePageSource, /storedDocumentPagination\.items\.map/);
+  assert.match(virtualStoragePageSource, /itemLabel="stored documents"[\s\S]*showWhenSinglePage/);
 });

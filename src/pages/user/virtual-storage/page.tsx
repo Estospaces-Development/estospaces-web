@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
+import PaginationBar from "@/components/ui/PaginationBar";
 import { useAuth, type User } from "@/contexts/AuthContext";
 import { getLoginPath, getRedirectPath } from "@/lib/authUtils";
 import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/fastTrackWorkspace";
 import { sortFastTrackWorkspaceCases } from "@/lib/fastTrackWorkspaceLoad";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
+import { paginateItems } from "@/lib/pagination";
 import { getFastTrackCases, type FastTrackCase } from "@/services/fastTrackService";
 import { uploadDocument, type UserDocument } from "@/services/leadsService";
 import {
@@ -65,6 +67,8 @@ const CATEGORY_UPLOAD_TYPES: Record<string, string> = {
   transactional: "transactional",
   supporting: "supporting_document",
 };
+
+const USER_VIRTUAL_STORAGE_PAGE_SIZE = 8;
 
 const formatLabel = (value: string) =>
   value
@@ -132,6 +136,12 @@ export const groupVirtualStorageDocuments = (
   return Array.from(groups.values());
 };
 
+export const getVirtualStorageDocumentPage = (
+  groups: VirtualStorageDocumentGroup[],
+  page: number,
+  pageSize = USER_VIRTUAL_STORAGE_PAGE_SIZE,
+) => paginateItems(groups, page, pageSize);
+
 const categoryUploadType = (category: VirtualStorageCategory | undefined) =>
   CATEGORY_UPLOAD_TYPES[category?.slug || ""] || "supporting_document";
 
@@ -196,6 +206,7 @@ export function UserVirtualStoragePageContent({
   const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
   const [categoryName, setCategoryName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentPage, setDocumentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -213,6 +224,10 @@ export function UserVirtualStoragePageContent({
   );
   const linkedDocuments = documents.filter((document) => (document.linked_entities || []).length > 0);
   const storedDocumentGroups = useMemo(() => groupVirtualStorageDocuments(documents), [documents]);
+  const storedDocumentPagination = useMemo(
+    () => getVirtualStorageDocumentPage(storedDocumentGroups, documentPage),
+    [documentPage, storedDocumentGroups],
+  );
   const activeDocumentCount = storedDocumentGroups.length;
   const sortedFastTrackCases = useMemo(
     () => sortFastTrackWorkspaceCases(fastTrackCases),
@@ -259,6 +274,12 @@ export function UserVirtualStoragePageContent({
     void loadVault();
     void loadFastTrackActivity();
   }, []);
+
+  useEffect(() => {
+    if (storedDocumentPagination.currentPage !== documentPage) {
+      setDocumentPage(storedDocumentPagination.currentPage);
+    }
+  }, [documentPage, storedDocumentPagination.currentPage]);
 
   const handleCreateCategory = async () => {
     const name = categoryName.trim();
@@ -699,7 +720,7 @@ export function UserVirtualStoragePageContent({
                 Loading Virtual Storage
               </div>
             ) : storedDocumentGroups.length > 0 ? (
-              storedDocumentGroups.map(({ key, document, categoryStatuses, storageStates, linkedEntities }) => (
+              storedDocumentPagination.items.map(({ key, document, categoryStatuses, storageStates, linkedEntities }) => (
                 <div key={key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -732,6 +753,18 @@ export function UserVirtualStoragePageContent({
                 No documents in Virtual Storage yet.
               </p>
             )}
+            {storedDocumentGroups.length > 0 ? (
+              <PaginationBar
+                currentPage={storedDocumentPagination.currentPage}
+                totalPages={storedDocumentPagination.totalPages}
+                onPageChange={setDocumentPage}
+                totalItems={storedDocumentGroups.length}
+                pageSize={USER_VIRTUAL_STORAGE_PAGE_SIZE}
+                currentItemCount={storedDocumentPagination.items.length}
+                itemLabel="stored documents"
+                showWhenSinglePage
+              />
+            ) : null}
           </div>
         </section>
       </div>
