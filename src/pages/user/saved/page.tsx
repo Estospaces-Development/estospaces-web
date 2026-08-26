@@ -24,11 +24,25 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, SavedSearch } from '@/services/searchService';
 import { useToast } from '@/contexts/ToastContext';
 import { filterAndSortSavedProperties, type SavedPropertySortOption } from '@/lib/savedPropertyState';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { paginateItems } from '@/lib/pagination';
+import {
+    buildSavedSearchPageParams,
+    getSavedSearchTargetPage,
+} from '@/lib/savedSearchPagination';
+
+const SAVED_PROPERTIES_PAGE_SIZE = 12;
+const SAVED_SEARCHES_PAGE_SIZE = 10;
+
+const parsePositivePage = (value: string | null) => {
+    const parsed = Number.parseInt(value || '1', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
 
 const SAVED_PROPERTY_SORT_OPTIONS: Array<{ value: SavedPropertySortOption; label: string }> = [
     { value: 'newest', label: 'Newest saved' },
@@ -46,6 +60,7 @@ export default function SavedPage() {
     const [activeTab, setActiveTab] = useState<'properties' | 'searches'>(readActiveTab);
     const [savedPropertyStatusMessage, setSavedPropertyStatusMessage] = useState('');
     const propertyFilter = searchParams.get('filter') || '';
+    const propertyPage = parsePositivePage(searchParams.get('propertiesPage'));
     const propertySortParam = searchParams.get('sort') as SavedPropertySortOption | null;
     const propertySort = SAVED_PROPERTY_SORT_OPTIONS.some((option) => option.value === propertySortParam)
         ? propertySortParam!
@@ -85,6 +100,7 @@ export default function SavedPage() {
         }
         next.delete('tab');
         next.delete('alert');
+        next.delete('propertiesPage');
         setSearchParams(next, { replace: true });
     };
 
@@ -94,6 +110,19 @@ export default function SavedPage() {
             next.delete('sort');
         } else {
             next.set('sort', value);
+        }
+        next.delete('tab');
+        next.delete('alert');
+        next.delete('propertiesPage');
+        setSearchParams(next, { replace: true });
+    };
+
+    const updatePropertyPage = (page: number) => {
+        const next = new URLSearchParams(searchParams);
+        if (page <= 1) {
+            next.delete('propertiesPage');
+        } else {
+            next.set('propertiesPage', String(page));
         }
         next.delete('tab');
         next.delete('alert');
@@ -178,8 +207,10 @@ export default function SavedPage() {
                         onRefresh={refreshSavedProperties}
                         filterText={propertyFilter}
                         sortBy={propertySort}
+                        page={propertyPage}
                         onFilterChange={updatePropertyFilter}
                         onSortChange={updatePropertySort}
+                        onPageChange={updatePropertyPage}
                     />
                 ) : (
                     <SavedSearchesTab />
@@ -197,17 +228,29 @@ function PropertiesTab({
     onRefresh,
     filterText,
     sortBy,
+    page,
     onFilterChange,
     onSortChange,
+    onPageChange,
 }: any) {
     const visibleProperties = useMemo(
         () => filterAndSortSavedProperties(properties, filterText, sortBy),
         [properties, filterText, sortBy],
     );
+    const propertyPagination = useMemo(
+        () => paginateItems(visibleProperties, page, SAVED_PROPERTIES_PAGE_SIZE),
+        [page, visibleProperties],
+    );
+
+    useEffect(() => {
+        if (!loading && propertyPagination.currentPage !== page) {
+            onPageChange(propertyPagination.currentPage);
+        }
+    }, [loading, onPageChange, page, propertyPagination.currentPage]);
     const sortLabel = SAVED_PROPERTY_SORT_OPTIONS.find((option) => option.value === sortBy)?.label || 'Newest saved';
     const statusMessage = loading
         ? 'Loading saved properties.'
-        : `Showing ${visibleProperties.length} of ${properties.length} saved properties sorted by ${sortLabel}.`;
+        : `Showing ${propertyPagination.items.length} of ${visibleProperties.length} matching saved properties sorted by ${sortLabel}.`;
 
     return (
         <>
@@ -263,16 +306,28 @@ function PropertiesTab({
                 </div>
             ) : properties.length > 0 ? (
                 visibleProperties.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-500">
-                        {visibleProperties.map((property: any) => (
-                            <PropertyCard
-                                key={property.id}
-                                property={property}
-                                showSaveAction={false}
-                                onRemoveFromSaved={(event) => onRemove(event, property.id)}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-500">
+                            {propertyPagination.items.map((property: any) => (
+                                <PropertyCard
+                                    key={property.id}
+                                    property={property}
+                                    showSaveAction={false}
+                                    onRemoveFromSaved={(event) => onRemove(event, property.id)}
+                                />
+                            ))}
+                        </div>
+                        <PaginationBar
+                            className="mt-6"
+                            currentPage={propertyPagination.currentPage}
+                            totalPages={propertyPagination.totalPages}
+                            onPageChange={onPageChange}
+                            totalItems={visibleProperties.length}
+                            pageSize={SAVED_PROPERTIES_PAGE_SIZE}
+                            currentItemCount={propertyPagination.items.length}
+                            itemLabel="saved properties"
+                        />
+                    </>
                 ) : (
                     <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">No saved properties match</h2>
@@ -313,9 +368,27 @@ function SavedSearchesTab() {
     const alertButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
     const { success: showToastSuccess, error: showToastError } = useToast();
     const activeAlertId = searchParams.get('alert') || '';
+    const savedSearchPage = parsePositivePage(searchParams.get('searchesPage'));
     const formatSavedSearchCurrency = (amount?: number | null) => formatLaunchCurrencyForCountry(amount, {
         countryCode: geoMarket,
     });
+    const setSavedSearchPage = useCallback((page: number, options?: { preserveAlert?: boolean }) => {
+        setSearchParams(buildSavedSearchPageParams(searchParams, page, options), { replace: true });
+    }, [searchParams, setSearchParams]);
+    const savedSearchPagination = useMemo(
+        () => paginateItems(searches, savedSearchPage, SAVED_SEARCHES_PAGE_SIZE),
+        [savedSearchPage, searches],
+    );
+    const activeAlertIndex = useMemo(
+        () => searches.findIndex((search) => search.id === activeAlertId),
+        [activeAlertId, searches],
+    );
+    const savedSearchTargetPage = getSavedSearchTargetPage(
+        savedSearchPage,
+        searches.length,
+        activeAlertIndex,
+        SAVED_SEARCHES_PAGE_SIZE,
+    );
 
     const fetchSearches = async () => {
         setLoading(true);
@@ -335,12 +408,17 @@ function SavedSearchesTab() {
     }, []);
 
     useEffect(() => {
-        if (!activeAlertId || loading) {
+        if (loading) {
             return;
         }
-
-        alertButtonRefs.current[activeAlertId]?.focus();
-    }, [activeAlertId, loading, searches]);
+        if (savedSearchTargetPage !== savedSearchPage) {
+            setSavedSearchPage(savedSearchTargetPage, { preserveAlert: activeAlertIndex >= 0 });
+            return;
+        }
+        if (activeAlertId && activeAlertIndex >= 0) {
+            alertButtonRefs.current[activeAlertId]?.focus();
+        }
+    }, [activeAlertId, activeAlertIndex, loading, savedSearchPage, savedSearchTargetPage, setSavedSearchPage]);
 
     const handleDelete = async (id: string) => {
         try {
@@ -427,7 +505,7 @@ function SavedSearchesTab() {
 
     return (
         <div className="space-y-4 animate-in fade-in duration-500">
-            {searches.map((search) => (
+            {savedSearchPagination.items.map((search) => (
                 <div key={search.id} data-active-alert={activeAlertId === search.id ? 'true' : undefined} className={`min-w-0 bg-white dark:bg-zinc-900 rounded-2xl border p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow ${activeAlertId === search.id ? 'border-indigo-300 ring-2 ring-indigo-200 dark:border-indigo-600 dark:ring-indigo-900/50' : 'border-gray-100 dark:border-zinc-800'}`}>
                     <div className="min-w-0 flex-1">
                         <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
@@ -503,6 +581,15 @@ function SavedSearchesTab() {
                     </div>
                 </div>
             ))}
+            <PaginationBar
+                currentPage={savedSearchPagination.currentPage}
+                totalPages={savedSearchPagination.totalPages}
+                onPageChange={setSavedSearchPage}
+                totalItems={searches.length}
+                pageSize={SAVED_SEARCHES_PAGE_SIZE}
+                currentItemCount={savedSearchPagination.items.length}
+                itemLabel="saved searches"
+            />
         </div>
     );
 }

@@ -8,19 +8,44 @@ export interface MarketScopedProperty {
   countryCode?: string | null;
   country_code?: string | null;
   postcode?: string | null;
-  location?: string | null;
+  postalCode?: string | null;
+  zipCode?: string | null;
+  location?: unknown;
   city?: string | null;
 }
 
 const LOCATION_CODE_PATTERN = /\b(?:\d{6}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i;
 
+const getStructuredLocation = (property: MarketScopedProperty) => (
+  property.location && typeof property.location === 'object'
+    ? property.location as Record<string, unknown>
+    : {}
+);
+
+const getLocationText = (value: unknown): string => (
+  typeof value === 'string' ? value.trim() : ''
+);
+
 const getLocationCodeFromProperty = (property: MarketScopedProperty): string => {
-  const directPostcode = String(property.postcode || '').trim();
+  const location = getStructuredLocation(property);
+  const directPostcode = [
+    property.postcode,
+    property.postalCode,
+    property.zipCode,
+    location.postcode,
+    location.postalCode,
+    location.zipCode,
+  ].map(getLocationText).find(Boolean) || '';
   if (directPostcode) {
     return directPostcode;
   }
 
-  const locationText = [property.location, property.city]
+  const locationText = [
+    typeof property.location === 'string' ? property.location : '',
+    property.city,
+    location.city,
+  ]
+    .map(getLocationText)
     .filter(Boolean)
     .join(' ');
   return locationText.match(LOCATION_CODE_PATTERN)?.[0] || '';
@@ -28,11 +53,32 @@ const getLocationCodeFromProperty = (property: MarketScopedProperty): string => 
 
 export const getPropertyMarket = (
   property: MarketScopedProperty,
-): SupportedLaunchCountryCode | null => getSupportedLaunchCountry(
-  property.countryCode || property.country_code,
-  property.country,
-  getLocationCodeFromProperty(property),
-);
+): SupportedLaunchCountryCode | null => {
+  const location = getStructuredLocation(property);
+  const topLevelCountryCode = getLocationText(property.countryCode)
+    || getLocationText(property.country_code);
+  if (topLevelCountryCode) {
+    return getSupportedLaunchCountry(topLevelCountryCode);
+  }
+
+  const topLevelCountryName = getLocationText(property.country);
+  if (topLevelCountryName) {
+    return getSupportedLaunchCountry(topLevelCountryName, topLevelCountryName);
+  }
+
+  const nestedCountryCode = getLocationText(location.countryCode)
+    || getLocationText(location.country_code);
+  if (nestedCountryCode) {
+    return getSupportedLaunchCountry(nestedCountryCode);
+  }
+
+  const nestedCountryName = getLocationText(location.country);
+  if (nestedCountryName) {
+    return getSupportedLaunchCountry(nestedCountryName, nestedCountryName);
+  }
+
+  return getSupportedLaunchCountry(undefined, undefined, getLocationCodeFromProperty(property));
+};
 
 /**
  * User-facing inventory must stay inside the signed-in user's market. Unknown
