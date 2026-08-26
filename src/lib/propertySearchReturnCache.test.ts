@@ -77,4 +77,3 @@ test('property search return cache is path-scoped and can be explicitly cleared'
   clearPropertySearchReturnState(storage, '/user/dashboard');
   assert.equal(readPropertySearchReturnState(storage, '/user/dashboard', 30_100), null);
 });
-

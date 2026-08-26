@@ -124,4 +124,3 @@ export function clearPropertySearchReturnState(
     // Clearing cached UI state should never block the search flow.
   }
 }
-
