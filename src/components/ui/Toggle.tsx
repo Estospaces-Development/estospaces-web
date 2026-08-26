@@ -17,7 +17,7 @@ const Toggle: React.FC<ToggleProps> = ({ checked, onChange, disabled = false, ar
         aria-checked={checked}
         onClick={onChange}
         disabled={disabled}
-        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ${checked
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950 ${checked
                 ? 'bg-orange-500 shadow-lg shadow-orange-500/30'
                 : 'bg-gray-200 dark:bg-gray-700'
             } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'}`}

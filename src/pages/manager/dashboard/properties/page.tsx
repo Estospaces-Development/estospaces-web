@@ -167,7 +167,8 @@ function PropertiesContent() {
     const stats = useMemo(() => getPropertyStats(), [getPropertyStats]);
 
     // Local filter state
-    const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const searchParamQuery = searchParams.get('search')?.trim() || '';
+    const [searchQuery, setSearchQuery] = useState(searchParamQuery || filters.search || '');
     const [selectedPriceRange, setSelectedPriceRange] = useState(0);
     const [selectedBedrooms, setSelectedBedrooms] = useState<number | undefined>(filters.bedroomsMin);
     const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<PropertyType[]>(filters.propertyType || []);
@@ -179,6 +180,17 @@ function PropertiesContent() {
     const isLiveListingsPreset = searchParams.get('view') === MANAGER_LIVE_LISTINGS_VIEW;
     const isApplyingFilters = useRef(false);
     const userHasSetFilters = useRef(false);
+
+    useEffect(() => {
+        if (!searchParams.has('search')) {
+            return;
+        }
+
+        setSearchQuery(searchParamQuery);
+        const nextSearchParams = new URLSearchParams(searchParams);
+        nextSearchParams.delete('search');
+        setSearchParams(nextSearchParams, { replace: true });
+    }, [searchParamQuery, searchParams, setSearchParams]);
 
     useEffect(() => {
         if (isApplyingFilters.current) {

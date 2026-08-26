@@ -12,6 +12,10 @@ const propertyCard = readFileSync(
     resolve(root, 'src/components/dashboard/PropertyCard.tsx'),
     'utf8',
 );
+const propertyDetailPage = readFileSync(
+    resolve(root, 'src/pages/user/properties/[id]/page.tsx'),
+    'utf8',
+);
 
 test('discover page uses clear task-led copy and pressed-state controls', () => {
     assert.match(discoverPage, /Homes on Estospaces/);
@@ -26,6 +30,24 @@ test('discover listing tabs are not reset by a new search params object with the
     assert.match(discoverPage, /const searchParamSnapshot = searchParams\.toString\(\)/);
     assert.match(discoverPage, /\[searchParamSnapshot, setActiveTab\]/);
     assert.doesNotMatch(discoverPage, /\[searchParams, setActiveTab\]/);
+});
+
+test('discover property navigation restores browser search state and scroll position', () => {
+    assert.match(discoverPage, /readPropertySearchReturnState\(window\.sessionStorage, DISCOVER_PATH\)/);
+    assert.match(discoverPage, /savePropertySearchReturnState\(window\.sessionStorage/);
+    assert.match(discoverPage, /clearPropertySearchReturnState\(window\.sessionStorage, DISCOVER_PATH\)/);
+    assert.match(discoverPage, /selectDiscoverSearchSource\(/);
+    assert.match(discoverPage, /selection\.discardCachedSearch/);
+    assert.match(discoverPage, /markDiscoverReturnHistoryState\(window\.history\.state\)/);
+    assert.match(discoverPage, /isDiscoverReturnHistoryState\(window\.history\.state\)/);
+    assert.match(discoverPage, /consumeDiscoverReturnHistoryState\(window\.history\.state\)/);
+    assert.match(discoverPage, /cachedDiscoverSearchRef\.current\?\.search \|\| searchParamSnapshot/);
+    assert.match(discoverPage, /openPropertyFromDiscover\(\{ id: suggestion\.id \}\)/);
+    assert.match(discoverPage, /onViewDetails=\{openPropertyFromDiscover\}/);
+    assert.match(discoverPage, /onStartFastTrack=\{openFastTrackFromDiscover\}/);
+    assert.match(discoverPage, /backTo: discoverReturnPath/);
+    assert.match(discoverPage, /backState: markDiscoverReturnHistoryState\(null\)/);
+    assert.match(propertyDetailPage, /navigate\(navigationState\.backTo, \{ state: navigationState\.backState \}\)/);
 });
 
 test('discover result summary is compact, honest, and responsive', () => {

@@ -731,7 +731,7 @@ export default function RegisterPage() {
                                     value={country}
                                     onChange={(e) => { setCountry(e.target.value); setCountryError(''); }}
                                     onBlur={() => setCountryError(role === 'manager' && !country ? 'Please select your country' : '')}
-                                    className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${countryError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
+                                    className={`w-full min-w-0 truncate px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${countryError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
                                 >
                                     <option value="">Select country</option>
                                     {MANAGER_COUNTRIES.map((item) => (

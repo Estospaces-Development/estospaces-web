@@ -12,9 +12,10 @@ const source = readFileSync(
 test("nearby properties map uses profile location and each property's currency", () => {
   assert.match(source, /useUserGeoMarket\(user\)/);
   assert.match(source, /getLaunchLocationCodeLabel\(geoMarket\)/);
-  assert.match(source, /Add a \{lowerLocationCodeLabel\} to unlock the map/);
-  assert.match(source, /Use your profile \{lowerLocationCodeLabel\}/);
-  assert.match(source, /Open location settings/);
+  assert.match(source, /getNearbyMapEmptyState\(properties, compact, locationCodeLabel\)/);
+  assert.match(source, /\{emptyState\.title\}/);
+  assert.match(source, /\{emptyState\.description\}/);
+  assert.match(source, /emptyState\.actionLabel/);
   assert.match(source, /navigate\('\/user\/dashboard\/settings'\)/);
   assert.match(source, /formatMapPropertyPrice\(property/);
   assert.doesNotMatch(source, /formatMapPriceInRupees/);

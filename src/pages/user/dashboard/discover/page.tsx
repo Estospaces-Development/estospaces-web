@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import {
     Search,
     MapPin,
@@ -43,8 +43,22 @@ import {
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
+import {
+    buildDiscoverSearchParams,
+    consumeDiscoverReturnHistoryState,
+    isDiscoverReturnHistoryState,
+    markDiscoverReturnHistoryState,
+    readDiscoverViewMode,
+    selectDiscoverSearchSource,
+} from '@/lib/discoverSearchState';
+import {
+    clearPropertySearchReturnState,
+    readPropertySearchReturnState,
+    savePropertySearchReturnState,
+} from '@/lib/propertySearchReturnCache';
 
 const ITEMS_PER_PAGE = 12;
+const DISCOVER_PATH = '/user/dashboard/discover';
 
 const parsePositivePage = (value: string | null, fallback = 1) => {
     const parsed = Number.parseInt(value || `${fallback}`, 10);
@@ -261,6 +275,29 @@ function DiscoverContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const searchParamSnapshot = searchParams.toString();
+    const isDiscoverReturnEntryRef = useRef(
+        typeof window !== 'undefined' && isDiscoverReturnHistoryState(window.history.state),
+    );
+    const cachedDiscoverSearchRef = useRef(
+        typeof window === 'undefined'
+            ? null
+            : readPropertySearchReturnState(window.sessionStorage, DISCOVER_PATH),
+    );
+    const initialSearchParamsRef = useRef<URLSearchParams | null>(null);
+    const discardedInitialCacheRef = useRef(false);
+    if (!initialSearchParamsRef.current) {
+        const selection = selectDiscoverSearchSource(
+            searchParamSnapshot,
+            cachedDiscoverSearchRef.current?.search ?? null,
+            isDiscoverReturnEntryRef.current,
+        );
+        discardedInitialCacheRef.current = selection.discardCachedSearch;
+        if (!selection.useCachedSearch) {
+            cachedDiscoverSearchRef.current = null;
+        }
+        initialSearchParamsRef.current = new URLSearchParams(selection.search);
+    }
+    const initialSearchParams = initialSearchParamsRef.current;
     const { user } = useAuth();
     const { activeTab, setActiveTab } = usePropertyFilter();
 
@@ -270,23 +307,40 @@ function DiscoverContent() {
     const [properties, setProperties] = useState<SearchResult[]>([]);
     const [allSectionProperties, setAllSectionProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
-    const [searchQuery, setSearchQuery] = useState(() => readSearchUrlFilters(searchParams).query);
-    const [locationQuery, setLocationQuery] = useState(() => readSearchUrlFilters(searchParams).location);
-    const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || '');
-    const [propertyType, setPropertyType] = useState(() => readSearchUrlFilters(searchParams).propertyType || 'all');
+    const [searchQuery, setSearchQuery] = useState(() => readSearchUrlFilters(initialSearchParams).query);
+    const [locationQuery, setLocationQuery] = useState(() => readSearchUrlFilters(initialSearchParams).location);
+    const [statusFilter, setStatusFilter] = useState(() => initialSearchParams.get('status') || '');
+    const [propertyType, setPropertyType] = useState(() => readSearchUrlFilters(initialSearchParams).propertyType || 'all');
     const [priceRange, setPriceRange] = useState(() => ({
-        min: readSearchUrlFilters(searchParams).minPrice,
-        max: readSearchUrlFilters(searchParams).maxPrice,
+        min: readSearchUrlFilters(initialSearchParams).minPrice,
+        max: readSearchUrlFilters(initialSearchParams).maxPrice,
     }));
-    const [beds, setBeds] = useState(() => readSearchUrlFilters(searchParams).bedrooms);
-    const [baths, setBaths] = useState(() => readSearchUrlFilters(searchParams).baths);
-    const [dashboardFilter, setDashboardFilter] = useState(() => searchParams.get('filter') || '');
+    const [beds, setBeds] = useState(() => readSearchUrlFilters(initialSearchParams).bedrooms);
+    const [baths, setBaths] = useState(() => readSearchUrlFilters(initialSearchParams).baths);
+    const [dashboardFilter, setDashboardFilter] = useState(() => initialSearchParams.get('filter') || '');
     const [sortBy, setSortBy] = useState(() =>
-        normalizePropertySearchSort(searchParams.get('sort') || searchParams.get('sortBy') || mapDashboardFilterToSearchSort(searchParams.get('filter') || '')),
+        normalizePropertySearchSort(initialSearchParams.get('sort') || initialSearchParams.get('sortBy') || mapDashboardFilterToSearchSort(initialSearchParams.get('filter') || '')),
     );
     const [filterInputMessage, setFilterInputMessage] = useState('');
-    const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
-    const [currentPage, setCurrentPage] = useState(() => parsePositivePage(searchParams.get('page')));
+    const [viewMode, setViewMode] = useState<'grid' | 'map'>(() => readDiscoverViewMode(initialSearchParams));
+    const [currentPage, setCurrentPage] = useState(() => parsePositivePage(initialSearchParams.get('page')));
+
+    useEffect(() => {
+        if (isDiscoverReturnEntryRef.current) {
+            window.history.replaceState(
+                consumeDiscoverReturnHistoryState(window.history.state),
+                '',
+                window.location.href,
+            );
+            isDiscoverReturnEntryRef.current = false;
+        }
+
+        if (!discardedInitialCacheRef.current) {
+            return;
+        }
+        clearPropertySearchReturnState(window.sessionStorage, DISCOVER_PATH);
+        discardedInitialCacheRef.current = false;
+    }, []);
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [globalFilterOptions, setGlobalFilterOptions] = useState<FilterOptions | null>(null);
@@ -312,7 +366,9 @@ function DiscoverContent() {
 
     // Initialize filters from URL/Context
     useEffect(() => {
-        const currentSearchParams = new URLSearchParams(searchParamSnapshot);
+        const currentSearchParams = new URLSearchParams(
+            cachedDiscoverSearchRef.current?.search || searchParamSnapshot,
+        );
         const listingParam = currentSearchParams.get('type') || currentSearchParams.get('tab');
         const nextTab = mapListingTypeParamToTab(listingParam);
         if (nextTab === 'rent') setActiveTab('rent');
@@ -338,7 +394,9 @@ function DiscoverContent() {
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
-        const currentSearchParams = new URLSearchParams(searchParamSnapshot);
+        const currentSearchParams = new URLSearchParams(
+            cachedDiscoverSearchRef.current?.search || searchParamSnapshot,
+        );
         const urlFilters = readSearchUrlFilters(currentSearchParams);
         setSearchQuery(urlFilters.query);
         setLocationQuery(urlFilters.location);
@@ -353,6 +411,7 @@ function DiscoverContent() {
         setDashboardFilter(currentSearchParams.get('filter') || '');
         setSortBy(normalizePropertySearchSort(currentSearchParams.get('sort') || currentSearchParams.get('sortBy') || mapDashboardFilterToSearchSort(currentSearchParams.get('filter') || '')));
         setCurrentPage(parsePositivePage(currentSearchParams.get('page')));
+        setViewMode(readDiscoverViewMode(currentSearchParams));
     }, [searchParamSnapshot]);
 
     const fetchData = useCallback(async () => {
@@ -440,11 +499,89 @@ function DiscoverContent() {
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
+    const discoverReturnSearch = useMemo(() => buildDiscoverSearchParams({
+        query: searchQuery,
+        location: locationQuery,
+        status: statusFilter,
+        propertyType,
+        minPrice: priceRange.min,
+        maxPrice: priceRange.max,
+        bedrooms: beds,
+        bathrooms: baths,
+        dashboardFilter,
+        sortBy,
+        listingTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
+        viewMode,
+        page: currentPage,
+    }).toString(), [activeTab, baths, beds, currentPage, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter, viewMode]);
+    const discoverReturnPath = discoverReturnSearch
+        ? `${DISCOVER_PATH}?${discoverReturnSearch}`
+        : DISCOVER_PATH;
     const resultStatusMessage = loading
         ? 'Loading discovery properties.'
         : error
             ? error
             : `${paginatedProperties.length} of ${total} discovery properties shown in ${viewMode} view sorted by ${sortBy} from property sections.`;
+
+    useEffect(() => {
+        const cachedSearch = cachedDiscoverSearchRef.current;
+        if (!cachedSearch || loading || error) {
+            return;
+        }
+
+        const expectedSearch = discoverReturnSearch ? `?${discoverReturnSearch}` : '';
+        if (cachedSearch.search !== expectedSearch) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            window.scrollTo({ top: cachedSearch.scrollY, behavior: 'auto' });
+            clearPropertySearchReturnState(window.sessionStorage, DISCOVER_PATH);
+            cachedDiscoverSearchRef.current = null;
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [discoverReturnSearch, error, loading]);
+
+    const cacheDiscoverSearchReturn = useCallback(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.history.replaceState(
+            markDiscoverReturnHistoryState(window.history.state),
+            '',
+            discoverReturnPath,
+        );
+
+        savePropertySearchReturnState(window.sessionStorage, {
+            pathname: DISCOVER_PATH,
+            search: discoverReturnSearch,
+            scrollY: window.scrollY,
+        });
+    }, [discoverReturnPath, discoverReturnSearch]);
+
+    const openPropertyFromDiscover = useCallback((property: { id: string }) => {
+        cacheDiscoverSearchReturn();
+        navigate(`/user/properties/${property.id}`, {
+            state: {
+                backTo: discoverReturnPath,
+                backLabel: 'Back to Discover',
+                backState: markDiscoverReturnHistoryState(null),
+            },
+        });
+    }, [cacheDiscoverSearchReturn, discoverReturnPath, navigate]);
+
+    const openFastTrackFromDiscover = useCallback((property: { id: string }) => {
+        cacheDiscoverSearchReturn();
+        navigate(`/user/properties/${property.id}?fast-track=1`, {
+            state: {
+                backTo: discoverReturnPath,
+                backLabel: 'Back to Discover',
+                backState: markDiscoverReturnHistoryState(null),
+            },
+        });
+    }, [cacheDiscoverSearchReturn, discoverReturnPath, navigate]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -592,10 +729,10 @@ function DiscoverContent() {
                                             <button
                                                 key={index}
                                                 className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center justify-between gap-2"
-                                                onClick={() => {
-                                                    if (suggestion.type === 'property' && suggestion.id) {
-                                                        navigate(`/user/properties/${suggestion.id}`);
-                                                    } else if (suggestion.type === 'postcode') {
+                                                    onClick={() => {
+                                                        if (suggestion.type === 'property' && suggestion.id) {
+                                                            openPropertyFromDiscover({ id: suggestion.id });
+                                                        } else if (suggestion.type === 'postcode') {
                                                         setSearchQuery(suggestion.text);
                                                         setLocationQuery('');
                                                     } else {
@@ -803,9 +940,9 @@ function DiscoverContent() {
                     <div className="h-[min(72vh,720px)] min-h-[520px] overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <NearbyPropertiesMap
                             properties={toDiscoverNearbyMapProperties(filteredProperties)}
-                            onPropertyClick={(property) => navigate(`/user/properties/${property.id}`)}
-                            onOpenWorkspace={(property) => navigate(`/user/properties/${property.id}`)}
-                            onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                            onPropertyClick={openPropertyFromDiscover}
+                            onOpenWorkspace={openPropertyFromDiscover}
+                            onStartFastTrack={openFastTrackFromDiscover}
                         />
                     </div>
                 ) : (
@@ -841,7 +978,8 @@ function DiscoverContent() {
                                     <PropertyCard
                                         key={property.id}
                                         property={property}
-                                        onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                                        onViewDetails={openPropertyFromDiscover}
+                                        onStartFastTrack={openFastTrackFromDiscover}
                                         showSaveAction
                                         appearance="discovery"
                                     />

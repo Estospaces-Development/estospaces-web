@@ -161,7 +161,7 @@ test('user dashboard property cards expose a manager-approval Fast Track request
     assert.match(propertyCard, /onStartFastTrack\?:/);
     assert.match(propertyCard, /Request 24-Hour Fast Track/);
     assert.match(dashboardClient, /onStartFastTrack=\{openFastTrackFromDashboard\}/);
-    assert.match(discoverPage, /onStartFastTrack=\{\(property\) => navigate\(`\/user\/properties\/\$\{property\.id\}\?fast-track=1`\)\}/);
+    assert.match(discoverPage, /onStartFastTrack=\{openFastTrackFromDiscover\}/);
     assert.doesNotMatch(dashboardClient, /\{!showFilteredResults && \(\s*<div>\s*<div className="flex items-center justify-between mb-4">\s*<div>\s*<div className="flex items-center gap-2">\s*<MapIcon/);
 });
 

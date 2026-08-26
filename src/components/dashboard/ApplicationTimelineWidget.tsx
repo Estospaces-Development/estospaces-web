@@ -23,6 +23,11 @@ import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import {
+    dedupeBrokerRequestsForTimeline,
+    getBrokerRequestDisplayTitle,
+    isUserVisibleBrokerRequest,
+} from '@/lib/brokerRequestTimeline';
 
 // --- Types & Interfaces ---
 
@@ -418,8 +423,11 @@ const ApplicationTimelineWidget = () => {
                     };
                 });
 
-                const mappedBrokerRequests: ApplicationItem[] = (brokerRequestsRes.data || [])
-                    .filter((request) => isLiveBrokerRequest(request))
+                const mappedBrokerRequests: ApplicationItem[] = dedupeBrokerRequestsForTimeline(
+                    (brokerRequestsRes.data || []).filter((request) => (
+                        isLiveBrokerRequest(request) && isUserVisibleBrokerRequest(request)
+                    )),
+                )
                     .map((request) => {
                         const summary = getBrokerRequestTrackingSummary(request);
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
@@ -475,8 +483,8 @@ const ApplicationTimelineWidget = () => {
                             nextAction: summary.nextAction,
                             estimatedCompletion: 'Property agent search is live',
                             property: {
-                                id: request.id,
-                                title: request.selected_property?.title || (request.location ? `Property agent request for ${request.location}` : 'Property agent request'),
+                                id: request.selected_property_id || request.selected_property?.id || request.id,
+                                title: getBrokerRequestDisplayTitle(request),
                                 city: request.selected_property?.city || request.location_postcode || request.location || null,
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
                                 country: request.selected_property?.country,
@@ -722,7 +730,29 @@ const ApplicationTimelineWidget = () => {
                                         : 'upcoming'
                         }))
                     }));
-                setListings(mappedProps);
+                const selectedHomes: ApplicationItem[] = mappedBrokerRequests
+                    .filter((request) => (
+                        request.currentStageNumber >= request.totalStages
+                    ))
+                    .map((request) => ({
+                        ...request,
+                        id: `selected-home-${request.property.id}`,
+                        source: 'broker_request',
+                        currentStage: 'Property selected',
+                        currentStageNumber: request.totalStages,
+                        progress: 100,
+                        nextAction: 'Continue your 24-hour journey',
+                    }));
+                const listingsByPropertyId = new Map<string, ApplicationItem>();
+                [...selectedHomes, ...mappedProps].forEach((listing) => {
+                    const current = listingsByPropertyId.get(listing.property.id);
+                    if (!current || listing.lastUpdated.getTime() > current.lastUpdated.getTime()) {
+                        listingsByPropertyId.set(listing.property.id, listing);
+                    }
+                });
+                setListings(Array.from(listingsByPropertyId.values()).sort(
+                    (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
+                ));
 
             } catch (_error) {
             } finally {

@@ -2,6 +2,7 @@
 
 import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import Toggle from '@/components/ui/Toggle';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -209,16 +210,11 @@ export default function UserSettingsPage() {
                                 <h3 className="font-medium text-gray-900 dark:text-gray-100">In-App Notifications</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Enable dashboard notifications.</p>
                             </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-label="Toggle in-app notifications"
-                                aria-checked={settings.notifications_enabled}
-                                onClick={() => handleToggle('notifications_enabled')}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${settings.notifications_enabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.notifications_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
+                            <Toggle
+                                checked={settings.notifications_enabled}
+                                onChange={() => handleToggle('notifications_enabled')}
+                                ariaLabel="Toggle in-app notifications"
+                            />
                         </div>
 
                         <div className="flex items-center justify-between">
@@ -226,16 +222,11 @@ export default function UserSettingsPage() {
                                 <h3 className="font-medium text-gray-900 dark:text-gray-100">Email Alerts</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Receive email updates for saved search activity.</p>
                             </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-label="Toggle email alerts"
-                                aria-checked={settings.email_alerts}
-                                onClick={() => handleToggle('email_alerts')}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${settings.email_alerts ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.email_alerts ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
+                            <Toggle
+                                checked={settings.email_alerts}
+                                onChange={() => handleToggle('email_alerts')}
+                                ariaLabel="Toggle email alerts"
+                            />
                         </div>
                     </div>
                 </section>
@@ -414,16 +405,11 @@ export default function UserSettingsPage() {
                                 <h3 className="font-medium text-gray-900 dark:text-gray-100">Onboarding Complete</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Stored as part of the current preferences record.</p>
                             </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-label="Toggle onboarding complete"
-                                aria-checked={settings.onboarding_done}
-                                onClick={() => handleToggle('onboarding_done')}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${settings.onboarding_done ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.onboarding_done ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
+                            <Toggle
+                                checked={settings.onboarding_done}
+                                onChange={() => handleToggle('onboarding_done')}
+                                ariaLabel="Toggle onboarding complete"
+                            />
                         </div>
 
                         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">

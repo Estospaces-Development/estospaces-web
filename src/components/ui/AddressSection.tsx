@@ -631,7 +631,7 @@ const AddressSection = ({
                     aria-invalid={Boolean(error || validationError)}
                     aria-describedby={describedBy}
                     className={`
-            w-full px-3 py-2.5 pr-10 appearance-none
+            w-full min-w-0 truncate px-3 py-2.5 pr-10 appearance-none
             border rounded-lg
             bg-white dark:bg-gray-800
             text-gray-900 dark:text-gray-100

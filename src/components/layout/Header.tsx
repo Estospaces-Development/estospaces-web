@@ -11,6 +11,7 @@ import ThemeSwitcher from '../dashboard/ThemeSwitcher';
 import Avatar from '../ui/Avatar';
 import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
 import { getLoginPath } from '@/lib/authUtils';
+import { getManagerSearchDestinations } from '@/lib/managerGlobalSearch';
 
 interface HeaderProps {
     onMenuToggle?: () => void;
@@ -28,6 +29,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const role = getRole();
     const workspaceRole = role === 'broker' ? 'manager' : role;
     const displayName = getDisplayName();
@@ -38,11 +40,16 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     });
 
     const profileRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLFormElement>(null);
+    const searchDestinations = getManagerSearchDestinations(searchQuery);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
                 setIsProfileOpen(false);
+            }
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setIsSearchOpen(false);
             }
         };
 
@@ -55,8 +62,13 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
         const normalizedSearchQuery = searchQuery.trim().replace(/\s+/g, ' ');
         if (normalizedSearchQuery) {
             setSearchQuery(normalizedSearchQuery);
-            navigate(`/manager/leads?search=${encodeURIComponent(normalizedSearchQuery)}`);
+            setIsSearchOpen(true);
         }
+    };
+
+    const openSearchDestination = (path: string) => {
+        setIsSearchOpen(false);
+        navigate(path);
     };
 
     const handleSignOut = async () => {
@@ -132,20 +144,55 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <Menu size={20} />
                     </button>
 
-                    <form onSubmit={handleSearch} className="hidden md:flex items-center max-w-md w-full relative group">
+                    <form ref={searchRef} onSubmit={handleSearch} className="group relative hidden w-full max-w-md items-center md:flex">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
                         <input
                             type="text"
                             placeholder="Search properties, leads, or tasks..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setIsSearchOpen(Boolean(e.target.value.trim()));
+                            }}
+                            onFocus={() => setIsSearchOpen(Boolean(searchQuery.trim()))}
                             onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                    setIsSearchOpen(false);
+                                    return;
+                                }
                                 if (e.key === 'Enter') {
                                     handleSearch(e);
                                 }
                             }}
+                            aria-expanded={isSearchOpen}
+                            aria-controls="manager-global-search-destinations"
+                            aria-autocomplete="list"
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
                         />
+                        {isSearchOpen && searchDestinations.length > 0 && (
+                            <div
+                                id="manager-global-search-destinations"
+                                role="listbox"
+                                aria-label="Choose where to search"
+                                className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+                            >
+                                <p className="px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                                    Search in
+                                </p>
+                                {searchDestinations.map((destination) => (
+                                    <button
+                                        key={destination.key}
+                                        type="button"
+                                        role="option"
+                                        onClick={() => openSearchDestination(destination.path)}
+                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-800 transition-colors hover:bg-orange-50 hover:text-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-100 dark:hover:bg-orange-500/10 dark:hover:text-orange-100"
+                                    >
+                                        <Search className="h-4 w-4 shrink-0 text-orange-500" />
+                                        <span className="min-w-0 truncate">{destination.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </form>
                 </div>
 

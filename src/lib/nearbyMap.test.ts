@@ -3,10 +3,32 @@ import assert from 'node:assert/strict';
 
 import {
     calculateMapDistanceKm,
+    getNearbyMapEmptyState,
     hasValidMapCoordinates,
     loadCompleteMapCandidates,
     selectDashboardNearbyProperties,
 } from './nearbyMap';
+
+test('explains missing verified pins instead of asking for a location already searched', () => {
+    assert.deepEqual(
+        getNearbyMapEmptyState([{ latitude: null, longitude: null }], false, 'Postcode'),
+        {
+            title: 'Map pin unavailable for this matching home',
+            description: 'This listing does not have verified coordinates yet, so Estospaces will not place it at an approximate or incorrect location.',
+            action: 'open-property',
+            actionLabel: 'Open matching home',
+        },
+    );
+});
+
+test('keeps location guidance for the compact dashboard map without results', () => {
+    assert.deepEqual(getNearbyMapEmptyState([], true, 'PIN code'), {
+        title: 'Add a pin code to unlock the map',
+        description: 'Use your profile pin code or search a location to see nearby homes without leaving the dashboard.',
+        action: 'location-settings',
+        actionLabel: 'Open location settings',
+    });
+});
 
 test('validates only real persisted map coordinates', () => {
     assert.equal(hasValidMapCoordinates({ latitude: 13.0827, longitude: 80.2707 }), true);

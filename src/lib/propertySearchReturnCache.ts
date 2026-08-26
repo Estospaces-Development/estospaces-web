@@ -44,8 +44,9 @@ export function savePropertySearchReturnState(
   now = Date.now(),
 ) {
   const pathname = normalizePathname(input.pathname);
+  const rawSearch = String(input.search || '').trim();
   const search = normalizeSearch(input.search);
-  if (!storage || !pathname || !search) return false;
+  if (!storage || !pathname || (rawSearch && !search)) return false;
 
   const scrollY = Number.isFinite(input.scrollY) ? Math.max(0, Math.round(input.scrollY)) : 0;
   const savedAt = Number.isFinite(now) ? now : Date.now();
@@ -77,7 +78,8 @@ export function readPropertySearchReturnState(
     if (!rawValue) return null;
 
     const parsed = JSON.parse(rawValue) as Partial<PropertySearchReturnState>;
-    const search = normalizeSearch(parsed.search || '');
+    const rawSearch = typeof parsed.search === 'string' ? parsed.search.trim() : null;
+    const search = normalizeSearch(rawSearch || '');
     const savedAt = Number(parsed.savedAt);
     const scrollY = Number(parsed.scrollY);
     const isExpired = !Number.isFinite(savedAt)
@@ -86,7 +88,8 @@ export function readPropertySearchReturnState(
 
     if (
       normalizePathname(parsed.pathname || '') !== pathname
-      || !search
+      || rawSearch === null
+      || Boolean(rawSearch && !search)
       || !Number.isFinite(scrollY)
       || scrollY < 0
       || isExpired

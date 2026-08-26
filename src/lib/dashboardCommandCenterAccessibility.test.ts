@@ -40,17 +40,14 @@ test('matched broker requests lock replacement but keep a separate new-request p
   assert.doesNotMatch(brokerRequestWidget, /New requests are paused/);
 });
 
-test('manager header global search routes into the lead desk search state', () => {
+test('manager header global search offers query-scoped workspace destinations', () => {
   const header = readSource('src/components/layout/Header.tsx');
-  const managerLeads = readSource('src/pages/manager/leads/page.tsx');
 
   assert.match(header, /const normalizedSearchQuery = searchQuery\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);/);
-  assert.match(header, /navigate\(`\/manager\/leads\?search=\$\{encodeURIComponent\(normalizedSearchQuery\)\}`\);/);
+  assert.match(header, /getManagerSearchDestinations\(searchQuery\)/);
+  assert.match(header, /aria-label="Choose where to search"/);
+  assert.match(header, /openSearchDestination\(destination\.path\)/);
+  assert.doesNotMatch(header, /navigate\(`\/manager\/leads\?search=/);
   assert.match(header, /React\.FormEvent \| React\.KeyboardEvent<HTMLInputElement>/);
-  assert.match(header, /onKeyDown=\{\(e\) => \{\s*if \(e\.key === 'Enter'\) \{\s*handleSearch\(e\);\s*\}\s*\}\}/);
   assert.doesNotMatch(header, /Implement global search or redirect to search page/);
-  assert.match(managerLeads, /import \{ useNavigate, useSearchParams \} from 'react-router-dom';/);
-  assert.match(managerLeads, /const \[searchParams\] = useSearchParams\(\);/);
-  assert.match(managerLeads, /const searchParamQuery = searchParams\.get\('search'\) \|\| '';/);
-  assert.match(managerLeads, /const \[searchQuery, setSearchQuery\] = useState\(searchParamQuery\);/);
 });

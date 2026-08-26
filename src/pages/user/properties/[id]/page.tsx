@@ -1074,13 +1074,13 @@ const UserPropertyDetail = () => {
     }, [fastTrackQuery]);
     const navigationState = (location.state && typeof location.state === 'object'
         ? location.state
-        : null) as { backTo?: string; backLabel?: string } | null;
+        : null) as { backTo?: string; backLabel?: string; backState?: unknown } | null;
     const fallbackBackTarget = getPropertyDetailFallbackBackTarget(fastTrackQuery, user);
     const backLabel = navigationState?.backLabel || 'Back';
 
     const handleBackNavigation = () => {
         if (navigationState?.backTo) {
-            navigate(navigationState.backTo);
+            navigate(navigationState.backTo, { state: navigationState.backState });
             return;
         }
 

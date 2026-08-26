@@ -13,9 +13,9 @@ test('route-edge pages keep secondary controls named and readable', () => {
   const adminPropertyDetail = readSource('src/pages/admin/properties/[id]/page.tsx');
 
   assert.match(verificationSection, /text-green-700 dark:text-green-300/);
-  assert.match(userSettings, /aria-label="Toggle in-app notifications"/);
-  assert.match(userSettings, /aria-label="Toggle email alerts"/);
-  assert.match(userSettings, /aria-label="Toggle onboarding complete"/);
+  assert.match(userSettings, /ariaLabel="Toggle in-app notifications"/);
+  assert.match(userSettings, /ariaLabel="Toggle email alerts"/);
+  assert.match(userSettings, /ariaLabel="Toggle onboarding complete"/);
   assert.match(userProperty, /bg-sky-700 text-white/);
   assert.match(userProperty, /bg-sky-700 px-4 py-3\.5/);
   assert.match(userProperty, /text-green-700 font-medium/);
