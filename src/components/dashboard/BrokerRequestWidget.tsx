@@ -938,7 +938,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
-                            <p className="mt-1 text-[11px] font-medium opacity-80">
+                            <p className="mt-1 text-[11px] font-medium text-gray-600 dark:text-gray-300">
                                 {countdownTone.caption}
                             </p>
                         </div>
