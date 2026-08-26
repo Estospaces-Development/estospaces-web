@@ -37,6 +37,7 @@ import {
     isApplicationWorkflowStatusTitle,
     isInternalApplicationTitle,
 } from '@/lib/applicationDisplayTitle';
+import { applicationStatusMatches, normalizeApplicationStatus } from '@/lib/applicationStatus';
 
 export type PropertyContext = {
     title?: string;
@@ -448,27 +449,28 @@ const getSaleJourneyCopy = (status: ApplicationStatus) => {
 };
 
 const deriveStatusFromViewing = (application: BackendApplication, viewing?: Viewing): ApplicationStatus => {
-    if (application.status === APPLICATION_STATUS.APPROVED) return APPLICATION_STATUS.APPROVED;
-    if (application.status === APPLICATION_STATUS.REJECTED) return APPLICATION_STATUS.REJECTED;
-    if (application.status === APPLICATION_STATUS.WITHDRAWN) return APPLICATION_STATUS.WITHDRAWN;
-    if (application.status === APPLICATION_STATUS.COMPLETED) return APPLICATION_STATUS.COMPLETED;
-    if (application.status === APPLICATION_STATUS.BUYER_QUALIFICATION) return APPLICATION_STATUS.BUYER_QUALIFICATION;
-    if (application.status === APPLICATION_STATUS.OFFER_READY) return APPLICATION_STATUS.OFFER_READY;
-    if (application.status === APPLICATION_STATUS.OFFER_SUBMITTED) return APPLICATION_STATUS.OFFER_SUBMITTED;
-    if (application.status === APPLICATION_STATUS.OFFER_UNDER_REVIEW) return APPLICATION_STATUS.OFFER_UNDER_REVIEW;
-    if (application.status === APPLICATION_STATUS.OFFER_ACCEPTED) return APPLICATION_STATUS.OFFER_ACCEPTED;
-    if (application.status === APPLICATION_STATUS.SALE_AGREED) return APPLICATION_STATUS.SALE_AGREED;
-    if (application.status === APPLICATION_STATUS.MEMORANDUM_ISSUED) return APPLICATION_STATUS.MEMORANDUM_ISSUED;
-    if (application.status === APPLICATION_STATUS.CONVEYANCING) return APPLICATION_STATUS.CONVEYANCING;
-    if (application.status === APPLICATION_STATUS.EXCHANGE) return APPLICATION_STATUS.EXCHANGE;
-    if (application.status === APPLICATION_STATUS.VIEWING_SCHEDULED) return APPLICATION_STATUS.VIEWING_SCHEDULED;
-    if (application.status === APPLICATION_STATUS.VIEWING_COMPLETED) return APPLICATION_STATUS.VIEWING_COMPLETED;
-    if (application.status === APPLICATION_STATUS.APPOINTMENT_BOOKED) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
-    if (application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED) return APPLICATION_STATUS.DOCUMENTS_REQUESTED;
-    if (application.status === APPLICATION_STATUS.UNDER_REVIEW) return APPLICATION_STATUS.UNDER_REVIEW;
-    if (application.status === APPLICATION_STATUS.VERIFICATION_IN_PROGRESS) return APPLICATION_STATUS.VERIFICATION_IN_PROGRESS;
-    if (application.status === APPLICATION_STATUS.DRAFT) return APPLICATION_STATUS.DRAFT;
-    if (application.status === APPLICATION_STATUS.PENDING) return APPLICATION_STATUS.PENDING;
+    const status = normalizeApplicationStatus(application.status);
+    if (applicationStatusMatches(status, APPLICATION_STATUS.APPROVED)) return APPLICATION_STATUS.APPROVED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.REJECTED)) return APPLICATION_STATUS.REJECTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.WITHDRAWN)) return APPLICATION_STATUS.WITHDRAWN;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.COMPLETED)) return APPLICATION_STATUS.COMPLETED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.BUYER_QUALIFICATION)) return APPLICATION_STATUS.BUYER_QUALIFICATION;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_READY)) return APPLICATION_STATUS.OFFER_READY;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_SUBMITTED)) return APPLICATION_STATUS.OFFER_SUBMITTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_UNDER_REVIEW)) return APPLICATION_STATUS.OFFER_UNDER_REVIEW;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.OFFER_ACCEPTED)) return APPLICATION_STATUS.OFFER_ACCEPTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.SALE_AGREED)) return APPLICATION_STATUS.SALE_AGREED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.MEMORANDUM_ISSUED)) return APPLICATION_STATUS.MEMORANDUM_ISSUED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.CONVEYANCING)) return APPLICATION_STATUS.CONVEYANCING;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.EXCHANGE)) return APPLICATION_STATUS.EXCHANGE;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.VIEWING_SCHEDULED)) return APPLICATION_STATUS.VIEWING_SCHEDULED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.VIEWING_COMPLETED)) return APPLICATION_STATUS.VIEWING_COMPLETED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.APPOINTMENT_BOOKED)) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.DOCUMENTS_REQUESTED)) return APPLICATION_STATUS.DOCUMENTS_REQUESTED;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.UNDER_REVIEW)) return APPLICATION_STATUS.UNDER_REVIEW;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.VERIFICATION_IN_PROGRESS)) return APPLICATION_STATUS.VERIFICATION_IN_PROGRESS;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.DRAFT)) return APPLICATION_STATUS.DRAFT;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.PENDING)) return APPLICATION_STATUS.PENDING;
 
     if (viewing) {
         if (viewing.status === 'completed') {
@@ -1062,7 +1064,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         let filtered = [...applications];
 
         if (statusFilter !== 'all') {
-            filtered = filtered.filter((application) => application.status === statusFilter);
+            filtered = filtered.filter((application) => applicationStatusMatches(application.status, statusFilter));
         }
 
         if (propertyTypeFilter !== 'all') {

@@ -19,6 +19,7 @@ import { isAuthRoutePath } from "@/lib/authUtils";
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from "@/contexts/WorkspaceSyncContext";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
 import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
+import { sortProperties } from "@/lib/propertySorting";
 
 // Type definitions
 export type CurrencyCode =
@@ -1035,8 +1036,12 @@ export const PropertyProvider = ({
   });
 
   const filteredProperties = useMemo(
-    () => filterContextProperties(properties, filters),
-    [properties, filters],
+    () => sortProperties(
+      filterContextProperties(properties, filters),
+      sort.field,
+      sort.order,
+    ),
+    [properties, filters, sort.field, sort.order],
   );
 
   const updateFilters = useCallback((nextFilters: PropertyFilters) => {

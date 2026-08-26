@@ -60,7 +60,10 @@ import {
   sanitizeWorkspaceCaseId,
   stripCaseSearchParam,
 } from "@/lib/fastTrackCaseContext";
-import { buildUserPropertyPortfolio } from "@/lib/userPropertyPortfolio";
+import {
+  buildUserPropertyPortfolio,
+  summarizeUserPropertyPortfolio,
+} from "@/lib/userPropertyPortfolio";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
 
 const formatContractCurrency = (contract: Contract | null | undefined, amount?: number) => (
@@ -375,15 +378,7 @@ export default function ContractsPage() {
   }, [portfolioItems, searchQuery]);
 
   const portfolioSummary = React.useMemo(
-    () => ({
-      total: portfolioItems.length,
-      bought: portfolioItems.filter((item) => item.ownershipLabel === "Bought")
-        .length,
-      rented: portfolioItems.filter(
-        (item) =>
-          item.ownershipLabel === "Rented" && item.portfolioStatus === "Active",
-      ).length,
-    }),
+    () => summarizeUserPropertyPortfolio(portfolioItems),
     [portfolioItems],
   );
 

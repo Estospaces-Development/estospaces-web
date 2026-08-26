@@ -29,6 +29,20 @@ export interface UserPropertyPortfolioItem {
   sortDate: string;
 }
 
+export interface UserPropertyPortfolioSummary {
+  total: number;
+  bought: number;
+  rented: number;
+}
+
+export const summarizeUserPropertyPortfolio = (
+  items: UserPropertyPortfolioItem[],
+): UserPropertyPortfolioSummary => ({
+  total: items.length,
+  bought: items.filter((item) => item.ownershipLabel === "Bought").length,
+  rented: items.filter((item) => item.ownershipLabel === "Rented").length,
+});
+
 interface BuildUserPropertyPortfolioInput {
   contracts: Contract[];
   applications: Application[];
