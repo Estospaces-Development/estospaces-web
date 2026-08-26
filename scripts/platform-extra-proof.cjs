@@ -94,6 +94,17 @@ function filterExpectedFixtureDataErrors(errors) {
   ));
 }
 
+function filterExpectedFixtureConsoleErrors(errors, networkErrors) {
+  const unexpectedNetworkErrors = filterExpectedFixtureDataErrors(networkErrors);
+  if (unexpectedNetworkErrors.length > 0) {
+    return errors;
+  }
+
+  return errors.filter((entry) => !(
+    /Failed to load resource: the server responded with a status of 404/i.test(entry)
+  ));
+}
+
 async function runAccessibilityChecks(target) {
   const routes = [
     { role: 'anonymous', route: '/login/' },
@@ -322,6 +333,7 @@ async function main() {
 
   accessibility.forEach((item) => {
     const networkErrors = filterExpectedFixtureDataErrors(item.networkErrors);
+    const consoleErrors = filterExpectedFixtureConsoleErrors(item.consoleErrors, item.networkErrors);
     scenarios.push(scenario(
       'accessibility',
       target.name,
@@ -329,7 +341,7 @@ async function main() {
       item.route,
       item.violations.length === 0
         && item.pageErrors.length === 0
-        && item.consoleErrors.length === 0
+        && consoleErrors.length === 0
         && networkErrors.length === 0
         && item.keyboardAfter.tag !== 'BODY',
       JSON.stringify({
@@ -337,13 +349,13 @@ async function main() {
         keyboardBefore: item.keyboardBefore,
         keyboardAfter: item.keyboardAfter,
       }),
-      [...item.pageErrors, ...item.consoleErrors, ...networkErrors],
+      [...item.pageErrors, ...consoleErrors, ...networkErrors],
     ));
   });
 
   security.forEach((item) => {
     const networkErrors = filterExpectedFixtureDataErrors(item.networkErrors);
-    const consoleErrors = filterExpectedFixtureDataErrors(item.consoleErrors);
+    const consoleErrors = filterExpectedFixtureConsoleErrors(item.consoleErrors, item.networkErrors);
     scenarios.push(scenario(
       'security',
       target.name,
@@ -360,7 +372,7 @@ async function main() {
 
   compatibility.forEach((item) => {
     const networkErrors = filterExpectedFixtureDataErrors(item.networkErrors);
-    const consoleErrors = filterExpectedFixtureDataErrors(item.consoleErrors);
+    const consoleErrors = filterExpectedFixtureConsoleErrors(item.consoleErrors, item.networkErrors);
     scenarios.push(scenario(
       'compatibility-authenticated',
       target.name,
