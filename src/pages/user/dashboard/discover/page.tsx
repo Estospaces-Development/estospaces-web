@@ -42,6 +42,7 @@ import {
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import {
     buildDiscoverSearchParams,
@@ -418,7 +419,7 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections();
+            const result = await searchService.getPropertySections(geoMarket);
 
             if (!result.success) {
                 setProperties([]);
@@ -429,9 +430,9 @@ function DiscoverContent() {
                 return;
             }
 
-            const sectionProperties = dedupeSectionProperties(
+            const sectionProperties = filterPropertiesForMarket(dedupeSectionProperties(
                 result.data.flatMap((section) => section.properties),
-            );
+            ), geoMarket);
             const filtered = filterSectionProperties(sectionProperties, {
                 activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
                 searchQuery,
@@ -442,7 +443,7 @@ function DiscoverContent() {
                 maxPrice: priceRange.max,
                 beds,
                 baths,
-                countryCode: undefined,
+                countryCode: geoMarket,
             });
             const sorted = sortSectionProperties(
                 filtered,
@@ -464,7 +465,7 @@ function DiscoverContent() {
         } finally {
             setLoading(false);
         }
-    }, [activeTab, baths, beds, currentPage, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
+    }, [activeTab, baths, beds, currentPage, dashboardFilter, geoMarket, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {

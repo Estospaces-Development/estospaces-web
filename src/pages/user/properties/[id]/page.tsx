@@ -83,6 +83,8 @@ import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/
 import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
+import { isPropertyInMarket } from '@/lib/propertyMarket';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -955,6 +957,7 @@ const UserPropertyDetail = () => {
     const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
+    const geoMarket = useUserGeoMarket(user);
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
@@ -1110,7 +1113,13 @@ const UserPropertyDetail = () => {
                 if (apiError) {
                     setError(apiError);
                 } else if (data) {
-                    setProperty(data);
+                    const role = String(user?.role || '').trim().toLowerCase();
+                    if (role === 'user' && !isPropertyInMarket(data, geoMarket)) {
+                        setProperty(null);
+                        setError('This property is not available in your market.');
+                    } else {
+                        setProperty(data);
+                    }
                 } else {
                     setError('Property not found');
                 }
@@ -1122,7 +1131,7 @@ const UserPropertyDetail = () => {
         };
 
         fetchProperty();
-    }, [id]);
+    }, [geoMarket, id, user?.role]);
 
     useEffect(() => {
         const role = String(user?.role || '').trim().toLowerCase();

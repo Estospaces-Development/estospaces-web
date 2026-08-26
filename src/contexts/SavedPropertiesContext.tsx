@@ -6,6 +6,8 @@ import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 import type { Property } from './PropertyContext';
 import { isSameSavedPropertyId, normalizeSavedPropertyId } from '@/lib/savedPropertyState';
 import { invalidatePropertyDetailCache } from '@/services/propertyService';
+import { filterPropertiesForMarket } from '@/lib/propertyMarket';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 interface SavedPropertiesContextType {
     savedProperties: Property[];
@@ -32,6 +34,7 @@ export const useSavedProperties = () => {
 
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
+    const geoMarket = useUserGeoMarket(user);
     const [savedProperties, setSavedProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
             const data = await apiFetch<Property[]>(
                 `${getServiceUrl('core')}/api/v1/properties/saved`,
             );
-            setSavedProperties(data || []);
+            setSavedProperties(filterPropertiesForMarket(data || [], geoMarket));
             setError(null);
         } catch (err: any) {
             setSavedProperties([]);
@@ -59,7 +62,7 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
         } finally {
             setLoading(false);
         }
-    }, [user, canUseSavedProperties]);
+    }, [user, canUseSavedProperties, geoMarket]);
 
     useEffect(() => {
         fetchSavedProperties();
