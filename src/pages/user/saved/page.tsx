@@ -326,6 +326,7 @@ function PropertiesTab({
                             pageSize={SAVED_PROPERTIES_PAGE_SIZE}
                             currentItemCount={propertyPagination.items.length}
                             itemLabel="saved properties"
+                            showWhenSinglePage
                         />
                     </>
                 ) : (
@@ -589,6 +590,7 @@ function SavedSearchesTab() {
                 pageSize={SAVED_SEARCHES_PAGE_SIZE}
                 currentItemCount={savedSearchPagination.items.length}
                 itemLabel="saved searches"
+                showWhenSinglePage
             />
         </div>
     );

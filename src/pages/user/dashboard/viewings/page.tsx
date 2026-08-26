@@ -21,6 +21,7 @@ import Avatar from '@/components/ui/Avatar';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import ViewingResponseCountdown from '@/components/viewings/ViewingResponseCountdown';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import { findLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
@@ -36,11 +37,13 @@ import {
 } from '@/lib/fastTrackCaseContext';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { paginateItems } from '@/lib/pagination';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
 
 export const MAX_VIEWING_CANCELLATION_REASON_LENGTH = 500;
+const USER_VIEWINGS_PAGE_SIZE = 6;
 
 export function normalizeViewingCancellationReason(value: string) {
     return value.trim().replace(/\s+/g, ' ');
@@ -74,6 +77,7 @@ export default function ViewingsPage() {
     const [cancelReason, setCancelReason] = useState('');
     const [cancelReasonError, setCancelReasonError] = useState<string | null>(null);
     const [cancellingViewingID, setCancellingViewingID] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const removedCaseNoticeRef = useRef<string | null>(null);
     const cancelInFlightRef = useRef(false);
 
@@ -234,6 +238,20 @@ export default function ViewingsPage() {
             }
             return 0;
         });
+    const viewingPagination = useMemo(
+        () => paginateItems(filteredViewings, currentPage, USER_VIEWINGS_PAGE_SIZE),
+        [currentPage, filteredViewings],
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter, focusedViewingId, searchQuery]);
+
+    useEffect(() => {
+        if (viewingPagination.currentPage !== currentPage) {
+            setCurrentPage(viewingPagination.currentPage);
+        }
+    }, [currentPage, viewingPagination.currentPage]);
     const formatViewingPrice = (viewing: any) => formatLaunchCurrencyForCountry(viewing.propertyPrice, {
         countryCode: viewing.propertyCountry,
         countryName: viewing.propertyCountry,
@@ -490,7 +508,7 @@ export default function ViewingsPage() {
                                 Your active viewing is pinned first so you can keep this journey moving without searching for it again.
                             </div>
                         )}
-                        {filteredViewings.map((viewing) => (
+                        {viewingPagination.items.map((viewing) => (
                             <div
                                 key={viewing.id}
                                 className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 ${
@@ -618,6 +636,16 @@ export default function ViewingsPage() {
                                 </div>
                             </div>
                         ))}
+                        <PaginationBar
+                            currentPage={viewingPagination.currentPage}
+                            totalPages={viewingPagination.totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredViewings.length}
+                            pageSize={USER_VIEWINGS_PAGE_SIZE}
+                            currentItemCount={viewingPagination.items.length}
+                            itemLabel="viewings"
+                            showWhenSinglePage
+                        />
                     </div>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">

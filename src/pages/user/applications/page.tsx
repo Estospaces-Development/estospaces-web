@@ -36,6 +36,7 @@ import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionP
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import Modal from '@/components/ui/Modal';
 import DateField from '@/components/ui/DateField';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
 import {
@@ -47,6 +48,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { paginateItems } from '@/lib/pagination';
 import {
     canWithdrawApplicationRecord,
     getNextSaleJourneyActions,
@@ -57,6 +59,7 @@ import {
 } from '@/lib/saleJourney';
 
 export const APPLICATION_DETAIL_DRAWER_CLOSE_LABEL = 'Close application detail panel';
+const USER_APPLICATIONS_PAGE_SIZE = 10;
 const MAX_APPLICATION_WITHDRAW_REASON_LENGTH = 500;
 const MAX_NEW_APPLICATION_MESSAGE_LENGTH = 1000;
 
@@ -595,6 +598,7 @@ export default function ApplicationsPage() {
     const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
     const removedCaseNoticeRef = useRef<string | null>(null);
     const newApplicationInFlightRef = useRef(false);
     const rawCaseId = searchParams.get('case');
@@ -776,6 +780,20 @@ export default function ApplicationsPage() {
     const pendingCount = applications.filter(app => pendingStatusList.includes(app.status)).length;
     const approvedCount = applications.filter(app => app.status === APPLICATION_STATUS.APPROVED).length;
     const actionRequiredCount = applications.filter(app => app.requiresAction).length;
+    const applicationPagination = useMemo(
+        () => paginateItems(applications, currentPage, USER_APPLICATIONS_PAGE_SIZE),
+        [applications, currentPage],
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, propertyTypeFilter, dateRangeFilter]);
+
+    useEffect(() => {
+        if (applicationPagination.currentPage !== currentPage) {
+            setCurrentPage(applicationPagination.currentPage);
+        }
+    }, [applicationPagination.currentPage, currentPage]);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
@@ -1081,20 +1099,33 @@ export default function ApplicationsPage() {
                         </button>
                     </div>
                 ) : applications.length > 0 ? (
-                    <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-                        {applications.map((app) => (
-                            <div
-                                key={app.id}
-                                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-800 transition-all cursor-pointer group overflow-hidden"
-                                onClick={() => setSelectedApplication(app)}
-                            >
-                                <ApplicationCard
-                                    application={app}
+                    <>
+                        <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                            {applicationPagination.items.map((app) => (
+                                <div
+                                    key={app.id}
+                                    className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-800 transition-all cursor-pointer group overflow-hidden"
                                     onClick={() => setSelectedApplication(app)}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                                >
+                                    <ApplicationCard
+                                        application={app}
+                                        onClick={() => setSelectedApplication(app)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <PaginationBar
+                            className="mt-6"
+                            currentPage={applicationPagination.currentPage}
+                            totalPages={applicationPagination.totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={applications.length}
+                            pageSize={USER_APPLICATIONS_PAGE_SIZE}
+                            currentItemCount={applicationPagination.items.length}
+                            itemLabel="applications"
+                            showWhenSinglePage
+                        />
+                    </>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
                         <div className="inline-flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
