@@ -171,3 +171,36 @@ test("getCoordinatesFromAddress returns null when no real postal position exists
     globalThis.fetch = originalFetch;
   }
 });
+
+test("getCoordinatesFromAddress resolves UK postcodes after normalizing the display space", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedURLs: string[] = [];
+  globalThis.fetch = async (input) => {
+    requestedURLs.push(String(input));
+    return new Response(
+      JSON.stringify({
+        result: {
+          latitude: 53.7591,
+          longitude: -2.7032,
+          postcode: "PR1 5QH",
+          admin_district: "Preston",
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+
+  try {
+    assert.deepEqual(
+      await getCoordinatesFromAddress({
+        postalCode: "PR1 5QH",
+        countryCode: "GB",
+      }),
+      { latitude: 53.7591, longitude: -2.7032 },
+    );
+    assert.equal(requestedURLs.length, 1);
+    assert.ok(requestedURLs[0].includes("api.postcodes.io/postcodes/PR1%205QH"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
