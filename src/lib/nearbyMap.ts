@@ -16,6 +16,12 @@ interface MapCandidatePage<T> {
 export const DASHBOARD_NEARBY_RADIUS_KM = 100;
 export const DASHBOARD_NEARBY_PROPERTY_LIMIT = 20;
 
+export const getDashboardMapHeightClass = (hasMapPreview: boolean): string => (
+    hasMapPreview
+        ? 'h-[310px] sm:h-[350px] lg:h-[400px]'
+        : 'h-[320px] sm:h-[300px] lg:h-[320px]'
+);
+
 export interface NearbyMapEmptyState {
     title: string;
     description: string;

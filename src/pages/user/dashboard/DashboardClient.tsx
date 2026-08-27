@@ -44,7 +44,11 @@ import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
-import { hasValidMapCoordinates, loadCompleteMapCandidates } from '@/lib/nearbyMap';
+import {
+  getDashboardMapHeightClass,
+  hasValidMapCoordinates,
+  loadCompleteMapCandidates,
+} from '@/lib/nearbyMap';
 import { syncDashboardMapLocation } from '@/lib/dashboardMapLocation';
 import {
   clearPropertySearchReturnState,
@@ -1286,7 +1290,7 @@ const DashboardClient = () => {
             </div>
           ) : (
             <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-              <div className={hasNearbyMapPreview ? 'h-[310px] sm:h-[350px] lg:h-[400px]' : 'h-[250px] sm:h-[280px] lg:h-[320px]'}>
+              <div className={getDashboardMapHeightClass(hasNearbyMapPreview)}>
                 <NearbyPropertiesMap
                   properties={mapProperties}
                   userLocation={mapLocation}

@@ -3,11 +3,23 @@ import assert from 'node:assert/strict';
 
 import {
     calculateMapDistanceKm,
+    getDashboardMapHeightClass,
     getNearbyMapEmptyState,
     hasValidMapCoordinates,
     loadCompleteMapCandidates,
     selectDashboardNearbyProperties,
 } from './nearbyMap';
+
+test('reserves enough mobile height for the empty-map action', () => {
+    assert.equal(
+        getDashboardMapHeightClass(false),
+        'h-[320px] sm:h-[300px] lg:h-[320px]',
+    );
+    assert.equal(
+        getDashboardMapHeightClass(true),
+        'h-[310px] sm:h-[350px] lg:h-[400px]',
+    );
+});
 
 test('explains missing verified pins instead of asking for a location already searched', () => {
     assert.deepEqual(
