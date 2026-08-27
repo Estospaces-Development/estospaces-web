@@ -461,7 +461,7 @@ function PropertiesContent() {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-100 dark:border-gray-800 z-50"
+                                        className="absolute left-0 z-50 mt-2 w-56 max-w-[calc(100vw-2rem)] origin-top-left overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 sm:left-auto sm:right-0 sm:origin-top-right"
                                     >
                                         {sortOptions.map((option, index) => (
                                             <button
@@ -681,8 +681,8 @@ function PropertiesContent() {
                     ))}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
-                    <table className="w-full text-left">
+                <div className="max-w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm [overscroll-behavior-inline:contain] [scrollbar-gutter:stable] touch-pan-x dark:border-gray-800 dark:bg-gray-900">
+                    <table className="min-w-[760px] w-full text-left">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Property</th>

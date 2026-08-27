@@ -247,7 +247,7 @@ export default function ContractsPage() {
     setSigningId(null);
   };
 
-  const openContractDetail = async (contract: Contract) => {
+  const openContractDetail = useCallback(async (contract: Contract) => {
     setViewContract(contract);
     setViewContractError(null);
     setViewContractLoading(true);
@@ -261,7 +261,7 @@ export default function ContractsPage() {
     }
 
     setViewContractLoading(false);
-  };
+  }, []);
 
   const closeContractDetail = () => {
     setViewContract(null);
@@ -345,7 +345,8 @@ export default function ContractsPage() {
     }
 
     setHasAppliedRouteFocus(true);
-  }, [focusedContract, hasAppliedRouteFocus]);
+    void openContractDetail(focusedContract);
+  }, [focusedContract, hasAppliedRouteFocus, openContractDetail]);
 
   const portfolioItems = React.useMemo(
     () =>
