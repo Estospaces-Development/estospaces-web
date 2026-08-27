@@ -47,3 +47,47 @@ test("address service resolves a usable UK state and city when UK is selected", 
   const cities = await getCitiesByState(resolved.stateId || "");
   assert.equal(cities.data?.some((city) => city.name === "London"), true);
 });
+
+test("address service exposes the complete India state and union territory list", async () => {
+  const { data: states, error } = await getStatesByCountry("2");
+
+  assert.equal(error, null);
+  assert.equal(states?.length, 36);
+  for (const stateName of [
+    "Andhra Pradesh",
+    "Gujarat",
+    "Rajasthan",
+    "Uttar Pradesh",
+    "West Bengal",
+    "Jammu and Kashmir",
+    "Ladakh",
+    "Puducherry",
+  ]) {
+    assert.equal(states?.some((state) => state.name === stateName), true, `${stateName} should be available`);
+  }
+
+  const { data: cities } = await getCitiesByState("224");
+  assert.equal(cities?.some((city) => city.name === "Jaipur"), true);
+});
+
+test("address service exposes UK nations and English regions", async () => {
+  const { data: states, error } = await getStatesByCountry("1");
+
+  assert.equal(error, null);
+  assert.equal(states?.length, 13);
+  for (const regionName of [
+    "England",
+    "Scotland",
+    "Wales",
+    "Northern Ireland",
+    "North West England",
+    "Yorkshire and the Humber",
+    "South East England",
+    "South West England",
+  ]) {
+    assert.equal(states?.some((state) => state.name === regionName), true, `${regionName} should be available`);
+  }
+
+  const { data: cities } = await getCitiesByState("106");
+  assert.equal(cities?.some((city) => city.name === "Preston"), true);
+});
