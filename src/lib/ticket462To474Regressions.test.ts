@@ -17,7 +17,7 @@ test('broker shortlist card uses human timing and mobile-safe no-wrap layout', (
   const source = read('../components/dashboard/BrokerRequestWidget.tsx');
   assert.match(source, /getBrokerShortlistTimingCopy/);
   assert.match(source, /getBrokerShortlistDueValue/);
-  assert.match(source, /shrink-0 whitespace-nowrap/);
+  assert.match(source, /sm:shrink-0 sm:whitespace-nowrap/);
 });
 
 test('manager search offers destinations instead of forcing the leads route', () => {

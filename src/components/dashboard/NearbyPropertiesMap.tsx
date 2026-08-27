@@ -157,7 +157,7 @@ function MapAutoFit({
     // Re-apply the bounds fit on every meaningful data change.
     useEffect(() => {
         apply();
-    }, [apply]);
+    }, [apply, fitSignal]);
 
     // Re-apply fit once tiles finish their first batch.
     useMapEvent('load', apply);
@@ -528,7 +528,12 @@ const NearbyPropertiesMap = ({
                     <button
                         type="button"
                         data-nearby-map-recenter
-                        onClick={() => setFitSignal((value) => value + 1)}
+                        onClick={() => {
+                            setMapStyle('standard');
+                            setIsSelectionDismissed(false);
+                            setSelectedPropertyID(propertiesWithCoords[0]?.id || null);
+                            setFitSignal((value) => value + 1);
+                        }}
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
                     >
                         <LocateFixed size={14} />

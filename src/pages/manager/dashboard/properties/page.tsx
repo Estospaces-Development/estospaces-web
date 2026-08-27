@@ -438,7 +438,7 @@ function PropertiesContent() {
                     </div>
 
                     {/* Filter & Sort Controls */}
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center justify-between gap-2 lg:w-auto lg:justify-end">
                         {/* Filter Button */}
                         <button
                             type="button"
@@ -476,7 +476,7 @@ function PropertiesContent() {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-100 dark:border-gray-800 z-50"
+                                        className="absolute right-0 z-50 mt-2 w-[min(14rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900"
                                     >
                                         {sortOptions.map((option, index) => (
                                             <button
@@ -684,8 +684,8 @@ function PropertiesContent() {
                     ))}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
-                    <table className="w-full text-left">
+                <div className="max-w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm [overscroll-behavior-inline:contain] [scrollbar-gutter:stable] touch-pan-x dark:border-gray-800 dark:bg-gray-900">
+                    <table className="min-w-[760px] w-full text-left">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Property</th>

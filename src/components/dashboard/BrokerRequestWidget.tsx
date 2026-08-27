@@ -1112,10 +1112,10 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
                                 {activeRequest.fast_track_enabled && (
                                     <div className="mt-4 rounded-xl border border-orange-100 bg-white p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
-                                        <div className="flex flex-wrap items-center justify-between gap-3 sm:flex-nowrap">
+                                        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">{brokerCopy.homeChoicesLabel}</p>
-                                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                <p className="break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">{brokerCopy.homeChoicesLabel}</p>
+                                                <p className="mt-2 break-words text-sm font-semibold text-gray-900 dark:text-white">
                                                     {selectedProperty
                                                         ? 'Your chosen home is ready'
                                                         : availableSharedProperties.length > 0
@@ -1124,7 +1124,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                                 ? 'Home choices need refresh'
                                                                 : 'Waiting for home choices'}
                                                 </p>
-                                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                <p className="mt-2 break-words text-sm text-gray-600 dark:text-gray-300">
                                                     {selectedProperty
                                                         ? 'Open your chosen home or continue your 24-hour journey.'
                                                         : availableSharedProperties.length > 0
@@ -1135,8 +1135,8 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                 </p>
                                             </div>
                                             {handoffMinutesRemaining !== null && !selectedProperty && availableSharedProperties.length === 0 && staleSharedPropertiesCount === 0 && (
-                                                <div className="shrink-0 whitespace-nowrap rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-right dark:border-orange-900/30 dark:bg-orange-950/20">
-                                                    <p className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
+                                                <div className="w-full rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20 sm:w-auto sm:shrink-0 sm:whitespace-nowrap sm:text-right">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
                                                     <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                                                         {getBrokerShortlistDueValue(handoffMinutesRemaining)}
                                                     </p>

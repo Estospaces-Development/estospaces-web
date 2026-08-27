@@ -259,11 +259,11 @@ export default function ManagerNotificationsPage() {
                                 {getManagerNotificationIcon(n)}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h2 className={`text-sm font-semibold truncate ${!n.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
+                                <div className="mb-1 flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                                    <h2 className={`min-w-0 text-sm font-semibold sm:line-clamp-2 ${!n.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
                                         {displayCopy.title}
                                     </h2>
-                                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                    <span className="shrink-0 whitespace-nowrap text-xs leading-5 text-gray-400 sm:text-[11px]">
                                         {formatSafeDate(n.created_at)} {formatSafeTime(n.created_at)}
                                     </span>
                                 </div>
