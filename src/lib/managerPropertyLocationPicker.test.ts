@@ -42,4 +42,7 @@ test("property location picker renders real OpenStreetMap tiles with attribution
   assert.match(pickerSource, /aria-live="polite"/);
   assert.match(pickerSource, /role="alert"/);
   assert.match(pickerSource, /aria-label="Interactive property location map"/);
+  assert.match(pickerSource, /areCoordinatesInsideLaunchMarket/);
+  assert.match(pickerSource, /worldCopyJump/);
+  assert.match(pickerSource, /noWrap/);
 });

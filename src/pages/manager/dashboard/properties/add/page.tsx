@@ -117,6 +117,7 @@ import {
   LAUNCH_COUNTRY_CODE,
   UK_COUNTRY_CODE,
 } from "@/lib/launchLocale";
+import { areCoordinatesInsideLaunchMarket } from "@/lib/mapCoordinates";
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
@@ -1381,17 +1382,13 @@ export default function AddPropertyPage() {
 
   const applyPropertyLocation = useCallback(
     (latitude: number, longitude: number, statusMessage: string) => {
+      const propertyMarket = getSupportedLaunchCountry(formData.countryCode);
       if (
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude) ||
-        latitude < -90 ||
-        latitude > 90 ||
-        longitude < -180 ||
-        longitude > 180 ||
-        (latitude === 0 && longitude === 0)
+        !propertyMarket ||
+        !areCoordinatesInsideLaunchMarket(latitude, longitude, propertyMarket)
       ) {
         showToast(
-          "We could not place this location. Check the PIN or postcode, or use your current location.",
+          "This position does not match the selected country. Check the PIN or postcode, then place the property within that country.",
           "error",
         );
         return;
@@ -1416,7 +1413,7 @@ export default function AddPropertyPage() {
       setIsDirty(true);
       setLocationStatusMessage(statusMessage);
     },
-    [showToast],
+    [formData.countryCode, showToast],
   );
 
   const handleFindEnteredAddress = useCallback(async () => {
@@ -2267,11 +2264,16 @@ export default function AddPropertyPage() {
   const propertyLongitude = formData.longitude.trim()
     ? Number(formData.longitude)
     : null;
+  const selectedPropertyMarket = getSupportedLaunchCountry(formData.countryCode);
   const hasValidPropertyLocation =
     propertyLatitude !== null &&
     propertyLongitude !== null &&
-    Number.isFinite(propertyLatitude) &&
-    Number.isFinite(propertyLongitude);
+    selectedPropertyMarket !== null &&
+    areCoordinatesInsideLaunchMarket(
+      propertyLatitude,
+      propertyLongitude,
+      selectedPropertyMarket,
+    );
   const _canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
   const _selectedStagedUploadCount = [
     ...formData.images,

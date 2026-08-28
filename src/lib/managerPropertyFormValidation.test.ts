@@ -72,6 +72,23 @@ test("validateManagerPropertyField validates coordinate bounds and precision", (
   );
 });
 
+test("validateManagerPropertyField rejects coordinates outside the selected country", () => {
+  const values = {
+    ...baseValues,
+    latitude: "51.5072",
+    longitude: "-0.1276",
+  };
+
+  assert.equal(
+    validateManagerPropertyField("latitude", values),
+    "Saved map position must be inside the selected country",
+  );
+  assert.equal(
+    validateManagerPropertyField("longitude", values),
+    "Saved map position must be inside the selected country",
+  );
+});
+
 test("validateManagerPropertyForm returns the first invalid step correctly", () => {
   const fieldErrors = validateManagerPropertyForm({
     ...baseValues,

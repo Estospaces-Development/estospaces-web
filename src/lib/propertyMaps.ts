@@ -1,3 +1,5 @@
+import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
+
 export type MapsProvider = "apple" | "google";
 
 export interface PropertyMapLocationLike {
@@ -11,6 +13,8 @@ export interface PropertyMapLocationLike {
     postalCode?: string | null;
     postcode?: string | null;
     country?: string | null;
+    countryCode?: string | null;
+    country_code?: string | null;
     latitude?: number | string | null;
     lat?: number | string | null;
     longitude?: number | string | null;
@@ -24,6 +28,8 @@ export interface PropertyMapLocationLike {
   zipCode?: string | null;
   postcode?: string | null;
   country?: string | null;
+  countryCode?: string | null;
+  country_code?: string | null;
   latitude?: number | string | null;
   lat?: number | string | null;
   longitude?: number | string | null;
@@ -43,24 +49,6 @@ export interface PropertyMapState {
 }
 
 const APPLE_DEVICE_PATTERN = /\b(iPhone|iPad|iPod|Macintosh)\b/i;
-
-const normalizeCoordinate = (value: unknown): number | null => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
-};
 
 const joinAddressParts = (parts: Array<string | null | undefined>) => {
   const seen = new Set<string>();
@@ -114,26 +102,7 @@ export const getPreferredMapsProvider = (
 
 export const getPropertyMapCoordinates = (
   property: PropertyMapLocationLike,
-) => {
-  const latitude = normalizeCoordinate(
-    property.location?.latitude ??
-      property.location?.lat ??
-      property.latitude ??
-      property.lat,
-  );
-  const longitude = normalizeCoordinate(
-    property.location?.longitude ??
-      property.location?.lng ??
-      property.longitude ??
-      property.lng,
-  );
-
-  if (latitude === null || longitude === null) {
-    return null;
-  }
-
-  return { latitude, longitude };
-};
+) => getVerifiedPropertyMapCoordinates(property);
 
 export const getPropertyDisplayAddress = (
   property: PropertyMapLocationLike,

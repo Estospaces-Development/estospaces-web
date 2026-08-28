@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 
 import BrandLoader from '@/components/ui/BrandLoader';
+import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
 
 // Fix for Leaflet marker icons
 import 'leaflet/dist/leaflet.css';
@@ -53,20 +54,20 @@ const createCustomIcon = (color: string, iconType: 'house' | 'agency') => {
 const houseIcon = createCustomIcon('#ef4444', 'house');
 const agencyIcon = createCustomIcon('#3b82f6', 'agency');
 
-function MapAutoCenter({ houses }: { houses: any[] }) {
+function MapAutoCenter({ locations }: { locations: any[] }) {
     const map = useMap();
 
     useEffect(() => {
         try {
             map.closePopup();
-            if (houses.length > 0) {
-                const bounds = L.latLngBounds(houses.map(h => [h.lat, h.lng]));
+            if (locations.length > 0) {
+                const bounds = L.latLngBounds(locations.map((location) => [location.lat, location.lng]));
                 map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
             }
         } catch {
             // Keep the page usable when Leaflet tears down during route churn.
         }
-    }, [houses, map]);
+    }, [locations, map]);
 
     return null;
 }
@@ -80,8 +81,27 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
         setIsMounted(true);
     }, []);
 
-    const validHouses = useMemo(() => houses.filter(h => h.lat != null && h.lng != null), [houses]);
-    const validAgencies = useMemo(() => agencies.filter(a => a.lat != null && a.lng != null), [agencies]);
+    const validHouses = useMemo(() => houses.flatMap((house) => {
+        const coordinates = getVerifiedPropertyMapCoordinates({
+            ...house,
+            latitude: house.lat,
+            longitude: house.lng,
+        });
+        return coordinates ? [{ ...house, lat: coordinates.latitude, lng: coordinates.longitude }] : [];
+    }), [houses]);
+    const validAgencies = useMemo(() => agencies.flatMap((agency) => {
+        const coordinates = getVerifiedPropertyMapCoordinates({
+            ...agency,
+            latitude: agency.lat,
+            longitude: agency.lng,
+            address: agency.address,
+        });
+        return coordinates ? [{ ...agency, lat: coordinates.latitude, lng: coordinates.longitude }] : [];
+    }), [agencies]);
+    const validLocations = useMemo(
+        () => [...validHouses, ...validAgencies],
+        [validAgencies, validHouses],
+    );
     const mapKey = useMemo(() => [
         mapStyle,
         ...validHouses.map((house) => `house:${house.id}:${house.lat}:${house.lng}`),
@@ -96,8 +116,20 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
         );
     }
 
-    // Center on London by default if no houses
-    const defaultCenter: [number, number] = [51.5074, -0.1278];
+    if (validLocations.length === 0) {
+        return (
+            <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white p-6 text-center dark:border-gray-700 dark:bg-gray-900">
+                <div className="max-w-sm">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">No verified map locations</h3>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Properties and agencies appear here only when their saved coordinates are valid for a supported market.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const defaultCenter: [number, number] = [validLocations[0].lat, validLocations[0].lng];
 
     return (
         <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
@@ -129,23 +161,29 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
                 key={mapKey}
                 center={defaultCenter}
                 zoom={12}
+                minZoom={2}
+                maxBounds={[[-85, -180], [85, 180]]}
+                maxBoundsViscosity={1}
+                worldCopyJump
                 style={{ height: '100%', width: '100%', zIndex: 0 }}
                 scrollWheelZoom={true}
                 fadeAnimation={false}
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
-                <MapAutoCenter houses={validHouses} />
+                <MapAutoCenter locations={validLocations} />
 
                 {mapStyle === 'standard' ? (
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png"
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        noWrap
                     />
                 ) : (
                     <TileLayer
                         attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        noWrap
                     />
                 )}
 

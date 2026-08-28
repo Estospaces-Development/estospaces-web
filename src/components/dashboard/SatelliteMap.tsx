@@ -238,6 +238,10 @@ const SatelliteMap = () => {
                 key={mapKey}
                 center={mapCenter}
                 zoom={filteredLocations.length === 1 ? 13 : 5}
+                minZoom={2}
+                maxBounds={[[-85, -180], [85, 180]]}
+                maxBoundsViscosity={1}
+                worldCopyJump
                 style={{ height: '100%', width: '100%', zIndex: 0, borderRadius: '0.75rem' }}
                 zoomControl={true}
                 scrollWheelZoom={true}
@@ -250,6 +254,7 @@ const SatelliteMap = () => {
                 <TileLayer
                     attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; <a href="https://www.mapbox.com/">Mapbox</a>'
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    noWrap
                 />
 
                 {filteredLocations.map((location) => {

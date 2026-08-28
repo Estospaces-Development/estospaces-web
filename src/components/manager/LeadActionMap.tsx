@@ -160,6 +160,8 @@ export default function LeadActionMap({
         );
     }
 
+    const initialMapCenter = getLeadMapCoordinates(leadsWithCoordinates[0])!;
+
     return (
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
@@ -179,7 +181,7 @@ export default function LeadActionMap({
                     {isMounted ? (
                         <MapContainer
                             key={mapKey}
-                            center={[54.5, -3]}
+                            center={initialMapCenter}
                             zoom={6}
                             minZoom={2}
                             maxBounds={[[-85, -180], [85, 180]]}

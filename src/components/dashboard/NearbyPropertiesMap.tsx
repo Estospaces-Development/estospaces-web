@@ -14,6 +14,7 @@ import {
     calculateMapDistanceKm,
     getNearbyMapEmptyState,
     hasValidMapCoordinates,
+    hasVerifiedPropertyMapCoordinates,
     selectDashboardNearbyProperties,
 } from '@/lib/nearbyMap';
 import { useOptionalAuth } from '@/contexts/AuthContext';
@@ -120,7 +121,7 @@ function MapAutoFit({
             }
 
             properties.forEach((property) => {
-                if (hasValidMapCoordinates(property)) {
+                if (hasVerifiedPropertyMapCoordinates(property)) {
                     points.push([property.latitude, property.longitude]);
                 }
             });
@@ -196,7 +197,7 @@ const NearbyPropertiesMap = ({
     const visibleProperties = useMemo(() => (
         compact
             ? selectDashboardNearbyProperties(properties, userLocation)
-            : properties.filter(hasValidMapCoordinates)
+            : properties.filter(hasVerifiedPropertyMapCoordinates)
     ), [compact, properties, userLocation]);
 
     const propertiesWithDistance = useMemo(() => {
@@ -234,7 +235,7 @@ const NearbyPropertiesMap = ({
     ), [propertiesWithDistance]);
 
     const propertiesWithCoords = useMemo(() => (
-        sortedProperties.filter(hasValidMapCoordinates)
+        sortedProperties.filter(hasVerifiedPropertyMapCoordinates)
     ), [sortedProperties]);
 
     useEffect(() => {
@@ -286,7 +287,7 @@ const NearbyPropertiesMap = ({
 
         for (const property of propertiesWithCoords) {
             if (
-                hasValidMapCoordinates(property)
+                hasVerifiedPropertyMapCoordinates(property)
             ) {
                 points.push([property.latitude, property.longitude]);
             }
@@ -403,6 +404,10 @@ const NearbyPropertiesMap = ({
                 key={mapKey}
                 center={initialView.center}
                 zoom={initialView.zoom}
+                minZoom={2}
+                maxBounds={[[-85, -180], [85, 180]]}
+                maxBoundsViscosity={1}
+                worldCopyJump
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={false}
                 dragging={!compact}

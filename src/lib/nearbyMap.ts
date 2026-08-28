@@ -1,3 +1,9 @@
+import {
+    getVerifiedPropertyMapCoordinates,
+    isValidGeographicCoordinates,
+    type StoredMapLocationLike,
+} from '@/lib/mapCoordinates';
+
 export interface MapCoordinates {
     latitude?: number | null;
     longitude?: number | null;
@@ -32,24 +38,25 @@ export interface NearbyMapEmptyState {
 export const hasValidMapCoordinates = (
     value: MapCoordinates | null | undefined,
 ): value is { latitude: number; longitude: number } => (
-    typeof value?.latitude === 'number'
-    && Number.isFinite(value.latitude)
-    && value.latitude >= -90
-    && value.latitude <= 90
-    && typeof value.longitude === 'number'
-    && Number.isFinite(value.longitude)
-    && value.longitude >= -180
-    && value.longitude <= 180
-    && !(value.latitude === 0 && value.longitude === 0)
+    isValidGeographicCoordinates(value?.latitude, value?.longitude)
+);
+
+export const hasVerifiedPropertyMapCoordinates = <T extends MapCoordinates & StoredMapLocationLike>(
+    value: T | null | undefined,
+): value is T & { latitude: number; longitude: number } => (
+    Boolean(value)
+    && typeof value?.latitude === 'number'
+    && typeof value?.longitude === 'number'
+    && getVerifiedPropertyMapCoordinates(value) !== null
 );
 
 export const getNearbyMapEmptyState = (
-    properties: MapCoordinates[],
+    properties: Array<MapCoordinates & StoredMapLocationLike>,
     compact: boolean,
     locationCodeLabel: string,
 ): NearbyMapEmptyState => {
     const matchingPropertiesWithoutPins = properties.length > 0
-        && !properties.some(hasValidMapCoordinates);
+        && !properties.some(hasVerifiedPropertyMapCoordinates);
 
     if (!compact && matchingPropertiesWithoutPins) {
         const singular = properties.length === 1;
@@ -89,7 +96,7 @@ export const calculateMapDistanceKm = (
     return radiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-export const selectDashboardNearbyProperties = <T extends MapCoordinates>(
+export const selectDashboardNearbyProperties = <T extends MapCoordinates & StoredMapLocationLike>(
     properties: T[],
     userLocation: MapCoordinates | null | undefined,
     radiusKm = DASHBOARD_NEARBY_RADIUS_KM,
@@ -103,7 +110,7 @@ export const selectDashboardNearbyProperties = <T extends MapCoordinates>(
 
     return properties
         .map((property) => (
-            hasValidMapCoordinates(property)
+            hasVerifiedPropertyMapCoordinates(property)
                 ? { property, distance: calculateMapDistanceKm(anchor, property) }
                 : null
         ))

@@ -4,6 +4,7 @@ import {
     formatLaunchPropertyText,
     LAUNCH_COUNTRY_NAME,
 } from '@/lib/launchLocale';
+import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
 
 export interface DiscoverNearbyMapProperty {
     id: string;
@@ -22,34 +23,33 @@ export interface DiscoverNearbyMapProperty {
     longitude?: number;
 }
 
-const normalizeCoordinate = (value?: number | string | null) => {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-    }
-
-    if (typeof value === 'string' && value.trim()) {
-        const parsed = Number(value.trim());
-        return Number.isFinite(parsed) ? parsed : undefined;
-    }
-
-    return undefined;
-};
-
 export const toDiscoverNearbyMapProperties = (properties: SearchResult[]): DiscoverNearbyMapProperty[] => (
-    properties.map((property) => ({
-        id: property.id,
-        title: formatLaunchPropertyText(property.title),
-        address_line_1: formatLaunchPropertyLocation(property.location || property.city || property.postcode || LAUNCH_COUNTRY_NAME),
-        city: formatLaunchPropertyLocation(property.city),
-        postcode: property.postcode || '',
-        price: property.price || 0,
-        currency: property.currency || undefined,
-        country: property.country || undefined,
-        countryCode: property.countryCode || undefined,
-        property_type: property.listing_type || property.property_type || '',
-        bedrooms: property.bedrooms || 0,
-        bathrooms: property.bathrooms || 0,
-        latitude: normalizeCoordinate(property.latitude),
-        longitude: normalizeCoordinate(property.longitude),
-    }))
+    properties.map((property) => {
+        const coordinates = getVerifiedPropertyMapCoordinates({
+            latitude: property.latitude,
+            longitude: property.longitude,
+            country: property.country,
+            countryCode: property.countryCode,
+            city: property.city,
+            postcode: property.postcode,
+            address: property.location,
+        });
+
+        return {
+            id: property.id,
+            title: formatLaunchPropertyText(property.title),
+            address_line_1: formatLaunchPropertyLocation(property.location || property.city || property.postcode || LAUNCH_COUNTRY_NAME),
+            city: formatLaunchPropertyLocation(property.city),
+            postcode: property.postcode || '',
+            price: property.price || 0,
+            currency: property.currency || undefined,
+            country: property.country || undefined,
+            countryCode: property.countryCode || undefined,
+            property_type: property.listing_type || property.property_type || '',
+            bedrooms: property.bedrooms || 0,
+            bathrooms: property.bathrooms || 0,
+            latitude: coordinates?.latitude,
+            longitude: coordinates?.longitude,
+        };
+    })
 );

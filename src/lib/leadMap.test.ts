@@ -46,11 +46,11 @@ test('lead map rejects placeholder and country-inconsistent property coordinates
         },
     }), null);
 
-    const unknownMarketLead = lead(13.0827, 80.2707);
-    unknownMarketLead.property!.city = '';
-    unknownMarketLead.property!.postcode = '';
-    unknownMarketLead.property!.address_line_1 = 'Unverified address';
-    assert.equal(getLeadMapCoordinates(unknownMarketLead), null);
+    const unsupportedMarketLead = lead(37.3318, -122.0312);
+    unsupportedMarketLead.property!.country = 'United States';
+    unsupportedMarketLead.property!.city = 'Cupertino';
+    unsupportedMarketLead.property!.postcode = '95014';
+    assert.equal(getLeadMapCoordinates(unsupportedMarketLead), null);
 });
 
 test('lead map accepts verified coordinates inside the property market', () => {

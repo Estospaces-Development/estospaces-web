@@ -4,11 +4,13 @@ import {
   getLaunchLocationCodeLabel,
   getLaunchCityFromPin,
   getLaunchStateCodeFromPinPrefix,
+  getSupportedLaunchCountry,
   isLaunchIndiaCountry,
   isLaunchUKCountry,
   isValidLaunchLocationCodeForCountry,
   LAUNCH_COUNTRY_NAME,
 } from "@/lib/launchLocale";
+import { areCoordinatesInsideLaunchMarket } from "@/lib/mapCoordinates";
 
 export const PROPERTY_NUMERIC_LIMITS = {
   moneyMax: 9999999999.99,
@@ -168,10 +170,14 @@ export function validateManagerPropertyField(
         return `PIN code does not match the selected city (${pinCityName})`;
       }
       return null;
-    case "latitude":
-      return validateCoordinate(values.latitude, -90, 90, "Latitude");
-    case "longitude":
-      return validateCoordinate(values.longitude, -180, 180, "Longitude");
+    case "latitude": {
+      const coordinateError = validateCoordinate(values.latitude, -90, 90, "Latitude");
+      return coordinateError || validateCoordinateMarket(values);
+    }
+    case "longitude": {
+      const coordinateError = validateCoordinate(values.longitude, -180, 180, "Longitude");
+      return coordinateError || validateCoordinateMarket(values);
+    }
     case "totalArea":
       return validateScaledPositiveDecimal(
         values.totalArea,
@@ -398,6 +404,21 @@ function validateCoordinate(
   }
 
   return null;
+}
+
+function validateCoordinateMarket(
+  values: ManagerPropertyValidationValues,
+): string | null {
+  const latitude = Number(values.latitude.trim());
+  const longitude = Number(values.longitude.trim());
+  const market = getSupportedLaunchCountry(values.countryCode, values.country, values.postalCode);
+  if (!market || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return areCoordinatesInsideLaunchMarket(latitude, longitude, market)
+    ? null
+    : "Saved map position must be inside the selected country";
 }
 
 function validateAvailableFrom(value: string): string | null {

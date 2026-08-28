@@ -1,3 +1,5 @@
+import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
+
 export interface ManagerMapProperty {
   id?: string;
   title?: string;
@@ -6,6 +8,8 @@ export interface ManagerMapProperty {
   property_type?: string;
   city?: string;
   country?: string;
+  countryCode?: string;
+  country_code?: string;
   postcode?: string;
   postal_code?: string;
   zip_code?: string;
@@ -21,6 +25,8 @@ export interface ManagerMapProperty {
     city?: string;
     postalCode?: string;
     country?: string;
+    countryCode?: string;
+    country_code?: string;
   };
   contact?: {
     phone?: string;
@@ -41,15 +47,6 @@ export interface ManagerPropertyMapLocation {
 
 const DEFAULT_MANAGER_MAP_CENTER: [number, number] = [20.5937, 78.9629];
 
-const toFiniteNumber = (value?: number | string | null) => {
-  if (value === undefined || value === null || value === '') {
-    return null;
-  }
-
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const buildAddress = (property: ManagerMapProperty) => [
   property.location?.addressLine1 || property.address_line_1,
   property.location?.city || property.city,
@@ -60,12 +57,14 @@ const buildAddress = (property: ManagerMapProperty) => [
 export const resolveManagerPropertyMapLocation = (
   property: ManagerMapProperty,
 ): ManagerPropertyMapLocation | null => {
-  const directLat = toFiniteNumber(property.location?.latitude ?? property.latitude);
-  const directLng = toFiniteNumber(property.location?.longitude ?? property.longitude);
-  if (directLat === null || directLng === null) {
+  const verifiedCoordinates = getVerifiedPropertyMapCoordinates(property);
+  if (!verifiedCoordinates) {
     return null;
   }
-  const coordinates: [number, number] = [directLat, directLng];
+  const coordinates: [number, number] = [
+    verifiedCoordinates.latitude,
+    verifiedCoordinates.longitude,
+  ];
 
   return {
     id: String(property.id || property.title || `${coordinates[0]}:${coordinates[1]}`),

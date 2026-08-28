@@ -43,6 +43,11 @@ test('discover map preserves the listing currency and country context', () => {
 
 test('discover map converts persisted string coordinates into real marker coordinates', () => {
     const [mapped] = toDiscoverNearbyMapProperties([property({
+        location: 'Chennai',
+        city: 'Chennai',
+        postcode: '600001',
+        country: 'India',
+        countryCode: 'IN',
         latitude: '13.0827' as unknown as number,
         longitude: '80.2707' as unknown as number,
     })]);
