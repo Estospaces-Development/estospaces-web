@@ -132,6 +132,8 @@ export interface Lead {
     agent_email?: string;
     agent_phone?: string;
     listing_type?: string;
+    country?: string;
+    country_code?: string;
     latitude?: number;
     longitude?: number;
   };
