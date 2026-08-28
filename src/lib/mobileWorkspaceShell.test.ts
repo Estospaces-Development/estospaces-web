@@ -13,6 +13,7 @@ const userHeader = readSource('../components/layout/UserHeader.tsx');
 const horizontalNavigation = readSource('../components/layout/HorizontalNavigation.tsx');
 const globalStyles = readSource('../globals.css');
 const applicationCard = readSource('../components/dashboard/applications/ApplicationCard.tsx');
+const managerApplicationCard = readSource('../components/manager/applications/ApplicationCard.tsx');
 const applicationCardSkeleton = readSource('../components/dashboard/applications/ApplicationCardSkeleton.tsx');
 const communityPostCard = readSource('../components/community/CommunityPostCard.tsx');
 const communityFilterBar = readSource('../components/community/CommunityFilterBar.tsx');
@@ -30,6 +31,7 @@ const managerDashboard = readSource('../pages/manager/dashboard/page.tsx');
 const statCard = readSource('../components/dashboard/StatCard.tsx');
 const adminDashboard = readSource('../pages/admin/dashboard/page.tsx');
 const adminProfile = readSource('../pages/admin/profile/page.tsx');
+const toast = readSource('../components/ui/Toast.tsx');
 
 test('all authenticated roles use a mobile app content shell with safe bottom navigation space', () => {
   assert.match(userLayout, /mobile-app-content/);
@@ -73,6 +75,11 @@ test('mobile-only global safeguards prevent common overflow and input zoom failu
   assert.doesNotMatch(globalStyles, /role-workspace-content h[12]/);
 });
 
+test('notification dismiss controls remain safe touch targets across every role', () => {
+  assert.match(toast, /min-h-11 min-w-11/);
+  assert.match(toast, /aria-label="Close notification"/);
+});
+
 test('admin profile refreshes the authenticated record and only submits fields the admin changed', () => {
   assert.match(adminProfile, /getAuthenticatedProfile\(\)/);
   assert.match(adminProfile, /initialFormDataRef/);
@@ -87,6 +94,13 @@ test('dense record surfaces use dedicated mobile composition instead of squeezed
   assert.match(communityPostCard, /flex min-w-0 flex-col gap-3 sm:flex-row/);
   assert.match(communityPostCard, /min-h-11 min-w-11/);
   assert.match(communityFilterBar, /grid w-full min-w-0 grid-cols-1/);
+});
+
+test('manager application card actions remain contained on narrow phones', () => {
+  assert.match(managerApplicationCard, /flex min-w-0 flex-col items-stretch gap-3/);
+  assert.match(managerApplicationCard, /grid-cols-\[44px_minmax\(0,1fr\)\]/);
+  assert.match(managerApplicationCard, /min-h-11 min-w-11/);
+  assert.match(managerApplicationCard, /min-h-11 min-w-0 items-center justify-center/);
 });
 
 test('support and admin registry controls reflow into full-width mobile actions', () => {

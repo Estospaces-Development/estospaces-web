@@ -34,10 +34,19 @@ test('mobile audit fails on real overflow, undersized touch targets, missing nav
 
 test('mobile audit narrowly permits documented compatibility and media fallbacks', () => {
   assert.match(source, /optionalCompatibilityPaths/);
+  assert.match(source, /'\/api\/v1\/admin\/research\/summary'/);
+  assert.match(source, /'\/api\/v1\/admin\/research\/sessions'/);
   assert.match(source, /admin\/research\/summary/);
   assert.match(source, /admin\/research\/sessions/);
+  assert.match(source, /staleCatalogPathPattern/);
+  assert.match(source, /request\(\)\.method\(\) === 'GET'/);
+  assert.match(source, /properties\\\/catalog/);
   assert.match(source, /resourceType\(\)/);
   assert.match(source, /\['image', 'media'\]/);
+});
+
+test('mobile audit measures map containers without treating clipped Leaflet panes as page overflow', () => {
+  assert.match(source, /element\.closest\('\.leaflet-container'\)/);
 });
 
 test('mobile audit reports frontend and service environments without rewriting local to dev', () => {

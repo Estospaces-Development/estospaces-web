@@ -452,8 +452,8 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         )}
                     </div>
 
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 dark:border-gray-700">
-                        <div>
+                    <div className="mt-4 flex min-w-0 flex-col items-stretch gap-3 border-t border-gray-50 pt-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between dark:border-gray-700">
+                        <div className="min-w-0">
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
                                 {formattedPropertyPrice}
                             </span>
@@ -462,11 +462,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="grid w-full min-w-0 grid-cols-[44px_minmax(0,1fr)] gap-2 min-[380px]:flex min-[380px]:w-auto min-[380px]:items-center">
                             <button
                                 onClick={handleMessageAgent}
                                 disabled={openingConversation}
-                                className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:hover:bg-orange-900/20"
                                 title="Message Agent"
                             >
                                 <MessageSquare size={18} />
@@ -476,7 +476,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                     e.stopPropagation();
                                     onClick();
                                 }}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow"
+                                className="flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 hover:shadow min-[380px]:px-4"
                             >
                                 {primaryAction.label}
                                 <ChevronRight size={16} />
