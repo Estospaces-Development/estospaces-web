@@ -4,14 +4,13 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Settings, HelpCircle, User, BookOpen } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, HelpCircle, User, BookOpen, Search } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
-import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
+import UserAppSearchDialog from './UserAppSearchDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
 import { getLoginPath } from '@/lib/authUtils';
-import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -21,6 +20,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
     const navigate = useNavigate();
     const { user, signOut, getDisplayName } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [appSearchOpen, setAppSearchOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
 
     // Get user display name and email
@@ -47,36 +47,42 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
     const getLinkPath = (path: string) => path;
 
     return (
-        <header className="workspace-chrome sticky top-0 z-30 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
-            <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] w-full max-w-7xl items-center gap-x-3 gap-y-2 px-3 py-2 mx-auto sm:flex sm:h-16 sm:flex-nowrap sm:px-4 sm:py-0 lg:px-6">
-                <div className="flex shrink-0 items-center">
-                    <Link
-                        to={getLinkPath('/user/dashboard')}
-                        className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
-                        aria-label="Estospaces dashboard"
+        <>
+            <header className="workspace-chrome sticky top-0 z-30 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
+                <div className="mx-auto grid min-h-16 w-full max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:gap-4 sm:px-4 lg:px-6">
+                    <div className="flex shrink-0 items-center">
+                        <Link
+                            to={getLinkPath('/user/dashboard')}
+                            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
+                            aria-label="Estospaces dashboard"
+                        >
+                            <img
+                                src="/logo-icon.png"
+                                alt=""
+                                aria-hidden="true"
+                                className="h-8 w-8 shrink-0 object-contain brightness-0 invert sm:h-9 sm:w-9"
+                            />
+                            <span className="text-lg font-bold text-white transition-colors duration-300 hover:text-white/90 sm:text-xl" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
+                                Estospaces
+                            </span>
+                        </Link>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setAppSearchOpen(true)}
+                        className="justify-self-center inline-flex h-11 min-w-11 max-w-full items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600 sm:px-4"
+                        aria-label="Search Estospaces pages and activities"
+                        aria-haspopup="dialog"
                     >
-                        <img
-                            src="/logo-icon.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-8 w-8 shrink-0 object-contain brightness-0 invert sm:h-9 sm:w-9"
-                        />
-                        <span className="text-lg font-bold text-white transition-colors duration-300 hover:text-white/90 sm:text-xl" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
-                            Estospaces
-                        </span>
-                    </Link>
+                        <Search size={18} aria-hidden="true" />
+                        <span className="hidden truncate md:inline">Search Estospaces</span>
+                    </button>
 
-                </div>
+                    <div className="flex shrink-0 items-center gap-1 sm:gap-2" aria-label="Account actions">
+                        <NotificationDropdown appearance="brand" />
 
-                {/* Center - Global Search */}
-                <div className="order-3 col-span-2 min-w-0 sm:order-none sm:col-span-1 sm:mx-4 sm:flex-1 md:mx-8 md:max-w-none">
-                    <SearchBar variant="compact" searchPath={USER_SEARCH_PATH} />
-                </div>
-
-                <div className="flex shrink-0 items-center gap-1 sm:gap-2" aria-label="Account actions">
-                    <NotificationDropdown appearance="brand" />
-
-                    <div className="relative">
+                        <div className="relative">
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                             className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-1.5 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600"
@@ -173,9 +179,11 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                             </>
                         )}
                     </div>
+                    </div>
                 </div>
-            </div>
-        </header>
+            </header>
+            <UserAppSearchDialog isOpen={appSearchOpen} onClose={() => setAppSearchOpen(false)} />
+        </>
     );
 };
 

@@ -136,7 +136,6 @@ const UserBookings = lazyPage(() => import('./pages/user/bookings/page'));
 const UserProfile = lazyPage(() => import('./pages/user/dashboard/profile/page'));
 const UserSaved = lazyPage(() => import('./pages/user/saved/page'));
 const UserVirtualStorage = lazyPage(() => import('./pages/user/virtual-storage/page'));
-const UserSearch = lazyPage(() => import('./pages/user/search/page'));
 const UserPropertyDetail = lazyPage(() => import('./pages/user/properties/[id]/page'));
 
 // Nested User Dashboard pages
@@ -322,7 +321,7 @@ const App: React.FC = () => {
             <Route path="dashboard/settings" element={<UserSettingsDash />} />
             <Route path="dashboard/viewings" element={<UserViewings />} />
             <Route path="dashboard/virtual-storage" element={<UserVirtualStorage />} />
-            <Route path="dashboard/search" element={<UserSearch />} />
+            <Route path="dashboard/search" element={<LegacyUserSearchRedirect />} />
             <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />
             <Route path="dashboard/properties/:id" element={<UserPropertyDetail />} />
             {/* Backward-compatible top-level routes redirect to nested dashboard counterparts */}

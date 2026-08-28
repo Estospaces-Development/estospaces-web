@@ -49,7 +49,7 @@ const HorizontalNavigation = ({
       icon: Search,
       label: "Find",
       path: "/user/dashboard/discover",
-      activePaths: ["/user/dashboard/discover", "/user/search"],
+      activePaths: ["/user/dashboard/discover", "/user/dashboard/search", "/user/search"],
     },
     {
       icon: MessageSquare,

@@ -31,6 +31,7 @@ import { filterAndSortSavedProperties, type SavedPropertySortOption } from '@/li
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { paginateItems } from '@/lib/pagination';
+import { shouldShowScopedListSearch } from '@/lib/userAppSearch';
 import {
     buildSavedSearchPageParams,
     getSavedSearchTargetPage,
@@ -251,10 +252,12 @@ function PropertiesTab({
     const statusMessage = loading
         ? 'Loading saved properties.'
         : `Showing ${propertyPagination.items.length} of ${visibleProperties.length} matching saved properties sorted by ${sortLabel}.`;
+    const showPropertyFilter = shouldShowScopedListSearch(properties.length, filterText);
 
     return (
         <>
-            <div className="mb-5 grid gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_220px]">
+            <div className={`mb-5 grid gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${showPropertyFilter ? 'sm:grid-cols-[minmax(0,1fr)_220px]' : 'sm:grid-cols-[220px] sm:justify-end'}`}>
+                {showPropertyFilter && (
                 <label className="relative block">
                     <span className="sr-only">Filter saved properties</span>
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -267,6 +270,7 @@ function PropertiesTab({
                         className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:bg-white focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:bg-zinc-900 dark:focus-visible:ring-offset-zinc-900"
                     />
                 </label>
+                )}
                 <label className="relative block">
                     <span className="sr-only">Sort saved properties</span>
                     <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

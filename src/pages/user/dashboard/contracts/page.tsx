@@ -49,6 +49,7 @@ import {
 } from "@/lib/contractsWorkspaceLoad";
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import PaginationBar from "@/components/ui/PaginationBar";
+import { shouldShowScopedListSearch } from "@/lib/userAppSearch";
 import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
@@ -481,6 +482,7 @@ export default function ContractsPage() {
               Refreshing workspace
             </div>
           )}
+          {shouldShowScopedListSearch(portfolioItems.length + contracts.length, searchQuery) && (
           <div className="relative mt-6 max-w-md">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -495,6 +497,7 @@ export default function ContractsPage() {
               className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
             />
           </div>
+          )}
         </div>
 
         <UserActivitySubnav />

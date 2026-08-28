@@ -733,47 +733,14 @@ const DashboardClient = () => {
           ? 'sold'
           : selectedPropertyType;
 
-    setDashboardSearchFilters(nextFilters);
-    if (nextFilters.listingType === 'rent') {
-      setSelectedPropertyType('rent');
-    } else if (nextFilters.listingType === 'sale') {
-      setSelectedPropertyType('buy');
-    }
-    setCurrentFilteredPage(1);
-    setFilteredSearchCompleted(false);
-    setError(null);
-    setLocationMessage(null);
-    setShowFilteredResults(
-      hasActiveDashboardSearch(nextFilters)
-      || selectedFilters.length > 0
-      || nextDashboardType === 'sold',
-    );
-    setSearchParams((previous) => {
-      const next = new URLSearchParams(previous);
-      dashboardSearchParamKeys.forEach((key) => next.delete(key));
+    const params = buildDiscoverParams(nextDashboardType, selectedFilters, nextFilters);
+    const queryString = params.toString();
+    navigate(`/user/dashboard/discover${queryString ? `?${queryString}` : ''}`);
+  }, [navigate, selectedFilters, selectedPropertyType]);
 
-      buildDiscoverParams(nextDashboardType, selectedFilters, nextFilters).forEach((value, key) => {
-        next.set(key, value);
-      });
-
-      return next;
-    }, { replace: true });
-  }, [selectedFilters, selectedPropertyType, setSearchParams]);
-
-  const toggleQuickFilter = (filterId: string) => {
-    setSelectedFilters((current) => {
-      const nextFilters = current.includes(filterId)
-        ? current.filter((item) => item !== filterId)
-        : [filterId];
-
-      setCurrentFilteredPage(1);
-      setShowFilteredResults(
-        hasActiveDashboardSearch(dashboardSearchFilters)
-        || nextFilters.length > 0
-        || selectedPropertyType === 'sold',
-      );
-      return nextFilters;
-    });
+  const openQuickFilter = (filterId: string) => {
+    const params = buildDiscoverParams(selectedPropertyType, [filterId], dashboardSearchFilters);
+    navigate(`/user/dashboard/discover?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -989,7 +956,7 @@ const DashboardClient = () => {
                           return (
                             <button
                               key={filter.id}
-                              onClick={() => toggleQuickFilter(filter.id)}
+                              onClick={() => openQuickFilter(filter.id)}
                               className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                                 selected
                                   ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'

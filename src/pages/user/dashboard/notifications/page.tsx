@@ -15,8 +15,6 @@ import {
     Trash2,
     CheckCheck,
     Clock,
-    Search,
-    X,
     ArrowLeft,
     Settings,
     Zap
@@ -48,13 +46,10 @@ export default function NotificationsPage() {
 
     const [filter, setFilter] = useState<FilterType>('all');
     const [category, setCategory] = useState<CategoryType>('all');
-    const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
     const [visibleLimit, setVisibleLimit] = useState(NOTIFICATION_PAGE_SIZE);
 
     const filteredNotifications = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-
         return notifications.filter((notification) => {
             if (filter === 'unread' && notification.is_read) return false;
             if (filter === 'read' && !notification.is_read) return false;
@@ -94,17 +89,9 @@ export default function NotificationsPage() {
                 if (!typeCategories[category].includes(notification.type)) return false;
             }
 
-            if (query) {
-                const displayCopy = getLaunchSafeNotificationCopy(notification);
-                return (
-                    displayCopy.title.toLowerCase().includes(query) ||
-                    displayCopy.message.toLowerCase().includes(query)
-                );
-            }
-
             return true;
         });
-    }, [notifications, filter, category, searchQuery]);
+    }, [notifications, filter, category]);
     const visibleNotifications = useMemo(
         () => filteredNotifications.slice(0, visibleLimit),
         [filteredNotifications, visibleLimit],
@@ -339,36 +326,8 @@ export default function NotificationsPage() {
             </div>
 
             <div className="max-w-4xl mx-auto px-4 lg:px-6 mt-8">
-                {/* Filters & Search */}
-                <div className="flex flex-col md:flex-row gap-4 mb-8">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            type="text"
-                            aria-label="Search user notifications"
-                            placeholder="Search notifications..."
-                            className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all text-gray-900 dark:text-white"
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setVisibleLimit(NOTIFICATION_PAGE_SIZE);
-                            }}
-                        />
-                        {searchQuery && (
-                            <button
-                                type="button"
-                                aria-label="Clear notification search"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    setVisibleLimit(NOTIFICATION_PAGE_SIZE);
-                                }}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                    </div>
-
+                {/* Focused notification filters */}
+                <div className="mb-8 grid gap-4 sm:grid-cols-2">
                     <select
                         aria-label="Notification category"
                         className="px-4 py-2.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl outline-none font-medium text-sm text-gray-900 dark:text-white"
@@ -531,7 +490,6 @@ export default function NotificationsPage() {
                             onClick={() => {
                                 setFilter('all');
                                 setCategory('all');
-                                setSearchQuery('');
                                 setVisibleLimit(NOTIFICATION_PAGE_SIZE);
                             }}
                             className="mt-8 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl active:scale-95 transition-transform"

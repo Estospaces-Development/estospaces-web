@@ -19,15 +19,12 @@ test('user header centers its navigation content with balanced outer spacing', (
   assert.match(rowClasses, /\bmax-w-7xl\b/);
 });
 
-test('user header search expands between the brand and account actions', () => {
-  const searchClasses = headerSource.match(
-    /\{\/\* Center - Global Search \*\/\}\s*<div className="([^"]+)"/,
-  )?.[1];
-
-  assert.ok(searchClasses, 'expected to find the global search wrapper');
-  assert.match(searchClasses, /\bsm:flex-1\b/);
-  assert.match(searchClasses, /\bmd:max-w-none\b/);
-  assert.doesNotMatch(searchClasses, /\bmd:max-w-xl\b/);
+test('user header keeps one centered app-search launcher between brand and account actions', () => {
+  assert.match(headerSource, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+  assert.match(headerSource, /aria-label="Search Estospaces pages and activities"/);
+  assert.match(headerSource, /aria-haspopup="dialog"/);
+  assert.match(headerSource, /justify-self-center/);
+  assert.doesNotMatch(headerSource, /Center - Global Search/);
 });
 
 test('user header renders the official high-contrast brand mark at every viewport size', () => {

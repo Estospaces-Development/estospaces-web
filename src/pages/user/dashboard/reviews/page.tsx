@@ -5,7 +5,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, MessageSquare, ArrowLeft, Calendar, Trash2, Plus, X, Search } from 'lucide-react';
+import { Star, MessageSquare, ArrowLeft, Calendar, Trash2, Plus, X } from 'lucide-react';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -17,7 +17,6 @@ export default function ReviewsPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [reviews, setReviews] = useState<Review[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
     const [sortMode, setSortMode] = useState<ReviewSortMode>('newest');
     const [isLoading, setIsLoading] = useState(true);
@@ -45,16 +44,11 @@ export default function ReviewsPage() {
     }, [fetchReviews]);
 
     const filteredReviews = React.useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
         const matched = reviews.filter((review) => {
             if (statusFilter !== 'all' && review.status !== statusFilter) {
                 return false;
             }
-            if (!query) {
-                return true;
-            }
-            return review.comment.toLowerCase().includes(query)
-                || review.property_id.toLowerCase().includes(query);
+            return true;
         });
 
         return [...matched].sort((left, right) => {
@@ -69,7 +63,7 @@ export default function ReviewsPage() {
             }
             return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
         });
-    }, [reviews, searchQuery, sortMode, statusFilter]);
+    }, [reviews, sortMode, statusFilter]);
 
     const handleDelete = async (id: string) => {
         setDeletingId(id);
@@ -186,17 +180,6 @@ export default function ReviewsPage() {
                         </div>
                         
                         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                            <div className="relative w-full sm:w-64">
-                                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text"
-                                    aria-label="Search reviews"
-                                    placeholder="Search reviews..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
-                                />
-                            </div>
                             <label className="sr-only" htmlFor="user-review-status-filter">Filter reviews by status</label>
                             <select
                                 id="user-review-status-filter"
@@ -332,31 +315,20 @@ export default function ReviewsPage() {
                 ) : (
                     <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-xl p-16 text-center">
                         <div className="w-24 h-24 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-8">
-                            {searchQuery ? <Search size={48} className="text-gray-200" /> : <Star size={48} className="text-gray-200" />}
+                            <Star size={48} className="text-gray-200" />
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">
-                            {searchQuery ? "No matching reviews" : "No reviews yet"}
+                            No reviews yet
                         </h3>
                         <p className="text-gray-500 font-medium max-w-sm mx-auto mb-10">
-                            {searchQuery 
-                                ? `We couldn't find any reviews matching "${searchQuery}".`
-                                : "You haven't reviewed any properties yet. Your feedback helps others find their dream homes."}
+                            You haven't reviewed any properties yet. Your feedback helps others find their dream homes.
                         </p>
-                        {searchQuery ? (
-                             <button
-                                onClick={() => setSearchQuery('')}
-                                className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all"
-                            >
-                                Clear Search
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setShowWriteForm(true)}
-                                className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all shadow-lg shadow-orange-500/25"
-                            >
-                                Write a Review
-                            </button>
-                        )}
+                        <button
+                            onClick={() => setShowWriteForm(true)}
+                            className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all shadow-lg shadow-orange-500/25"
+                        >
+                            Write a Review
+                        </button>
                     </div>
                 )}
             </div>

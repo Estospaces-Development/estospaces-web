@@ -15,9 +15,10 @@ const globals = readSource('src/globals.css');
 const searchPage = readSource('src/pages/user/search/page.tsx');
 const documentShell = readSource('index.html');
 
-test('user workspace uses a two-row mobile header and thumb-reachable navigation', () => {
-    assert.match(userHeader, /grid min-h-16 grid-cols-\[minmax\(0,1fr\)_auto\]/);
-    assert.match(userHeader, /order-3 col-span-2 min-w-0/);
+test('user workspace uses a compact mobile header and thumb-reachable navigation', () => {
+    assert.match(userHeader, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+    assert.match(userHeader, /aria-label="Search Estospaces pages and activities"/);
+    assert.match(userHeader, /aria-haspopup="dialog"/);
     assert.match(userNavigation, /fixed inset-x-0 bottom-0/);
     assert.match(userNavigation, /bottom-0 z-20/);
     assert.doesNotMatch(userNavigation, /bottom-0 z-40/);

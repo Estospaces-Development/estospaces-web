@@ -8,7 +8,9 @@ import {
     Grid,
     Map as MapIcon,
     ArrowLeft,
-    AlertCircle
+    AlertCircle,
+    ChevronDown,
+    SlidersHorizontal,
 } from 'lucide-react';
 
 import BrandLoader from '@/components/ui/BrandLoader';
@@ -35,7 +37,6 @@ import {
 import {
     formatLaunchCurrencyForCountry,
     getLaunchLocationCodeLabel,
-    getLaunchLocationCodePlaceholder,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     isValidLaunchLocationCode,
@@ -322,6 +323,17 @@ function DiscoverContent() {
     const [sortBy, setSortBy] = useState(() =>
         normalizePropertySearchSort(initialSearchParams.get('sort') || initialSearchParams.get('sortBy') || mapDashboardFilterToSearchSort(initialSearchParams.get('filter') || '')),
     );
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => Boolean(
+        readSearchUrlFilters(initialSearchParams).location
+        || readSearchUrlFilters(initialSearchParams).propertyType
+        || readSearchUrlFilters(initialSearchParams).minPrice
+        || readSearchUrlFilters(initialSearchParams).maxPrice
+        || readSearchUrlFilters(initialSearchParams).bedrooms
+        || readSearchUrlFilters(initialSearchParams).baths
+        || initialSearchParams.get('sort')
+        || initialSearchParams.get('sortBy')
+        || initialSearchParams.get('filter'),
+    ));
     const [filterInputMessage, setFilterInputMessage] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>(() => readDiscoverViewMode(initialSearchParams));
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(initialSearchParams.get('page')));
@@ -350,10 +362,18 @@ function DiscoverContent() {
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
     const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationQuery);
-    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationQuery);
     const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode: geoMarket,
     });
+    const activeAdvancedFilterCount = [
+        locationQuery,
+        propertyType !== 'all' ? propertyType : '',
+        priceRange.min,
+        priceRange.max,
+        beds,
+        baths,
+        sortBy !== 'relevance' ? sortBy : '',
+    ].filter(Boolean).length;
     const discoverPropertyTypeOptions = useMemo(() => {
         const propertyTypes =
             globalFilterOptions?.property_types?.length
@@ -692,23 +712,20 @@ function DiscoverContent() {
                     </div>
                 </header>
 
-                {/* Search and Filters */}
-                <section aria-labelledby="discover-filters-heading" className="mb-6 rounded-[1.75rem] border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-                    <div className="mb-5">
-                        <h2 id="discover-filters-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-gray-950 dark:text-white">
-                            Narrow your search
-                        </h2>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Use only the details that matter to you.</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
-                        <div className="lg:col-span-2">
-                            <label className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">Property or area</label>
+                {/* Canonical property search */}
+                <section aria-label="Property search" className="mb-6 rounded-[1.75rem] border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end">
+                        <div className="min-w-0 flex-1">
+                            <label htmlFor="discover-property-search" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                Find a home
+                            </label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
+                                    id="discover-property-search"
                                     aria-label="Search properties"
                                     type="text"
-                                    placeholder={`${locationCodeLabel}, street, or property name (${locationCodePlaceholder})`}
+                                    placeholder={`City, ${locationCodeLabel.toLowerCase()}, street, or property name`}
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(normalizeSearchQueryInput(e.target.value));
@@ -719,7 +736,7 @@ function DiscoverContent() {
                                         if (locationSuggestions.length > 0) setShowSuggestions(true);
                                     }}
                                     onBlur={() => setShowSuggestions(false)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
+                                    className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-gray-900 outline-none transition focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-orange-500 dark:focus:bg-gray-900 dark:focus:ring-orange-500/10"
                                 />
                                 {showSuggestions && locationSuggestions.length > 0 && (
                                     <div
@@ -756,6 +773,32 @@ function DiscoverContent() {
                             </div>
                         </div>
 
+                        <button
+                            type="button"
+                            aria-controls="discover-advanced-filters"
+                            aria-expanded={showAdvancedFilters}
+                            onClick={() => setShowAdvancedFilters((visible) => !visible)}
+                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-orange-700 dark:hover:bg-orange-950/30 lg:w-auto"
+                        >
+                            <SlidersHorizontal size={18} aria-hidden="true" />
+                            <span>Filters{activeAdvancedFilterCount > 0 ? ` (${activeAdvancedFilterCount})` : ''}</span>
+                            <ChevronDown
+                                size={17}
+                                aria-hidden="true"
+                                className={`transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
+                            />
+                        </button>
+                    </div>
+
+                    {showAdvancedFilters && (
+                    <div id="discover-advanced-filters" aria-labelledby="discover-filters-heading" className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800">
+                        <div className="mb-5">
+                            <h2 id="discover-filters-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-gray-950 dark:text-white">
+                                Narrow your search
+                            </h2>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add only the details that matter to your decision.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <label htmlFor="discover-location" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">City or location code</label>
                             <div className="relative">
@@ -890,13 +933,16 @@ function DiscoverContent() {
 
                         <div className="flex items-end lg:col-span-2">
                             <button
+                                type="button"
                                 onClick={handleClearFilters}
-                                className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 text-sm font-medium h-12 px-6"
+                                className="h-12 rounded-xl px-4 text-sm font-semibold text-orange-700 transition hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-orange-300 dark:hover:bg-orange-950/30"
                             >
-                                Clear All Filters
+                                Clear filters
                             </button>
                         </div>
+                        </div>
                     </div>
+                    )}
                 </section>
 
                 {filterValidationMessage && (

@@ -22,6 +22,7 @@ import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionP
 import ViewingResponseCountdown from '@/components/viewings/ViewingResponseCountdown';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import PaginationBar from '@/components/ui/PaginationBar';
+import { shouldShowScopedListSearch } from '@/lib/userAppSearch';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import { findLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
@@ -424,6 +425,7 @@ export default function ViewingsPage() {
                 {/* Filters */}
                 <div className="mb-8 rounded-[1.75rem] border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        {shouldShowScopedListSearch(viewings.length, searchQuery) && (
                         <div className="relative w-full max-w-md">
                             <Search
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -438,6 +440,7 @@ export default function ViewingsPage() {
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-700 outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900"
                             />
                         </div>
+                        )}
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                             Showing {filteredViewings.length} of {viewings.length} appointments
                         </p>

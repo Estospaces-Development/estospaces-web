@@ -10,7 +10,7 @@ const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/s
 const userDashboardSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
 const discoverSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 
-test('global and page search inputs keep independent draft state', () => {
+test('compact and page search variants keep independent draft state', () => {
     const routeFilters = { keyword: 'chennai' };
 
     assert.equal(shouldHydrateSearchBarFromUrl('compact'), false);
@@ -18,7 +18,6 @@ test('global and page search inputs keep independent draft state', () => {
     assert.equal(shouldHydrateSearchBarFromUrl('hero', routeFilters), false);
     assert.equal(shouldClearSearchBarAfterNavigation('compact'), true);
     assert.equal(shouldClearSearchBarAfterNavigation('full'), false);
-    assert.match(source, /aria-label="Search properties from the global header"/);
     assert.match(source, /autoComplete="off"/);
     assert.match(source, /shouldClearSearchBarAfterNavigation\(variant\)[\s\S]*setFilters\(defaultFilters\)/);
 });
@@ -120,14 +119,11 @@ test('dashboard search rejects invalid keyword characters before searching or na
     assert.match(source, /onSearch\) onSearch\(submittedFilters\);/);
 });
 
-test('user dashboard search keeps submitted filters in dashboard URL params', () => {
+test('user dashboard search hands submitted filters to the canonical Discover page', () => {
     assert.match(userDashboardSource, /const dashboardSearchParamKeys = \[[\s\S]*'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
     assert.match(userDashboardSource, /const nextDashboardType = nextFilters\.listingType === 'rent'[\s\S]*selectedPropertyType;/);
-    assert.match(userDashboardSource, /setSearchParams\(\(previous\) => \{/);
-    assert.match(userDashboardSource, /dashboardSearchParamKeys\.forEach\(\(key\) => next\.delete\(key\)\);/);
-    assert.match(userDashboardSource, /buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\)\.forEach\(\(value, key\) => \{/);
-    assert.match(userDashboardSource, /next\.set\(key, value\);/);
-    assert.match(userDashboardSource, /\}, \{ replace: true \}\);/);
+    assert.match(userDashboardSource, /const params = buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\);/);
+    assert.match(userDashboardSource, /navigate\(`\/user\/dashboard\/discover\$\{queryString \? `\?\$\{queryString\}` : ''\}`\);/);
 });
 
 test('user dashboard clear search removes stale dashboard URL filters', () => {
