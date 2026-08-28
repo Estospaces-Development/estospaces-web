@@ -705,9 +705,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [deadlineNow, setDeadlineNow] = useState(() => Date.now());
-    const [query, setQuery] = useState(() => (
-        searchParams.get('search') || searchParams.get('q') || ''
-    ));
+    const searchParamQuery = searchParams.get('search') || searchParams.get('q') || '';
+    const [query, setQuery] = useState(searchParamQuery);
     const [filter, setFilter] = useState<FilterMode>('all');
     const [currentCasePage, setCurrentCasePage] = useState(1);
     const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -724,6 +723,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [documentNotes, setDocumentNotes] = useState<Record<string, string>>({});
     const [documentRequestReasons, setDocumentRequestReasons] = useState<Record<string, string>>({});
     const [documentRequestDeadlines, setDocumentRequestDeadlines] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        setQuery(searchParamQuery);
+    }, [searchParamQuery]);
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
     const documentUploadsInFlightRef = useRef(new Set<string>());
     const [documentFocusId, setDocumentFocusId] = useState<string | null>(null);

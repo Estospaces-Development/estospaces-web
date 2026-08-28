@@ -42,7 +42,13 @@ import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/user
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
-import { hasValidMapCoordinates, loadCompleteMapCandidates } from '@/lib/nearbyMap';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { filterPropertiesForMarket } from '@/lib/propertyMarket';
+import {
+  getDashboardMapHeightClass,
+  hasValidMapCoordinates,
+  loadCompleteMapCandidates,
+} from '@/lib/nearbyMap';
 import { syncDashboardMapLocation } from '@/lib/dashboardMapLocation';
 import {
   clearPropertySearchReturnState,
@@ -270,6 +276,7 @@ const DashboardClient = () => {
   }
   const initialDashboardSearchParams = initialDashboardSearchParamsRef.current;
   const { user } = useAuth();
+  const geoMarket = useUserGeoMarket(user);
   const toast = useToast();
   const {
     activeLocation,
@@ -432,13 +439,14 @@ const DashboardClient = () => {
 
         const candidates = await loadCompleteMapCandidates((page, limit) => (
           searchService.search('', {
+            countryCode: geoMarket,
             page,
             limit,
           })
         ));
 
         if (active) {
-          setNearbyProperties(candidates);
+          setNearbyProperties(filterPropertiesForMarket(candidates, geoMarket));
         }
       } catch {
         if (active) {
@@ -456,7 +464,7 @@ const DashboardClient = () => {
     return () => {
       active = false;
     };
-  }, [activeLocation, locationLoading]);
+  }, [activeLocation, geoMarket, locationLoading]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -654,6 +662,7 @@ const DashboardClient = () => {
       const result = await searchService.search(
         dashboardSearchFilters.keyword.trim(),
         {
+          countryCode: geoMarket,
           location: dashboardSearchFilters.location.trim() || undefined,
           propertyType: dashboardSearchFilters.propertyType || undefined,
           minPrice: dashboardSearchFilters.minPrice ?? undefined,
@@ -680,7 +689,10 @@ const DashboardClient = () => {
         return;
       }
 
-      const nextProperties = applyDashboardFilterOrdering(result.data || [], selectedFilters);
+      const nextProperties = applyDashboardFilterOrdering(
+        filterPropertiesForMarket(result.data || [], geoMarket),
+        selectedFilters,
+      );
       const total = result.pagination?.total || nextProperties.length;
       const totalPages = total > 0 ? Math.ceil(total / FILTERED_RESULTS_PAGE_SIZE) : 0;
 
@@ -702,7 +714,7 @@ const DashboardClient = () => {
       setSearchLoading(false);
       setFilteredSearchCompleted(true);
     }
-  }, [currentFilteredPage, dashboardSearchFilters, selectedFilters, selectedPropertyType, shouldFetchFilteredResults]);
+  }, [currentFilteredPage, dashboardSearchFilters, geoMarket, selectedFilters, selectedPropertyType, shouldFetchFilteredResults]);
 
   useEffect(() => {
     if (!shouldFetchFilteredResults) {
@@ -1278,7 +1290,7 @@ const DashboardClient = () => {
             </div>
           ) : (
             <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-              <div className={hasNearbyMapPreview ? 'h-[310px] sm:h-[350px] lg:h-[400px]' : 'h-[250px] sm:h-[280px] lg:h-[320px]'}>
+              <div className={getDashboardMapHeightClass(hasNearbyMapPreview)}>
                 <NearbyPropertiesMap
                   properties={mapProperties}
                   userLocation={mapLocation}

@@ -37,7 +37,8 @@ const baseUrl = process.env.E2E_DEV_BASE_URL
   || readFrontendUrlFromEnvFile('.env.gcp-dev')
   || DEV_WEB_BASE_URL;
 const coreUrl = process.env.E2E_DEV_CORE_URL || 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app';
-const docPath = path.resolve(__dirname, '..', '..', 'docs', 'test-plans', '11-05-2026_test.md');
+const docPath = process.env.LIVE_1000_PLAN_PATH
+  || path.resolve(__dirname, '..', '..', 'docs', 'test-plans', '11-05-2026_test.md');
 const outputRoot = path.resolve(__dirname, '..', 'output', 'playwright', 'live-1000');
 const runId = new Date().toISOString().replace(/[:.]/g, '-');
 const outputDir = path.join(outputRoot, `dev-${runId}`);
@@ -222,6 +223,13 @@ async function runRoute(browser, sessions, ids, scenario, route) {
     storageState: storageStateFor(baseUrl, session),
     viewport: scenario.id.localeCompare('TC-0500') < 0 ? { width: 1440, height: 960 } : { width: 390, height: 844 },
   });
+  if (session?.token) {
+    await context.addInitScript(({ token, appOrigin }) => {
+      if (globalThis.location.origin === appOrigin) {
+        globalThis.sessionStorage.setItem('esto_session_token', token);
+      }
+    }, { token: session.token, appOrigin: new URL(baseUrl).origin });
+  }
   const page = await context.newPage();
   const pageErrors = [];
   const consoleErrors = [];

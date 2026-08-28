@@ -1,5 +1,28 @@
 export type PaginationToken = number | 'ellipsis';
 
+export interface PaginatedItems<T> {
+    currentPage: number;
+    totalPages: number;
+    items: T[];
+}
+
+export const paginateItems = <T>(
+    items: T[],
+    requestedPage: number,
+    pageSize: number,
+): PaginatedItems<T> => {
+    const safePageSize = Math.max(1, Math.floor(pageSize) || 1);
+    const totalPages = Math.max(1, Math.ceil(items.length / safePageSize));
+    const currentPage = Math.min(Math.max(Math.floor(requestedPage) || 1, 1), totalPages);
+    const start = (currentPage - 1) * safePageSize;
+
+    return {
+        currentPage,
+        totalPages,
+        items: items.slice(start, start + safePageSize),
+    };
+};
+
 export const getVisiblePageTokens = (currentPage: number, totalPages: number): PaginationToken[] => {
     if (totalPages <= 7) {
         return Array.from({ length: totalPages }, (_, index) => index + 1);

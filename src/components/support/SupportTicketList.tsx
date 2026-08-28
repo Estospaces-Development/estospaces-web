@@ -58,16 +58,16 @@ export function SupportTicketList({
                         type="button"
                         onClick={() => onSelect(ticket.id)}
                         aria-current={active ? 'page' : undefined}
-                        className={`w-full rounded-[1.75rem] border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 active:scale-[0.995] dark:focus-visible:ring-offset-gray-950 ${
+                        className={`w-full min-w-0 overflow-hidden rounded-[1.75rem] border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 active:scale-[0.995] dark:focus-visible:ring-offset-gray-950 ${
                             active
                                 ? 'border-orange-300 bg-orange-50 shadow-lg shadow-orange-500/10 dark:border-orange-500/40 dark:bg-orange-500/10'
                                 : 'border-gray-100 bg-white hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900/75 dark:hover:border-orange-500/20'
                         }`}
                     >
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
+                        <div className="flex min-w-0 items-start justify-between gap-3 overflow-hidden">
+                            <div className="min-w-0 flex-1 overflow-hidden">
                                 <div className="mb-2 flex items-center gap-2">
-                                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
                                         <MessageSquareText className="h-5 w-5" />
                                     </span>
                                     <div className="min-w-0">
@@ -88,7 +88,7 @@ export function SupportTicketList({
                                 )}
                             </div>
                             {ticket.unread_count > 0 && (
-                                <span className="inline-flex min-w-8 justify-center rounded-full bg-orange-700 px-2 py-1 text-xs font-bold text-white">
+                                <span className="inline-flex min-w-8 shrink-0 justify-center rounded-full bg-orange-700 px-2 py-1 text-xs font-bold text-white">
                                     {ticket.unread_count}
                                 </span>
                             )}

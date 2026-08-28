@@ -52,6 +52,7 @@ import {
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
 const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
@@ -124,12 +125,18 @@ const PropertySearch = () => {
         [filterOptions?.property_types],
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
-    const fallbackGeoMarket = useUserGeoMarket(user, {
-        countryCode: market || undefined,
+    const userGeoMarket = useUserGeoMarket(user, {
         locationCode: location || user?.postcode,
     });
+    const fallbackGeoMarket = useUserGeoMarket(undefined, {
+        countryCode: market || undefined,
+        locationCode: location,
+    });
+    // A signed-in account owns its market. URL parameters may be shared or
+    // stale, but must never switch an Indian account into the UK catalogue.
+    const activeMarket = isAuthenticated ? userGeoMarket : market || fallbackGeoMarket;
     const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
-    const geoMarket = market || inferredGeoMarket || fallbackGeoMarket;
+    const geoMarket = isAuthenticated ? userGeoMarket : market || inferredGeoMarket || fallbackGeoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
@@ -169,7 +176,7 @@ const PropertySearch = () => {
 
     const buildBroaderSearchAttempts = useCallback(() => {
         return buildBroaderPropertySearchAttempts({
-            market,
+            market: activeMarket,
             location,
             propertyType,
             listingType,
@@ -179,7 +186,7 @@ const PropertySearch = () => {
             baths,
             sortBy,
         });
-    }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
+    }, [activeMarket, baths, bedrooms, listingType, location, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -361,7 +368,7 @@ const PropertySearch = () => {
                 requestQuery,
                 {
                     location: location || undefined,
-                    country: market || undefined,
+                    country: activeMarket,
                     propertyType: propertyType || undefined,
                     minPrice: minPrice ? parseInt(minPrice) : undefined,
                     maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
@@ -387,8 +394,9 @@ const PropertySearch = () => {
                             return;
                         }
                         if (fallback.success && (fallback.data || []).length > 0) {
-                            setProperties(fallback.data || []);
-                            setTotal(fallback.pagination?.total || fallback.data?.length || 0);
+                            const marketProperties = filterPropertiesForMarket(fallback.data || [], activeMarket);
+                            setProperties(marketProperties);
+                            setTotal(marketProperties.length);
                             setFallbackNotice(attempt.notice);
                             setPage(1);
                             return;
@@ -396,8 +404,9 @@ const PropertySearch = () => {
                     }
                 }
 
-                setProperties(result.data || []);
-                setTotal(result.pagination?.total || 0);
+                const marketProperties = filterPropertiesForMarket(result.data || [], activeMarket);
+                setProperties(marketProperties);
+                setTotal(result.pagination?.total ?? marketProperties.length);
             } else {
                 setError(result.error || 'Failed to fetch properties. Please try again.');
                 setProperties([]);
@@ -419,7 +428,7 @@ const PropertySearch = () => {
                 setHasLoadedSearch(true);
             }
         }
-    }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
+    }, [activeMarket, query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Deduplicate and memoize displayed properties to prevent duplicate cards
     const displayedProperties = useMemo(() => {

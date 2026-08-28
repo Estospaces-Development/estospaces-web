@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
+import PaginationBar from "@/components/ui/PaginationBar";
 import { useAuth, type User } from "@/contexts/AuthContext";
 import { getLoginPath, getRedirectPath } from "@/lib/authUtils";
 import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/fastTrackWorkspace";
 import { sortFastTrackWorkspaceCases } from "@/lib/fastTrackWorkspaceLoad";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
+import { paginateItems } from "@/lib/pagination";
 import { getFastTrackCases, type FastTrackCase } from "@/services/fastTrackService";
 import { uploadDocument, type UserDocument } from "@/services/leadsService";
 import {
@@ -66,12 +68,57 @@ const CATEGORY_UPLOAD_TYPES: Record<string, string> = {
   supporting: "supporting_document",
 };
 
+const USER_VIRTUAL_STORAGE_PAGE_SIZE = 8;
+
 const formatLabel = (value: string) =>
   value
-    .split(/[_-]+/)
+    .split(/[\s_-]+/)
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
+
+export const formatVirtualStorageCategoryName = (category: VirtualStorageCategory) =>
+  formatLabel(category.name || category.slug);
+
+interface VirtualStorageFilePickerProps {
+  selectedFile: File | null;
+  onFileChange: (file: File | null) => void;
+  inputRef?: React.Ref<HTMLInputElement>;
+}
+
+export function VirtualStorageFilePicker({
+  selectedFile,
+  onFileChange,
+  inputRef,
+}: VirtualStorageFilePickerProps) {
+  return (
+    <label htmlFor="virtual-storage-file" className="min-w-0 space-y-2 text-sm">
+      <span className="font-medium text-gray-700 dark:text-gray-300">File</span>
+      <span className="relative flex min-h-12 min-w-0 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-gray-900 transition-colors hover:border-orange-300 has-[:focus-visible]:border-orange-400 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-orange-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:border-orange-500/60">
+        <input
+          id="virtual-storage-file"
+          ref={inputRef}
+          type="file"
+          accept="application/pdf,image/*,.pdf"
+          onChange={(event) => onFileChange(event.target.files?.[0] || null)}
+          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+        />
+        <span className="shrink-0 rounded-xl bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-700 dark:bg-orange-500/10 dark:text-orange-200">
+          Choose file
+        </span>
+        <span className="min-w-0 break-all text-sm text-gray-600 dark:text-gray-300">
+          {selectedFile?.name || "No file chosen"}
+        </span>
+      </span>
+      {selectedFile ? (
+        <span className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <FileCheck2 className="h-3.5 w-3.5" />
+          Ready to upload
+        </span>
+      ) : null}
+    </label>
+  );
+}
 
 export interface VirtualStorageDocumentGroup {
   key: string;
@@ -131,6 +178,12 @@ export const groupVirtualStorageDocuments = (
 
   return Array.from(groups.values());
 };
+
+export const getVirtualStorageDocumentPage = (
+  groups: VirtualStorageDocumentGroup[],
+  page: number,
+  pageSize = USER_VIRTUAL_STORAGE_PAGE_SIZE,
+) => paginateItems(groups, page, pageSize);
 
 const categoryUploadType = (category: VirtualStorageCategory | undefined) =>
   CATEGORY_UPLOAD_TYPES[category?.slug || ""] || "supporting_document";
@@ -196,6 +249,7 @@ export function UserVirtualStoragePageContent({
   const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
   const [categoryName, setCategoryName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentPage, setDocumentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -213,6 +267,10 @@ export function UserVirtualStoragePageContent({
   );
   const linkedDocuments = documents.filter((document) => (document.linked_entities || []).length > 0);
   const storedDocumentGroups = useMemo(() => groupVirtualStorageDocuments(documents), [documents]);
+  const storedDocumentPagination = useMemo(
+    () => getVirtualStorageDocumentPage(storedDocumentGroups, documentPage),
+    [documentPage, storedDocumentGroups],
+  );
   const activeDocumentCount = storedDocumentGroups.length;
   const sortedFastTrackCases = useMemo(
     () => sortFastTrackWorkspaceCases(fastTrackCases),
@@ -259,6 +317,12 @@ export function UserVirtualStoragePageContent({
     void loadVault();
     void loadFastTrackActivity();
   }, []);
+
+  useEffect(() => {
+    if (storedDocumentPagination.currentPage !== documentPage) {
+      setDocumentPage(storedDocumentPagination.currentPage);
+    }
+  }, [documentPage, storedDocumentPagination.currentPage]);
 
   const handleCreateCategory = async () => {
     const name = categoryName.trim();
@@ -541,7 +605,7 @@ export function UserVirtualStoragePageContent({
                       : "border-gray-200 text-gray-600 hover:border-orange-200 hover:text-orange-600 dark:border-zinc-700 dark:text-gray-300"
                   }`}
                 >
-                  {category.name}
+                  {formatVirtualStorageCategoryName(category)}
                 </button>
               ))}
             </div>
@@ -611,28 +675,16 @@ export function UserVirtualStoragePageContent({
                 >
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.name}
+                      {formatVirtualStorageCategoryName(category)}
                     </option>
                   ))}
                 </select>
               </label>
-              <label htmlFor="virtual-storage-file" className="space-y-2 text-sm">
-                <span className="font-medium text-gray-700 dark:text-gray-300">File</span>
-                <input
-                  id="virtual-storage-file"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf,image/*,.pdf"
-                  onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 file:mr-3 file:rounded-xl file:border-0 file:bg-orange-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-orange-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:file:bg-orange-500/10 dark:file:text-orange-200"
-                />
-                {selectedFile ? (
-                  <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <FileCheck2 className="h-3.5 w-3.5" />
-                    {selectedFile.name}
-                  </p>
-                ) : null}
-              </label>
+              <VirtualStorageFilePicker
+                selectedFile={selectedFile}
+                onFileChange={setSelectedFile}
+                inputRef={fileInputRef}
+              />
               <button
                 type="button"
                 onClick={() => void handleUpload()}
@@ -699,7 +751,7 @@ export function UserVirtualStoragePageContent({
                 Loading Virtual Storage
               </div>
             ) : storedDocumentGroups.length > 0 ? (
-              storedDocumentGroups.map(({ key, document, categoryStatuses, storageStates, linkedEntities }) => (
+              storedDocumentPagination.items.map(({ key, document, categoryStatuses, storageStates, linkedEntities }) => (
                 <div key={key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -732,6 +784,18 @@ export function UserVirtualStoragePageContent({
                 No documents in Virtual Storage yet.
               </p>
             )}
+            {storedDocumentGroups.length > 0 ? (
+              <PaginationBar
+                currentPage={storedDocumentPagination.currentPage}
+                totalPages={storedDocumentPagination.totalPages}
+                onPageChange={setDocumentPage}
+                totalItems={storedDocumentGroups.length}
+                pageSize={USER_VIRTUAL_STORAGE_PAGE_SIZE}
+                currentItemCount={storedDocumentPagination.items.length}
+                itemLabel="stored documents"
+                showWhenSinglePage
+              />
+            ) : null}
           </div>
         </section>
       </div>

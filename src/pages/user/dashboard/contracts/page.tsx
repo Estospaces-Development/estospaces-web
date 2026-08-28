@@ -48,6 +48,7 @@ import {
   loadContractsWorkspaceSaleProgressions,
 } from "@/lib/contractsWorkspaceLoad";
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
+import PaginationBar from "@/components/ui/PaginationBar";
 import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
@@ -64,7 +65,11 @@ import {
   buildUserPropertyPortfolio,
   summarizeUserPropertyPortfolio,
 } from "@/lib/userPropertyPortfolio";
+import { paginateItems } from "@/lib/pagination";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
+
+const USER_PROPERTIES_PAGE_SIZE = 8;
+const USER_CONTRACTS_PAGE_SIZE = 8;
 
 const formatContractCurrency = (contract: Contract | null | undefined, amount?: number) => (
   formatLaunchCurrencyForCountry(amount, {
@@ -93,6 +98,8 @@ export default function ContractsPage() {
   const [viewContractLoading, setViewContractLoading] = useState(false);
   const [viewContractError, setViewContractError] = useState<string | null>(null);
   const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+  const [propertyPage, setPropertyPage] = useState(1);
+  const [contractPage, setContractPage] = useState(1);
   const removedCaseNoticeRef = React.useRef<string | null>(null);
   const hasLoadedInitialDataRef = React.useRef(false);
   const inFlightRequestRef = React.useRef<Promise<void> | null>(null);
@@ -252,7 +259,7 @@ export default function ContractsPage() {
     setSigningId(null);
   };
 
-  const openContractDetail = async (contract: Contract) => {
+  const openContractDetail = useCallback(async (contract: Contract) => {
     setViewContract(contract);
     setViewContractError(null);
     setViewContractLoading(true);
@@ -266,7 +273,7 @@ export default function ContractsPage() {
     }
 
     setViewContractLoading(false);
-  };
+  }, []);
 
   const closeContractDetail = () => {
     setViewContract(null);
@@ -350,7 +357,8 @@ export default function ContractsPage() {
     }
 
     setHasAppliedRouteFocus(true);
-  }, [focusedContract, hasAppliedRouteFocus]);
+    void openContractDetail(focusedContract);
+  }, [focusedContract, hasAppliedRouteFocus, openContractDetail]);
 
   const portfolioItems = React.useMemo(
     () =>
@@ -382,15 +390,6 @@ export default function ContractsPage() {
     [portfolioItems],
   );
 
-  if (isInitialLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <h1 className="sr-only">My Properties</h1>
-        <BrandLoader className="w-10 h-10 text-orange-500" />
-      </div>
-    );
-  }
-
   const filtered = contracts
     .filter(
       (c) =>
@@ -410,6 +409,44 @@ export default function ContractsPage() {
       }
       return 0;
     });
+  const propertyPagination = paginateItems(
+    filteredPortfolio,
+    propertyPage,
+    USER_PROPERTIES_PAGE_SIZE,
+  );
+  const contractPagination = paginateItems(
+    filtered,
+    contractPage,
+    USER_CONTRACTS_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPropertyPage(1);
+    setContractPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (propertyPagination.currentPage !== propertyPage) {
+      setPropertyPage(propertyPagination.currentPage);
+    }
+    if (contractPagination.currentPage !== contractPage) {
+      setContractPage(contractPagination.currentPage);
+    }
+  }, [
+    contractPage,
+    contractPagination.currentPage,
+    propertyPage,
+    propertyPagination.currentPage,
+  ]);
+
+  if (isInitialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <h1 className="sr-only">My Properties</h1>
+        <BrandLoader className="w-10 h-10 text-orange-500" />
+      </div>
+    );
+  }
 
   const shouldShowCombinedEmptyState =
     !hasWorkspaceFocusRequest &&
@@ -549,8 +586,9 @@ export default function ContractsPage() {
               </div>
 
               {filteredPortfolio.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {filteredPortfolio.map((item) => (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {propertyPagination.items.map((item) => (
                     <button
                       key={item.id}
                       type="button"
@@ -634,7 +672,18 @@ export default function ContractsPage() {
                         </div>
                       </div>
                     </button>
-                  ))}
+                    ))}
+                  </div>
+                  <PaginationBar
+                    currentPage={propertyPagination.currentPage}
+                    totalPages={propertyPagination.totalPages}
+                    onPageChange={setPropertyPage}
+                    totalItems={filteredPortfolio.length}
+                    pageSize={USER_PROPERTIES_PAGE_SIZE}
+                    currentItemCount={propertyPagination.items.length}
+                    itemLabel="properties"
+                    showWhenSinglePage
+                  />
                 </div>
               ) : (
                 <div className="rounded-[2rem] border border-dashed border-gray-200 p-8 text-center dark:border-gray-700">
@@ -738,7 +787,7 @@ export default function ContractsPage() {
                       onRefresh={() => fetchData({ background: true })}
                     />
                   )}
-                  {filtered.map((contract) => {
+                  {contractPagination.items.map((contract) => {
                     const needsSignature = canUserSignContract(
                       contract.status,
                       contract.user_signed_at,
@@ -863,6 +912,16 @@ export default function ContractsPage() {
                       </div>
                     );
                   })}
+                  <PaginationBar
+                    currentPage={contractPagination.currentPage}
+                    totalPages={contractPagination.totalPages}
+                    onPageChange={setContractPage}
+                    totalItems={filtered.length}
+                    pageSize={USER_CONTRACTS_PAGE_SIZE}
+                    currentItemCount={contractPagination.items.length}
+                    itemLabel="contracts"
+                    showWhenSinglePage
+                  />
                 </div>
               ) : (
                 <div className="text-center py-12">

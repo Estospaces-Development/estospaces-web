@@ -105,12 +105,19 @@ test("active user manager and admin flows avoid default launch money on property
   const managerContractsSource = readSource("pages/manager/contracts/page.tsx");
   const adminPropertiesSource = readSource("pages/admin/properties/page.tsx");
 
-  assert.match(discoverSource, /searchService\.getPropertySections\(\)/);
+  assert.match(discoverSource, /searchService\.getPropertySections\(geoMarket\)/);
+  assert.match(discoverSource, /filterPropertiesForMarket\(dedupeSectionProperties/);
   assert.match(discoverSource, /getLaunchLocationCodeLabel\(geoMarket/);
   assert.match(discoverSource, /formatDiscoveryCurrency/);
-  assert.doesNotMatch(discoverSource, /getPropertySections\(geoMarket\)/);
   const publicSearchSource = readSource("pages/user/search/page.tsx");
+  const dashboardSource = readSource("pages/user/dashboard/DashboardClient.tsx");
+  const userPropertyDetailSource = readSource("pages/user/properties/[id]/page.tsx");
   assert.match(publicSearchSource, /inferSearchGeoMarket/);
+  assert.match(publicSearchSource, /country: activeMarket/);
+  assert.match(publicSearchSource, /filterPropertiesForMarket\(result\.data \|\| \[\], activeMarket\)/);
+  assert.match(dashboardSource, /countryCode: geoMarket/);
+  assert.match(dashboardSource, /filterPropertiesForMarket\(candidates, geoMarket\)/);
+  assert.match(userPropertyDetailSource, /!isPropertyInMarket\(data, geoMarket\)/);
   assert.match(publicSearchSource, /inferredGeoMarket \|\| fallbackGeoMarket/);
   assert.match(publicSearchSource, /currency === 'GBP'/);
   assert.match(publicSearchSource, /Min Price \(\{currencySymbol\}\)/);

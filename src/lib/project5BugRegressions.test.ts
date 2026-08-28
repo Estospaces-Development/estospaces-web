@@ -142,11 +142,12 @@ test('discover map properties preserve coordinates for real map markers', () => 
     assert.equal(property.address_line_1, '10 Test Street');
 });
 
-test('browse all opens an unfiltered cross-region discovery view', () => {
+test('browse all keeps discovery scoped to the signed-in user market', () => {
     assert.match(userDashboardClient, /navigate\('\/user\/dashboard\/discover'\)/);
     assert.doesNotMatch(userDashboardClient, /const userPostcode = user\?\.postcode[\s\S]{0,220}Browse All Properties/);
-    assert.match(discoverPage, /searchService\.getPropertySections\(\)/);
-    assert.match(discoverPage, /countryCode: undefined/);
+    assert.match(discoverPage, /searchService\.getPropertySections\(geoMarket\)/);
+    assert.match(discoverPage, /filterPropertiesForMarket\([\s\S]*geoMarket\)/);
+    assert.match(discoverPage, /countryCode: geoMarket/);
 });
 
 test('user search keeps the results surface focused without popular-search clutter', () => {
@@ -161,7 +162,7 @@ test('user dashboard property cards expose a manager-approval Fast Track request
     assert.match(propertyCard, /onStartFastTrack\?:/);
     assert.match(propertyCard, /Request 24-Hour Fast Track/);
     assert.match(dashboardClient, /onStartFastTrack=\{openFastTrackFromDashboard\}/);
-    assert.match(discoverPage, /onStartFastTrack=\{\(property\) => navigate\(`\/user\/properties\/\$\{property\.id\}\?fast-track=1`\)\}/);
+    assert.match(discoverPage, /onStartFastTrack=\{openFastTrackFromDiscover\}/);
     assert.doesNotMatch(dashboardClient, /\{!showFilteredResults && \(\s*<div>\s*<div className="flex items-center justify-between mb-4">\s*<div>\s*<div className="flex items-center gap-2">\s*<MapIcon/);
 });
 

@@ -1632,7 +1632,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     ? "mt-4 grid gap-3 sm:grid-cols-2"
     : "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1";
   const documentsPanelClass = managerAppearance
-    ? "rounded-3xl border border-[#262626] bg-[#050505] p-6 shadow-[0_24px_80px_-56px_rgba(0,0,0,0.92)]"
+    ? "rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#262626] dark:bg-[#050505] dark:shadow-[0_24px_80px_-56px_rgba(0,0,0,0.92)]"
     : "rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black";
   const documentsGridClass = managerAppearance
     ? compactManagerEmbeddedLayout
@@ -1640,13 +1640,13 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       : "mt-6 grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_320px]"
     : "mt-6 grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_340px]";
   const checklistPanelClass = managerAppearance
-    ? "relative self-start overflow-hidden rounded-[28px] border border-[#35261a] bg-[#101010] p-5 shadow-[0_26px_90px_-64px_rgba(249,115,22,0.55)]"
+    ? "relative self-start overflow-hidden rounded-[28px] border border-orange-200 bg-orange-50/70 p-5 shadow-sm dark:border-[#35261a] dark:bg-[#101010] dark:shadow-[0_26px_90px_-64px_rgba(249,115,22,0.55)]"
     : "self-start rounded-[28px] border border-orange-100 bg-gradient-to-br from-orange-50/70 via-white to-white p-5 dark:border-orange-900/20 dark:bg-zinc-900/40";
   const checklistBadgeClass = managerAppearance
-    ? "inline-flex max-w-full shrink-0 items-center rounded-2xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-sm font-semibold leading-5 text-orange-200 shadow-[0_16px_40px_-30px_rgba(249,115,22,0.8)]"
+    ? "inline-flex max-w-full shrink-0 items-center rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold leading-5 text-orange-700 shadow-sm dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-200 dark:shadow-[0_16px_40px_-30px_rgba(249,115,22,0.8)]"
     : "inline-flex items-center rounded-full border border-orange-200 bg-white px-3 py-2 text-xs font-semibold text-orange-700 shadow-sm dark:border-orange-900/30 dark:bg-black/40 dark:text-orange-300";
   const checklistEmptyClass = managerAppearance
-    ? "mt-5 rounded-2xl border border-dashed border-[#4a3f35] bg-[#171717]/90 px-4 py-5 text-sm leading-6 text-[#b7aea5]"
+    ? "mt-5 rounded-2xl border border-dashed border-orange-200 bg-white/90 px-4 py-5 text-sm leading-6 text-gray-600 dark:border-[#4a3f35] dark:bg-[#171717]/90 dark:text-[#b7aea5]"
     : "mt-5 rounded-2xl border border-dashed border-gray-200 bg-white/80 px-4 py-5 text-sm text-gray-500 dark:border-zinc-700 dark:bg-black/20 dark:text-gray-400";
   const checklistHeaderClass = compactManagerEmbeddedLayout
     ? "flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"
@@ -1655,28 +1655,28 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     ? "mt-5 grid gap-3 xl:grid-cols-2"
     : "mt-5 grid gap-3 md:grid-cols-2";
   const progressPanelClass = managerAppearance
-    ? "self-start rounded-[28px] border border-[#252525] bg-[#0c0c0c] p-5 shadow-[0_18px_60px_-44px_rgba(0,0,0,0.92)]"
+    ? "self-start rounded-[28px] border border-gray-200 bg-gray-50 p-5 shadow-sm dark:border-[#252525] dark:bg-[#0c0c0c] dark:shadow-[0_18px_60px_-44px_rgba(0,0,0,0.92)]"
     : "self-start rounded-[28px] border border-gray-100 bg-gray-50/80 p-5 dark:border-zinc-800 dark:bg-zinc-900/40";
   const progressStatCardClass = managerAppearance
-    ? "rounded-2xl border border-[#252525] bg-[#111111] p-4"
+    ? "rounded-2xl border border-gray-200 bg-white p-4 dark:border-[#252525] dark:bg-[#111111]"
     : "rounded-2xl border border-white/80 bg-white/90 p-4 dark:border-zinc-700 dark:bg-black/30";
   const progressStatsGridClass = compactManagerEmbeddedLayout
     ? "mt-4 grid gap-3 sm:grid-cols-3"
     : "mt-4 grid gap-3";
   const progressGuideClass = managerAppearance
-    ? "mt-4 rounded-2xl border border-[#3a2d22] bg-[#13110f] p-4"
+    ? "mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-[#3a2d22] dark:bg-[#13110f]"
     : "mt-4 rounded-2xl border border-orange-100 bg-white/90 p-4 dark:border-orange-900/20 dark:bg-black/30";
   const queueSummaryClass = managerAppearance
-    ? "rounded-[26px] border border-[#252525] bg-[#0d0d0d] p-5 shadow-[0_16px_50px_-36px_rgba(0,0,0,0.95)]"
+    ? "rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm dark:border-[#252525] dark:bg-[#0d0d0d] dark:shadow-[0_16px_50px_-36px_rgba(0,0,0,0.95)]"
     : "rounded-[26px] border border-gray-100 bg-gray-50/80 p-5 dark:border-zinc-800 dark:bg-zinc-900/30";
   const queueSummaryMetricClass = managerAppearance
-    ? "rounded-2xl border border-[#2c2c2c] bg-[#141414] px-4 py-3 text-sm font-semibold text-[#e7ddd3]"
+    ? "rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 dark:border-[#2c2c2c] dark:bg-[#141414] dark:text-[#e7ddd3]"
     : "rounded-2xl border border-white/80 bg-white/90 px-4 py-3 text-sm font-semibold text-gray-700 dark:border-zinc-700 dark:bg-black/30 dark:text-gray-200";
   const queueItemClass = managerAppearance
-    ? "rounded-[26px] border border-[#252525] bg-[#0a0a0a] p-5 shadow-[0_18px_54px_-40px_rgba(0,0,0,0.95)]"
+    ? "rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm dark:border-[#252525] dark:bg-[#0a0a0a] dark:shadow-[0_18px_54px_-40px_rgba(0,0,0,0.95)]"
     : "rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black/30";
   const queueMetaCardClass = managerAppearance
-    ? "rounded-2xl border border-[#242424] bg-[#121212] px-4 py-3"
+    ? "rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-[#242424] dark:bg-[#121212]"
     : "rounded-2xl border border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/50";
   const reviewDialogBusyKey = reviewDialog
     ? `review:${reviewDialog.document.id}:${reviewDialog.status}`
@@ -2300,7 +2300,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     </div>
                   </div>
 
-                  <div className={`mt-4 overflow-hidden rounded-full shadow-inner ${managerAppearance ? "bg-[#171717]" : "bg-white dark:bg-zinc-800"}`}>
+                  <div className={`mt-4 overflow-hidden rounded-full shadow-inner ${managerAppearance ? "bg-gray-200 dark:bg-[#171717]" : "bg-white dark:bg-zinc-800"}`}>
                     <div
                       className="h-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all"
                       style={{

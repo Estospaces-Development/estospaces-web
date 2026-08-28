@@ -66,12 +66,13 @@ async function healthChecks(target) {
 
 async function performanceSmoke(target) {
   const urls = [
-    `${target.appBaseUrl}/login`,
-    `${target.adminBaseUrl}/login`,
+    `${target.appBaseUrl}/login/`,
+    `${target.adminBaseUrl}/login/`,
     `${target.services.core}/health`,
     `${target.services.booking}/health`,
     `${target.services.messaging}/health`,
   ];
+  const latencyBudgetMs = 1000;
 
   const scenarios = [];
   for (const url of urls) {
@@ -83,14 +84,15 @@ async function performanceSmoke(target) {
     }
     const sorted = samples.map((item) => item.ms).sort((a, b) => a - b);
     const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))];
+    const statusesHealthy = samples.every((item) => item.status >= 200 && item.status < 400);
     scenarios.push(toScenario(
       'performance-smoke',
       target.name,
       'system',
       url,
-      samples.every((item) => item.status < 500) ? 'passed' : 'failed',
-      'No 5xx and bounded smoke latency',
-      JSON.stringify({ p95, samples }),
+      statusesHealthy && p95 <= latencyBudgetMs ? 'passed' : 'failed',
+      `Every sample returns 2xx/3xx and p95 is at most ${latencyBudgetMs}ms`,
+      JSON.stringify({ p95, latencyBudgetMs, samples }),
     ));
   }
   return scenarios;

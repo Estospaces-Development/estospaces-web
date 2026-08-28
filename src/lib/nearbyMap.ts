@@ -16,6 +16,19 @@ interface MapCandidatePage<T> {
 export const DASHBOARD_NEARBY_RADIUS_KM = 100;
 export const DASHBOARD_NEARBY_PROPERTY_LIMIT = 20;
 
+export const getDashboardMapHeightClass = (hasMapPreview: boolean): string => (
+    hasMapPreview
+        ? 'h-[310px] sm:h-[350px] lg:h-[400px]'
+        : 'h-[320px] sm:h-[300px] lg:h-[320px]'
+);
+
+export interface NearbyMapEmptyState {
+    title: string;
+    description: string;
+    action: 'location-settings' | 'open-property' | null;
+    actionLabel: string | null;
+}
+
 export const hasValidMapCoordinates = (
     value: MapCoordinates | null | undefined,
 ): value is { latitude: number; longitude: number } => (
@@ -29,6 +42,37 @@ export const hasValidMapCoordinates = (
     && value.longitude <= 180
     && !(value.latitude === 0 && value.longitude === 0)
 );
+
+export const getNearbyMapEmptyState = (
+    properties: MapCoordinates[],
+    compact: boolean,
+    locationCodeLabel: string,
+): NearbyMapEmptyState => {
+    const matchingPropertiesWithoutPins = properties.length > 0
+        && !properties.some(hasValidMapCoordinates);
+
+    if (!compact && matchingPropertiesWithoutPins) {
+        const singular = properties.length === 1;
+        return {
+            title: singular
+                ? 'Map pin unavailable for this matching home'
+                : `Map pins unavailable for these ${properties.length} matching homes`,
+            description: singular
+                ? 'This listing does not have verified coordinates yet, so Estospaces will not place it at an approximate or incorrect location.'
+                : 'These listings do not have verified coordinates yet, so Estospaces will not place them at approximate or incorrect locations.',
+            action: singular ? 'open-property' : null,
+            actionLabel: singular ? 'Open matching home' : null,
+        };
+    }
+
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
+    return {
+        title: `Add a ${lowerLocationCodeLabel} to unlock the map`,
+        description: `Use your profile ${lowerLocationCodeLabel} or search a location to see nearby homes without leaving the dashboard.`,
+        action: 'location-settings',
+        actionLabel: 'Open location settings',
+    };
+};
 
 export const calculateMapDistanceKm = (
     from: { latitude: number; longitude: number },

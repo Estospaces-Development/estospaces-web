@@ -93,6 +93,8 @@ export const getUserGeolocation = (): Promise<GeolocationCoordinates> => {
 const INDIA_PIN_CODE_PATTERN = /^[1-9]\d{5}$/;
 const UK_POSTCODE_PATTERN = /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/;
 
+const normalizeLocationCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
 /**
  * Check if a location code is an Indian PIN code.
  */
@@ -101,7 +103,7 @@ const isIndianPinCode = (code: string): boolean => INDIA_PIN_CODE_PATTERN.test(c
 /**
  * Check if a location code is a UK postcode.
  */
-const isUkPostcode = (code: string): boolean => UK_POSTCODE_PATTERN.test(code);
+const isUkPostcode = (code: string): boolean => UK_POSTCODE_PATTERN.test(normalizeLocationCode(code));
 
 const parseProviderCoordinate = (
     value: unknown,
@@ -161,8 +163,6 @@ const fetchIndianPinCoords = async (pinCode: string) => {
 
     return null;
 };
-
-const normalizeLocationCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
 
 export const validateLocationCode = (postcode: string): string | null => {
     if (!postcode) return null;

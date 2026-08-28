@@ -22,7 +22,8 @@ import {
     Phone,
     Mail,
     Upload,
-    MessageSquare
+    MessageSquare,
+    ChevronRight
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +37,7 @@ import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionP
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import Modal from '@/components/ui/Modal';
 import DateField from '@/components/ui/DateField';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
 import {
@@ -47,6 +49,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { paginateItems } from '@/lib/pagination';
 import {
     canWithdrawApplicationRecord,
     getNextSaleJourneyActions,
@@ -57,6 +60,7 @@ import {
 } from '@/lib/saleJourney';
 
 export const APPLICATION_DETAIL_DRAWER_CLOSE_LABEL = 'Close application detail panel';
+const USER_APPLICATIONS_PAGE_SIZE = 10;
 const MAX_APPLICATION_WITHDRAW_REASON_LENGTH = 500;
 const MAX_NEW_APPLICATION_MESSAGE_LENGTH = 1000;
 
@@ -595,6 +599,7 @@ export default function ApplicationsPage() {
     const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
     const removedCaseNoticeRef = useRef<string | null>(null);
     const newApplicationInFlightRef = useRef(false);
     const rawCaseId = searchParams.get('case');
@@ -776,6 +781,20 @@ export default function ApplicationsPage() {
     const pendingCount = applications.filter(app => pendingStatusList.includes(app.status)).length;
     const approvedCount = applications.filter(app => app.status === APPLICATION_STATUS.APPROVED).length;
     const actionRequiredCount = applications.filter(app => app.requiresAction).length;
+    const applicationPagination = useMemo(
+        () => paginateItems(applications, currentPage, USER_APPLICATIONS_PAGE_SIZE),
+        [applications, currentPage],
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, propertyTypeFilter, dateRangeFilter]);
+
+    useEffect(() => {
+        if (applicationPagination.currentPage !== currentPage) {
+            setCurrentPage(applicationPagination.currentPage);
+        }
+    }, [applicationPagination.currentPage, currentPage]);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
@@ -947,7 +966,7 @@ export default function ApplicationsPage() {
                                 aria-label="Switch to grid view"
                                 aria-pressed={viewMode === 'grid'}
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                             >
                                 <LayoutGrid size={18} />
                             </button>
@@ -956,7 +975,7 @@ export default function ApplicationsPage() {
                                 aria-label="Switch to list view"
                                 aria-pressed={viewMode === 'list'}
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                             >
                                 <List size={18} />
                             </button>
@@ -1061,7 +1080,7 @@ export default function ApplicationsPage() {
 
                 {/* Content */}
                 {isLoading ? (
-                    <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                    <div data-application-view-mode={viewMode} className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
                         {[...Array(4)].map((_, i) => (
                             <ApplicationCardSkeleton key={i} />
                         ))}
@@ -1081,20 +1100,49 @@ export default function ApplicationsPage() {
                         </button>
                     </div>
                 ) : applications.length > 0 ? (
-                    <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-                        {applications.map((app) => (
-                            <div
-                                key={app.id}
-                                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-800 transition-all cursor-pointer group overflow-hidden"
-                                onClick={() => setSelectedApplication(app)}
-                            >
-                                <ApplicationCard
-                                    application={app}
+                    <>
+                        <div data-application-view-mode={viewMode} className={viewMode === 'grid' ? 'grid grid-cols-1 gap-6 lg:grid-cols-2' : 'space-y-3'}>
+                            {applicationPagination.items.map((app) => viewMode === 'grid' ? (
+                                <div
+                                    key={app.id}
+                                    className="group cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:border-orange-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800"
                                     onClick={() => setSelectedApplication(app)}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                                >
+                                    <ApplicationCard
+                                        application={app}
+                                        onClick={() => setSelectedApplication(app)}
+                                    />
+                                </div>
+                            ) : (
+                                <button
+                                    key={app.id}
+                                    type="button"
+                                    onClick={() => setSelectedApplication(app)}
+                                    className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/10"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{app.propertyTitle || 'Property application'}</p>
+                                        <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{app.propertyAddress || app.listingType || 'Application workspace'}</p>
+                                    </div>
+                                    <span className="max-w-[42%] shrink-0 truncate rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold capitalize text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                                        {String(app.status || 'in progress').replace(/_/g, ' ')}
+                                    </span>
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                                </button>
+                            ))}
+                        </div>
+                        <PaginationBar
+                            className="mt-6"
+                            currentPage={applicationPagination.currentPage}
+                            totalPages={applicationPagination.totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={applications.length}
+                            pageSize={USER_APPLICATIONS_PAGE_SIZE}
+                            currentItemCount={applicationPagination.items.length}
+                            itemLabel="applications"
+                            showWhenSinglePage
+                        />
+                    </>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
                         <div className="inline-flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">

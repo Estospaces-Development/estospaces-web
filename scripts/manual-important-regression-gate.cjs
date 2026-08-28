@@ -34,8 +34,8 @@ const roles = {
     routes: [
       '/user/dashboard',
       '/search',
-      '/user/saved',
-      '/user/applications',
+      '/user/dashboard/saved',
+      '/user/dashboard/applications',
       '/user/dashboard/viewings',
       '/user/dashboard/notifications',
       '/user/dashboard/messages',
@@ -283,10 +283,12 @@ async function loginViaApi(target, roleName) {
 
 async function createAuthedContext(browser, baseUrl, session) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, ignoreHTTPSErrors: true });
-  await context.addInitScript(({ token, user }) => {
-    localStorage.setItem('esto_token', token);
-    localStorage.setItem('esto_user', JSON.stringify(user));
-  }, session);
+  await context.addInitScript(({ token, user, appOrigin }) => {
+    if (globalThis.location.origin === appOrigin) {
+      sessionStorage.setItem('esto_session_token', token);
+      localStorage.setItem('esto_user', JSON.stringify(user));
+    }
+  }, { ...session, appOrigin: new URL(baseUrl).origin });
   await context.addCookies([]);
   return context;
 }
