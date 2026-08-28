@@ -22,6 +22,7 @@ import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
+import FastTrackRequestConfirmationModal from '@/components/fast-track/FastTrackRequestConfirmationModal';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
 import { toDiscoverNearbyMapProperties } from '@/lib/discoverMap';
@@ -352,6 +353,7 @@ function DiscoverContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'map'>(() => readDiscoverViewMode(initialSearchParams));
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(initialSearchParams.get('page')));
     const [fastTrackStatusByProperty, setFastTrackStatusByProperty] = useState<Record<string, FastTrackRequestStatus>>({});
+    const [fastTrackConfirmationProperty, setFastTrackConfirmationProperty] = useState<SearchResult | null>(null);
     const fastTrackRequestsInFlightRef = useRef(new Set<string>());
 
     useEffect(() => {
@@ -622,11 +624,11 @@ function DiscoverContent() {
         return readFastTrackRequestPending(window.localStorage, pendingKey) ? 'requested' : 'idle';
     }, [fastTrackStatusByProperty, user?.id]);
 
-    const requestFastTrackFromDiscover = useCallback(async (propertyReference: { id: string }) => {
+    const submitFastTrackRequestFromDiscover = useCallback(async (propertyReference: { id: string }) => {
         const property = filteredProperties.find((item) => item.id === propertyReference.id);
         if (!property || !user?.id) {
             toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
-            return;
+            return false;
         }
 
         const pendingKey = getFastTrackRequestPendingKey(user.id, property.id);
@@ -639,7 +641,7 @@ function DiscoverContent() {
                 [property.id]: 'requested',
             }));
             toast.info('Your Fast Track request is already waiting for manager approval.');
-            return;
+            return true;
         }
 
         fastTrackRequestsInFlightRef.current.add(property.id);
@@ -673,6 +675,7 @@ function DiscoverContent() {
                 },
             });
             toast.success('Fast Track requested. The property manager has been notified.');
+            return true;
         } catch (requestError) {
             setFastTrackStatusByProperty((current) => ({
                 ...current,
@@ -683,10 +686,32 @@ function DiscoverContent() {
                     ? requestError.message
                     : 'Unable to request Fast Track right now.',
             );
+            return false;
         } finally {
             fastTrackRequestsInFlightRef.current.delete(property.id);
         }
     }, [filteredProperties, getDisplayName, publishWorkspaceSync, toast, user?.id]);
+
+    const requestFastTrackFromDiscover = useCallback((propertyReference: { id: string }) => {
+        const property = filteredProperties.find((item) => item.id === propertyReference.id);
+        if (!property || !user?.id) {
+            toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
+            return;
+        }
+
+        setFastTrackConfirmationProperty(property);
+    }, [filteredProperties, toast, user?.id]);
+
+    const confirmFastTrackFromDiscover = useCallback(async () => {
+        if (!fastTrackConfirmationProperty) {
+            return;
+        }
+
+        const submitted = await submitFastTrackRequestFromDiscover(fastTrackConfirmationProperty);
+        if (submitted) {
+            setFastTrackConfirmationProperty(null);
+        }
+    }, [fastTrackConfirmationProperty, submitFastTrackRequestFromDiscover]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -1153,6 +1178,21 @@ function DiscoverContent() {
                     </>
                 )}
             </div>
+            <FastTrackRequestConfirmationModal
+                open={Boolean(fastTrackConfirmationProperty)}
+                propertyTitle={fastTrackConfirmationProperty?.title || 'Selected property'}
+                propertyLocation={fastTrackConfirmationProperty
+                    ? formatLaunchPropertyLocation(
+                        fastTrackConfirmationProperty.location
+                        || [fastTrackConfirmationProperty.city, fastTrackConfirmationProperty.postcode].filter(Boolean).join(', '),
+                    )
+                    : undefined}
+                isSubmitting={fastTrackConfirmationProperty
+                    ? getFastTrackRequestStatus(fastTrackConfirmationProperty.id) === 'requesting'
+                    : false}
+                onClose={() => setFastTrackConfirmationProperty(null)}
+                onConfirm={confirmFastTrackFromDiscover}
+            />
         </div>
     );
 }

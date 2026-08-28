@@ -24,6 +24,10 @@ const nearbyPropertiesMap = readFileSync(
     resolve(root, 'src/components/dashboard/NearbyPropertiesMap.tsx'),
     'utf8',
 );
+const fastTrackConfirmationModal = readFileSync(
+    resolve(root, 'src/components/fast-track/FastTrackRequestConfirmationModal.tsx'),
+    'utf8',
+);
 
 test('discover page uses clear task-led copy and pressed-state controls', () => {
     assert.match(discoverPage, /Homes on Estospaces/);
@@ -67,6 +71,19 @@ test('discover Fast Track action submits the request instead of opening property
     assert.match(fastTrackRequestFlow, /await dependencies\.requestFastTrack\(userRequest\)/);
     assert.match(propertyCard, /disabled=\{fastTrackStatus !== 'idle'\}/);
     assert.match(nearbyPropertiesMap, /disabled=\{selectedFastTrackStatus !== 'idle'\}/);
+});
+
+test('Fast Track requests require an informed confirmation on list, map, and property detail entry points', () => {
+    assert.match(discoverPage, /setFastTrackConfirmationProperty\(property\)/);
+    assert.match(discoverPage, /<FastTrackRequestConfirmationModal/);
+    assert.match(discoverPage, /onConfirm=\{confirmFastTrackFromDiscover\}/);
+    assert.match(propertyDetailPage, /setIsFastTrackRequestConfirmationOpen\(true\)/);
+    assert.match(propertyDetailPage, /<FastTrackRequestConfirmationModal/);
+    assert.match(fastTrackConfirmationModal, /Manager approval required/);
+    assert.match(fastTrackConfirmationModal, /10-minute response window begins/);
+    assert.match(fastTrackConfirmationModal, /24-hour journey starts only after the manager approves/);
+    assert.match(fastTrackConfirmationModal, /does not reserve the property/);
+    assert.match(fastTrackConfirmationModal, /Send Fast Track request/);
 });
 
 test('discover result summary is compact, honest, and responsive', () => {

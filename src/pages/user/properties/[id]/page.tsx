@@ -49,6 +49,7 @@ import { createApplication as submitRentalApplication } from '@/services/applica
 import { createOffer } from '@/services/salesService';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
+import FastTrackRequestConfirmationModal from '@/components/fast-track/FastTrackRequestConfirmationModal';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import {
     buildFastTrackDocumentItems,
@@ -936,6 +937,7 @@ const UserPropertyDetail = () => {
     const [isImmersiveZoomActive, setIsImmersiveZoomActive] = useState(false);
     const [immersiveZoomPoint, setImmersiveZoomPoint] = useState(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
     const [isFastTrackModalOpen, setIsFastTrackModalOpen] = useState(false);
+    const [isFastTrackRequestConfirmationOpen, setIsFastTrackRequestConfirmationOpen] = useState(false);
     const [isFastTrackPanelLoading, setIsFastTrackPanelLoading] = useState(false);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
     const [activeFastTrackCase, setActiveFastTrackCase] = useState<FastTrackCase | null>(null);
@@ -2026,6 +2028,26 @@ const UserPropertyDetail = () => {
         }
     };
 
+    const handleFastTrackEntryAction = (trigger: HTMLButtonElement) => {
+        fastTrackTriggerRef.current = trigger;
+        if (
+            fastTrackCtaState === 'start'
+            && user
+            && property
+            && mapFastTrackPropertyType(property.listing_type)
+        ) {
+            setIsFastTrackRequestConfirmationOpen(true);
+            return;
+        }
+
+        void handleStartFastTrack();
+    };
+
+    const confirmFastTrackRequest = () => {
+        setIsFastTrackRequestConfirmationOpen(false);
+        void handleStartFastTrack();
+    };
+
     const handleOpenConversation = async () => {
         if (!property || !ensureAuthenticated()) {
             return;
@@ -2543,8 +2565,7 @@ const UserPropertyDetail = () => {
                                             <button
                                                 type="button"
                                                 onClick={(event) => {
-                                                    fastTrackTriggerRef.current = event.currentTarget;
-                                                    void handleStartFastTrack();
+                                                    handleFastTrackEntryAction(event.currentTarget);
                                                 }}
                                                 disabled={isFastTrackCtaDisabled}
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
@@ -2924,8 +2945,7 @@ const UserPropertyDetail = () => {
                                             type="button"
                                             onClick={(event) => {
                                                 if (isResponseAction) {
-                                                    fastTrackTriggerRef.current = event.currentTarget;
-                                                    void handleStartFastTrack();
+                                                    handleFastTrackEntryAction(event.currentTarget);
                                                     return;
                                                 }
                                                 if (isTourAction) {
@@ -2953,8 +2973,7 @@ const UserPropertyDetail = () => {
                                 ref={fastTrackTriggerRef}
                                 type="button"
                                 onClick={(event) => {
-                                    fastTrackTriggerRef.current = event.currentTarget;
-                                    void handleStartFastTrack();
+                                    handleFastTrackEntryAction(event.currentTarget);
                                 }}
                                 disabled={isFastTrackCtaDisabled}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
@@ -3237,6 +3256,15 @@ const UserPropertyDetail = () => {
                 onUploadDocument={handleUploadFastTrackDocument}
                 onOpenDashboard={() => openFastTrackDashboard()}
                 onOpenMessages={handleOpenConversation}
+            />
+
+            <FastTrackRequestConfirmationModal
+                open={isFastTrackRequestConfirmationOpen}
+                propertyTitle={property.title}
+                propertyLocation={propertyAddress || locationLabel}
+                isSubmitting={false}
+                onClose={() => setIsFastTrackRequestConfirmationOpen(false)}
+                onConfirm={confirmFastTrackRequest}
             />
 
             {isGalleryOpen && (
