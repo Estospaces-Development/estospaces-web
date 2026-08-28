@@ -28,6 +28,7 @@ const userDashboard = readSource('../pages/user/dashboard/DashboardClient.tsx');
 const searchBar = readSource('../components/ui/SearchBar.tsx');
 const messageInboxFab = readSource('../components/layout/MessageInboxFab.tsx');
 const managerDashboard = readSource('../pages/manager/dashboard/page.tsx');
+const managerAnalytics = readSource('../pages/manager/analytics/page.tsx');
 const statCard = readSource('../components/dashboard/StatCard.tsx');
 const adminDashboard = readSource('../pages/admin/dashboard/page.tsx');
 const adminProfile = readSource('../pages/admin/profile/page.tsx');
@@ -143,4 +144,9 @@ test('mobile dashboards use compact app-native hierarchy while desktop breakpoin
   assert.match(managerDashboard, /grid grid-cols-1 gap-3 min-\[380px\]:grid-cols-2[^\n]+lg:grid-cols-4/);
   assert.match(statCard, /rounded-2xl sm:rounded-3xl[^\n]+p-4 sm:p-6/);
   assert.match(adminDashboard, /grid grid-cols-1 gap-3 min-\[380px\]:grid-cols-2[^\n]+lg:grid-cols-4/);
+});
+
+test('manager analytics uses deliberate 48px period and export controls on touch screens', () => {
+  assert.equal((managerAnalytics.match(/min-h-12 px-4 py-2/g) || []).length, 2);
+  assert.match(managerAnalytics, /min-h-12 min-w-12 items-center justify-center/);
 });

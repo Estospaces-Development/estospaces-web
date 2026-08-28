@@ -227,14 +227,14 @@ const Analytics = () => {
                         <button
                             type="button"
                             onClick={() => setTimeRange('6m')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                            className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                         >
                             6 Months
                         </button>
                         <button
                             type="button"
                             onClick={() => setTimeRange('12m')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                            className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                         >
                             Yearly
                         </button>
@@ -244,7 +244,7 @@ const Analytics = () => {
                         aria-label="Export analytics CSV"
                         title="Export analytics CSV"
                         onClick={handleExportReport}
-                        className="p-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                        className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-gray-100 bg-white p-2.5 transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                     >
                         <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     </button>
