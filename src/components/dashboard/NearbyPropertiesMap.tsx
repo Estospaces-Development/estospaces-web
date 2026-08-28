@@ -10,6 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import BrandLoader from '@/components/ui/BrandLoader';
 import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
 import { formatMapPropertyPrice } from '@/lib/mapCurrency';
+import { STANDARD_MAP_TILE_LAYER } from '@/lib/mapTiles';
 import {
     calculateMapDistanceKm,
     getNearbyMapEmptyState,
@@ -418,8 +419,8 @@ const NearbyPropertiesMap = ({
                 <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} />
                 {mapStyle === 'standard' ? (
                     <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        attribution={STANDARD_MAP_TILE_LAYER.attribution}
+                        url={STANDARD_MAP_TILE_LAYER.url}
                         noWrap
                     />
                 ) : (

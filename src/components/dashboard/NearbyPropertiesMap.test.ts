@@ -30,3 +30,9 @@ test('compact dashboard map selects only real nearby coordinates and reset re-ap
   assert.match(source, /worldCopyJump/);
   assert.equal((source.match(/noWrap/g) || []).length, 2);
 });
+
+test('standard dashboard map uses the reviewed keyless tile provider contract', () => {
+  assert.match(source, /STANDARD_MAP_TILE_LAYER\.attribution/);
+  assert.match(source, /STANDARD_MAP_TILE_LAYER\.url/);
+  assert.doesNotMatch(source, /basemaps\.cartocdn\.com/);
+});
