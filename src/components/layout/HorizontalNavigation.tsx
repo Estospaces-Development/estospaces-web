@@ -42,18 +42,21 @@ const HorizontalNavigation = ({
     {
       icon: LayoutDashboard,
       label: "Dashboard",
+      mobileLabel: "Home",
       path: "/user/dashboard",
       exact: true,
     },
     {
       icon: Search,
       label: "Find",
+      mobileLabel: "Find",
       path: "/user/dashboard/discover",
       activePaths: ["/user/dashboard/discover", "/user/dashboard/search", "/user/search"],
     },
     {
       icon: MessageSquare,
       label: "Messages",
+      mobileLabel: "Messages",
       path: "/user/dashboard/messages",
       showBadge: true,
       badgeCount: totalUnreadCount,
@@ -61,6 +64,7 @@ const HorizontalNavigation = ({
     {
       icon: FolderKanban,
       label: "My Activity",
+      mobileLabel: "Activity",
       path: "/user/dashboard/saved",
       activePaths: [
         "/user/dashboard/saved",
@@ -189,7 +193,7 @@ const HorizontalNavigation = ({
             const content = (
               <>
                 <Icon size={16} className="flex-shrink-0" />
-                <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
+                <span className="max-w-full whitespace-nowrap">{item.mobileLabel}</span>
                 {item.showBadge && (item.badgeCount || 0) > 0 && (
                   <UnreadCountBadge count={item.badgeCount || 0} mobile />
                 )}

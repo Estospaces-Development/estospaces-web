@@ -2,7 +2,7 @@
 
 import { Search, User, Shield, CheckCircle, AlertCircle, Menu, LogOut, Settings, BookOpen } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
@@ -17,8 +17,29 @@ interface HeaderProps {
     onMenuToggle?: () => void;
 }
 
+export const getManagerPageTitle = (pathname: string) => {
+    if (pathname === '/manager/dashboard') return 'Dashboard';
+    if (pathname.startsWith('/manager/fast-track')) return 'Fast Track';
+    if (pathname.startsWith('/manager/dashboard/properties/add')) return 'Add Property';
+    if (pathname.startsWith('/manager/dashboard/properties/edit')) return 'Edit Property';
+    if (pathname.startsWith('/manager/dashboard/properties')) return 'Properties';
+    if (pathname.startsWith('/manager/leads') || pathname.startsWith('/manager/clients')) return 'Leads & Clients';
+    if (pathname.startsWith('/manager/applications')) return 'Applications';
+    if (pathname.startsWith('/manager/contracts')) return 'Contracts';
+    if (pathname.startsWith('/manager/appointments')) return 'Appointments';
+    if (pathname.startsWith('/manager/messages')) return 'Messages';
+    if (pathname.startsWith('/manager/analytics')) return 'Analytics';
+    if (pathname.startsWith('/manager/verification') || pathname.startsWith('/manager/user-verifications')) return 'Verification';
+    if (pathname.startsWith('/manager/profile')) return 'Profile';
+    if (pathname.startsWith('/manager/docs')) return 'Docs';
+    if (pathname.startsWith('/manager/help')) return 'Help & Support';
+    if (pathname.startsWith('/manager/case-files')) return 'Case Files';
+    return 'Manager';
+};
+
 const Header = ({ onMenuToggle }: HeaderProps) => {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const { user, signOut, getDisplayName, getRole } = useAuth();
     const { notifications: _notifications, unreadCount: _unreadCount } = useNotifications();
     const {
@@ -143,6 +164,10 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     >
                         <Menu size={20} />
                     </button>
+
+                    <h1 className="min-w-0 flex-1 truncate text-base font-bold leading-tight text-gray-900 dark:text-white md:hidden">
+                        {getManagerPageTitle(pathname)}
+                    </h1>
 
                     <form ref={searchRef} onSubmit={handleSearch} className="group relative hidden w-full max-w-md items-center md:flex">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />

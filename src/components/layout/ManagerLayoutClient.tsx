@@ -13,6 +13,7 @@ import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import RoleMobileNavigation from './RoleMobileNavigation';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -120,11 +121,12 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                                         } as React.CSSProperties}
                                     >
                                         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                                        <main className="role-workspace-content flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-3 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
+                                        <main className="role-workspace-content mobile-app-content flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-3 pb-24 font-manager transition-colors duration-300 dark:bg-black sm:p-6 sm:pb-24 lg:p-8">
                                             <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">
                                                 {children}
                                             </div>
                                         </main>
+                                        <RoleMobileNavigation role="manager" onOpenMore={() => setSidebarOpen(true)} />
                                     </div>
                                 </div>
                     </ManagerOperationalProviders>

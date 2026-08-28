@@ -247,7 +247,7 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">
+        <div className="min-h-screen space-y-6 p-3 animate-in fade-in duration-500 sm:space-y-8 sm:p-6 lg:p-10">
 
             {/* Header */}
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -273,22 +273,22 @@ export default function AdminDashboard() {
             )}
 
             {/* Core Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-6 lg:grid-cols-4">
 
                 {/* SLA Compliance */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Clock size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400">
-                                <Zap size={24} />
+                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
+                            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 sm:p-3">
+                                <Zap className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">SLA Compliance</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">SLA Compliance</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.slaCompliance.toFixed(1)}%</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.slaCompliance.toFixed(1)}%</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Responses under 10 mins</p>
 
@@ -303,57 +303,57 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Avg Response Time */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Zap size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
-                                <Clock size={24} />
+                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
+                            <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 sm:p-3">
+                                <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">Avg Response</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Avg Response</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.avgResponseTime}</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.avgResponseTime}</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Global broker average</p>
                     </div>
                 </div>
 
                 {/* Pending Verifications */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Shield size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl text-orange-600 dark:text-orange-400">
-                                <Shield size={24} />
+                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
+                            <div className="rounded-xl bg-orange-50 p-2.5 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 sm:p-3">
+                                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">Pending Verifications</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Pending Verifications</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingVerifications}</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.pendingVerifications}</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Awaiting admin review</p>
                     </div>
                 </div>
 
                 {/* Active Transactions */}
-                <div className="bg-gradient-to-br from-orange-600 to-red-600 p-6 rounded-2xl shadow-lg shadow-orange-500/20 text-white relative overflow-hidden group hover:shadow-xl transition-all">
+                <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-600 to-red-600 p-4 text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:scale-110 transition-transform">
                         <Activity size={100} />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/10 rounded-xl text-white backdrop-blur-sm">
-                                <Activity size={24} />
+                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
+                            <div className="rounded-xl bg-white/10 p-2.5 text-white backdrop-blur-sm sm:p-3">
+                                <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-orange-100 uppercase tracking-widest">Live Deals</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-100 sm:text-xs sm:tracking-widest">Live Deals</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-white">{stats.activeTransactions}</span>
+                            <span className="text-2xl font-bold text-white sm:text-3xl">{stats.activeTransactions}</span>
                         </div>
                         <p className="text-xs text-orange-100 font-medium mt-2">Active fast-track flows</p>
                         <button
@@ -471,7 +471,7 @@ export default function AdminDashboard() {
 
                     {/* Banner */}
                     <div className="rounded-2xl bg-gray-900 dark:bg-black p-8 text-white relative overflow-hidden border border-white/10 dark:border-gray-800">
-                        <div className="absolute right-0 top-0 w-64 h-64 bg-orange-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
+                        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-orange-600 opacity-20 blur-[80px]" aria-hidden="true"></div>
                         <div className="relative z-10 flex items-start justify-between">
                             <div>
                                 <h2 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h2>

@@ -311,7 +311,7 @@ const Analytics = () => {
             </div>
 
             {/* SLA & Response Performance */}
-            <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
+            <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-black sm:p-8">
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">SLA & Response Performance</h2>
@@ -452,16 +452,16 @@ const Analytics = () => {
 
                             {/* Custom Bar Chart for Revenue */}
                             <div className="relative pt-10 pb-2">
-                                <div className="flex items-end justify-between gap-4 h-64 border-b border-gray-100 dark:border-gray-800">
+                                <div className="flex h-64 min-w-0 items-end justify-between gap-1 border-b border-gray-100 dark:border-gray-800 sm:gap-4">
                                     {revenueData.map((item, index) => {
                                         const maxValue = Math.max(...revenueData.map(d => d.value), 100);
                                         const height = (item.value / maxValue) * 100;
                                         
                                         return (
-                                            <div key={index} className="flex-1 flex flex-col items-center group">
+                                            <div key={index} className="group flex min-w-0 flex-1 flex-col items-center">
                                                 <div className="w-full relative flex flex-col items-center justify-end h-full mb-4">
                                                     <div
-                                                        className="w-12 bg-orange-500 dark:bg-orange-600 rounded-t-xl transition-all duration-500 group-hover:opacity-80 group-hover:w-14 cursor-pointer relative shadow-lg shadow-orange-500/20"
+                                                        className="relative w-full max-w-12 cursor-pointer rounded-t-xl bg-orange-500 shadow-lg shadow-orange-500/20 transition-all duration-500 group-hover:opacity-80 dark:bg-orange-600 sm:group-hover:w-14"
                                                         style={{ height: `${height}%` }}
                                                     >
                                                         <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap z-20 shadow-xl scale-75 group-hover:scale-100">
@@ -469,7 +469,7 @@ const Analytics = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{item.month}</span>
+                                                <span className="truncate text-xs font-bold text-gray-700 dark:text-gray-300 sm:text-sm">{item.month}</span>
                                             </div>
                                         );
                                     })}

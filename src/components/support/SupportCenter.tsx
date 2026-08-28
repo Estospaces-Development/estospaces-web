@@ -525,8 +525,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const adminAssigneeUserKeyFor = createDuplicateSafeKeyResolver('support-assignee-admin-user');
 
     return (
-        <div className="space-y-6">
-            <section className="rounded-[2.25rem] border border-orange-100 bg-white/95 p-8 shadow-[0_24px_70px_-40px_rgba(255,115,0,0.35)] dark:border-orange-500/15 dark:bg-gray-900/85">
+        <div className="min-w-0 max-w-full space-y-6">
+            <section className="min-w-0 rounded-[2.25rem] border border-orange-100 bg-white/95 p-5 shadow-[0_24px_70px_-40px_rgba(255,115,0,0.35)] dark:border-orange-500/15 dark:bg-gray-900/85 sm:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="max-w-4xl">
                         <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">{ROLE_COPY[role].title}</span>
@@ -609,14 +609,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 </div>
             )}
 
-            <div className="grid gap-6 xl:grid-cols-[360px,minmax(0,1fr)]">
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between rounded-[2rem] border border-orange-100 bg-white/90 px-5 py-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80">
+            <div className="grid min-w-0 gap-6 xl:grid-cols-[360px,minmax(0,1fr)]">
+                <div className="min-w-0 space-y-4">
+                    <div className="flex min-w-0 flex-col gap-3 rounded-[2rem] border border-orange-100 bg-white/90 px-5 py-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                         <div>
                             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{isAdmin ? 'Support queue' : 'My tickets'}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{tickets.length} visible right now</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             {!isAdmin && <button type="button" onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900">New ticket</button>}
                             <button type="button" onClick={() => void fetchTickets()} disabled={loading} aria-busy={loading || undefined} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900" aria-label="Refresh support tickets">{loading ? <ActionSpinner size="sm" label="Refreshing support tickets" /> : <RefreshCw className="h-4 w-4" />}</button>
                         </div>
@@ -638,7 +638,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     )}
                 </div>
 
-                <div className="space-y-5">
+                <div className="min-w-0 space-y-5">
                     {!isAdmin && !selectedTicket && (
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                             <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 className="text-2xl font-black text-gray-950 dark:text-white">Open a support ticket</h2></div>

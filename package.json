@@ -20,6 +20,7 @@
     "test:e2e:batch:staging": "node scripts/e2e-batch-runner.cjs --env=staging",
     "test:e2e:batch:prod": "node scripts/e2e-batch-runner.cjs --env=prod",
     "test:e2e:batch:review": "node scripts/e2e-batch-review.cjs",
+    "test:mobile:audit": "node scripts/mobile-responsive-audit.cjs --target=dev",
     "test:release-smoke:staging": "node scripts/app-release-smoke.cjs --target=staging",
     "test:release-smoke:prod": "node scripts/app-release-smoke.cjs --target=prod",
     "test:messages:local": "node scripts/messages-proof.cjs --target=local",

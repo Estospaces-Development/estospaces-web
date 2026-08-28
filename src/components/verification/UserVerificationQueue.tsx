@@ -189,7 +189,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     const userCardKeyFor = createDuplicateSafeKeyResolver(`${scope}-verification-user`);
 
     return (
-        <div data-testid="user-verification-queue" className="space-y-10 animate-in fade-in duration-500">
+        <div data-testid="user-verification-queue" className="min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -204,8 +204,8 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                     <p className="text-gray-500 mt-2">{content.description}</p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
+                <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:flex sm:w-auto sm:items-center sm:gap-4">
+                    <div className="group relative min-w-0">
                         <Search className={`absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors ${content.focusText}`} size={18} />
                         <input
                             type="text"
@@ -213,7 +213,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                             placeholder="Search users..."
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
-                            className={`pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 font-bold text-sm w-64 shadow-sm transition-all ${content.accentRing}`}
+                            className={`w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-base font-bold shadow-sm outline-none transition-all focus:ring-4 dark:border-gray-700 dark:bg-gray-800 sm:w-64 sm:text-sm ${content.accentRing}`}
                         />
                     </div>
                     <label className="sr-only" htmlFor={`${scope}-verification-sort`}>Sort verification queue</label>
@@ -231,7 +231,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         onClick={handleRefresh}
                         aria-label="Refresh verification queue"
                         title="Refresh verification queue"
-                        className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
+                        className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-[1.02] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:w-auto"
                     >
                         {isRefreshing ? <ActionSpinner size="sm" label="Refreshing verification queue" /> : <RefreshCw size={20} />}
                     </button>

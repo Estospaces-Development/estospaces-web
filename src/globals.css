@@ -831,8 +831,26 @@
 }
 
 @media (max-width: 639px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   .role-workspace-content {
     min-height: calc(100dvh - 8rem);
+    overscroll-behavior-y: contain;
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  .mobile-app-content {
+    background-image: linear-gradient(180deg, rgb(249 250 251 / 0.9), rgb(249 250 251));
+  }
+
+  .dark .mobile-app-content {
+    background-image: linear-gradient(180deg, rgb(9 9 11 / 0.96), rgb(0 0 0));
   }
 
   .role-workspace-content :where(h1, h2, h3, p, label, dd, dt) {
@@ -845,6 +863,52 @@
 
   .role-workspace-content :where(img, video, canvas, iframe, svg) {
     max-width: 100%;
+  }
+
+  .role-workspace-content :where(pre, code) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .role-workspace-content table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .role-workspace-content :where(button, a[class*='rounded']) {
+    touch-action: manipulation;
+  }
+
+  .role-workspace-content button:not([role='switch']):not([class~='h-6']):not([class~='h-7']),
+  .role-workspace-content [role='button']:not([role='switch']),
+  .role-workspace-content nav a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .role-workspace-content :where(button, [role='button'], nav a) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .role-workspace-content :where(.overflow-x-auto, .overflow-x-scroll) {
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .role-workspace-content :where(.overflow-x-auto, .overflow-x-scroll)::-webkit-scrollbar {
+    display: none;
+  }
+
+  .role-workspace-content :where(.overflow-x-auto, .overflow-x-scroll) > :where(button, a, [role='button']) {
+    scroll-snap-align: start;
+  }
+
+  .mobile-role-navigation {
+    transform: translateZ(0);
   }
 
   .mobile-action-row > :where(button, a) {
@@ -875,6 +939,16 @@
 
   [data-mobile-table="cards"] :where(button, a, [role="button"]) {
     min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .mobile-role-navigation > div {
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  }
+
+  .mobile-role-navigation :where(a, button) {
+    min-height: 3rem;
   }
 }
 

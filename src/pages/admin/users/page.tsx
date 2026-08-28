@@ -640,7 +640,67 @@ function UserManagementContent() {
                     </div>
                 )}
 
-                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label="Scrollable lead reassignment table">
+                <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="Lead reassignment cards">
+                    {adminLeadLoading ? (
+                        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-700">
+                            <BrandLoader size="sm" label="Loading lead reassignment queue" showLabel />
+                        </div>
+                    ) : visibleReassignableLeads.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
+                            <p className="text-sm font-black text-gray-900 dark:text-white">No open leads ready for reassignment</p>
+                        </div>
+                    ) : visibleReassignableLeads.map((lead) => {
+                        const selectedBrokerId = leadBrokerSelections[lead.id] || '';
+                        const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
+                        const isBusy = reassigningLeadId === lead.id;
+                        const rowError = leadReassignErrors[lead.id];
+                        const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
+                        const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
+                        const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, adminBrokers.length, isBusy);
+                        const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
+
+                        return (
+                            <article key={`mobile-${lead.id}`} className="min-w-0 rounded-3xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                <div className="flex min-w-0 items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
+                                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">{lead.status || 'pending'}</p>
+                                    </div>
+                                    <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
+                                </div>
+                                <dl className="mt-4 rounded-2xl bg-white p-3 dark:bg-gray-950">
+                                    <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current broker</dt>
+                                    <dd className="mt-1 break-words text-sm font-bold text-gray-700 dark:text-gray-200">{currentBrokerName}</dd>
+                                </dl>
+                                <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-500">New broker</label>
+                                <select
+                                    id={`admin-mobile-lead-reassign-${lead.id}`}
+                                    aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
+                                    value={selectedBrokerId}
+                                    onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
+                                    className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                >
+                                    <option value="">Choose broker</option>
+                                    {adminBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{getAdminBrokerDisplayName(broker)}</option>)}
+                                </select>
+                                {rowError && <p role="alert" className="mt-2 break-words text-xs font-semibold text-red-600">{rowError}</p>}
+                                <button
+                                    type="button"
+                                    aria-label={actionLabel}
+                                    title={selectionError || undefined}
+                                    onClick={() => handleLeadReassign(lead)}
+                                    disabled={isActionDisabled}
+                                    className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
+                                >
+                                    {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
+                                    Reassign lead
+                                </button>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label="Scrollable lead reassignment table">
                     <table className="w-full min-w-[760px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
@@ -801,7 +861,58 @@ function UserManagementContent() {
                     {statusMessage}
                 </p>
 
-                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
+                <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="User registry cards">
+                    {loading ? (
+                        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-700">
+                            <BrandLoader size="sm" label="Loading user registry" showLabel />
+                        </div>
+                    ) : paginatedUsers.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
+                            <h3 className="text-base font-black text-gray-900 dark:text-white">{getAdminUserEmptyStateTitle()}</h3>
+                            <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{getAdminUserEmptyStateBody()}</p>
+                        </div>
+                    ) : paginatedUsers.map((user) => {
+                        const displayName = getAdminUserDisplayName(user);
+                        const statusId = `admin-mobile-user-status-${user.id}`;
+                        const actionBusy = actionUserId === user.id;
+
+                        return (
+                            <article key={`mobile-${user.id}`} className="min-w-0 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Avatar userId={user.id} src={user.avatar_url || user.avatar} name={displayName} size="md" shape="rounded" fallbackClassName="from-emerald-500 to-teal-600" />
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="truncate text-sm font-black text-gray-900 dark:text-white">{displayName}</h3>
+                                        <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{user.email}</p>
+                                    </div>
+                                    <span id={statusId} aria-label={`${displayName} is ${user.is_active ? 'active' : 'deactivated'}`} className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${user.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'}`}>
+                                        {user.is_active ? 'Active' : 'Off'}
+                                    </span>
+                                </div>
+                                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-3 dark:bg-gray-950">
+                                    <div>
+                                        <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Role</dt>
+                                        <dd className="mt-1 text-sm font-bold capitalize text-gray-800 dark:text-gray-200">{user.role}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Joined</dt>
+                                        <dd className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-200">{new Date(user.created_at).toLocaleDateString()}</dd>
+                                    </div>
+                                </dl>
+                                <div className="mt-4 grid grid-cols-2 gap-2">
+                                    <button type="button" aria-label={`Review ${displayName} (${user.email}) verification`} onClick={() => handleReviewVerification(user)} disabled={user.role === 'admin'} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wider text-gray-700 transition-all hover:text-emerald-600 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200">
+                                        <Eye size={16} /> Review
+                                    </button>
+                                    <button type="button" aria-label={buildAdminUserActionLabel(user, actionBusy)} aria-describedby={statusId} onClick={() => handleToggleUserState(user)} disabled={actionBusy} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-wider transition-all disabled:opacity-60 ${user.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
+                                        {actionBusy ? <ActionSpinner size={16} className="" /> : <Power size={16} />}
+                                        {user.is_active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
                     <table className="w-full min-w-[980px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">

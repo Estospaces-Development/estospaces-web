@@ -299,8 +299,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     // Hero variant
     if (variant === 'hero') {
         return (
-            <form onSubmit={handleSearch} className={`w-full ${className}`}>
-                <div className="inline-flex p-1.5 bg-slate-100/95 backdrop-blur-sm rounded-t-2xl border border-slate-200 shadow-sm">
+            <form onSubmit={handleSearch} className={`min-w-0 max-w-full ${className}`}>
+                <div className="grid min-w-0 max-w-full grid-cols-3 rounded-2xl border border-slate-200 bg-slate-100/95 p-1 shadow-sm backdrop-blur-sm sm:inline-flex sm:w-auto sm:rounded-t-2xl sm:p-1.5">
                     {[
                         { label: 'All', value: 'all' },
                         { label: 'Buy', value: 'sale' },
@@ -309,7 +309,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <button
                             key={option.value}
                             type="button"
-                            className={`flex min-w-[84px] items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 ${filters.listingType === option.value
+                            className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-wide transition-all duration-300 sm:min-w-[84px] sm:px-5 sm:py-3 ${filters.listingType === option.value
                                 ? 'bg-primary text-white shadow-lg shadow-primary/25'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                                 }`}
@@ -320,20 +320,20 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     ))}
                 </div>
 
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-b-xl rounded-tr-xl shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-4 border border-gray-100 dark:border-gray-700">
-                    <div className="relative">
+                <div className="grid min-w-0 max-w-full grid-cols-1 gap-3 rounded-b-2xl border border-gray-100 bg-white p-4 shadow-2xl dark:border-gray-700 dark:bg-gray-900 sm:gap-4 sm:rounded-b-xl sm:rounded-tr-xl sm:p-6 md:grid-cols-4">
+                    <div className="relative min-w-0">
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Keyword</label>
-                        <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                        <div className="flex min-w-0 items-center border-b border-gray-100 pb-2 dark:border-gray-700">
                             <Search size={18} className="text-primary mr-2" />
-                            <input type="text" value={filters.keyword} maxLength={120} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Enter Keyword..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
+                            <input type="text" value={filters.keyword} maxLength={120} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Enter Keyword..." className="min-w-0 w-full bg-transparent text-gray-900 outline-none placeholder-gray-400 dark:text-gray-100 dark:placeholder-gray-500" />
                         </div>
                     </div>
 
-                    <div className="relative">
+                    <div className="relative min-w-0">
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Location</label>
-                        <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                        <div className="flex min-w-0 items-center border-b border-gray-100 pb-2 dark:border-gray-700">
                             <MapPin size={18} className="text-primary mr-2" />
-                            <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder={`City or ${sentenceLocationCodeLabel}...`} className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
+                            <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder={`City or ${sentenceLocationCodeLabel}...`} className="min-w-0 w-full bg-transparent text-gray-900 outline-none placeholder-gray-400 dark:text-gray-100 dark:placeholder-gray-500" />
                         </div>
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className={suggestionMenuClassName}>
@@ -359,9 +359,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         )}
                     </div>
 
-                    <div className="relative">
+                    <div className="relative min-w-0">
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Type</label>
-                        <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                        <div className="flex min-w-0 items-center border-b border-gray-100 pb-2 dark:border-gray-700">
                             <Home size={18} className="text-primary mr-2" />
                             <button
                                 type="button"
@@ -406,13 +406,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         )}
                     </div>
 
-                    <div className="flex items-end gap-2">
+                    <div className="flex min-w-0 items-end gap-2">
                         {showAdvanced && (
-                            <button type="button" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className="p-3 border border-gray-100 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors" title="Advanced Search">
+                            <button type="button" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className="min-h-12 min-w-12 rounded-xl border border-gray-100 p-3 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800" title="Advanced Search" aria-label="Toggle advanced property filters">
                                 <SlidersHorizontal size={20} />
                             </button>
                         )}
-                        <button type="submit" className="flex-1 bg-primary text-white py-3 rounded font-bold hover:bg-opacity-90 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+                        <button type="submit" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition-all hover:bg-opacity-90 hover:shadow-xl">
                             <Search size={20} />
                             Search
                         </button>

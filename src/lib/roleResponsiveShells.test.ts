@@ -27,7 +27,7 @@ test('user workspace uses a compact mobile header and thumb-reachable navigation
     assert.match(userNavigation, /absolute right-1\.5 top-1/);
     assert.match(userNavigation, /UnreadCountBadge count=\{item\.badgeCount \|\| 0\} mobile/);
     assert.match(userLayout, /pb-24[\s\S]*md:pb-0/);
-    assert.match(messageFab, /bottom-24[\s\S]*md:bottom-6/);
+    assert.match(messageFab, /hidden[\s\S]*md:inline-flex/);
     assert.match(userHeader, /NotificationDropdown appearance="brand"/);
     assert.match(userHeader, /h-11 min-w-11/);
     assert.match(userHeader, /aria-label="Account actions"/);

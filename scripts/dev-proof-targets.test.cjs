@@ -34,6 +34,15 @@ test('full platform performance proof rejects login errors and enforces the laun
   assert.match(source, /const latencyBudgetMs = 1000/);
 });
 
+test('authenticated smoke proof uses the current canonical login route', () => {
+  const source = readScript('e2e-smoke.cjs');
+
+  assert.match(source, /return hostname\.endsWith\("\.run\.app"\) \? "\/login\/" : "\/login"/);
+  assert.doesNotMatch(source, /sessions\/create/);
+  assert.match(source, /const reportPath = path\.join\(screenshotRoot, "report\.json"\)/);
+  assert.match(source, /fs\.writeFileSync\(reportPath, JSON\.stringify\(report, null, 2\)\)/);
+});
+
 test('dev proof helpers default to deployed Cloud Run when FRONTEND_URL is absent', () => {
   const files = [
     'case-file-submit-proof.cjs',

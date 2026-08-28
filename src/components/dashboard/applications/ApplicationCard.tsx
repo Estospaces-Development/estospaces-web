@@ -327,13 +327,13 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         <div
             onClick={onClick}
         >
-            <div className="flex">
+            <div className="flex flex-col min-[480px]:flex-row">
                 {/* Property Image */}
-                <div className="relative flex-shrink-0 w-32 sm:w-40 lg:w-48">
+                <div className="relative h-44 w-full flex-shrink-0 min-[480px]:h-auto min-[480px]:w-40 lg:w-48">
                     <img
                         src={application.propertyImage}
                         alt={application.propertyTitle || 'Property'}
-                        className="w-full h-full object-cover min-h-[160px]"
+                        className="h-full min-h-[176px] w-full object-cover min-[480px]:min-h-[160px]"
                     />
                     {/* Status Badge Overlay */}
                     <div className="absolute top-3 left-3">
@@ -431,7 +431,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     </div>
 
                     {/* Bottom Section - Actions */}
-                    <div className="flex items-center justify-between mt-4 pt-3">
+                    <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-3 dark:border-gray-700 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
                         {/* Price */}
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
@@ -445,11 +445,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 min-[480px]:flex min-[480px]:items-center">
                             <button
                                 onClick={handleMessageAgent}
                                 disabled={openingConversation}
-                                className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors disabled:cursor-wait disabled:opacity-60"
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-orange-50 hover:text-orange-500 disabled:cursor-wait disabled:opacity-60 dark:hover:bg-orange-900/20"
                                 title={openingConversation ? 'Opening thread' : 'Message Agent'}
                                 aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
                             >
@@ -461,7 +461,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                         e.stopPropagation();
                                         onClick();
                                     }}
-                                    className="px-3 py-2 border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                                    className="min-h-11 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
                                 >
                                     Withdraw
                                 </button>
@@ -471,7 +471,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                     e.stopPropagation();
                                     onClick();
                                 }}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow"
+                                className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 hover:shadow"
                             >
                                 {primaryAction.label}
                                 <ChevronRight size={16} />

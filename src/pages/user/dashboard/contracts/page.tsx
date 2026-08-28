@@ -549,7 +549,7 @@ export default function ContractsPage() {
               </div>
             ) : (
               <>
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
+            <div className="rounded-[2.5rem] bg-white p-5 shadow-xl dark:bg-gray-800 sm:p-8 md:p-10">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
@@ -597,10 +597,10 @@ export default function ContractsPage() {
                       type="button"
                       aria-label={`Open property workspace for ${item.propertyTitle}`}
                       onClick={() => navigate(item.targetPath)}
-                      className="group text-left rounded-[2rem] border border-gray-100 bg-gray-50 p-5 transition-all hover:border-orange-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-900/50"
+                      className="group min-w-0 rounded-[2rem] border border-gray-100 bg-gray-50 p-4 text-left transition-all hover:border-orange-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-900/50 min-[380px]:p-5"
                     >
-                      <div className="flex gap-4">
-                        <div className="h-24 w-24 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                      <div className="flex min-w-0 flex-col gap-4 min-[380px]:flex-row">
+                        <div className="h-40 w-full flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 min-[380px]:h-24 min-[380px]:w-24">
                           {item.propertyImage ? (
                             <img
                               src={item.propertyImage}
@@ -664,11 +664,11 @@ export default function ContractsPage() {
                             {item.statusSummary}
                           </p>
 
-                          <div className="mt-4 flex items-center justify-between">
+                          <div className="mt-4 flex min-w-0 flex-col items-start gap-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                             <span className="text-xs font-black uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
                               {item.statusLabel}
                             </span>
-                            <span className="text-sm font-bold text-orange-600 dark:text-orange-300">
+                            <span className="max-w-full text-left text-sm font-bold text-orange-600 dark:text-orange-300">
                               {item.actionLabel}
                             </span>
                           </div>
