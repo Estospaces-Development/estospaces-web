@@ -149,4 +149,6 @@ test('mobile dashboards use compact app-native hierarchy while desktop breakpoin
 test('manager analytics uses deliberate 48px period and export controls on touch screens', () => {
   assert.equal((managerAnalytics.match(/min-h-12 px-4 py-2/g) || []).length, 2);
   assert.match(managerAnalytics, /min-h-12 min-w-12 items-center justify-center/);
+  assert.equal((managerAnalytics.match(/style=\{\{ minHeight: 48 \}\}/g) || []).length, 2);
+  assert.match(managerAnalytics, /style=\{\{ minHeight: 48, minWidth: 48 \}\}/);
 });
