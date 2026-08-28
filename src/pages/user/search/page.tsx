@@ -406,7 +406,7 @@ const PropertySearch = () => {
 
                 const marketProperties = filterPropertiesForMarket(result.data || [], activeMarket);
                 setProperties(marketProperties);
-                setTotal(marketProperties.length);
+                setTotal(result.pagination?.total ?? marketProperties.length);
             } else {
                 setError(result.error || 'Failed to fetch properties. Please try again.');
                 setProperties([]);

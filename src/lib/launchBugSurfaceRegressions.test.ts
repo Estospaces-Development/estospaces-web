@@ -21,6 +21,12 @@ test('admin property registry reports the complete visible total instead of curr
   assert.doesNotMatch(source, /Total Listed:[\s\S]{0,120}\{visibleRegistryProperties\.length\}/);
 });
 
+test('user search pagination retains the market-scoped API total', () => {
+  const source = readSource('src/pages/user/search/page.tsx');
+  assert.match(source, /setTotal\(result\.pagination\?\.total \?\? marketProperties\.length\)/);
+  assert.doesNotMatch(source, /setTotal\(marketProperties\.length\);\s*\} else/);
+});
+
 test('manager review history does not synthesize a system audit event', () => {
   const source = readSource('src/components/admin/ManagerReviewModal.tsx');
   assert.doesNotMatch(source, /Status imported from the approved manager profile/);
