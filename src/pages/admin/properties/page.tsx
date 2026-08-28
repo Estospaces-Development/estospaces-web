@@ -496,7 +496,7 @@ function PropertyManagementContent() {
                     </div>
                 </div>
             ) : null}
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                     <div className="mb-2 flex items-center gap-3">
                         <span className="rounded-full bg-blue-700 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-700/20">Inventory Hub</span>

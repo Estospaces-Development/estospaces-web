@@ -942,6 +942,19 @@
   }
 }
 
+@media (min-width: 640px) and (max-width: 1023px) {
+  .role-workspace-content :where(button, a[class*='rounded']) {
+    touch-action: manipulation;
+  }
+
+  .role-workspace-content button:not([role='switch']):not([class~='h-6']):not([class~='h-7']),
+  .role-workspace-content [role='button']:not([role='switch']),
+  .role-workspace-content nav a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 @media (max-width: 767px) and (orientation: landscape) {
   .mobile-role-navigation > div {
     padding-bottom: max(0.25rem, env(safe-area-inset-bottom));

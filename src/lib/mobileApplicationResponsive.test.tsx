@@ -77,6 +77,24 @@ test('all role workspace shells contain content and overlays inside the mobile v
     assert.match(css, /env\(safe-area-inset-bottom\)/);
 });
 
+test('tablet workspaces preserve touch targets and delay dense registry layout until desktop', () => {
+    const css = source('globals.css');
+    const backButton = source('components/ui/BackButton.tsx');
+    const adminProperties = source('pages/admin/properties/page.tsx');
+    const userNavigation = source('components/layout/HorizontalNavigation.tsx');
+    const themeSwitcher = source('components/dashboard/ThemeSwitcher.tsx');
+    const adminHeader = source('components/layout/AdminHeader.tsx');
+
+    assert.match(css, /@media \(min-width: 640px\) and \(max-width: 1023px\)[\s\S]*min-height: 44px;[\s\S]*min-width: 44px;/);
+    assert.match(backButton, /min-h-12 min-w-12/);
+    assert.match(adminProperties, /xl:flex-row xl:items-center xl:justify-between/);
+    assert.doesNotMatch(adminProperties, /md:flex-row md:items-center md:justify-between/);
+    assert.match(userNavigation, /relative inline-flex min-h-11 items-center/);
+    assert.match(themeSwitcher, /inline-flex h-11 w-11 items-center justify-center/);
+    assert.match(adminHeader, /hidden h-11 min-w-11 shrink-0/);
+    assert.match(adminHeader, /hidden min-h-11 items-center/);
+});
+
 test('public phone navigation exposes full-size touch targets inside the viewport', () => {
     const header = source('components/layout/PublicHeader.tsx');
 

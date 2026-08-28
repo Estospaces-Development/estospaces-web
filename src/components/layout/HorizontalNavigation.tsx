@@ -116,7 +116,7 @@ const HorizontalNavigation = ({
             const Icon = item.icon;
             const active = isActive(item);
             const commonClass = `
-              relative inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold
+              relative inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold
               transition-all duration-200 ease-out whitespace-nowrap focus:outline-none
               focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-1
               ${

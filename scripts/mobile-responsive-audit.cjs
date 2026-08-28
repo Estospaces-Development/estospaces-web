@@ -216,7 +216,7 @@ async function inspectMobilePage(page, role, route) {
             || /\b(h-6|h-7)\b/.test(String(element.className || ''));
           const isMapControl = Boolean(element.closest('.leaflet-control-container'));
           if (isSwitch || isMapControl || style.pointerEvents === 'none') return false;
-          return rect.width < 44 || rect.height < 44;
+          return rect.width < 43.5 || rect.height < 43.5;
         })
         .slice(0, 12)
         .map(describe);

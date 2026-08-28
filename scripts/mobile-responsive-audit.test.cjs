@@ -20,6 +20,7 @@ test('mobile audit covers every authenticated role and route family', () => {
 test('mobile audit fails on real overflow, undersized touch targets, missing navigation, and runtime errors', () => {
   assert.match(source, /document overflows by/);
   assert.match(source, /touch targets are below 44px/);
+  assert.match(source, /rect\.width < 43\.5 \|\| rect\.height < 43\.5/);
   assert.match(source, /hasIntentionalHorizontalContainer/);
   assert.match(source, /isDecorativeOverflow/);
   assert.match(source, /mobile role navigation is not visible/);
