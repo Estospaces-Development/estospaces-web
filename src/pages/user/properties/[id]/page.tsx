@@ -42,7 +42,7 @@ import {
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
-import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase, type CreateFastTrackRequest } from '@/services/fastTrackService';
+import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
@@ -83,6 +83,15 @@ import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/
 import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
+import {
+    buildPropertyFastTrackStartRequest,
+    mapFastTrackPropertyType,
+} from '@/lib/propertyFastTrackRequest';
+
+export {
+    buildPropertyFastTrackStartRequest,
+    mapFastTrackPropertyType,
+} from '@/lib/propertyFastTrackRequest';
 import { isPropertyInMarket } from '@/lib/propertyMarket';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -142,19 +151,6 @@ export const getPropertyBrokerRequestQuery = (params: URLSearchParams) => {
     return '';
 };
 
-export const mapFastTrackPropertyType = (listingType?: string) => {
-    if (listingType === 'sale') {
-        return 'buy';
-    }
-    if (listingType === 'lease') {
-        return 'lease';
-    }
-    if (listingType === 'rent') {
-        return 'rent';
-    }
-    return null;
-};
-
 export type PropertyFastTrackLookupStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type PropertyFastTrackCtaState = 'checking' | 'start' | 'continue' | 'retry';
 
@@ -184,45 +180,6 @@ export const resolvePropertyFastTrackCtaState = ({
     }
 
     return hasActiveJourney ? 'continue' : 'start';
-};
-
-export const buildPropertyFastTrackStartRequest = ({
-    property,
-    lead,
-    brokerRequestQuery,
-    clientId,
-    clientName,
-}: {
-    property: Property;
-    lead: Lead | null;
-    brokerRequestQuery: string;
-    clientId: string;
-    clientName: string;
-}): CreateFastTrackRequest | null => {
-    const fastTrackPropertyType = mapFastTrackPropertyType(property.listing_type);
-    if (!fastTrackPropertyType) {
-        return null;
-    }
-
-    const brokerRequestId = brokerRequestQuery || lead?.broker_request_id || undefined;
-    const startsFromBrokerRequest = Boolean(brokerRequestId);
-    const managerId = lead?.matched_broker_id || lead?.broker_id || property.manager_id || undefined;
-
-    return {
-        property_id: property.id,
-        broker_request_id: brokerRequestId,
-        lead_id: startsFromBrokerRequest ? undefined : lead?.id,
-        manager_id: managerId,
-        client_id: clientId,
-        client_name: clientName,
-        property_title: property.title,
-        property_type: fastTrackPropertyType,
-        property_country: property.country || undefined,
-        listing_type: ['rent', 'sale', 'lease'].includes(property.listing_type || '')
-            ? property.listing_type as 'rent' | 'sale' | 'lease'
-            : undefined,
-        started_from: startsFromBrokerRequest ? 'broker_request_selection' : 'direct_property',
-    };
 };
 
 type PropertyFastTrackDashboardCase = Pick<FastTrackCase, 'caseId' | 'finalStatus' | 'stage'> | null | undefined;

@@ -16,6 +16,14 @@ const propertyDetailPage = readFileSync(
     resolve(root, 'src/pages/user/properties/[id]/page.tsx'),
     'utf8',
 );
+const fastTrackRequestFlow = readFileSync(
+    resolve(root, 'src/lib/propertyFastTrackRequest.ts'),
+    'utf8',
+);
+const nearbyPropertiesMap = readFileSync(
+    resolve(root, 'src/components/dashboard/NearbyPropertiesMap.tsx'),
+    'utf8',
+);
 
 test('discover page uses clear task-led copy and pressed-state controls', () => {
     assert.match(discoverPage, /Homes on Estospaces/);
@@ -44,10 +52,21 @@ test('discover property navigation restores browser search state and scroll posi
     assert.match(discoverPage, /cachedDiscoverSearchRef\.current\?\.search \|\| searchParamSnapshot/);
     assert.match(discoverPage, /openPropertyFromDiscover\(\{ id: suggestion\.id \}\)/);
     assert.match(discoverPage, /onViewDetails=\{openPropertyFromDiscover\}/);
-    assert.match(discoverPage, /onStartFastTrack=\{openFastTrackFromDiscover\}/);
+    assert.match(discoverPage, /onStartFastTrack=\{requestFastTrackFromDiscover\}/);
     assert.match(discoverPage, /backTo: discoverReturnPath/);
     assert.match(discoverPage, /backState: markDiscoverReturnHistoryState\(null\)/);
     assert.match(propertyDetailPage, /navigate\(navigationState\.backTo, \{ state: navigationState\.backState \}\)/);
+});
+
+test('discover Fast Track action submits the request instead of opening property details', () => {
+    assert.match(discoverPage, /requestDirectPropertyFastTrack\(\{/);
+    assert.match(discoverPage, /writeFastTrackRequestPending\(window\.localStorage/);
+    assert.match(discoverPage, /The property manager has been notified/);
+    assert.doesNotMatch(discoverPage, /navigate\(`\/user\/properties\/\$\{property\.id\}\?fast-track=1`/);
+    assert.match(fastTrackRequestFlow, /await dependencies\.createLead\(property\.id\)/);
+    assert.match(fastTrackRequestFlow, /await dependencies\.requestFastTrack\(userRequest\)/);
+    assert.match(propertyCard, /disabled=\{fastTrackStatus !== 'idle'\}/);
+    assert.match(nearbyPropertiesMap, /disabled=\{selectedFastTrackStatus !== 'idle'\}/);
 });
 
 test('discover result summary is compact, honest, and responsive', () => {
@@ -64,7 +83,7 @@ test('discover cards preserve the flow with a clear primary and secondary action
     assert.match(discoverPage, /appearance="discovery"/);
     assert.match(propertyCard, /appearance\?: 'default' \| 'discovery'/);
     assert.match(propertyCard, /\{isDiscoveryCard \? 'View home' : 'View Details'\}/);
-    assert.match(propertyCard, /isDiscoveryCard \? 'Request Fast Track' : 'Request 24-Hour Fast Track'/);
+    assert.match(propertyCard, /isDiscoveryCard[\s\S]*\? 'Request Fast Track'[\s\S]*: 'Request 24-Hour Fast Track'/);
     assert.match(propertyCard, /border border-orange-200 bg-orange-50/);
     assert.match(propertyCard, /min-h-12 w-full rounded-xl bg-orange-600/);
     assert.match(propertyCard, /isDiscoveryCard \? \([\s\S]*?\{viewDetailsAction\}[\s\S]*?\{fastTrackAction\}/);

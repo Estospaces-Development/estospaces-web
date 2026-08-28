@@ -16,6 +16,8 @@ import {
 import BrandLoader from '@/components/ui/BrandLoader';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
@@ -58,6 +60,16 @@ import {
     readPropertySearchReturnState,
     savePropertySearchReturnState,
 } from '@/lib/propertySearchReturnCache';
+import {
+    getFastTrackRequestPendingKey,
+    readFastTrackRequestPending,
+    writeFastTrackRequestPending,
+} from '@/lib/fastTrackRequestPending';
+import {
+    requestDirectPropertyFastTrack,
+    type FastTrackRequestStatus,
+} from '@/lib/propertyFastTrackRequest';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const ITEMS_PER_PAGE = 12;
 const DISCOVER_PATH = '/user/dashboard/discover';
@@ -300,7 +312,9 @@ function DiscoverContent() {
         initialSearchParamsRef.current = new URLSearchParams(selection.search);
     }
     const initialSearchParams = initialSearchParamsRef.current;
-    const { user } = useAuth();
+    const { user, getDisplayName } = useAuth();
+    const toast = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const { activeTab, setActiveTab } = usePropertyFilter();
 
     // Local state
@@ -337,6 +351,8 @@ function DiscoverContent() {
     const [filterInputMessage, setFilterInputMessage] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>(() => readDiscoverViewMode(initialSearchParams));
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(initialSearchParams.get('page')));
+    const [fastTrackStatusByProperty, setFastTrackStatusByProperty] = useState<Record<string, FastTrackRequestStatus>>({});
+    const fastTrackRequestsInFlightRef = useRef(new Set<string>());
 
     useEffect(() => {
         if (isDiscoverReturnEntryRef.current) {
@@ -593,16 +609,84 @@ function DiscoverContent() {
         });
     }, [cacheDiscoverSearchReturn, discoverReturnPath, navigate]);
 
-    const openFastTrackFromDiscover = useCallback((property: { id: string }) => {
-        cacheDiscoverSearchReturn();
-        navigate(`/user/properties/${property.id}?fast-track=1`, {
-            state: {
-                backTo: discoverReturnPath,
-                backLabel: 'Back to Discover',
-                backState: markDiscoverReturnHistoryState(null),
-            },
-        });
-    }, [cacheDiscoverSearchReturn, discoverReturnPath, navigate]);
+    const getFastTrackRequestStatus = useCallback((propertyID: string): FastTrackRequestStatus => {
+        const currentStatus = fastTrackStatusByProperty[propertyID];
+        if (currentStatus) {
+            return currentStatus;
+        }
+        if (!user?.id || typeof window === 'undefined') {
+            return 'idle';
+        }
+
+        const pendingKey = getFastTrackRequestPendingKey(user.id, propertyID);
+        return readFastTrackRequestPending(window.localStorage, pendingKey) ? 'requested' : 'idle';
+    }, [fastTrackStatusByProperty, user?.id]);
+
+    const requestFastTrackFromDiscover = useCallback(async (propertyReference: { id: string }) => {
+        const property = filteredProperties.find((item) => item.id === propertyReference.id);
+        if (!property || !user?.id) {
+            toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
+            return;
+        }
+
+        const pendingKey = getFastTrackRequestPendingKey(user.id, property.id);
+        if (
+            fastTrackRequestsInFlightRef.current.has(property.id)
+            || readFastTrackRequestPending(window.localStorage, pendingKey)
+        ) {
+            setFastTrackStatusByProperty((current) => ({
+                ...current,
+                [property.id]: 'requested',
+            }));
+            toast.info('Your Fast Track request is already waiting for manager approval.');
+            return;
+        }
+
+        fastTrackRequestsInFlightRef.current.add(property.id);
+        setFastTrackStatusByProperty((current) => ({
+            ...current,
+            [property.id]: 'requesting',
+        }));
+
+        try {
+            const result = await requestDirectPropertyFastTrack({
+                property,
+                clientId: user.id,
+                clientName: getDisplayName(),
+            });
+            writeFastTrackRequestPending(window.localStorage, pendingKey, result.requestedAt);
+            setFastTrackStatusByProperty((current) => ({
+                ...current,
+                [property.id]: 'requested',
+            }));
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                ],
+                reason: 'User requested Fast Track from property discovery',
+                ids: {
+                    leadId: result.leadId,
+                    propertyId: property.id,
+                },
+            });
+            toast.success('Fast Track requested. The property manager has been notified.');
+        } catch (requestError) {
+            setFastTrackStatusByProperty((current) => ({
+                ...current,
+                [property.id]: 'idle',
+            }));
+            toast.error(
+                requestError instanceof Error
+                    ? requestError.message
+                    : 'Unable to request Fast Track right now.',
+            );
+        } finally {
+            fastTrackRequestsInFlightRef.current.delete(property.id);
+        }
+    }, [filteredProperties, getDisplayName, publishWorkspaceSync, toast, user?.id]);
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -989,7 +1073,8 @@ function DiscoverContent() {
                             properties={toDiscoverNearbyMapProperties(filteredProperties)}
                             onPropertyClick={openPropertyFromDiscover}
                             onOpenWorkspace={openPropertyFromDiscover}
-                            onStartFastTrack={openFastTrackFromDiscover}
+                            onStartFastTrack={requestFastTrackFromDiscover}
+                            getFastTrackRequestStatus={getFastTrackRequestStatus}
                         />
                     </div>
                 ) : (
@@ -1026,7 +1111,8 @@ function DiscoverContent() {
                                         key={property.id}
                                         property={property}
                                         onViewDetails={openPropertyFromDiscover}
-                                        onStartFastTrack={openFastTrackFromDiscover}
+                                        onStartFastTrack={requestFastTrackFromDiscover}
+                                        fastTrackStatus={getFastTrackRequestStatus(property.id)}
                                         showSaveAction
                                         appearance="discovery"
                                     />

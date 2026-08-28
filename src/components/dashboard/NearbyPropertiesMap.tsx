@@ -18,6 +18,7 @@ import {
 } from '@/lib/nearbyMap';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import type { FastTrackRequestStatus } from '@/lib/propertyFastTrackRequest';
 
 interface UserLocation {
     latitude: number;
@@ -50,6 +51,7 @@ interface NearbyPropertiesMapProps {
     onPropertyClick?: ((property: Property) => void) | null;
     onOpenWorkspace?: ((property: Property) => void) | null;
     onStartFastTrack?: ((property: Property) => void) | null;
+    getFastTrackRequestStatus?: ((propertyID: string) => FastTrackRequestStatus) | null;
     compact?: boolean;
 }
 
@@ -171,6 +173,7 @@ const NearbyPropertiesMap = ({
     onPropertyClick = null,
     onOpenWorkspace = null,
     onStartFastTrack = null,
+    getFastTrackRequestStatus = null,
     compact = false,
 }: NearbyPropertiesMapProps) => {
     const navigate = useNavigate();
@@ -260,6 +263,9 @@ const NearbyPropertiesMap = ({
         () => propertiesWithCoords.find((property) => property.id === selectedPropertyID) || null,
         [propertiesWithCoords, selectedPropertyID],
     );
+    const selectedFastTrackStatus = selectedProperty && getFastTrackRequestStatus
+        ? getFastTrackRequestStatus(selectedProperty.id)
+        : 'idle';
     const mapKey = useMemo(() => [
         userLocation?.latitude ?? 'none',
         userLocation?.longitude ?? 'none',
@@ -608,9 +614,14 @@ const NearbyPropertiesMap = ({
                             type="button"
                             data-nearby-open-fast-track
                             onClick={() => handleStartFastTrack(selectedProperty)}
-                            className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                            disabled={selectedFastTrackStatus !== 'idle'}
+                            className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-700 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-200"
                         >
-                            Request fast-track
+                            {selectedFastTrackStatus === 'requesting'
+                                ? 'Requesting...'
+                                : selectedFastTrackStatus === 'requested'
+                                    ? 'Fast Track requested'
+                                    : 'Request fast-track'}
                         </button>
                     </div>
                 </div>
