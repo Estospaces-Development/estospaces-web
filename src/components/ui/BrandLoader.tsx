@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 
+import BrandLoadingIndicator from './BrandLoadingIndicator';
+
 type BrandLoaderSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 interface BrandLoaderProps {
@@ -11,12 +13,14 @@ interface BrandLoaderProps {
 }
 
 const sizePixels: Record<BrandLoaderSize, number> = {
-    xs: 14,
-    sm: 18,
-    md: 24,
-    lg: 36,
-    xl: 48,
+    xs: 24,
+    sm: 28,
+    md: 36,
+    lg: 48,
+    xl: 64,
 };
+
+const minimumLogoSize = sizePixels.xs;
 
 const resolveSize = (size: BrandLoaderProps['size']) => {
     if (typeof size === 'number') return size;
@@ -49,10 +53,8 @@ export default function BrandLoader({
     'aria-label': ariaLabel,
 }: BrandLoaderProps) {
     const pixelSize = resolveSize(size ?? readLegacySpinnerSize(className) ?? 'md');
-    const logoWidth = Math.max(pixelSize * 1.7, 24);
     const style = {
-        '--brand-loader-height': `${pixelSize}px`,
-        '--brand-loader-width': `${logoWidth}px`,
+        '--brand-loader-size': `${pixelSize}px`,
     } as CSSProperties;
 
     return (
@@ -62,12 +64,12 @@ export default function BrandLoader({
             aria-label={ariaLabel || label}
             aria-live="polite"
             aria-busy="true"
-            style={style}
         >
-            <span className="brand-loader-mark relative inline-grid shrink-0 place-items-center overflow-hidden" aria-hidden="true">
-                <span className="brand-loader-glow absolute inset-0" />
-                <img src="/logo-icon.png" alt="" className="relative block h-auto w-full object-contain" />
-            </span>
+            <BrandLoadingIndicator
+                className="brand-loader-indicator"
+                style={style}
+                showLogo={pixelSize >= minimumLogoSize}
+            />
             {showLabel ? <span className="brand-loader-label truncate text-sm font-semibold">{label}</span> : null}
         </span>
     );
