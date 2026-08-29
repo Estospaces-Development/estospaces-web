@@ -173,6 +173,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
                         <input
                             type="text"
+                            role="combobox"
                             placeholder="Search properties, leads, or tasks..."
                             value={searchQuery}
                             onChange={(e) => {
