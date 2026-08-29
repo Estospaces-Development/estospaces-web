@@ -168,6 +168,16 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const fetchingRef = useRef(false);
     const loadingTicketDetailsRef = useRef(new Set<string>());
     const detailRequestVersionRef = useRef(0);
+    const supportCenterMountedRef = useRef(false);
+
+    useEffect(() => {
+        supportCenterMountedRef.current = true;
+
+        return () => {
+            supportCenterMountedRef.current = false;
+            detailRequestVersionRef.current += 1;
+        };
+    }, []);
     const adminQueueTabs = useMemo(() => ADMIN_QUEUE_TABS.map((tab) => {
         const tabFilters: SupportFilterState = {
             search: filters.search,
@@ -208,6 +218,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
             const data = isAdmin
                 ? await supportService.getAllTickets({ limit: 100 })
                 : await supportService.getTickets({ limit: 100 });
+            if (!supportCenterMountedRef.current) return;
+
             setAllTickets(data);
             const visibleTickets = data.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
             setTickets(visibleTickets);
@@ -240,12 +252,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 }, { replace: true });
             }
         } catch (error: any) {
-            if (!silent) {
+            if (!silent && supportCenterMountedRef.current) {
                 toast.error(error.message || 'Failed to load support tickets');
             }
         } finally {
             fetchingRef.current = false;
-            if (!silent) setLoading(false);
+            if (!silent && supportCenterMountedRef.current) setLoading(false);
         }
     }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
 
@@ -259,13 +271,15 @@ export function SupportCenter({ role }: SupportCenterProps) {
         if (!silent) setDetailLoading(true);
         try {
             const detail = await supportService.getTicket(ticketId);
+            if (!supportCenterMountedRef.current || requestVersion !== detailRequestVersionRef.current) return;
+
             const transcript = await supportService.getTranscript(detail.conversation_id);
-            if (requestVersion === detailRequestVersionRef.current) {
+            if (supportCenterMountedRef.current && requestVersion === detailRequestVersionRef.current) {
                 setSelectedTicket(detail);
                 setMessages(transcript);
             }
         } catch (error: any) {
-            if (!silent) {
+            if (!silent && supportCenterMountedRef.current) {
                 setSelectedTicket(null);
                 setMessages([]);
                 setResumingTicketId((current) => current === ticketId ? null : current);
@@ -273,14 +287,18 @@ export function SupportCenter({ role }: SupportCenterProps) {
             }
         } finally {
             loadingTicketDetailsRef.current.delete(ticketId);
-            if (!silent) setDetailLoading(false);
+            if (!silent && supportCenterMountedRef.current) setDetailLoading(false);
         }
     }, [toast]);
 
     useEffect(() => {
         void fetchTickets();
         if (isAdmin) {
-            void supportService.getSupportAgents().then(setAdminUsers).catch(() => undefined);
+            void supportService.getSupportAgents().then((agents) => {
+                if (supportCenterMountedRef.current) {
+                    setAdminUsers(agents);
+                }
+            }).catch(() => undefined);
         }
     }, [fetchTickets, isAdmin]);
 
