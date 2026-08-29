@@ -82,6 +82,8 @@ test('all role workspace shells contain content and overlays inside the mobile v
     assert.match(css, /role-workspace-content[\s\S]*overscroll-behavior-y:\s*auto/);
     assert.match(browserAudit, /page\.mouse\.wheel/);
     assert.match(browserAudit, /scrollGesturePassed/);
+    assert.match(browserAudit, /nestedScrollGestureDelta/);
+    assert.match(browserAudit, /data-mobile-audit-scroll-probe/);
     assert.match(browserAudit, /vertical scroll gesture did not move/);
 });
 

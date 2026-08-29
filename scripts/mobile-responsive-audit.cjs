@@ -255,14 +255,46 @@ async function inspectMobilePage(page, role, route) {
       };
     }, { expectedRole: role, crashSource: crashPattern.source });
 
+    const scrollPoint = {
+      x: Math.round(auditViewport.width / 2),
+      y: Math.round(auditViewport.height / 2),
+    };
     await page.evaluate(() => window.scrollTo(0, 0));
+    const nestedScrollBefore = await page.evaluate(({ x, y }) => {
+      document.querySelectorAll('[data-mobile-audit-scroll-probe]').forEach((element) => {
+        element.removeAttribute('data-mobile-audit-scroll-probe');
+      });
+      let element = document.elementFromPoint(x, y);
+      while (element && element !== document.body && element !== document.documentElement) {
+        const style = window.getComputedStyle(element);
+        const canScroll = ['auto', 'scroll'].includes(style.overflowY)
+          && element.scrollHeight > element.clientHeight + 2;
+        if (canScroll) {
+          element.setAttribute('data-mobile-audit-scroll-probe', 'true');
+          return element.scrollTop;
+        }
+        element = element.parentElement;
+      }
+      return null;
+    }, scrollPoint);
     const scrollBefore = await page.evaluate(() => window.scrollY);
-    await page.mouse.move(Math.round(auditViewport.width / 2), Math.round(auditViewport.height / 2));
+    await page.mouse.move(scrollPoint.x, scrollPoint.y);
     await page.mouse.wheel(0, Math.max(320, Math.round(auditViewport.height * 0.7)));
     await page.waitForTimeout(150);
     const scrollAfter = await page.evaluate(() => window.scrollY);
+    const nestedScrollAfter = await page.evaluate(() => {
+      const element = document.querySelector('[data-mobile-audit-scroll-probe]');
+      const scrollTop = element?.scrollTop ?? null;
+      element?.removeAttribute('data-mobile-audit-scroll-probe');
+      return scrollTop;
+    });
     result.scrollGestureDelta = Math.round(scrollAfter - scrollBefore);
-    result.scrollGesturePassed = result.pageScrollRange < 8 || result.scrollGestureDelta > 2;
+    result.nestedScrollGestureDelta = nestedScrollBefore === null || nestedScrollAfter === null
+      ? 0
+      : Math.round(nestedScrollAfter - nestedScrollBefore);
+    result.scrollGesturePassed = result.pageScrollRange < 8
+      || result.scrollGestureDelta > 2
+      || result.nestedScrollGestureDelta > 2;
 
     const finalPath = new URL(page.url()).pathname;
     const redirectedToLogin = finalPath.startsWith('/login');
