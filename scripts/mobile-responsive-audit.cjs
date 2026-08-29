@@ -235,11 +235,14 @@ async function inspectMobilePage(page, role, route) {
         .filter((image) => isVisible(image) && image.complete && image.naturalWidth === 0)
         .map(describe)
         .slice(0, 8);
+      const headingLimits = viewportWidth < 640
+        ? { h1: 32, h2: 26 }
+        : { h1: 48, h2: 36 };
       const oversizedHeadings = Array.from(document.querySelectorAll('main h1, main h2'))
         .filter((element) => {
           if (!isVisible(element)) return false;
           const fontSize = Number.parseFloat(window.getComputedStyle(element).fontSize);
-          return element.tagName === 'H1' ? fontSize > 32 : fontSize > 26;
+          return element.tagName === 'H1' ? fontSize > headingLimits.h1 : fontSize > headingLimits.h2;
         })
         .map((element) => ({
           ...describe(element),

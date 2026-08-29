@@ -19,20 +19,21 @@ interface RoleMobileNavigationProps {
 
 const roleItems = {
   manager: [
-    { icon: LayoutDashboard, label: 'Home', path: '/manager/dashboard', exact: true },
-    { icon: Zap, label: 'Fast Track', path: '/manager/fast-track' },
-    { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
-    { icon: Users, label: 'Leads', path: '/manager/leads', activePaths: ['/manager/clients'] },
+    { icon: LayoutDashboard, label: 'Home', mobileLabel: 'Home', path: '/manager/dashboard', exact: true },
+    { icon: Zap, label: 'Fast Track', mobileLabel: 'Fast Track', path: '/manager/fast-track' },
+    { icon: Building2, label: 'Properties', mobileLabel: 'Listings', path: '/manager/dashboard/properties' },
+    { icon: Users, label: 'Leads', mobileLabel: 'Leads', path: '/manager/leads', activePaths: ['/manager/clients'] },
   ],
   admin: [
-    { icon: LayoutDashboard, label: 'Home', path: '/admin/dashboard', exact: true },
-    { icon: Users, label: 'Users', path: '/admin/users', activePaths: ['/admin/user-management'] },
-    { icon: ShieldCheck, label: 'Verify', path: '/admin/verifications' },
-    { icon: Building2, label: 'Properties', path: '/admin/properties' },
+    { icon: LayoutDashboard, label: 'Home', mobileLabel: 'Home', path: '/admin/dashboard', exact: true },
+    { icon: Users, label: 'Users', mobileLabel: 'Users', path: '/admin/users', activePaths: ['/admin/user-management'] },
+    { icon: ShieldCheck, label: 'Verify', mobileLabel: 'Verify', path: '/admin/verifications' },
+    { icon: Building2, label: 'Properties', mobileLabel: 'Listings', path: '/admin/properties' },
   ],
 } satisfies Record<MobileWorkspaceRole, Array<{
   icon: typeof LayoutDashboard;
   label: string;
+  mobileLabel: string;
   path: string;
   exact?: boolean;
   activePaths?: string[];
@@ -66,6 +67,7 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
             <Link
               key={item.path}
               to={item.path}
+              aria-label={item.mobileLabel === item.label ? item.label : `${item.mobileLabel} (${item.label})`}
               aria-current={active ? 'page' : undefined}
               className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
                 active
@@ -74,7 +76,7 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
               }`}
             >
               <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
-              <span className="max-w-full truncate">{item.label}</span>
+              <span className="max-w-full whitespace-nowrap">{item.mobileLabel}</span>
               {active ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-orange-500" /> : null}
             </Link>
           );

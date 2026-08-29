@@ -36,3 +36,10 @@ test('login submit keeps the auth shell stable behind the global branded loader'
   assert.match(loginPage, /if \(authLoading\) \{\s*return <BrandLoadingScreen label="Checking your session\.\.\." \/>;/);
   assert.doesNotMatch(loginPage, /<BrandLoader/);
 });
+
+test('login keeps the primary action reachable on short phone viewports', () => {
+  assert.match(loginPage, /<AuthBrand className="!mb-4 sm:!mb-8"/);
+  assert.match(loginPage, /Development QA sign-in\. Use an authorized test account\./);
+  assert.match(loginPage, /mb-4 text-center text-sm[^"]+sm:mb-8/);
+  assert.match(loginPage, /mb-4 text-right sm:mb-6/);
+});

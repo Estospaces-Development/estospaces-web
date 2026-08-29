@@ -879,6 +879,11 @@
     overflow-wrap: anywhere;
   }
 
+  .role-workspace-content .mobile-summary-label {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
   .role-workspace-content :where(input, textarea, select) {
     font-size: 16px;
   }

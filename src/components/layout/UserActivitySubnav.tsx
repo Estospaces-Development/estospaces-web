@@ -8,18 +8,21 @@ const activityItems = [
   {
     icon: Heart,
     label: "Saved homes",
+    mobileLabel: "Saved",
     description: "Homes you liked",
     path: "/user/dashboard/saved",
   },
   {
     icon: FileText,
     label: "Applications",
+    mobileLabel: "Applications",
     description: "Requests you sent",
     path: "/user/dashboard/applications",
   },
   {
     icon: FolderLock,
     label: "Virtual Storage",
+    mobileLabel: "Documents",
     description: "Document vault",
     path: "/user/dashboard/virtual-storage",
     activePaths: [
@@ -31,18 +34,21 @@ const activityItems = [
   {
     icon: Zap,
     label: "Fast Track",
+    mobileLabel: "Fast Track",
     description: "Active cases",
     path: "/user/dashboard/fast-track",
   },
   {
     icon: Calendar,
     label: "Viewings",
+    mobileLabel: "Viewings",
     description: "Visits and replies",
     path: "/user/dashboard/viewings",
   },
   {
     icon: Home,
     label: "My homes",
+    mobileLabel: "My homes",
     description: "Rented or bought",
     path: "/user/dashboard/contracts",
   },
@@ -80,7 +86,8 @@ const UserActivitySubnav = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`group flex min-h-12 min-w-[118px] snap-start items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-all duration-200 sm:min-h-[68px] sm:min-w-0 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 ${
+              aria-label={item.mobileLabel === item.label ? item.label : `${item.mobileLabel} (${item.label})`}
+              className={`group flex min-h-12 min-w-[150px] snap-start items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-all duration-200 sm:min-h-[68px] sm:min-w-0 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 ${
                 active
                   ? "border-orange-200 bg-orange-50 text-orange-700 shadow-[0_18px_40px_-28px_rgba(249,115,22,0.75)] dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
                   : "border-transparent bg-gray-50 text-gray-600 hover:border-orange-100 hover:bg-white hover:text-gray-950 dark:bg-gray-800/70 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
@@ -97,7 +104,10 @@ const UserActivitySubnav = () => {
                 <Icon size={18} />
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-bold">
+                <span className="block whitespace-nowrap text-sm font-bold sm:hidden">
+                  {item.mobileLabel}
+                </span>
+                <span className="hidden truncate text-sm font-bold sm:block">
                   {item.label}
                 </span>
                 <span

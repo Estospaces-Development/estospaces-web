@@ -28,6 +28,7 @@ const userDashboard = readSource('../pages/user/dashboard/DashboardClient.tsx');
 const searchBar = readSource('../components/ui/SearchBar.tsx');
 const messageInboxFab = readSource('../components/layout/MessageInboxFab.tsx');
 const managerDashboard = readSource('../pages/manager/dashboard/page.tsx');
+const managerTabBar = readSource('../components/dashboard/TabBar.tsx');
 const managerAnalytics = readSource('../pages/manager/analytics/page.tsx');
 const statCard = readSource('../components/dashboard/StatCard.tsx');
 const adminDashboard = readSource('../pages/admin/dashboard/page.tsx');
@@ -54,6 +55,10 @@ test('manager and admin expose app-like mobile bottom navigation without changin
   assert.match(adminLayout, /RoleMobileNavigation role="admin"/);
   assert.match(mobileNavigation, /activePaths: \['\/manager\/clients'\]/);
   assert.match(mobileNavigation, /activePaths: \['\/admin\/user-management'\]/);
+  assert.match(mobileNavigation, /label: 'Properties', mobileLabel: 'Listings'/);
+  assert.match(mobileNavigation, /item\.mobileLabel === item\.label[\s\S]*item\.mobileLabel/);
+  assert.match(mobileNavigation, /\{item\.mobileLabel\}/);
+  assert.doesNotMatch(mobileNavigation, /truncate">\{item\.label\}/);
 });
 
 test('mobile headers preserve context while compacting the user wordmark', () => {
@@ -122,9 +127,27 @@ test('support and admin registry controls reflow into full-width mobile actions'
 
 test('user activity navigation becomes a compact mobile carousel instead of a tall desktop grid', () => {
   assert.match(userActivitySubnav, /snap-x snap-mandatory/);
-  assert.match(userActivitySubnav, /min-w-\[118px\] snap-start/);
+  assert.match(userActivitySubnav, /min-w-\[150px\] snap-start/);
+  assert.match(userActivitySubnav, /mobileLabel: "Documents"/);
+  assert.match(userActivitySubnav, /whitespace-nowrap text-sm font-bold sm:hidden/);
   assert.match(userActivitySubnav, /hidden truncate text-xs sm:block/);
   assert.match(userActivitySubnav, /sm:grid sm:grid-cols-2/);
+});
+
+test('manager dashboard avoids duplicate phone navigation while preserving desktop tabs', () => {
+  assert.match(managerTabBar, /hidden overflow-x-auto[^"]+sm:block/);
+  assert.match(managerTabBar, /Overview/);
+  assert.match(managerTabBar, /Analytics/);
+});
+
+test('application summary cards preserve complete metric labels on narrow phones', () => {
+  const applicationsPage = readSource('../pages/user/applications/page.tsx');
+
+  assert.match(applicationsPage, /data-mobile-application-summary/);
+  assert.match(applicationsPage, /grid-cols-2 gap-3/);
+  assert.match(applicationsPage, /mobile-summary-label/);
+  assert.match(applicationsPage, /min-\[360px\]:p-4 sm:p-5/);
+  assert.match(globalStyles, /\.role-workspace-content \.mobile-summary-label[\s\S]*overflow-wrap: normal !important;[\s\S]*word-break: normal !important;/);
 });
 
 test('shared verification queue stacks search, sort, and refresh controls on narrow phones', () => {

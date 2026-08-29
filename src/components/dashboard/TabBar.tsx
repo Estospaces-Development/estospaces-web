@@ -18,7 +18,7 @@ const TabBar = ({ activeTab, onTabChange }: TabBarProps) => {
     ];
 
     return (
-        <div className="mb-4 overflow-x-auto pb-1 scrollbars-none sm:mb-8">
+        <div className="mb-8 hidden overflow-x-auto pb-1 scrollbars-none sm:block">
             <div className="inline-flex min-w-max rounded-xl border border-gray-100/50 bg-gray-100/80 p-1 shadow-inner backdrop-blur-sm dark:border-gray-800/50 dark:bg-gray-900/50 sm:rounded-2xl sm:p-1.5">
                 {tabs.map((tab) => {
                     const Icon = tab.icon;

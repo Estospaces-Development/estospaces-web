@@ -110,11 +110,11 @@ export default function LoginPage() {
 
   return (
     <section className="flex flex-col items-center" aria-labelledby="login-heading">
-      <AuthBrand />
+      <AuthBrand className="!mb-4 sm:!mb-8" />
 
       <a
         href={homeHref}
-        className={`mb-6 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-orange-50 hover:underline dark:hover:bg-orange-950/30 ${authFocusClass}`}
+        className={`mb-3 inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-orange-50 hover:underline sm:mb-6 dark:hover:bg-orange-950/30 ${authFocusClass}`}
       >
         <ArrowLeft size={16} aria-hidden="true" />
         Visit Estospaces.com
@@ -151,19 +151,20 @@ export default function LoginPage() {
                 {isSwitching ? 'Sign in with another account' : 'Sign in to Estospaces'}
             </h1>
 
-            <p className="text-gray-500 dark:text-gray-300 text-sm mb-8 text-center">
+            <p className="mb-4 text-center text-sm text-gray-500 sm:mb-8 dark:text-gray-300">
                 Enter your email and password to continue
             </p>
 
             {isCloudRunHost && (
-                <div className="mb-6 w-full rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-950 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-100">
-                    Estospaces development sign-in for authorized QA users only. Use test accounts here; public users should use the official Estospaces domain.
+                <div className="mb-4 w-full rounded-md border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs leading-relaxed text-orange-950 sm:mb-6 sm:px-4 sm:py-3 sm:text-sm dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-100">
+                    <span className="sm:hidden">Development QA sign-in. Use an authorized test account.</span>
+                    <span className="hidden sm:inline">Estospaces development sign-in for authorized QA users only. Use test accounts here; public users should use the official Estospaces domain.</span>
                 </div>
             )}
 
             <form onSubmit={handleLogin} className="w-full">
                 {/* Email Input */}
-                <div className="mb-4">
+                <div className="mb-3 sm:mb-4">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                 <input
                     id="email"
@@ -216,7 +217,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Forgot Password Link */}
-                <div className="text-right mb-6">
+                <div className="mb-4 text-right sm:mb-6">
                 <Link to={forgotPasswordPath} className={`text-primary text-sm font-semibold hover:underline ${authFocusClass}`}>
                     Forgot Password?
                 </Link>
@@ -257,14 +258,14 @@ export default function LoginPage() {
           </>
       )}
 
-      <p className="text-sm text-gray-700 dark:text-gray-300 mt-6">
+      <p className="mt-4 text-sm text-gray-700 sm:mt-6 dark:text-gray-300">
         Don&apos;t have an account?{' '}
         <Link to={registerPath} className={`text-primary font-semibold hover:underline ${authFocusClass}`}>
           Sign Up
         </Link>
       </p>
 
-      <p className="text-xs text-gray-500 dark:text-gray-300 mt-12 text-center leading-relaxed">
+      <p className="mt-8 text-center text-xs leading-relaxed text-gray-500 sm:mt-12 dark:text-gray-300">
         By continuing you agree to Estospaces<br />
         <Link to="/terms" className={`text-primary hover:underline ${authFocusClass}`}>terms &amp; conditions</Link>
         {' | '}

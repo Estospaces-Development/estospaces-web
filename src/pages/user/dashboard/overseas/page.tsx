@@ -83,7 +83,7 @@ export default function OverseasPage() {
                 <div className="group relative mb-10 overflow-hidden rounded-[2rem] bg-gray-900 shadow-2xl dark:bg-white sm:mb-16 sm:rounded-[3rem]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.35),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_40%),linear-gradient(135deg,_rgba(17,24,39,0.96),_rgba(55,65,81,0.92))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),_transparent_40%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(243,244,246,0.92))] opacity-100 group-hover:scale-105 transition-transform duration-1000"></div>
                     <div className="relative z-10 mx-auto max-w-3xl px-5 py-10 text-center sm:px-10 sm:py-20">
-                        <h2 className="mb-4 text-3xl font-black tracking-tight text-white dark:text-gray-900 sm:mb-6 sm:text-4xl md:text-5xl">
+                        <h2 className="mb-4 text-3xl font-black tracking-tight text-white dark:text-gray-900 sm:mb-6 sm:text-4xl lg:text-5xl">
                             Find Your Dream <span className="text-orange-500">Global</span> Sanctuary
                         </h2>
                         <p className="mb-6 text-sm font-semibold leading-6 text-white/85 dark:text-gray-600 sm:mb-10 sm:text-lg">Curated properties in the world's most desired locations.</p>

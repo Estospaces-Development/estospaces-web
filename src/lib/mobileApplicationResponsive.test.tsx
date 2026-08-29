@@ -107,7 +107,17 @@ test('phone workspaces use an intentional compact type and spacing scale', () =>
     assert.match(userHeader, /min-\[360px\]:inline/);
     assert.match(roleNavigation, /min-h-14/);
     assert.match(browserAudit, /oversizedHeadings/);
+    assert.match(browserAudit, /viewportWidth < 640/);
+    assert.match(browserAudit, /\{ h1: 32, h2: 26 \}/);
+    assert.match(browserAudit, /\{ h1: 48, h2: 36 \}/);
     assert.match(browserAudit, /mobile navigation is taller than/);
+});
+
+test('overseas hero preserves the tablet type scale and reserves the largest heading for desktop', () => {
+    const overseasPage = source('pages/user/dashboard/overseas/page.tsx');
+
+    assert.match(overseasPage, /sm:text-4xl lg:text-5xl/);
+    assert.doesNotMatch(overseasPage, /sm:text-4xl md:text-5xl/);
 });
 
 test('tablet workspaces preserve touch targets and delay dense registry layout until desktop', () => {
