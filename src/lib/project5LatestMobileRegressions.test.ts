@@ -66,3 +66,66 @@ test("manager case-file documents follow both light and dark themes", () => {
   assert.match(source, /border-orange-200 bg-orange-50\/70 p-5 shadow-sm dark:border-\[#35261a\] dark:bg-\[#101010\]/);
   assert.match(source, /border-gray-200 bg-gray-50 p-5 shadow-sm dark:border-\[#252525\] dark:bg-\[#0c0c0c\]/);
 });
+
+test("role guides surface actions before supporting desktop detail on phones", () => {
+  const source = readSource("components/docs/RoleDocsPage.tsx");
+
+  assert.match(source, /hidden gap-4 sm:grid/);
+  assert.match(source, /mt-5 grid grid-cols-2 gap-3/);
+  assert.match(source, /hidden text-sm leading-6[\s\S]*sm:block/);
+});
+
+test("user notification and virtual-storage metrics stay compact on phones", () => {
+  const notifications = readSource("pages/user/dashboard/notifications/page.tsx");
+  const storage = readSource("pages/user/virtual-storage/page.tsx");
+
+  assert.match(notifications, /mt-5 grid grid-cols-3 gap-2/);
+  assert.match(storage, /grid grid-cols-2 gap-3/);
+});
+
+test("mobile property detail keeps price and actions ahead of supporting content", () => {
+  const source = readSource("pages/user/properties/[id]/page.tsx");
+
+  assert.match(source, /line-clamp-4 max-w-2xl/);
+  assert.match(source, /mt-6 hidden sm:block/);
+});
+
+test("overseas discovery keeps its hero copy readable on dark imagery", () => {
+  const source = readSource("pages/user/dashboard/overseas/page.tsx");
+
+  assert.match(source, /text-white\/85 dark:text-gray-600/);
+  assert.match(source, /px-5 py-10 text-center/);
+});
+
+test("manager summary metrics use compact phone grids", () => {
+  const appointments = readSource("pages/manager/appointments/page.tsx");
+  const verification = readSource("components/verification/UserVerificationQueue.tsx");
+  const community = readSource("components/community/CommunityStats.tsx");
+
+  assert.match(appointments, /grid grid-cols-2 gap-3 min-\[360px\]:grid-cols-3/);
+  assert.match(verification, /grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4/);
+  assert.match(community, /grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4/);
+});
+
+test("admin operational metrics use compact phone grids", () => {
+  const analytics = readSource("pages/admin/analytics/page.tsx");
+  const research = readSource("pages/admin/research/page.tsx");
+  const users = readSource("pages/admin/users/page.tsx");
+  const notifications = readSource("pages/admin/notifications/page.tsx");
+
+  assert.match(analytics, /grid grid-cols-2 gap-3/);
+  assert.match(research, /grid grid-cols-2 gap-3/);
+  assert.match(users, /grid grid-cols-2 gap-3 lg:grid-cols-4/);
+  assert.match(notifications, /mt-5 grid grid-cols-3 gap-2/);
+  assert.doesNotMatch(notifications, /Opens \{targetPath\}/);
+});
+
+test("narrow-phone guides wrap safely and settings tabs stay fully visible", () => {
+  const docs = readSource("components/docs/RoleDocsPage.tsx");
+  const settings = readSource("pages/user/dashboard/settings/page.tsx");
+
+  assert.match(docs, /min-w-0 max-w-4xl/);
+  assert.match(docs, /break-words text-2xl[\s\S]*\[overflow-wrap:anywhere\]/);
+  assert.match(settings, /grid grid-cols-2 gap-2/);
+  assert.match(settings, /min-h-12 min-w-0 items-center justify-center/);
+});

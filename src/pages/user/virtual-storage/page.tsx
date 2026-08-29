@@ -488,7 +488,7 @@ export function UserVirtualStoragePageContent({
         <button
           type="button"
           onClick={onBack}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-gray-400 transition-colors hover:text-orange-500"
+          className="mb-6 hidden items-center gap-2 text-sm font-bold text-gray-400 transition-colors hover:text-orange-500 sm:inline-flex"
         >
           <span className="rounded-xl p-2 transition-colors hover:bg-orange-50 dark:hover:bg-orange-900/20">
             <ArrowLeft size={18} />
@@ -503,7 +503,7 @@ export function UserVirtualStoragePageContent({
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-orange-500">
               My Activity
             </p>
-            <h1 className="mt-2 text-4xl font-black tracking-tight text-gray-900 dark:text-white">
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">
               Virtual Storage
             </h1>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-gray-500 dark:text-gray-400">
@@ -516,22 +516,22 @@ export function UserVirtualStoragePageContent({
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-black sm:p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Documents</p>
-            <p className="mt-3 text-3xl font-black text-gray-900 dark:text-white">{activeDocumentCount}</p>
+            <p className="mt-2 text-2xl font-black text-gray-900 dark:text-white sm:mt-3 sm:text-3xl">{activeDocumentCount}</p>
           </div>
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-black sm:p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Linked</p>
-            <p className="mt-3 text-3xl font-black text-gray-900 dark:text-white">{linkedDocuments.length}</p>
+            <p className="mt-2 text-2xl font-black text-gray-900 dark:text-white sm:mt-3 sm:text-3xl">{linkedDocuments.length}</p>
           </div>
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-black sm:p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Pending save</p>
-            <p className="mt-3 text-3xl font-black text-gray-900 dark:text-white">{pendingSaveDocuments.length}</p>
+            <p className="mt-2 text-2xl font-black text-gray-900 dark:text-white sm:mt-3 sm:text-3xl">{pendingSaveDocuments.length}</p>
           </div>
-          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-5 shadow-sm dark:border-orange-900/30 dark:bg-orange-950/20">
+          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 shadow-sm dark:border-orange-900/30 dark:bg-orange-950/20 sm:p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Fast-track</p>
-            <p className="mt-3 text-3xl font-black text-orange-700 dark:text-orange-200">{activeFastTrackCount}</p>
+            <p className="mt-2 text-2xl font-black text-orange-700 dark:text-orange-200 sm:mt-3 sm:text-3xl">{activeFastTrackCount}</p>
           </div>
         </div>
 

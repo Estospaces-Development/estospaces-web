@@ -217,7 +217,7 @@ export default function SettingsPage() {
                 <div className="mb-10">
                     <button
                         onClick={() => navigate('/user/dashboard')}
-                        className="mb-6 flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-all group"
+                        className="mb-6 hidden items-center gap-2 text-gray-400 transition-all group hover:text-orange-500 sm:flex"
                     >
                         <div className="p-2 rounded-xl group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20 transition-all">
                             <ArrowLeft size={18} />
@@ -229,7 +229,7 @@ export default function SettingsPage() {
                         <div>
                             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Settings</h1>
                             <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                                Manage the preferences backed by the current user settings API
+                                Choose how Estospaces alerts you and remembers your search preferences
                             </p>
                         </div>
 
@@ -252,14 +252,14 @@ export default function SettingsPage() {
                         </button>
                     </div>
 
-                    <div className="flex gap-2 mt-10 overflow-x-auto pb-4 scrollbar-hide">
+                    <div className="mt-8 grid grid-cols-2 gap-2 pb-4 sm:mt-10 sm:flex sm:overflow-x-auto sm:scrollbar-hide">
                         {tabs.map((tab) => (
                             <button
                                 type="button"
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 aria-pressed={activeTab === tab.id}
-                                className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-bold text-sm whitespace-nowrap transition-all ${
+                                className={`flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold whitespace-nowrap transition-all sm:justify-start sm:gap-3 sm:px-6 ${
                                     activeTab === tab.id
                                         ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl'
                                         : 'bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white'
@@ -283,7 +283,7 @@ export default function SettingsPage() {
                                     <div>
                                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Alert Preferences</h2>
                                         <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-                                            These switches map directly to `/api/v1/users/preferences`
+                                            Control which updates you receive in the app and by email.
                                         </p>
                                     </div>
                                 </div>

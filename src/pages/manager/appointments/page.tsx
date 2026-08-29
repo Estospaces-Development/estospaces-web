@@ -533,7 +533,7 @@ export default function ManagerAppointmentsPage() {
                     </button>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Appointments</h1>
                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Confirm, reschedule, complete, and cancel real viewing appointments from booking-service.
+                        Confirm, reschedule, complete, and cancel property viewings in one place.
                     </p>
                 </div>
                 <button
@@ -548,7 +548,7 @@ export default function ManagerAppointmentsPage() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 min-[360px]:grid-cols-3 md:grid-cols-5 md:gap-4" data-mobile-compact-summary-grid>
                 {[
                     { label: 'Total', value: summary.total, icon: CalendarClock, accent: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
                     { label: 'Pending', value: summary.pending, icon: Clock3, accent: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
@@ -556,12 +556,12 @@ export default function ManagerAppointmentsPage() {
                     { label: 'Completed', value: summary.completed, icon: CalendarCheck, accent: 'text-purple-500 bg-purple-100 dark:bg-purple-900/30' },
                     { label: 'Cancelled', value: summary.cancelled, icon: XCircle, accent: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
                 ].map((card) => (
-                    <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-black">
-                        <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${card.accent}`}>
-                            <card.icon className="h-5 w-5" />
+                    <div key={card.label} className="min-w-0 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-black sm:rounded-3xl sm:p-5">
+                        <div className={`mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl sm:mb-4 sm:h-11 sm:w-11 sm:rounded-2xl ${card.accent}`}>
+                            <card.icon className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
                         </div>
-                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                        <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{card.value}</p>
+                        <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400 sm:text-sm sm:font-medium">{card.label}</p>
+                        <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{card.value}</p>
                     </div>
                 ))}
             </div>

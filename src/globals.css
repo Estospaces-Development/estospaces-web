@@ -883,6 +883,11 @@
     line-height: 1.45;
   }
 
+  .role-workspace-content :where([class*="text-[9px]"], [class*="text-[10px]"]) {
+    font-size: 0.75rem !important;
+    line-height: 1.35;
+  }
+
   .role-workspace-content :where(button, [role='button'], input, textarea, select) {
     line-height: 1.4;
   }
@@ -965,6 +970,28 @@
     transform: translateZ(0);
   }
 
+  [data-mobile-primary-task] {
+    border-radius: 1rem;
+    box-shadow: 0 8px 24px -20px rgb(15 23 42 / 0.45);
+  }
+
+  [data-mobile-compact-summary-grid] > * {
+    min-width: 0;
+  }
+
+  [data-mobile-focused-workflow] [data-fast-track-header] {
+    gap: 0.75rem;
+  }
+
+  [data-mobile-focused-workflow] [data-fast-track-masthead-info-card] {
+    min-height: 3.25rem;
+  }
+
+  [data-mobile-focused-workflow] [data-fast-track-current-task],
+  [data-mobile-focused-workflow] [data-mobile-current-task] {
+    scroll-margin-top: 9rem;
+  }
+
   .mobile-action-row > :where(button, a) {
     min-height: 44px;
     flex: 1 1 10rem;
@@ -1032,6 +1059,10 @@
 }
 
 @media (min-width: 640px) {
+  .property-audit-details:not([open]) > .property-audit-content {
+    display: block;
+  }
+
   .page-shell {
     width: min(100% - 3rem, 1180px);
   }

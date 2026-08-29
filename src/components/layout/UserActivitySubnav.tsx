@@ -52,8 +52,8 @@ const UserActivitySubnav = () => {
   const { pathname } = useLocation();
 
   return (
-    <section className="mb-5 min-w-0 border-0 bg-transparent p-0 shadow-none sm:mb-8 sm:rounded-[28px] sm:border sm:border-gray-200/80 sm:bg-white/90 sm:p-3 sm:shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] sm:backdrop-blur dark:sm:border-gray-700 dark:sm:bg-gray-900/80">
-      <div className="flex flex-col gap-1 px-1 pb-2 sm:px-3 sm:pb-3">
+    <section className="mb-4 min-w-0 border-0 bg-transparent p-0 shadow-none sm:mb-8 sm:rounded-[28px] sm:border sm:border-gray-200/80 sm:bg-white/90 sm:p-3 sm:shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] sm:backdrop-blur dark:sm:border-gray-700 dark:sm:bg-gray-900/80">
+      <div className="hidden flex-col gap-1 px-1 pb-2 sm:flex sm:px-3 sm:pb-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-500">
           My Activity
         </p>
@@ -80,7 +80,7 @@ const UserActivitySubnav = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`group flex min-h-14 min-w-[132px] snap-start items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-all duration-200 sm:min-h-[68px] sm:min-w-0 sm:gap-3 sm:px-4 sm:py-3 ${
+              className={`group flex min-h-12 min-w-[118px] snap-start items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-all duration-200 sm:min-h-[68px] sm:min-w-0 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 ${
                 active
                   ? "border-orange-200 bg-orange-50 text-orange-700 shadow-[0_18px_40px_-28px_rgba(249,115,22,0.75)] dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
                   : "border-transparent bg-gray-50 text-gray-600 hover:border-orange-100 hover:bg-white hover:text-gray-950 dark:bg-gray-800/70 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
@@ -88,7 +88,7 @@ const UserActivitySubnav = () => {
               aria-current={active ? "page" : undefined}
             >
               <span
-                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors sm:h-10 sm:w-10 ${
+                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors sm:h-10 sm:w-10 sm:rounded-xl ${
                   active
                     ? "bg-orange-500 text-white"
                     : "bg-white text-gray-400 group-hover:text-orange-500 dark:bg-gray-900 dark:text-gray-500"

@@ -756,19 +756,19 @@ export default function ManagerLeadsPage() {
     }, [visibleLeads]);
 
     return (
-        <div className="space-y-8 pb-20">
+        <div className="space-y-5 pb-20 sm:space-y-8">
             <p role="status" aria-live="polite" className="sr-only">{exportStatus}</p>
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                    <div className="mb-4">
+                    <div className="mb-4 hidden sm:block">
                         <BackButton />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Lead Response Desk</h1>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">Leads</h1>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 sm:mt-2">
                         Live lead stages, document requests, and the 10-minute response window in one workspace.
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
                     <button
                         ref={manualLeadTriggerRef}
                         type="button"
@@ -776,40 +776,42 @@ export default function ManagerLeadsPage() {
                         className={`inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 ${managerLeadFocusClass}`}
                     >
                         <Plus className="h-4 w-4" />
-                        Add manual lead
+                        <span className="sm:hidden">Add lead</span>
+                        <span className="hidden sm:inline">Add manual lead</span>
                     </button>
                     <button
                         onClick={() => void fetchLeads(statusFilter)}
                         className={`inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900 ${managerLeadFocusClass}`}
                     >
                         <RefreshCw className="h-4 w-4" />
-                        Refresh
+                        <span>Refresh</span>
                     </button>
                     <button
                         type="button"
                         onClick={handleExportCsv}
                         disabled={visibleLeads.length === 0}
-                        className={`inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200 ${managerLeadFocusClass}`}
+                        className={`col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200 sm:col-span-1 ${managerLeadFocusClass}`}
                     >
                         <Download className="h-4 w-4" />
-                        Export CSV
+                        <span className="hidden sm:inline">Export CSV</span>
+                        <span className="sm:hidden">Export</span>
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" data-mobile-compact-summary-grid>
                 {[
                     { label: 'Total Leads', value: summary.total, icon: UserRound, accent: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
                     { label: 'Live Matching', value: summary.awaitingResponse, icon: Clock3, accent: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
                     { label: 'Documents Queue', value: summary.documentsQueue, icon: ShieldCheck, accent: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' },
                     { label: 'Breached', value: summary.breached, icon: AlertTriangle, accent: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
                 ].map((card) => (
-                    <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
-                        <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${card.accent}`}>
-                            <card.icon className="h-6 w-6" />
+                    <div key={card.label} className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-black sm:rounded-3xl sm:p-6">
+                        <div className={`mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl sm:mb-4 sm:h-12 sm:w-12 sm:rounded-2xl ${card.accent}`}>
+                            <card.icon className="h-[18px] w-[18px] sm:h-6 sm:w-6" />
                         </div>
-                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                        <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{card.value}</p>
+                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 sm:text-sm sm:font-medium">{card.label}</p>
+                        <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{card.value}</p>
                     </div>
                 ))}
             </div>
@@ -826,7 +828,7 @@ export default function ManagerLeadsPage() {
                 }}
             />
 
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-black sm:rounded-3xl sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <input
                         value={searchQuery}
@@ -964,7 +966,7 @@ export default function ManagerLeadsPage() {
                                 <article
                                     key={lead.id}
                                     aria-label={`${getLeadTitle(lead)} lead`}
-                                    className={`p-6 ${operationalState.requiresEscalation ? 'bg-red-50/70 ring-1 ring-inset ring-red-200 dark:bg-red-950/10 dark:ring-red-900/40' : ''}`}
+                                    className={`p-4 sm:p-6 ${operationalState.requiresEscalation ? 'bg-red-50/70 ring-1 ring-inset ring-red-200 dark:bg-red-950/10 dark:ring-red-900/40' : ''}`}
                                 >
                                     <div className="flex min-w-0 flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                                         <div className="min-w-0 space-y-4">

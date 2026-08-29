@@ -151,7 +151,7 @@ function AnalyticsContent() {
                             <Globe2 size={12} /> Live Platform Metrics
                         </span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                    <h1 className="text-3xl font-black leading-none tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                         System Insights
                     </h1>
                 </div>
@@ -169,23 +169,23 @@ function AnalyticsContent() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4 lg:gap-8" data-mobile-compact-summary-grid>
                 {stats.map((stat) => {
                     const MetricIcon = metricIconMap[stat.icon];
 
                     return (
-                    <div key={stat.label} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-none relative overflow-hidden group">
+                    <div key={stat.label} className="group relative min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-xl shadow-gray-200/50 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none sm:rounded-[2.5rem] sm:p-8">
                         <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-125 transition-transform duration-700">
                             <MetricIcon size={120} />
                         </div>
                         <div className="relative z-10">
-                            <div className="flex justify-between items-center mb-6">
-                                <div className={`p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 ${stat.color}`}>
-                                    <MetricIcon size={28} />
+                            <div className="mb-3 flex items-center justify-between sm:mb-6">
+                                <div className={`rounded-xl bg-gray-50 p-2.5 dark:bg-gray-900 sm:rounded-2xl sm:p-4 ${stat.color}`}>
+                                    <MetricIcon size={24} />
                                 </div>
                             </div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                            <h3 className="text-4xl font-black text-gray-900 dark:text-white">{stat.value}</h3>
+                            <p className="mb-2 truncate text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 sm:tracking-[0.2em]">{stat.label}</p>
+                            <h3 className="text-2xl font-black text-gray-900 dark:text-white sm:text-4xl">{stat.value}</h3>
                             {stat.detail && (
                                 <p className="mt-3 text-xs font-bold text-gray-500 dark:text-gray-400">{stat.detail}</p>
                             )}

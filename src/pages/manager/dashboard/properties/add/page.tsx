@@ -2315,12 +2315,12 @@ export default function AddPropertyPage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto font-sans pb-8">
+    <div className="mx-auto max-w-6xl pb-8 font-sans">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 mb-6">
+      <div className="mb-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:mb-6 sm:p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="mb-4">
+            <div className="mb-4 hidden sm:block">
               {/* Custom back button that respects unsaved changes */}
               <button
                 onClick={() => requestUnsavedNavigation(-1)}
@@ -2333,7 +2333,7 @@ export default function AddPropertyPage() {
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
               {mode === "edit" ? "Edit Property" : "Add New Property"}
             </h1>
-            <p className="text-gray-600 dark:text-gray-300">
+            <p className="hidden text-gray-600 dark:text-gray-300 sm:block">
               {mode === "edit"
                 ? "Update your property listing"
                 : "Create a new property listing with all the details"}
@@ -2374,7 +2374,7 @@ export default function AddPropertyPage() {
                 </div>
               )}
           </div>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
             <button
               type="button"
               onClick={handleSaveDraft}
@@ -2398,8 +2398,25 @@ export default function AddPropertyPage() {
         </div>
 
         {/* Progress Bar / Tab Navigation */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between overflow-x-auto pb-2">
+        <div className="mt-4 sm:mt-6">
+          <label className="flex min-h-12 items-center gap-3 sm:hidden">
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Step {currentStep} of {steps.length}</span>
+              <span className="block truncate text-base font-bold text-gray-900 dark:text-white">{currentStepTitle}</span>
+            </span>
+            <select
+              value={currentStep}
+              onChange={(event) => handleTabClick(Number(event.target.value))}
+              className="h-11 max-w-[8rem] rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              aria-label="Choose property form step"
+            >
+              {steps.map((step) => {
+                const accessible = mode === 'edit' || step.number <= currentStep;
+                return <option key={step.number} value={step.number} disabled={!accessible}>{step.title}</option>;
+              })}
+            </select>
+          </label>
+          <div className="hidden items-center justify-between overflow-x-auto pb-2 sm:flex">
             {steps.map((step, index) => {
               // Determine if this step is accessible
               const isCurrentStep = currentStep === step.number;
@@ -2474,7 +2491,7 @@ export default function AddPropertyPage() {
       {/* Form Content */}
       <form
         ref={formContentRef}
-        className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6"
+        className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6"
         onSubmit={handleFormSubmit}
         onKeyDown={handleFormKeyDown}
         noValidate
@@ -2483,10 +2500,14 @@ export default function AddPropertyPage() {
         <p id="manager-property-form-status" role="status" aria-live="polite" className="sr-only">
           {formStatusMessage}
         </p>
-        <section
+        <details
           aria-labelledby="manager-property-audit-heading"
-          className="mb-6 border-b border-gray-100 pb-6 dark:border-gray-800"
+          className="property-audit-details mb-5 rounded-xl border border-gray-100 bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-gray-800/40 sm:mb-6 sm:rounded-none sm:border-x-0 sm:border-t-0 sm:bg-transparent sm:p-0 sm:pb-6 dark:sm:bg-transparent"
         >
+          <summary className="cursor-pointer list-none text-sm font-semibold text-gray-800 dark:text-white sm:hidden">
+            Listing notes and audit
+          </summary>
+          <div className="property-audit-content mt-4 sm:mt-0">
           <div className="mb-3 flex flex-col gap-1">
             <h2
               id="manager-property-audit-heading"
@@ -2525,7 +2546,8 @@ export default function AddPropertyPage() {
                 : "Reason for creating this property listing"
             }
           />
-        </section>
+          </div>
+        </details>
         {/* Step 1: Basic Info */}
         {currentStep === 1 && (
           <div className="space-y-8">

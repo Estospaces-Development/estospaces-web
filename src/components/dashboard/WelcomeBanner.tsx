@@ -99,7 +99,7 @@ const WelcomeBanner = ({
             <div className="mb-3 flex flex-col items-start justify-between gap-3 sm:mb-4 sm:flex-row sm:items-center sm:gap-4">
                 <div>
                     <h1 className="mb-1 text-[1.375rem] font-bold leading-tight text-gray-800 dark:text-white sm:mb-2 sm:text-2xl">Welcome {displayName}</h1>
-                    <p className="text-sm leading-5 text-gray-600 dark:text-gray-400 sm:text-base sm:leading-6">
+                    <p className="hidden text-sm leading-5 text-gray-600 dark:text-gray-400 sm:block sm:text-base sm:leading-6">
                         Manage Your Properties, ideas, and grow your business
                     </p>
                 </div>
@@ -113,7 +113,7 @@ const WelcomeBanner = ({
             </div>
 
             {/* Summary Stats */}
-            <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800 min-[360px]:grid-cols-3 sm:mt-4 sm:flex sm:flex-wrap sm:items-center sm:gap-6 sm:p-4">
+            <div className="mt-3 hidden rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800 sm:flex sm:flex-wrap sm:items-center sm:gap-6 sm:p-4">
                 {summaryItems.map((item, index) => (
                     <div key={item.path} className="contents">
                         {index > 0 && <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>}

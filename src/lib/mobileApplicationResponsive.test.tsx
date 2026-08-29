@@ -105,7 +105,7 @@ test('phone workspaces use an intentional compact type and spacing scale', () =>
     assert.match(discover, /grid min-h-11 grid-cols-3/);
     assert.match(discover, /City, \$\{locationCodeLabel\.toLowerCase\(\)\}, or property/);
     assert.match(userHeader, /min-\[360px\]:inline/);
-    assert.match(roleNavigation, /min-h-12/);
+    assert.match(roleNavigation, /min-h-14/);
     assert.match(browserAudit, /oversizedHeadings/);
     assert.match(browserAudit, /mobile navigation is taller than/);
 });

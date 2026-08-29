@@ -385,19 +385,19 @@ export default function AdminResearchPage() {
                 </div>
             </header>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Research overview metrics">
+            <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" aria-label="Research overview metrics" data-mobile-compact-summary-grid>
                 {[
                     ['Sessions', summary.totalSessions, ClipboardList],
                     ['High severity friction', summary.highSeverityObservations, AlertTriangle],
                     ['Consent pending', summary.consentPendingReviews, ShieldCheck],
                     ['Reviewed sessions', summary.byStatus.reviewed, CheckCircle2],
                 ].map(([label, value, Icon]) => (
-                    <div key={label as string} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <div key={label as string} className="min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
                         <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-black uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">{label as string}</span>
+                            <span className="text-[10px] font-black uppercase leading-4 tracking-[0.14em] text-gray-500 dark:text-gray-400 sm:text-xs sm:tracking-[0.18em]">{label as string}</span>
                             {React.createElement(Icon as typeof ClipboardList, { size: 18, className: 'text-orange-500' })}
                         </div>
-                        <p className="mt-4 text-3xl font-black text-gray-950 dark:text-white">{value as number}</p>
+                        <p className="mt-3 text-2xl font-black text-gray-950 dark:text-white sm:mt-4 sm:text-3xl">{value as number}</p>
                     </div>
                 ))}
             </section>

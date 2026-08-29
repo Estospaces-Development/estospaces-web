@@ -167,26 +167,26 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
 
             <div className="relative mx-auto w-full max-w-[1480px] min-w-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
                 <section className="overflow-hidden rounded-[2rem] border border-orange-100/90 bg-white/95 shadow-[0_30px_90px_-48px_rgba(255,107,53,0.45)] backdrop-blur dark:border-orange-500/10 dark:bg-gray-950/95">
-                    <div className="relative overflow-hidden border-b border-orange-100/80 bg-[linear-gradient(135deg,rgba(255,107,53,0.1),rgba(255,255,255,0.98),rgba(251,191,36,0.08))] px-6 py-8 dark:border-orange-500/10 dark:bg-[linear-gradient(135deg,rgba(255,107,53,0.12),rgba(17,24,39,0.96),rgba(3,7,18,0.98))] sm:px-8 lg:px-10 lg:py-10">
+                    <div className="relative overflow-hidden border-b border-orange-100/80 bg-[linear-gradient(135deg,rgba(255,107,53,0.1),rgba(255,255,255,0.98),rgba(251,191,36,0.08))] px-4 py-5 dark:border-orange-500/10 dark:bg-[linear-gradient(135deg,rgba(255,107,53,0.12),rgba(17,24,39,0.96),rgba(3,7,18,0.98))] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
                         <div className="absolute inset-y-0 right-0 hidden w-[34%] bg-[radial-gradient(circle_at_top_right,rgba(255,107,53,0.18),transparent_60%)] xl:block" />
                         <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(340px,392px)] xl:items-start 2xl:grid-cols-[minmax(0,1.05fr)_420px]">
-                            <div className="max-w-4xl">
-                                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/90 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-orange-600 shadow-sm dark:border-orange-500/20 dark:bg-gray-950/80 dark:text-orange-300">
+                            <div className="min-w-0 max-w-4xl">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/90 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-orange-600 shadow-sm dark:border-orange-500/20 dark:bg-gray-950/80 dark:text-orange-300 sm:mb-5 sm:px-4 sm:text-xs sm:tracking-[0.22em]">
                                     <Sparkles className="h-4 w-4" />
                                     {config.label}
                                 </div>
-                                <h1 className="max-w-4xl text-display-xl text-gray-950 dark:text-white">
+                                <h1 className="max-w-4xl break-words text-2xl font-black leading-tight tracking-tight text-gray-950 [overflow-wrap:anywhere] dark:text-white sm:text-display-xl">
                                     {config.title}
                                 </h1>
-                                <p className="mt-5 max-w-3xl text-body-lg text-gray-700 dark:text-gray-300">
+                                <p className="mt-3 line-clamp-4 max-w-3xl text-sm leading-6 text-gray-700 dark:text-gray-300 sm:mt-5 sm:line-clamp-none sm:text-body-lg">
                                     {config.subtitle}
                                 </p>
 
-                                <div className="mt-7 flex flex-wrap gap-3">
+                                <div className="mt-4 flex gap-2 overflow-x-auto pb-1 sm:mt-7 sm:flex-wrap sm:gap-3">
                                     {config.audience.map((item) => (
                                         <span
                                             key={item}
-                                            className="rounded-full border border-orange-100 bg-white/90 px-4 py-2 text-sm font-semibold text-orange-700 shadow-sm dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200"
+                                            className="shrink-0 rounded-full border border-orange-100 bg-white/90 px-3 py-2 text-xs font-semibold text-orange-700 shadow-sm dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200 sm:px-4 sm:text-sm"
                                         >
                                             {item}
                                         </span>
@@ -194,7 +194,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                 </div>
                             </div>
 
-                            <div className="grid gap-4">
+                            <div className="hidden gap-4 sm:grid">
                                 <div className="rounded-[1.85rem] border border-white/70 bg-white/90 p-6 shadow-[0_24px_60px_-32px_rgba(255,107,53,0.55)] backdrop-blur dark:border-orange-500/10 dark:bg-gray-950/90">
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
@@ -293,7 +293,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                         </div>
                     </div>
 
-                    <div className="border-t border-orange-100 bg-white/95 px-6 py-6 dark:border-orange-500/10 dark:bg-gray-950/95 sm:px-8 lg:px-10">
+                    <div className="border-t border-orange-100 bg-white/95 px-4 py-5 dark:border-orange-500/10 dark:bg-gray-950/95 sm:px-8 sm:py-6 lg:px-10">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.24em] text-orange-500">
@@ -348,12 +348,12 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                             </div>
                         </div>
 
-                        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-2 xl:mt-6 xl:grid-cols-4 xl:gap-4">
                             {config.quickActions.map((action) => (
                                 <Link
                                     key={action.title}
                                     to={action.href}
-                                    className="group rounded-[1.75rem] border border-orange-100 bg-[linear-gradient(180deg,#ffffff_0%,#fff7ef_100%)] p-5 transition-all hover:-translate-y-1 hover:border-orange-200 hover:shadow-[0_20px_40px_-24px_rgba(255,107,53,0.55)] dark:border-orange-500/10 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]"
+                                    className="group min-w-0 rounded-2xl border border-orange-100 bg-[linear-gradient(180deg,#ffffff_0%,#fff7ef_100%)] p-4 transition-all hover:-translate-y-1 hover:border-orange-200 hover:shadow-[0_20px_40px_-24px_rgba(255,107,53,0.55)] dark:border-orange-500/10 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)] sm:rounded-[1.75rem] sm:p-5"
                                 >
                                     <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-500">
                                         {action.eyebrow}
@@ -361,7 +361,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                     <h3 className="mt-3 text-lg font-black tracking-tight text-gray-950 dark:text-white">
                                         {action.title}
                                     </h3>
-                                    <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                    <p className="mt-2 hidden text-sm leading-6 text-gray-600 dark:text-gray-300 sm:block">
                                         {action.description}
                                     </p>
                                     <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-orange-600 transition-transform group-hover:translate-x-1 dark:text-orange-300">

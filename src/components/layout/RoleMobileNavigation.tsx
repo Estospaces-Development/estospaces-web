@@ -67,13 +67,13 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
               key={item.path}
               to={item.path}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+              className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
                 active
                   ? 'bg-orange-50 text-orange-700 dark:bg-orange-500/12 dark:text-orange-300'
                   : 'text-gray-500 active:bg-gray-100 dark:text-gray-400 dark:active:bg-gray-800'
               }`}
             >
-              <Icon aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 2} />
+              <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
               <span className="max-w-full truncate">{item.label}</span>
               {active ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-orange-500" /> : null}
             </Link>
@@ -84,13 +84,13 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
           type="button"
           onClick={onOpenMore}
           aria-label={`Open all ${role} navigation`}
-          className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+          className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
             primaryRouteActive
               ? 'text-gray-500 active:bg-gray-100 dark:text-gray-400 dark:active:bg-gray-800'
               : 'bg-orange-50 text-orange-700 dark:bg-orange-500/12 dark:text-orange-300'
           }`}
         >
-          <Menu aria-hidden="true" className="h-[18px] w-[18px]" />
+          <Menu aria-hidden="true" className="h-5 w-5" />
           <span>More</span>
           {!primaryRouteActive ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-orange-500" /> : null}
         </button>

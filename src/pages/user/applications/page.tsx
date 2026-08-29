@@ -942,25 +942,25 @@ export default function ApplicationsPage() {
                 </div>
             </Modal>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
                 {/* Back Button */}
                 <button
                     onClick={() => navigate('/user/dashboard')}
-                    className="mb-6 flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-orange-500 transition-colors group w-fit"
+                    className="mb-6 hidden w-fit items-center gap-2 text-gray-500 transition-colors hover:text-orange-500 dark:text-gray-400 sm:flex"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                     <span className="text-sm font-medium">Back to Dashboard</span>
                 </button>
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="mb-4 flex items-start justify-between gap-3 sm:mb-8 md:items-center">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Applications</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Track and manage your property applications in one place.</p>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">Applications</h1>
+                        <p className="mt-1 hidden text-gray-500 dark:text-gray-400 sm:block">Track and manage your property applications in one place.</p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center p-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm">
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                        <div className="hidden items-center rounded-xl border bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex">
                             <button
                                 type="button"
                                 aria-label="Switch to grid view"
@@ -986,7 +986,8 @@ export default function ApplicationsPage() {
                             className="flex items-center gap-2 px-5 py-3 bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gray-200 dark:shadow-none"
                         >
                             <Plus size={18} />
-                            <span>New Application</span>
+                            <span className="hidden sm:inline">New Application</span>
+                            <span className="sm:hidden">New</span>
                         </button>
                     </div>
                 </div>

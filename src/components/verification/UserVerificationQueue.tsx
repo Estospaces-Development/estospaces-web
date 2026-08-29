@@ -198,7 +198,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         </span>
                         <span className="text-gray-400 text-xs font-bold">Verification Queue</span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                    <h1 className="text-3xl font-black leading-none tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                         {content.title}
                     </h1>
                     <p className="text-gray-500 mt-2">{content.description}</p>
@@ -238,24 +238,24 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6" data-mobile-compact-summary-grid>
                 {stats.map((stat) => (
                     <button
                         key={stat.id}
                         onClick={() => setActiveTab(stat.id as TabType)}
                         aria-pressed={activeTab === stat.id}
                         aria-label={`${stat.label}: ${stat.count} users`}
-                        className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
+                        className={`group relative min-w-0 overflow-hidden rounded-2xl border p-4 text-left transition-all sm:rounded-[2.5rem] sm:p-8 ${
                             activeTab === stat.id
                                 ? `bg-white dark:bg-gray-800 ${content.activeBorder} shadow-2xl scale-105 z-10`
                                 : 'bg-gray-50/50 dark:bg-gray-900/50 border-transparent hover:bg-white dark:hover:bg-gray-800 shadow-sm'
                         }`}
                     >
-                        <div className={`p-4 rounded-2xl ${stat.bg} ${stat.color} w-fit mb-6 transition-transform group-hover:scale-110`}>
-                            <stat.icon size={28} />
+                        <div className={`mb-3 w-fit rounded-xl p-2.5 transition-transform group-hover:scale-110 sm:mb-6 sm:rounded-2xl sm:p-4 ${stat.bg} ${stat.color}`}>
+                            <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
                         </div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
-                        <p className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</p>
+                        <p className="mb-2 truncate text-[10px] font-black uppercase leading-none tracking-[0.14em] text-gray-400 sm:tracking-[0.2em]">{stat.label}</p>
+                        <p className="text-2xl font-black text-gray-900 dark:text-white sm:text-3xl">{stat.count}</p>
                     </button>
                 ))}
             </div>

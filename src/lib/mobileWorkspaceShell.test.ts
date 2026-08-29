@@ -33,6 +33,9 @@ const statCard = readSource('../components/dashboard/StatCard.tsx');
 const adminDashboard = readSource('../pages/admin/dashboard/page.tsx');
 const adminProfile = readSource('../pages/admin/profile/page.tsx');
 const toast = readSource('../components/ui/Toast.tsx');
+const fastTrackLayout = readSource('../components/fast-track/FastTrackWorkspaceLayout.tsx');
+const fastTrackWorkspace = readSource('../components/fast-track/FastTrackWorkspace.tsx');
+const propertyForm = readSource('../pages/manager/dashboard/properties/add/page.tsx');
 
 test('all authenticated roles use a mobile app content shell with safe bottom navigation space', () => {
   assert.match(userLayout, /mobile-app-content/);
@@ -46,7 +49,7 @@ test('manager and admin expose app-like mobile bottom navigation without changin
   assert.match(mobileNavigation, /data-mobile-role-navigation=\{role\}/);
   assert.match(mobileNavigation, /lg:hidden/);
   assert.match(mobileNavigation, /env\(safe-area-inset-bottom\)/);
-  assert.match(mobileNavigation, /min-h-12/);
+  assert.match(mobileNavigation, /min-h-14/);
   assert.match(managerLayout, /RoleMobileNavigation role="manager"/);
   assert.match(adminLayout, /RoleMobileNavigation role="admin"/);
   assert.match(mobileNavigation, /activePaths: \['\/manager\/clients'\]/);
@@ -56,6 +59,7 @@ test('manager and admin expose app-like mobile bottom navigation without changin
 test('mobile headers preserve context while compacting the user wordmark', () => {
   assert.match(managerHeader, /getManagerPageTitle\(pathname\)/);
   assert.match(userHeader, /min-\[360px\]:inline/);
+  assert.match(userHeader, /hidden h-11 min-w-11 max-w-full/);
 });
 
 test('user bottom navigation uses concise labels that remain readable on 320px phones', () => {
@@ -118,7 +122,7 @@ test('support and admin registry controls reflow into full-width mobile actions'
 
 test('user activity navigation becomes a compact mobile carousel instead of a tall desktop grid', () => {
   assert.match(userActivitySubnav, /snap-x snap-mandatory/);
-  assert.match(userActivitySubnav, /min-w-\[132px\] snap-start/);
+  assert.match(userActivitySubnav, /min-w-\[118px\] snap-start/);
   assert.match(userActivitySubnav, /hidden truncate text-xs sm:block/);
   assert.match(userActivitySubnav, /sm:grid sm:grid-cols-2/);
 });
@@ -139,14 +143,31 @@ test('small-phone dashboard skeletons and contract cards reflow without changing
 
 test('mobile dashboards use compact app-native hierarchy while desktop breakpoints stay intact', () => {
   assert.match(userDashboard, /min-h-0[^\n]+md:min-h-\[480px\][^\n]+lg:min-h-\[540px\]/);
+  assert.match(userDashboard, /data-mobile-primary-task/);
+  assert.match(userDashboard, /Find a home/);
+  assert.match(userDashboard, /primaryLabel\.trim\(\)\.toLowerCase\(\) !== 'find a home'/);
+  assert.match(userDashboard, /id="greeting-section" className="hidden/);
   assert.match(userDashboard, /mobile-filter-rail[^\n]+hidden[^\n]+sm:flex/);
   assert.match(userDashboard, /hidden rounded-\[24px\][^\n]+lg:block/);
   assert.match(searchBar, /grid min-w-0 max-w-full grid-cols-3[^\n]+sm:inline-flex sm:w-auto/);
   assert.match(searchBar, /min-w-0 w-full bg-transparent[^\n]+placeholder-gray-400/);
   assert.match(messageInboxFab, /hidden[^\n]+md:inline-flex/);
-  assert.match(managerDashboard, /grid grid-cols-1 gap-3 min-\[380px\]:grid-cols-2[^\n]+lg:grid-cols-4/);
-  assert.match(statCard, /rounded-2xl sm:rounded-3xl[^\n]+p-4 sm:p-6/);
-  assert.match(adminDashboard, /grid grid-cols-1 gap-3 min-\[380px\]:grid-cols-2[^\n]+lg:grid-cols-4/);
+  assert.match(managerDashboard, /grid grid-cols-2 gap-3[^\n]+lg:grid-cols-4/);
+  assert.match(statCard, /rounded-2xl sm:rounded-3xl[^\n]+p-3\.5 sm:p-6/);
+  assert.match(adminDashboard, /grid grid-cols-2 gap-3[^\n]+lg:grid-cols-4/);
+});
+
+test('focused mobile workflows disclose one current task before secondary tools', () => {
+  assert.match(fastTrackLayout, /Step \{selectedIndex \+ 1\} of \{items\.length\}/);
+  assert.match(fastTrackLayout, /aria-label="Choose fast-track stage"/);
+  assert.match(fastTrackLayout, /min-\[360px\]:flex-row/);
+  assert.match(fastTrackLayout, /hidden gap-1\.5 overflow-x-auto pb-1 sm:flex/);
+  assert.match(fastTrackWorkspace, /data-mobile-current-task/);
+  assert.match(fastTrackWorkspace, /Open case tools/);
+  assert.match(propertyForm, /Step \{currentStep\} of \{steps\.length\}/);
+  assert.match(propertyForm, /aria-label="Choose property form step"/);
+  assert.match(propertyForm, /property-audit-details/);
+  assert.match(propertyForm, /Listing notes and audit/);
 });
 
 test('manager analytics uses deliberate 48px period and export controls on touch screens', () => {

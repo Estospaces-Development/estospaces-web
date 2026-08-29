@@ -17,7 +17,7 @@ test('admin governance surfaces keep compact badges and review actions readable'
   assert.match(properties, /bg-emerald-700 text-white shadow-lg shadow-emerald-700\/20/);
   assert.match(properties, /text-blue-700/);
   assert.match(properties, /bg-amber-700 px-4 py-3/);
-  assert.match(users, /bg-emerald-700 text-white/);
+  assert.match(users, /bg-emerald-700[^\"]*text-white/);
   assert.match(users, /bg-emerald-50 dark:bg-emerald-900\/20 text-emerald-700/);
   assert.match(users, /bg-red-50 text-red-700 hover:bg-red-100/);
   assert.match(reviews, /bg-yellow-100 text-yellow-800/);

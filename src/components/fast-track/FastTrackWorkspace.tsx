@@ -4086,7 +4086,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         : `${filteredCases.length} ${role === 'user' ? 'journeys' : 'cases'} available.`;
 
     return (
-        <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden pb-16">
+        <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden pb-16 sm:space-y-6" data-mobile-focused-workflow>
             <p role="status" aria-live="polite" className="sr-only" data-fast-track-workspace-status>
                 {workspaceStatusMessage}
             </p>
@@ -4244,7 +4244,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                <div className="min-w-0 max-w-full space-y-6">
+                <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
                     {selectedCase ? (
                         <>
                             {showAdminOverrideBanner ? (
@@ -4303,7 +4303,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     ? 'grid-cols-1'
                                     : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
                             )}>
-                                <div ref={contentRef} className="min-w-0 max-w-full space-y-6">
+                                <div ref={contentRef} className="min-w-0 max-w-full space-y-4 sm:space-y-6" data-mobile-current-task>
                                     {isFastTrackStageReadOnly(selectedCase, role) ? (
                                         <div
                                             role="status"
@@ -4335,7 +4335,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         <ExternalLink size={14} />
                                     </button>
                                 ) : (
-                                    <div className="min-w-0 max-w-full space-y-6">
+                                    <div className="min-w-0 max-w-full space-y-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setUserDetailsModalOpen(true)}
+                                            className="inline-flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 dark:border-gray-800 dark:bg-gray-950 dark:text-white dark:hover:border-orange-800 dark:hover:bg-orange-950/20 sm:hidden"
+                                        >
+                                            <span>Open case tools</span>
+                                            <ExternalLink size={16} />
+                                        </button>
+                                        <div className="hidden sm:block">
                                         <FastTrackUtilityDock
                                             role={role}
                                             density={workspacePreferences.secondaryDensity}
@@ -4344,19 +4353,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             onActiveModuleChange={setActiveUtilityModule}
                                             renderModule={renderUtilityModule}
                                         />
+                                        </div>
                                     </div>
                                 )}
                                 {userDetailsModalOpen ? renderFastTrackPortal(
                                     <div
-                                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                                        className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
                                         onClick={() => setUserDetailsModalOpen(false)}
                                     >
                                         <div
-                                            className="mx-4 w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-[28px] border border-gray-100 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-950"
+                                            className="w-full max-w-2xl max-h-[88dvh] overflow-y-auto rounded-t-3xl border border-gray-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl dark:border-gray-800 dark:bg-gray-950 sm:mx-4 sm:max-h-[80vh] sm:rounded-[28px] sm:p-6"
                                             onClick={(event) => event.stopPropagation()}
                                         >
                                             <div className="flex items-center justify-between gap-4">
-                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Case Details</h3>
+                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {role === 'user' ? 'Case details' : 'Case tools'}
+                                                </h3>
                                                 <button
                                                     type="button"
                                                     onClick={() => setUserDetailsModalOpen(false)}

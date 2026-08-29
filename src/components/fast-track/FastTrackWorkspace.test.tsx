@@ -414,9 +414,9 @@ test("manager review submit stays disabled until a star rating is selected", () 
 test("admin fast-track workspace constrains compact layouts inside the viewport", () => {
   const source = workspaceSource();
 
-  assert.match(source, /min-w-0 max-w-full space-y-6 overflow-x-hidden pb-16/);
+  assert.match(source, /min-w-0 max-w-full space-y-4 overflow-x-hidden pb-16 sm:space-y-6/);
   assert.match(source, /grid min-w-0 max-w-full gap-4/);
-  assert.match(source, /min-w-0 max-w-full space-y-6/);
+  assert.match(source, /min-w-0 max-w-full space-y-4 sm:space-y-6/);
   assert.match(source, /min-w-0 max-w-full overflow-hidden rounded-\[26px\]/);
 });
 

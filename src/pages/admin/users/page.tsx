@@ -508,19 +508,19 @@ function UserManagementContent() {
     };
 
     return (
-        <div className="min-w-0 space-y-10 animate-in fade-in duration-500">
+        <div className="min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center md:gap-6">
                 <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="px-3 py-1 bg-emerald-700 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-700/20">Relationship Hub</span>
-                        <span className="text-gray-400 text-xs font-bold">{getAdminUsersPageSubtitle()}</span>
+                    <div className="mb-2 hidden items-center gap-3 sm:flex">
+                        <span className="rounded-full bg-emerald-700 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-700/20">Relationship Hub</span>
+                        <span className="text-xs font-bold text-gray-400">{getAdminUsersPageSubtitle()}</span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                    <h1 className="text-2xl font-black leading-none tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                         {getAdminUsersPageTitle()}
                     </h1>
                 </div>
-                <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+                <div className="flex w-full gap-2 sm:w-auto sm:gap-4">
                     <div className="relative group w-full sm:w-auto">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
                         <input
@@ -530,12 +530,12 @@ function UserManagementContent() {
                             value={searchQuery}
                             onChange={(e) => handleUserSearchChange(e.target.value)}
                             maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
-                            className="w-full pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/10 font-bold text-sm shadow-sm transition-all sm:w-64"
+                            className="h-12 w-full rounded-xl border bg-white py-3 pl-11 pr-3 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64 sm:rounded-2xl sm:pl-12 sm:pr-6"
                         />
                     </div>
                     <button
                         onClick={() => navigate(getAdminAddUserPath())}
-                        className="flex w-full items-center justify-center gap-2 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl sm:w-auto"
+                        className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-xs font-black text-white shadow-sm transition-all hover:scale-[1.02] active:scale-95 dark:bg-white dark:text-gray-900 sm:w-auto sm:rounded-2xl sm:px-8 sm:uppercase sm:tracking-widest sm:shadow-xl"
                     >
                         <UserPlus size={18} /> Add User
                     </button>
@@ -543,15 +543,15 @@ function UserManagementContent() {
             </div>
 
             {/* Hero Stats */}
-            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6" data-mobile-compact-summary-grid>
                 {stats.map((stat) => (
-                    <div key={stat.label} className="min-w-0 bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-[2.5rem] border dark:border-gray-700 shadow-xl shadow-gray-200/40 dark:shadow-none flex items-center gap-4 sm:gap-6 group hover:translate-y-[-4px] transition-all">
-                        <div className={`p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 ${stat.color} group-hover:scale-110 transition-transform`}>
-                            <stat.icon size={28} />
+                    <div key={stat.label} className="group flex min-w-0 items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 dark:border-gray-700 dark:bg-gray-800 sm:gap-6 sm:rounded-[2.5rem] sm:p-8 sm:shadow-xl sm:shadow-gray-200/40 dark:sm:shadow-none">
+                        <div className={`rounded-xl bg-gray-50 p-2.5 transition-transform group-hover:scale-105 dark:bg-gray-900 sm:rounded-2xl sm:p-5 ${stat.color}`}>
+                            <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 border-b border-gray-100 dark:border-gray-700 pb-1 mb-2 uppercase tracking-widest leading-none">{stat.label}</p>
-                            <p className="text-2xl font-black text-gray-900 dark:text-white leading-none">{stat.value}</p>
+                            <p className="mb-1 text-xs font-bold leading-tight text-gray-500 dark:text-gray-300 sm:mb-2 sm:border-b sm:border-gray-100 sm:pb-1 sm:text-[10px] sm:font-black sm:uppercase sm:tracking-widest dark:sm:border-gray-700">{stat.label}</p>
+                            <p className="text-xl font-black leading-none text-gray-900 dark:text-white sm:text-2xl">{stat.value}</p>
                         </div>
                     </div>
                 ))}

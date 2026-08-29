@@ -12,6 +12,7 @@ import {
   Home,
   Key,
   Map as MapIcon,
+  Search,
   X,
 } from 'lucide-react';
 
@@ -917,7 +918,7 @@ const DashboardClient = () => {
 
             <div className="relative z-10 flex min-h-0 items-start px-3 py-4 sm:px-4 sm:py-6 md:min-h-[480px] md:items-center md:px-6 md:py-10 lg:min-h-[540px] lg:px-10">
               <div className="mx-auto min-w-0 w-full max-w-6xl">
-                <div className="max-w-3xl text-white">
+                <div className="hidden max-w-3xl text-white sm:block">
                   <p className="hidden text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-300/90 sm:block">
                     Search sale and rental homes
                   </p>
@@ -933,10 +934,40 @@ const DashboardClient = () => {
                 </div>
 
                 <div
-                  className="mt-4 min-w-0 max-w-full rounded-[18px] border border-white/40 bg-white/95 p-2.5 shadow-xl backdrop-blur-2xl ring-1 ring-black/5 sm:mt-8 sm:rounded-[28px] sm:p-5 sm:shadow-2xl md:p-6 lg:p-8"
+                  className="min-w-0 max-w-full rounded-[18px] border border-white/40 bg-white/95 p-4 shadow-xl backdrop-blur-2xl ring-1 ring-black/5 sm:mt-8 sm:rounded-[28px] sm:p-5 sm:shadow-2xl md:p-6 lg:p-8"
                   style={{ animationDelay: '0.15s' }}
                 >
-                  <div className="grid min-w-0 max-w-full gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+                  <div className="sm:hidden" data-mobile-primary-task>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">
+                      Your next step
+                    </p>
+                    <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                      {nextStepSummary.title}
+                    </h1>
+                    <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600">
+                      {journeySummaryLoading ? 'Checking your latest update…' : nextStepSummary.now}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={nextStepSummary.primaryAction}
+                      className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
+                    >
+                      {nextStepSummary.primaryLabel}
+                      <ArrowRight size={18} />
+                    </button>
+                    {nextStepSummary.primaryLabel.trim().toLowerCase() !== 'find a home' ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/user/dashboard/discover')}
+                        className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-800 transition-colors hover:bg-slate-50"
+                      >
+                        <Search size={18} />
+                        Find a home
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="hidden min-w-0 max-w-full gap-6 sm:grid lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
                     <div className="min-w-0 max-w-full">
                       <SearchBar
                         variant="hero"
@@ -1008,7 +1039,7 @@ const DashboardClient = () => {
             </div>
           </div>
 
-          <div id="greeting-section" className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px] animate-fadeIn">
+          <div id="greeting-section" className="hidden gap-4 animate-fadeIn sm:grid lg:grid-cols-[minmax(0,1.25fr)_320px]">
             <section className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_58%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.22)_0%,rgba(10,10,10,1)_60%)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>

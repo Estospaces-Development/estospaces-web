@@ -71,7 +71,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                     <button
                         type="button"
                         onClick={() => setAppSearchOpen(true)}
-                        className="justify-self-center inline-flex h-11 min-w-11 max-w-full items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600 sm:px-4"
+                        className="hidden h-11 min-w-11 max-w-full items-center justify-center gap-2 justify-self-center rounded-full border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600 md:inline-flex md:px-4"
                         aria-label="Search Estospaces pages and activities"
                         aria-haspopup="dialog"
                     >

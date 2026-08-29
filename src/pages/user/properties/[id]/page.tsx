@@ -2490,12 +2490,12 @@ const UserPropertyDetail = () => {
                                         <MapPin size={16} className="mt-0.5 shrink-0 text-orange-500" />
                                         <span>{propertyAddress || locationLabel}</span>
                                     </div>
-                                    <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
+                                    <p className="mt-4 line-clamp-4 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400 sm:line-clamp-none sm:leading-7">
                                         {propertyHeroSummary}
                                     </p>
 
                                     {images.length > 1 ? (
-                                        <div className="mt-6">
+                                        <div className="mt-6 hidden sm:block">
                                             <div className="flex items-center justify-between gap-3">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Switch photos directly</p>
                                                 <button

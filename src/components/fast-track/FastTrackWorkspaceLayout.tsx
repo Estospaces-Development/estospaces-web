@@ -98,7 +98,7 @@ export function FastTrackWorkspaceHeader({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden" data-fast-track-header>
+    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden" data-fast-track-header data-mobile-focused-header>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex flex-wrap items-start gap-2.5">
           <button
@@ -113,19 +113,19 @@ export function FastTrackWorkspaceHeader({
           >
             <ArrowLeft size={16} />
           </button>
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#FF6B35_0%,#E55A2B_100%)] text-white shadow-lg shadow-orange-500/20">
+          <div className="hidden h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#FF6B35_0%,#E55A2B_100%)] text-white shadow-lg shadow-orange-500/20 sm:inline-flex">
             <LayoutGrid size={18} />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-[26px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+              <h1 className="text-xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white sm:text-[26px]">
                 {copy.headerTitle}
               </h1>
-              <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+              <span className="hidden items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:inline-flex">
                 {role}
               </span>
             </div>
-            <p className="mt-1 max-w-2xl text-[13px] text-gray-600 dark:text-gray-300">
+            <p className="mt-1 hidden max-w-2xl text-[13px] text-gray-600 dark:text-gray-300 sm:block">
               {copy.headerSubtitle}
             </p>
           </div>
@@ -137,36 +137,37 @@ export function FastTrackWorkspaceHeader({
             onClick={onToggleRail}
             data-fast-track-toggle-rail
             className={cn(
-              'inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              'inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:rounded-2xl sm:px-3.5',
               fastTrackFocusRing,
             )}
           >
             {railCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            {railCollapsed ? copy.showRailLabel : copy.hideRailLabel}
+            <span className="sm:hidden">Cases</span>
+            <span className="hidden sm:inline">{railCollapsed ? copy.showRailLabel : copy.hideRailLabel}</span>
           </button>
           <button
             type="button"
             onClick={onOpenCustomize}
             data-fast-track-customize-open
             className={cn(
-              'inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              'inline-flex h-10 w-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:w-auto sm:rounded-2xl sm:px-3.5',
               fastTrackFocusRing,
             )}
           >
             <Settings2 size={16} />
-            {copy.pageOptionsLabel}
+            <span className="sr-only sm:not-sr-only">{copy.pageOptionsLabel}</span>
           </button>
         </div>
       </div>
 
       {showMetricsStrip ? (
-        <div className="flex flex-wrap gap-2.5" data-fast-track-metrics-strip>
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2.5" data-fast-track-metrics-strip data-mobile-compact-summary-grid>
           {stats.map((item) => (
             <div
               key={item.label}
-              className="inline-flex items-center gap-3 rounded-full border border-gray-100 bg-white px-4 py-2.5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+              className="flex min-w-0 flex-col gap-0.5 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:inline-flex sm:flex-row sm:items-center sm:gap-3 sm:rounded-full sm:px-4 sm:py-2.5"
             >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+              <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-300 sm:text-[10px] sm:uppercase sm:tracking-[0.22em]">
                 {item.label}
               </p>
               <p className="text-lg font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
@@ -382,20 +383,20 @@ export function FastTrackCaseMasthead({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <section className="min-w-0 max-w-full overflow-hidden rounded-[30px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)]" data-fast-track-masthead>
+    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-sm dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)] sm:rounded-[30px] sm:shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)]" data-fast-track-masthead data-mobile-primary-task>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="min-w-0 max-w-full break-words text-[24px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+              <h2 className="min-w-0 max-w-full break-words text-xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white sm:text-[24px]">
                 {title}
               </h2>
               <span className={cn('max-w-full shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold', statusTone)}>
                 {statusLabel}
               </span>
             </div>
-            <p className="mt-1 max-w-full break-words text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
-            <p className="mt-3 max-w-2xl break-words text-[13px] leading-6 text-gray-700 dark:text-gray-200">
+            <p className="mt-1 hidden max-w-full break-words text-sm text-gray-600 dark:text-gray-300 sm:block">{subtitle}</p>
+            <p className="mt-2 line-clamp-2 max-w-2xl break-words text-sm leading-5 text-gray-700 dark:text-gray-200 sm:mt-3 sm:text-[13px] sm:leading-6">
               {statusSummary}
             </p>
           </div>
@@ -406,7 +407,7 @@ export function FastTrackCaseMasthead({
               onClick={onOpenCustomize}
               data-fast-track-customize-open-inline
               className={cn(
-                'inline-flex h-9 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3.5 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+                'hidden h-9 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3.5 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:inline-flex',
                 fastTrackFocusRing,
               )}
             >
@@ -416,10 +417,12 @@ export function FastTrackCaseMasthead({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
           <MastheadInfoCard label={copy.mastheadDeadlineLabel} value={deadlineLabel} />
           <MastheadInfoCard label={copy.mastheadStageLabel} value={currentStage} />
-          <MastheadInfoCard label={copy.mastheadNextLabel} value={focus} />
+          <div className="col-span-2 sm:contents">
+            <MastheadInfoCard label={copy.mastheadNextLabel} value={focus} />
+          </div>
         </div>
       </div>
     </section>
@@ -429,10 +432,10 @@ export function FastTrackCaseMasthead({
 function MastheadInfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div
-      className="flex min-w-0 max-w-full flex-wrap items-center gap-2.5 rounded-2xl border border-white/70 bg-white/85 px-3.5 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5"
+      className="flex min-w-0 max-w-full flex-col gap-0.5 rounded-xl border border-white/70 bg-white/85 px-3 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5 sm:rounded-2xl sm:px-3.5"
       data-fast-track-masthead-info-card={label}
     >
-      <p className="min-w-0 max-w-full break-words text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+      <p className="min-w-0 max-w-full break-words text-[11px] font-semibold text-gray-500 dark:text-gray-300 sm:text-[10px] sm:uppercase sm:tracking-[0.22em]">
         {label}
       </p>
       <p className="min-w-0 max-w-full break-words text-sm font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
@@ -448,10 +451,36 @@ interface FastTrackStageStepperProps {
 }
 
 export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepperProps) {
+  const selectedIndex = Math.max(0, items.findIndex((item) => item.active));
+  const selectedItem = items[selectedIndex] || items[0];
+
   return (
-    <section className="sticky top-20 z-20 min-w-0 max-w-full rounded-[24px] border border-gray-100 bg-white/92 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/92" data-fast-track-stepper>
+    <section className="sticky top-[4.5rem] z-20 min-w-0 max-w-full rounded-2xl border border-gray-100 bg-white/95 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 sm:top-20 sm:rounded-[24px]" data-fast-track-stepper>
+      <label className="flex min-h-12 flex-col items-stretch gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:gap-3 sm:hidden">
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+            {selectedItem?.icon}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Step {selectedIndex + 1} of {items.length}</span>
+            <span className="block truncate text-base font-bold text-gray-950 dark:text-white">{selectedItem?.label}</span>
+          </span>
+        </span>
+        <select
+          value={selectedItem?.key || ''}
+          onChange={(event) => onSelect?.(event.target.value)}
+          className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white min-[360px]:w-auto min-[360px]:max-w-[7.5rem]"
+          aria-label="Choose fast-track stage"
+        >
+          {items.map((item) => (
+            <option key={item.key} value={item.key} disabled={item.locked}>
+              {item.label}{item.locked ? ' (locked)' : ''}
+            </option>
+          ))}
+        </select>
+      </label>
       <div
-        className="flex gap-1.5 overflow-x-auto pb-1"
+        className="hidden gap-1.5 overflow-x-auto pb-1 sm:flex"
         tabIndex={0}
         aria-label="Fast-track stage progress"
       >

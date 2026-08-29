@@ -289,18 +289,18 @@ export default function AdminNotificationsPage() {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                        <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-xl">
+                    <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-6">
+                        <div className="rounded-xl bg-orange-50 p-3 dark:bg-orange-900/10 sm:p-4">
                             <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">Unread</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleUnreadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleUnreadCount}</p>
                         </div>
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl">
+                        <div className="rounded-xl bg-blue-50 p-3 dark:bg-blue-900/10 sm:p-4">
                             <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleTotalCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleTotalCount}</p>
                         </div>
-                        <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl">
+                        <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-900/10 sm:p-4">
                             <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Read</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleReadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleReadCount}</p>
                         </div>
                     </div>
                 </div>
@@ -357,7 +357,7 @@ export default function AdminNotificationsPage() {
                 </div>
 
                 {selectedNotifications.length > 0 && (
-                    <div className="flex items-center justify-between bg-orange-500 text-white p-4 rounded-xl mb-6 shadow-lg">
+                    <div className="mb-6 flex flex-col gap-3 rounded-xl bg-orange-500 p-4 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
                             <input
                                 type="checkbox"
@@ -403,12 +403,11 @@ export default function AdminNotificationsPage() {
                                     <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-2">{group}</h2>
                                     <div className="space-y-3">
                                         {items.map((notification) => {
-                                            const targetPath = getNotificationNavigationPath(notification, 'admin') || '/admin/notifications';
                                             const displayCopy = getLaunchSafeNotificationCopy(notification);
                                             return (
                                                 <div
                                                     key={notification.id}
-                                                    className={`group relative flex items-center gap-4 p-4 border rounded-2xl transition-all hover:shadow-xl hover:-translate-y-0.5 ${
+                                                    className={`group relative flex items-start gap-3 rounded-2xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-xl sm:items-center sm:gap-4 ${
                                                         notification.is_read
                                                             ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                                                             : getNotificationColor(notification)
@@ -419,13 +418,13 @@ export default function AdminNotificationsPage() {
                                                         aria-label={`Select notification: ${displayCopy.title}`}
                                                         checked={selectedNotifications.includes(notification.id)}
                                                         onChange={() => handleSelectNotification(notification.id)}
-                                                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 outline-none"
+                                                        className="mt-3 h-4 w-4 shrink-0 rounded border-gray-300 text-orange-500 outline-none dark:border-gray-600 sm:mt-0"
                                                     />
 
                                                     <button
                                                         type="button"
                                                         aria-label={`Open notification: ${displayCopy.title}`}
-                                                        className="flex-shrink-0 rounded-xl p-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-900/60"
+                                                        className="shrink-0 rounded-xl p-2.5 transition-colors hover:bg-white/70 dark:hover:bg-gray-900/60 sm:p-3"
                                                         onClick={() => handleNotificationClick(notification)}
                                                     >
                                                         {getNotificationIcon(notification)}
@@ -434,21 +433,20 @@ export default function AdminNotificationsPage() {
                                                     <button
                                                         type="button"
                                                         aria-label={`Open notification: ${displayCopy.title}`}
-                                                        className="flex-1 min-w-0 text-left"
+                                                        className="min-w-0 flex-1 pb-8 text-left sm:pb-0"
                                                         onClick={() => handleNotificationClick(notification)}
                                                     >
                                                         <div className="flex items-start justify-between gap-4">
                                                             <h3 className={`min-w-0 break-words font-bold [overflow-wrap:anywhere] ${notification.is_read ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900 dark:text-white'}`}>
                                                                 {displayCopy.title}
                                                             </h3>
-                                                            <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
+                                                            <span className="hidden whitespace-nowrap text-xs text-gray-400 sm:inline">{formatTime(notification.created_at)}</span>
                                                         </div>
                                                         <p className="mt-0.5 line-clamp-2 break-words text-sm text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">{displayCopy.message}</p>
-                                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                                                        <div className="mt-2 flex items-center gap-2 pr-11 text-xs text-gray-400 sm:pr-0">
                                                             <Clock size={14} />
                                                             <span>{formatTime(notification.created_at)}</span>
                                                         </div>
-                                                        <p className="mt-1 text-xs text-gray-400">Opens {targetPath}</p>
                                                     </button>
 
                                                     {!notification.is_read && (
@@ -462,7 +460,7 @@ export default function AdminNotificationsPage() {
                                                             event.stopPropagation();
                                                             deleteNotification(notification.id);
                                                         }}
-                                                        className="inline-flex items-center gap-1 rounded-lg p-2 text-xs font-semibold text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                                                        className="absolute bottom-2 right-2 inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl p-2 text-xs font-semibold text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 sm:static sm:min-h-0 sm:min-w-0"
                                                     >
                                                         <Trash2 size={18} />
                                                         <span className="hidden sm:inline">Delete</span>
