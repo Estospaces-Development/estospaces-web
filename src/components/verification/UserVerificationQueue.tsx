@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -276,7 +276,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 <div className="p-4 sm:p-10">
                     {loading ? (
                         <div className="flex justify-center py-20">
-                            <BrandLoader className={`${content.accentText}`} size={40} />
+                            <BrandLoadingScreen variant="panel" label="Loading verification queue..." />
                         </div>
                     ) : filteredUsers.length > 0 ? (
                         <div className="grid grid-cols-1 gap-6">

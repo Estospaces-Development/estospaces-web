@@ -13,7 +13,7 @@ import {
     SlidersHorizontal,
 } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -1200,9 +1200,7 @@ function DiscoverContent() {
 export default function DiscoverPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <BrandLoader size="xl" label="Loading properties" />
-            </div>
+            <BrandLoadingScreen variant="section" label="Loading properties..." />
         }>
             <DiscoverContent />
         </Suspense>

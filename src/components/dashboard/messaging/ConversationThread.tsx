@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, Home, LifeBuoy } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/contexts/MessagesContext';
@@ -38,7 +38,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
-                <BrandLoader size="lg" label="Loading conversation" />
+                <BrandLoadingScreen variant="panel" label="Loading conversation..." />
             </div>
         );
     }

@@ -1,5 +1,5 @@
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useNavigate } from 'react-router-dom';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -301,12 +301,7 @@ export default function VerificationPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                <BrandLoader className="w-12 h-12 text-orange-500 mb-4" />
-                <p className="text-gray-500 font-medium">Loading verification status...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading verification status..." />;
     }
 
     if (!managerProfile) {
@@ -533,7 +528,7 @@ export default function VerificationPage() {
                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-sm ${
                                         step.status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-900 dark:bg-gray-800 text-white dark:text-orange-500'
                                     }`}>
-                                        {isSubmitting ? <BrandLoader className="w-7 h-7" /> : <step.icon className="w-7 h-7" />}
+                                        {isSubmitting ? <ActionSpinner size={20} aria-hidden /> : <step.icon className="w-7 h-7" />}
                                     </div>
                                 )}
                             </div>

@@ -5,7 +5,7 @@ import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, In
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import {
     getNotificationNavigationPath,
     getNotificationsPagePath,
@@ -232,7 +232,7 @@ const NotificationDropdown = ({ appearance = 'surface' }: NotificationDropdownPr
                     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin sm:max-h-[70vh]">
                         {loading && safeNotifications.length === 0 ? (
                             <div className="flex justify-center p-8 text-gray-500 dark:text-gray-400">
-                                <BrandLoader size="sm" label="Loading notifications" showLabel />
+                                <BrandLoadingScreen variant="panel" label="Loading notifications..." />
                             </div>
                         ) : safeNotifications.length > 0 ? (
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">

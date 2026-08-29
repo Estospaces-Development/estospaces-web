@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -200,12 +200,7 @@ export default function AdminDashboard() {
     });
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 lg:p-10">
-                <BrandLoader size={48} className="text-orange-500 mb-4" />
-                <p className="text-gray-500 font-medium">Initializing Command Center...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Initializing Command Center..." />;
     }
 
     // Map values from backend
@@ -583,12 +578,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {notificationsLoading && recentNotifications.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
-                                <BrandLoader size={20} className="mx-auto mb-3 text-orange-500" />
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                    Loading recent notifications...
-                                </p>
-                            </div>
+                            <BrandLoadingScreen variant="panel" label="Loading recent notifications..." />
                         ) : recentNotifications.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
                                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500">

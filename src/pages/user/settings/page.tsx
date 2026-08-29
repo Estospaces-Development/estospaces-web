@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import Toggle from '@/components/ui/Toggle';
 
 import React, { useEffect, useState } from 'react';
@@ -148,14 +148,7 @@ export default function UserSettingsPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-                <div className="text-center">
-                    <BrandLoader className="w-10 h-10 text-orange-500 mx-auto mb-4" />
-                    <p className="text-gray-500">Loading your preferences...</p>
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading your preferences..." />;
     }
 
     return (

@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -384,12 +384,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     if (loading) {
         return (
             <ModalWrapper onClose={onClose}>
-                <div className="flex flex-col items-center justify-center py-20">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mb-4 shadow-lg">
-                        <BrandLoader className="text-white" size={28} />
-                    </div>
-                    <p className="text-gray-600 font-medium">Loading verification details...</p>
-                </div>
+                <BrandLoadingScreen variant="panel" label="Loading verification details..." />
             </ModalWrapper>
         );
     }

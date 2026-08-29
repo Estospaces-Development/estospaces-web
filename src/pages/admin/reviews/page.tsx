@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -203,9 +203,7 @@ export default function AdminReviewsPage() {
             </div>
 
             {isLoading ? (
-                <div className="flex justify-center py-20">
-                    <BrandLoader className="h-10 w-10 text-orange-500" />
-                </div>
+                <BrandLoadingScreen variant="section" label="Loading reviews..." />
             ) : displayedItems.length === 0 ? (
                 <div className="rounded-3xl bg-white p-16 text-center shadow-sm dark:bg-gray-800">
                     <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gray-50 dark:bg-gray-900">

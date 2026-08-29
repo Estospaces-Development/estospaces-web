@@ -7,7 +7,7 @@ import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEve
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
 import { formatMapPropertyPrice } from '@/lib/mapCurrency';
 import { STANDARD_MAP_TILE_LAYER } from '@/lib/mapTiles';
@@ -391,7 +391,7 @@ const NearbyPropertiesMap = ({
     if (!isMounted) {
         return (
             <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                <BrandLoader size="md" label="Loading nearby map" showLabel />
+                <BrandLoadingScreen variant="panel" label="Loading nearby map..." />
             </div>
         );
     }

@@ -1,7 +1,7 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useState, useEffect } from 'react';
 import { Shield, Bell, Globe, Database, Save } from 'lucide-react';
@@ -70,14 +70,7 @@ export default function AdminSettingsPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-                <div className="text-center">
-                    <BrandLoader className="w-10 h-10 text-orange-500 mx-auto mb-4" />
-                    <p className="text-gray-500">Loading system settings...</p>
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading system settings..." />;
     }
 
     if (!settings) return null;

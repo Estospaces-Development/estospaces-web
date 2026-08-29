@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contractStatus';
 import {
     getDepositProtectionRecord,
@@ -501,9 +501,7 @@ export default function ManagerContractsPage() {
 
             {/* Loading */}
             {loading && (
-                <div className="flex items-center justify-center py-20">
-                    <BrandLoader size="lg" label="Loading contracts" />
-                </div>
+                <BrandLoadingScreen variant="section" label="Loading contracts..." />
             )}
 
             {/* Empty State */}

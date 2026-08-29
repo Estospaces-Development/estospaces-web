@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
@@ -484,6 +483,10 @@ function DashboardContent() {
   const fastTrackQueueKeyFor = createDuplicateSafeKeyResolver('manager-fast-track-queue');
   const propertyCardKeyFor = createDuplicateSafeKeyResolver('manager-dashboard-property');
 
+  if (managerVerificationLoading) {
+    return <BrandLoadingScreen variant="section" label="Loading your dashboard..." />;
+  }
+
   return (
     <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
       <WelcomeBanner
@@ -493,13 +496,6 @@ function DashboardContent() {
         actionLabel={canLoadOperationalDashboard ? undefined : 'Complete verification'}
         actionPath={canLoadOperationalDashboard ? undefined : '/manager/verification'}
       />
-
-      {managerVerificationLoading && (
-        <div className="flex items-center justify-center py-12">
-          <BrandLoader size={28} className="text-orange-500 mr-3" />
-          <span className="text-sm text-gray-500 dark:text-gray-400">Loading your dashboard…</span>
-        </div>
-      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>

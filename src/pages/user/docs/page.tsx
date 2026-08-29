@@ -1,4 +1,4 @@
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, type User } from '@/contexts/AuthContext';
@@ -46,11 +46,7 @@ export default function UserDocsPage() {
     }, [authLoading, isAuthenticated, navigate]);
 
     if (authLoading || (isAuthenticated && !currentUser)) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <BrandLoader className="h-10 w-10 text-orange-500" />
-            </div>
-        );
+        return <BrandLoadingScreen label="Checking your document access..." />;
     }
 
     if (isAuthenticated && currentUser?.role !== 'user') {

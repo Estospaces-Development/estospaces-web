@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -517,12 +517,10 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     if (loading) {
         return (
             <ModalWrapper onClose={onClose}>
-                <div className="flex flex-col items-center justify-center py-20">
-                    <BrandLoader className={`${isAdmin ? 'text-orange-500' : 'text-blue-500'}`} size={40} />
-                    <p className="text-gray-600 mt-4 font-medium">
-                        {isFastTrackReview ? 'Loading fast-track review...' : 'Loading user details...'}
-                    </p>
-                </div>
+                <BrandLoadingScreen
+                    variant="panel"
+                    label={isFastTrackReview ? 'Loading fast-track review...' : 'Loading user details...'}
+                />
             </ModalWrapper>
         );
     }
@@ -759,7 +757,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         </div>
                         {directConversationsLoading ? (
                             <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
-                                <BrandLoader className="h-4 w-4" />
+                                <ActionSpinner size={16} aria-hidden />
                                 Loading direct agent messages
                             </div>
                         ) : directConversationsError ? (

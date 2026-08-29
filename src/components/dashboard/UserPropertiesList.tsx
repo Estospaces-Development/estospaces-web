@@ -1,6 +1,6 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { AlertCircle, Filter, Map, Square } from 'lucide-react';
@@ -128,8 +128,7 @@ const UserPropertiesList = () => {
     if (loading && !properties.length) {
         return (
             <div className="flex items-center justify-center p-8">
-                <BrandLoader className="text-orange-500" size={32} />
-                <span className="ml-3 text-gray-600 dark:text-gray-400">Loading properties...</span>
+                <BrandLoadingScreen variant="panel" label="Loading your properties..." />
             </div>
         );
     }

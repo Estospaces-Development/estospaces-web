@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from '@/lib/leafletRea
 import L from 'leaflet';
 import { useNavigate } from 'react-router-dom';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
 
 // Fix for Leaflet marker icons
@@ -111,7 +111,7 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
     if (!isMounted) {
         return (
             <div className="w-full h-full bg-gray-100 dark:bg-gray-800 animate-pulse flex items-center justify-center rounded-lg">
-                <BrandLoader size="md" label="Loading map" showLabel />
+                <BrandLoadingScreen variant="panel" label="Loading map..." />
             </div>
         );
     }

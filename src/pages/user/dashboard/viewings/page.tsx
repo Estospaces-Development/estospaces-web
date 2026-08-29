@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -464,10 +464,7 @@ export default function ViewingsPage() {
 
                 {/* Content */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">
-                        <BrandLoader size={48} className="text-orange-500 mb-4" />
-                        <p className="text-gray-600 dark:text-gray-400 font-medium tracking-wide">Fetching your appointments...</p>
-                    </div>
+                    <BrandLoadingScreen variant="section" label="Loading your appointments..." />
                 ) : loadError ? (
                     <div className="rounded-3xl border border-red-200 bg-white p-10 text-center shadow-sm dark:border-red-900/40 dark:bg-gray-800">
                         <div className="mx-auto mb-6 inline-flex items-center justify-center rounded-full bg-red-50 p-5 dark:bg-red-900/20">

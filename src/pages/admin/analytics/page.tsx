@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
@@ -130,14 +129,7 @@ function AnalyticsContent() {
     const stats = buildAdminAnalyticsMetricCards(data);
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-                <div className="text-center">
-                    <BrandLoader className="w-10 h-10 text-indigo-600 mx-auto mb-4" />
-                    <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Synchronizing Intelligence...</p>
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Synchronizing intelligence..." />;
     }
 
     return (

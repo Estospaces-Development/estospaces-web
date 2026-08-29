@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapPin, ChevronDown, AlertCircle, RefreshCw } from 'lucide-react';
@@ -654,7 +654,7 @@ const AddressSection = ({
                 {/* Dropdown icon or loading spinner */}
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                     {isLoading ? (
-                        <BrandLoader className="w-4 h-4 text-gray-400" />
+                        <ActionSpinner size={16} className="text-gray-400" aria-hidden />
                     ) : (
                         <ChevronDown className="w-4 h-4 text-gray-400" />
                     )}

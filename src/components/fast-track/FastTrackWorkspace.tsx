@@ -1,7 +1,7 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -2575,10 +2575,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label={role === 'user' ? 'Journey messages' : 'Case chat transcript'}>
                     {threadLoading ? (
-                        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                            <BrandLoader className="h-4 w-4" />
-                            {role === 'user' ? 'Loading your messages' : 'Loading case messages'}
-                        </div>
+                        <BrandLoadingScreen
+                            variant="panel"
+                            label={role === 'user' ? 'Loading your messages...' : 'Loading case messages...'}
+                        />
                     ) : threadMessages.length === 0 ? (
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                             {role === 'user' ? 'No messages yet. Keep your updates here.' : 'No case messages yet. Keep every update here instead of leaving the workspace.'}
@@ -3804,10 +3804,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     icon={Star}
                 >
                     {managerReviewLoading ? (
-                        <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
-                            <BrandLoader size={16} className="" />
-                            Loading your feedback...
-                        </div>
+                        <BrandLoadingScreen variant="panel" label="Loading your feedback..." />
                     ) : isApproved ? (
                         <div className="rounded-3xl border border-green-200 bg-green-50/80 p-5 dark:border-green-900/40 dark:bg-green-950/20">
                             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700 dark:text-green-300">
@@ -4085,6 +4082,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             : 'No fast-track cases match the current filters.'
                         : `${filteredCases.length} ${role === 'user' ? 'journeys' : 'cases'} available.`;
 
+    if (loading && cases.length === 0) {
+        return (
+            <BrandLoadingScreen
+                variant="section"
+                label={role === 'user' ? 'Loading your fast-track journeys...' : 'Loading fast-track cases...'}
+            />
+        );
+    }
+
     return (
         <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden pb-16 sm:space-y-6" data-mobile-focused-workflow>
             <p role="status" aria-live="polite" className="sr-only" data-fast-track-workspace-status>
@@ -4166,9 +4172,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            {loading ? (
+            {loading && cases.length > 0 ? (
                 <div role="status" className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4 text-sm font-medium text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
-                    <BrandLoader className="h-4 w-4" />
+                    <ActionSpinner size={16} aria-hidden />
                     {role === 'user' ? 'Loading your fast-track journeys...' : 'Loading fast-track cases...'}
                 </div>
             ) : null}

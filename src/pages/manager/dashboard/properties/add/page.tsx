@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -2166,18 +2166,7 @@ export default function AddPropertyPage() {
   };
 
   if (loadingProperty) {
-    return (
-      <div className="max-w-6xl mx-auto font-sans pb-8">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <BrandLoader className="w-12 h-12 text-primary" />
-            <p className="text-lg text-gray-600 dark:text-gray-400">
-              Loading property details...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <BrandLoadingScreen variant="section" label="Loading property details..." />;
   }
 
   if (propertyNotFound && isEditMode) {

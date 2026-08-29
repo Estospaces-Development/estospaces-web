@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -774,7 +774,7 @@ const PropertySearch = () => {
                         Recent
                     </span>
                     {historyLoading ? (
-                        <BrandLoader size="sm" label="Loading recent searches" showLabel />
+                        <ActionSpinner size={16} label="Loading recent searches" />
                     ) : searchHistory.length > 0 ? (
                         <div className="flex min-w-0 flex-wrap gap-2">
                             {searchHistory.map((entry, index) => {
@@ -1049,10 +1049,7 @@ const PropertySearch = () => {
 
             {/* Results Grid */}
             {isInitialSearchLoading ? (
-                <div className="flex justify-center flex-col items-center py-20 text-primary">
-                    <BrandLoader className="w-10 h-10 mb-4" />
-                    <span className="text-sm font-medium text-gray-500">Searching properties...</span>
-                </div>
+                <BrandLoadingScreen variant="section" label="Searching properties..." />
             ) : error ? (
                 <div role="alert" className="rounded-xl border border-orange-200 bg-orange-50/80 p-6 text-left text-gray-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-gray-200 sm:p-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">

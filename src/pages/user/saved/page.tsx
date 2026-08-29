@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -468,12 +468,7 @@ function SavedSearchesTab() {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20">
-                <BrandLoader className="w-10 h-10 text-indigo-600 mb-4" />
-                <span className="text-gray-500 font-medium">Loading saved searches...</span>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading saved searches..." />;
     }
 
     if (error) {

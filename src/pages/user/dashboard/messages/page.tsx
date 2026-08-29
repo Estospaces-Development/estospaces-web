@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
@@ -468,7 +467,7 @@ function MessagesContent() {
                                 </div>
                             ) : recommendationLoading ? (
                                 <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
-                                    <BrandLoader size={16} className="" />
+                                    <ActionSpinner size={16} aria-hidden />
                                     Checking assigned manager
                                 </div>
                             ) : null}

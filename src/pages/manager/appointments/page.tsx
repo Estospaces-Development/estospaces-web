@@ -1,7 +1,7 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, RefreshCw, XCircle } from 'lucide-react';
@@ -601,10 +601,7 @@ export default function ManagerAppointmentsPage() {
 
             <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
-                        <BrandLoader className="h-10 w-10 text-orange-500" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Loading appointments...</p>
-                    </div>
+                    <BrandLoadingScreen variant="section" label="Loading appointments..." />
                 ) : error ? (
                     <div className="px-6 py-16 text-center">
                         <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>

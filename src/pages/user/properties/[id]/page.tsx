@@ -1,7 +1,7 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -2334,12 +2334,7 @@ const UserPropertyDetail = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-600">
-                <BrandLoader className="w-12 h-12 mb-4" />
-                <p className="text-gray-500 font-medium">Loading property details...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading property details..." />;
     }
 
     if (error || !property) {

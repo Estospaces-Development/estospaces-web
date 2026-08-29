@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -441,12 +441,7 @@ export default function ContractsPage() {
   ]);
 
   if (isInitialLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <h1 className="sr-only">My Properties</h1>
-        <BrandLoader className="w-10 h-10 text-orange-500" />
-      </div>
-    );
+    return <BrandLoadingScreen variant="section" label="Loading your properties and contracts..." />;
   }
 
   const shouldShowCombinedEmptyState =
@@ -478,7 +473,7 @@ export default function ContractsPage() {
           </p>
           {isRefreshing && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
-              <BrandLoader size={12} className="" />
+              <ActionSpinner size={14} aria-hidden />
               Refreshing workspace
             </div>
           )}

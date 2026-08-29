@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -757,7 +757,7 @@ const BrokerResponseWidget: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {loading ? (
                     <div className="col-span-full flex justify-center py-8 text-gray-500 dark:text-gray-400">
-                        <BrandLoader size="md" label="Loading requests" showLabel />
+                        <BrandLoadingScreen variant="panel" label="Loading requests..." />
                     </div>
                 ) : visibleRequests.length > 0 ? (
                     visibleRequests.map((request, requestIndex) => (

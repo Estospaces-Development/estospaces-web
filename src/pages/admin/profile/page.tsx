@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Mail, Phone, MapPin, Camera, Save, CheckCircle, Hash, Shield } from 'lucide-react';
@@ -187,11 +187,7 @@ export default function AdminProfilePage() {
     };
 
     if (isInitialLoading) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <BrandLoader className="w-10 h-10 text-orange-500" />
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading admin profile..." />;
     }
 
     if (profileLoadError) {

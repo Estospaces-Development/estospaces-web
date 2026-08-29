@@ -10,7 +10,7 @@ import { useMap, MapContainer, TileLayer, Marker, Popup } from '@/lib/leafletRea
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 const createCustomIcon = (color: string, symbol: string) => {
     if (typeof window === 'undefined') return null;
@@ -136,7 +136,7 @@ const SatelliteMap = () => {
 
     if (!isMounted) {
         return <div className="w-full h-full bg-gray-100 dark:bg-gray-900 animate-pulse rounded-lg flex items-center justify-center">
-            <BrandLoader size="md" label="Loading map" showLabel />
+            <BrandLoadingScreen variant="panel" label="Loading map..." />
         </div>;
     }
 
@@ -227,7 +227,7 @@ const SatelliteMap = () => {
             {(loadingProperties || propertyError || propertyLocations.length === 0) && (
                 <div className="absolute bottom-4 left-4 right-4 z-[500] rounded-lg border border-gray-100 bg-white/95 px-4 py-3 text-sm text-gray-700 shadow-lg dark:border-gray-700 dark:bg-gray-800/95 dark:text-gray-200" data-manager-map-state>
                     {loadingProperties
-                        ? <BrandLoader size="sm" label="Loading property locations" showLabel />
+                        ? <BrandLoadingScreen variant="panel" label="Loading property locations..." />
                         : propertyError
                             ? propertyError
                             : 'No property locations with saved latitude and longitude are available yet. Add the exact coordinates to a property to show its marker here.'}

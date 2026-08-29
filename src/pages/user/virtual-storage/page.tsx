@@ -1,5 +1,5 @@
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -561,10 +561,7 @@ export function UserVirtualStoragePageContent({
 
           <div className="mt-4 space-y-3">
             {fastTrackLoading ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm font-semibold text-gray-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-gray-400">
-                <BrandLoader className="h-4 w-4" />
-                Loading fast-track activity
-              </div>
+              <BrandLoadingScreen variant="panel" label="Loading fast-track activity..." />
             ) : fastTrackError ? (
               <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-200">
                 {fastTrackError}
@@ -746,10 +743,7 @@ export function UserVirtualStoragePageContent({
           </div>
           <div className="mt-4 space-y-3">
             {loading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <BrandLoader className="h-4 w-4" />
-                Loading Virtual Storage
-              </div>
+              <BrandLoadingScreen variant="panel" label="Loading Virtual Storage..." />
             ) : storedDocumentGroups.length > 0 ? (
               storedDocumentPagination.items.map(({ key, document, categoryStatuses, storageStates, linkedEntities }) => (
                 <div key={key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
@@ -843,11 +837,7 @@ export default function UserVirtualStoragePage() {
   }, [authLoading, isAuthenticated, navigate]);
 
   if (authLoading || (isAuthenticated && !currentUser)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <BrandLoader className="h-10 w-10 text-orange-500" />
-      </div>
-    );
+    return <BrandLoadingScreen label="Checking your storage access..." />;
   }
 
   if (isAuthenticated && currentUser?.role !== "user") {

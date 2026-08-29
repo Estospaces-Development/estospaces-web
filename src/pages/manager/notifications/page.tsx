@@ -1,4 +1,4 @@
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import React, { useState, useMemo } from 'react';
 import {
     Bell,
@@ -175,12 +175,7 @@ export default function ManagerNotificationsPage() {
     };
 
     if (isLoading && safeNotifications.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
-                <BrandLoader className="w-8 h-8 text-orange-500 mb-4" />
-                <p className="text-gray-500 text-sm font-medium">Fetching notifications...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading notifications..." />;
     }
 
     return (

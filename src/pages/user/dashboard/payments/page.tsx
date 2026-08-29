@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -266,11 +266,7 @@ export default function PaymentsPage() {
         .reduce((sum, payment) => sum + payment.amount, 0);
 
     if (isLoading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <BrandLoader className="h-10 w-10 text-orange-500" />
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading payments..." />;
     }
 
     return (

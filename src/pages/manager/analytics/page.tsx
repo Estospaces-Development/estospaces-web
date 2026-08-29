@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import PieChart from '@/components/ui/PieChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
@@ -198,17 +198,7 @@ const Analytics = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
-                <div className="relative">
-                    <BrandLoader size="xl" label="Loading analytics" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <TrendingUp className="w-6 h-6 text-orange-500 animate-pulse" />
-                    </div>
-                </div>
-                <p className="text-gray-500 font-medium animate-pulse">Gathering insights...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading analytics..." />;
     }
 
     return (

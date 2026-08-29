@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Users, Search, Plus } from 'lucide-react';
@@ -115,9 +115,7 @@ const ClientsPage = () => {
 
             {/* Client List */}
             {loading ? (
-                <div className="flex justify-center py-20">
-                    <BrandLoader className="w-10 h-10 text-indigo-600" />
-                </div>
+                <BrandLoadingScreen variant="section" label="Loading clients..." />
             ) : filtered.length === 0 ? (
                 <div className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-12 text-center">
                     <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />

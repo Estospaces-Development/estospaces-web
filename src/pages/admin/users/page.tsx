@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
@@ -642,9 +641,7 @@ function UserManagementContent() {
 
                 <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="Lead reassignment cards">
                     {adminLeadLoading ? (
-                        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-700">
-                            <BrandLoader size="sm" label="Loading lead reassignment queue" showLabel />
-                        </div>
+                        <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
                     ) : visibleReassignableLeads.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
                             <p className="text-sm font-black text-gray-900 dark:text-white">No open leads ready for reassignment</p>
@@ -714,7 +711,7 @@ function UserManagementContent() {
                             {adminLeadLoading ? (
                                 <tr>
                                     <td colSpan={4} className="px-8 py-10 text-center text-sm font-bold text-gray-500">
-                                        <BrandLoader size="sm" label="Loading lead reassignment queue" showLabel />
+                                        <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
                                     </td>
                                 </tr>
                             ) : visibleReassignableLeads.length === 0 ? (
@@ -863,9 +860,7 @@ function UserManagementContent() {
 
                 <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="User registry cards">
                     {loading ? (
-                        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-700">
-                            <BrandLoader size="sm" label="Loading user registry" showLabel />
-                        </div>
+                        <BrandLoadingScreen variant="panel" label="Loading user registry..." />
                     ) : paginatedUsers.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
                             <h3 className="text-base font-black text-gray-900 dark:text-white">{getAdminUserEmptyStateTitle()}</h3>
@@ -927,7 +922,7 @@ function UserManagementContent() {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-10 py-14 text-center text-sm font-bold text-gray-500">
-                                        <BrandLoader size="sm" label="Loading user registry" showLabel />
+                                        <BrandLoadingScreen variant="panel" label="Loading user registry..." />
                                     </td>
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (

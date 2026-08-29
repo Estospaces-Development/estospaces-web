@@ -141,6 +141,32 @@ test('buttons use neutral action spinners while page and section loading stays b
     assert.doesNotMatch(actionSpinnerSource, /logo-icon|<img/);
 });
 
+test('production content loading uses the shared screen contract instead of compact branded loaders', () => {
+    const files = collectSourceFiles(resolve(process.cwd(), 'src'))
+        .filter((file) => !file.endsWith('BrandLoader.tsx') && !file.endsWith('Spinner.tsx'));
+    const violations = files.flatMap((file) => {
+        const source = readFileSync(file, 'utf8');
+        return source.includes('<BrandLoader') ? [file] : [];
+    });
+
+    assert.deepEqual(
+        violations,
+        [],
+        `Content loading must use BrandLoadingScreen and micro-actions must use ActionSpinner:\n${violations.join('\n')}`,
+    );
+});
+
+test('Fast Track has one initial workspace loader and a non-blocking refresh indicator', () => {
+    const source = readFileSync(
+        resolve(process.cwd(), 'src/components/fast-track/FastTrackWorkspace.tsx'),
+        'utf8',
+    );
+
+    assert.match(source, /if \(loading && cases\.length === 0\) \{[\s\S]*BrandLoadingScreen/);
+    assert.match(source, /loading && cases\.length > 0/);
+    assert.doesNotMatch(source, /<BrandLoader/);
+});
+
 test('compact loader inherits the surrounding theme and foreground instead of forcing a one-off color', () => {
     const markup = renderToStaticMarkup(
         <div className="dark text-orange-100">

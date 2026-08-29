@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -204,11 +204,7 @@ export default function SettingsPage() {
     ];
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-                <BrandLoader className="w-10 h-10 text-orange-500" />
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading settings..." />;
     }
 
     return (

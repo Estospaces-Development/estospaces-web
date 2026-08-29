@@ -10,7 +10,7 @@ import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface LeadActionMapProps {
     leads: Lead[];
@@ -279,7 +279,7 @@ export default function LeadActionMap({
                         </MapContainer>
                     ) : (
                         <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-                            <BrandLoader size="md" label="Loading lead map" showLabel />
+                            <BrandLoadingScreen variant="panel" label="Loading lead map..." />
                         </div>
                     )}
 

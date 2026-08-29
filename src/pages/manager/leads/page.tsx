@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Clock3, Download, History, MessageSquare, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
@@ -878,10 +878,7 @@ export default function ManagerLeadsPage() {
 
             <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
-                        <BrandLoader className="h-10 w-10 text-orange-500" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Loading live broker leads...</p>
-                    </div>
+                    <BrandLoadingScreen variant="section" label="Loading live broker leads..." />
                 ) : error ? (
                     <div className="px-6 py-16 text-center">
                         <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>
@@ -1212,7 +1209,7 @@ export default function ManagerLeadsPage() {
                                                 <h3 className="text-sm font-bold text-gray-900 dark:text-white">Lead audit trail</h3>
                                                 {isAuditLoading ? (
                                                     <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                                        <BrandLoader className="h-3.5 w-3.5" />
+                                                        <ActionSpinner size={14} aria-hidden />
                                                         Loading
                                                     </span>
                                                 ) : null}

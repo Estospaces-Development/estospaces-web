@@ -1,6 +1,6 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
@@ -218,7 +218,7 @@ const PropertyFastTrackModal = ({
                                 </div>
                                 {isRefreshing ? (
                                     <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300">
-                                        <BrandLoader size={14} className="" />
+                                        <ActionSpinner size={14} aria-hidden />
                                         Refreshing case
                                     </span>
                                 ) : null}

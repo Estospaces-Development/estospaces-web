@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
@@ -322,9 +321,7 @@ function VerificationsContent() {
         {/* Grid/List */}
         <div className="p-4 sm:p-10">
           {loading ? (
-             <div className="flex justify-center py-20">
-               <BrandLoader className="text-orange-500" size={40} />
-             </div>
+             <BrandLoadingScreen variant="section" label="Loading manager verifications..." />
           ) : filteredManagers.length > 0 ? (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'grid grid-cols-1 gap-6'}>
               {filteredManagers.map((manager) => {

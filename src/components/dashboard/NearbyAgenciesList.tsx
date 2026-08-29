@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Clock, BadgeCheck, Search, X } from 'lucide-react';
@@ -354,7 +354,7 @@ const NearbyAgenciesList = () => {
 
             {loading ? (
                 <div className="flex justify-center py-8">
-                    <BrandLoader className="text-gray-400" size={24} />
+                    <BrandLoadingScreen variant="panel" label="Loading nearby agencies..." />
                 </div>
             ) : loadError ? (
                 <div className="text-center py-8 text-sm text-gray-500">

@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -1279,12 +1279,7 @@ const DashboardClient = () => {
 
           {locationLoading ? (
             <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-              <div className="flex h-[240px] items-center justify-center sm:h-[270px] lg:h-[300px]">
-                <div className="text-center">
-                  <BrandLoader className="mx-auto mb-4 text-orange-500" size={48} />
-                  <p className="text-gray-600 dark:text-gray-300">Loading nearby properties...</p>
-                </div>
-              </div>
+              <BrandLoadingScreen variant="panel" label="Loading nearby properties..." className="h-[240px] sm:h-[270px] lg:h-[300px]" />
             </div>
           ) : (
             <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
