@@ -26,6 +26,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
 }
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { buildPreservedUserSearchRedirect } from '@/lib/userSearchRoute';
+import { getPublicHomeHref } from '@/lib/utils/hostUtils';
 
 const CHUNK_RELOAD_KEY = 'estospaces:lazy-route-reload';
 
@@ -79,7 +80,6 @@ import ResetPasswordPage from './pages/auth/reset-password/page';
 import VerifyEmailPage from './pages/auth/verify-email/page';
 
 // Lazy loaded pages - Public
-const HomePage = lazyPage(() => import('./pages/public/home/page'));
 const AboutPage = lazyPage(() => import('./pages/public/about/page'));
 const CookiesPage = lazyPage(() => import('./pages/public/cookies/page'));
 const FAQPage = lazyPage(() => import('./pages/public/faq/page'));
@@ -196,7 +196,15 @@ function PublicRootEntry() {
     return <BrandLoadingScreen />;
   }
 
-  return isAuthenticated ? <StartupRedirect /> : <HomePage />;
+  return isAuthenticated ? <StartupRedirect /> : <Navigate to="/login/" replace />;
+}
+
+function MarketingHomeRedirect() {
+  React.useEffect(() => {
+    window.location.replace(getPublicHomeHref());
+  }, []);
+
+  return <BrandLoadingScreen label="Opening Estospaces.com..." />;
 }
 
 function LegacyUserSearchRedirect() {
@@ -229,7 +237,7 @@ const App: React.FC = () => {
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
             <Route index element={<PublicRootEntry />} />
-            <Route path="home" element={<HomePage />} />
+            <Route path="home" element={<MarketingHomeRedirect />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/cookies" element={<CookiesPage />} />

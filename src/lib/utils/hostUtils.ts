@@ -96,19 +96,7 @@ export const getHostConfig = () => {
 
 export const isExternalHref = (href: string) => /^https?:\/\//i.test(href);
 
-export const getPublicHomeHref = (hostname?: string) => {
-    const resolvedHostname = hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
-
-    if (!resolvedHostname || isLocalhostHost(resolvedHostname) || isSingleOriginHostedHost(resolvedHostname)) {
-        return '/home';
-    }
-
-    if (resolveCurrentAppFromHostname(resolvedHostname) === 'landing') {
-        return '/home';
-    }
-
-    return `https://${LANDING_DOMAIN}/`;
-};
+export const getPublicHomeHref = () => `https://${LANDING_DOMAIN}/`;
 
 export const useHost = () => {
     return getHostConfig();

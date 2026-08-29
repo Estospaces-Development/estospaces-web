@@ -42,7 +42,7 @@ test('auth brand home link has a visible keyboard focus state', () => {
   );
 
   assert.match(markup, /aria-label="Estospaces home"/);
-  assert.match(markup, /href="\/home"/);
+  assert.match(markup, /href="https:\/\/estospaces\.com\/"/);
   assert.match(markup, /focus-visible:ring-2/);
   assert.match(markup, /focus-visible:ring-orange-500/);
 });

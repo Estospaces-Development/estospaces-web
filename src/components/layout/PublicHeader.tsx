@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogIn, Menu, UserPlus, X } from 'lucide-react';
 import { getAuthPath, getLoginPath } from '@/lib/authUtils';
-import { getPublicHomeHref, isExternalHref } from '@/lib/utils/hostUtils';
+import { getPublicHomeHref } from '@/lib/utils/hostUtils';
 
 type NavLink = {
     href: string;
@@ -21,7 +21,6 @@ const PublicHeader = () => {
     const loginPath = getLoginPath();
     const registerPath = getAuthPath('/register');
     const homeHref = getPublicHomeHref();
-    const isExternalHomeHref = isExternalHref(homeHref);
 
     const navLinks: NavLink[] = [
         { href: '/search', label: 'Search' },
@@ -71,25 +70,14 @@ const PublicHeader = () => {
     return (
         <header className="fixed left-0 right-0 top-0 z-50 bg-white shadow-md dark:bg-gray-900">
             <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
-                {isExternalHomeHref ? (
-                    <a
-                        href={homeHref}
-                        className={homeLinkClassName}
-                        aria-label="Estospaces home"
-                        onClick={closeMenu}
-                    >
-                        {homeLinkContent}
-                    </a>
-                ) : (
-                    <Link
-                        to={homeHref}
-                        className={homeLinkClassName}
-                        aria-label="Estospaces home"
-                        onClick={closeMenu}
-                    >
-                        {homeLinkContent}
-                    </Link>
-                )}
+                <a
+                    href={homeHref}
+                    className={homeLinkClassName}
+                    aria-label="Estospaces home"
+                    onClick={closeMenu}
+                >
+                    {homeLinkContent}
+                </a>
                 <div className="hidden items-center gap-8 md:flex">
                     {navLinks.map((link) =>
                         link.external ? (
