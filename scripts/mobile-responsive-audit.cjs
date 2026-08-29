@@ -247,8 +247,22 @@ async function inspectMobilePage(page, role, route) {
         clippedNavigationLabels,
         brokenImages,
         workspaceRole: document.querySelector('[data-workspace-role]')?.getAttribute('data-workspace-role') || '',
+        pageScrollRange: Math.max(
+          document.documentElement.scrollHeight,
+          document.body.scrollHeight,
+        ) - window.innerHeight,
+        scrollRootPresent: Boolean(document.querySelector('[data-mobile-scroll-root]')),
       };
     }, { expectedRole: role, crashSource: crashPattern.source });
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+    await page.mouse.move(Math.round(auditViewport.width / 2), Math.round(auditViewport.height / 2));
+    await page.mouse.wheel(0, Math.max(320, Math.round(auditViewport.height * 0.7)));
+    await page.waitForTimeout(150);
+    const scrollAfter = await page.evaluate(() => window.scrollY);
+    result.scrollGestureDelta = Math.round(scrollAfter - scrollBefore);
+    result.scrollGesturePassed = result.pageScrollRange < 8 || result.scrollGestureDelta > 2;
 
     const finalPath = new URL(page.url()).pathname;
     const redirectedToLogin = finalPath.startsWith('/login');
@@ -259,6 +273,8 @@ async function inspectMobilePage(page, role, route) {
     if (result.overflowElements.length > 0) failures.push(`${result.overflowElements.length} visible elements cross viewport edges`);
     if (result.smallTargets.length > 0) failures.push(`${result.smallTargets.length} touch targets are below 44px`);
     if (!result.mobileNavigationVisible) failures.push('mobile role navigation is not visible');
+    if (!result.scrollRootPresent) failures.push('mobile scroll root is missing');
+    if (!result.scrollGesturePassed) failures.push(`vertical scroll gesture did not move a ${Math.round(result.pageScrollRange)}px page range`);
     if (result.clippedNavigationLabels.length > 0) failures.push(`${result.clippedNavigationLabels.length} mobile navigation labels are clipped`);
     if (result.brokenImages.length > 0) failures.push(`${result.brokenImages.length} visible images failed to load`);
     if (result.bodyLength < 30) failures.push('page rendered too little content');

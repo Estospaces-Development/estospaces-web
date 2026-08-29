@@ -67,14 +67,22 @@ test('all role workspace shells contain content and overlays inside the mobile v
     ]) {
         const contents = source(file);
         assert.match(contents, /role-workspace-content/);
+        assert.match(contents, /data-mobile-scroll-root/);
         assert.match(contents, /overflow-x-hidden/);
+        assert.doesNotMatch(contents, /role-workspace-content[^\n]*overflow-y-auto/);
     }
 
     const css = source('globals.css');
+    const browserAudit = source('../scripts/mobile-responsive-audit.cjs');
     assert.match(css, /text-size-adjust:\s*100%/);
     assert.match(css, /font-size:\s*16px/);
     assert.match(css, /max-height:\s*calc\(100dvh - 1rem\)/);
     assert.match(css, /env\(safe-area-inset-bottom\)/);
+    assert.match(css, /role-workspace-content[\s\S]*overflow-y:\s*visible/);
+    assert.match(css, /role-workspace-content[\s\S]*overscroll-behavior-y:\s*auto/);
+    assert.match(browserAudit, /page\.mouse\.wheel/);
+    assert.match(browserAudit, /scrollGesturePassed/);
+    assert.match(browserAudit, /vertical scroll gesture did not move/);
 });
 
 test('tablet workspaces preserve touch targets and delay dense registry layout until desktop', () => {

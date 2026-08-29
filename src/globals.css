@@ -841,8 +841,13 @@
 
   .role-workspace-content {
     min-height: calc(100dvh - 8rem);
-    overscroll-behavior-y: contain;
+    overflow-y: visible;
+    overscroll-behavior-y: auto;
     scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  .role-workspace-content[data-mobile-scroll-root] {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
   .mobile-app-content {

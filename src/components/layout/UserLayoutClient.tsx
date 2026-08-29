@@ -72,7 +72,10 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
                                         <Suspense fallback={<div className="h-12 bg-white animate-pulse" />}>
                                             <HorizontalNavigation useSubdomain={isSubdomain} />
                                         </Suspense>
-                                        <main className="role-workspace-content mobile-app-content min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 pb-24 transition-colors duration-300 md:pb-0">
+                                        <main
+                                            className="role-workspace-content mobile-app-content min-w-0 flex-1 overflow-x-hidden bg-gray-50 pb-24 transition-colors duration-300 md:pb-0"
+                                            data-mobile-scroll-root
+                                        >
                                             <Suspense fallback={<BrandLoadingScreen variant="section" label="Loading this page..." />}>
                                                 {children}
                                             </Suspense>
