@@ -36,7 +36,7 @@ const CommunityStats: React.FC<CommunityStatsProps> = ({
                             </div>
                             <div className="min-w-0">
                                 <p className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{stat.value}</p>
-                                <p className="text-xs font-medium leading-4 text-gray-800 dark:text-gray-300 sm:text-sm">{stat.label}</p>
+                                <p className="text-sm font-medium text-gray-800 dark:text-gray-300 leading-5">{stat.label}</p>
                             </div>
                         </div>
                     </div>
