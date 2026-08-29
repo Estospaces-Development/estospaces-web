@@ -30,8 +30,11 @@ test('full platform performance proof rejects login errors and enforces the laun
   assert.match(source, /`\$\{target\.adminBaseUrl\}\/login\/`/);
   assert.doesNotMatch(source, /`\$\{target\.(?:app|admin)BaseUrl\}\/login`/);
   assert.match(source, /item\.status >= 200 && item\.status < 400/);
-  assert.match(source, /p95 <= latencyBudgetMs/);
-  assert.match(source, /const latencyBudgetMs = 1000/);
+  assert.match(source, /appP95 <= applicationLatencyBudgetMs/);
+  assert.match(source, /clientP95 <= remoteReachabilityBudgetMs/);
+  assert.match(source, /const applicationLatencyBudgetMs = 1000/);
+  assert.match(source, /const remoteReachabilityBudgetMs = 5000/);
+  assert.match(source, /response\.headers\.get\('server-timing'\)/);
 });
 
 test('authenticated smoke proof uses the current canonical login route', () => {
