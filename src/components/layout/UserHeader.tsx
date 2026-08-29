@@ -62,7 +62,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                                 aria-hidden="true"
                                 className="h-8 w-8 shrink-0 object-contain brightness-0 invert sm:h-9 sm:w-9"
                             />
-                            <span className="hidden text-lg font-bold text-white transition-colors duration-300 hover:text-white/90 min-[400px]:inline sm:text-xl" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
+                            <span className="hidden text-base font-bold text-white transition-colors duration-300 hover:text-white/90 min-[360px]:inline sm:text-xl" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
                                 Estospaces
                             </span>
                         </Link>

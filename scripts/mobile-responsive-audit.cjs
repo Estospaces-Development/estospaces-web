@@ -235,6 +235,20 @@ async function inspectMobilePage(page, role, route) {
         .filter((image) => isVisible(image) && image.complete && image.naturalWidth === 0)
         .map(describe)
         .slice(0, 8);
+      const oversizedHeadings = Array.from(document.querySelectorAll('main h1, main h2'))
+        .filter((element) => {
+          if (!isVisible(element)) return false;
+          const fontSize = Number.parseFloat(window.getComputedStyle(element).fontSize);
+          return element.tagName === 'H1' ? fontSize > 32 : fontSize > 26;
+        })
+        .map((element) => ({
+          ...describe(element),
+          fontSize: Number.parseFloat(window.getComputedStyle(element).fontSize),
+        }))
+        .slice(0, 8);
+      const mobileNavigationHeight = roleNavigation && isVisible(roleNavigation)
+        ? Math.round(roleNavigation.getBoundingClientRect().height)
+        : 0;
 
       return {
         viewportWidth,
@@ -246,6 +260,8 @@ async function inspectMobilePage(page, role, route) {
         mobileNavigationVisible: Boolean(roleNavigation && isVisible(roleNavigation)),
         clippedNavigationLabels,
         brokenImages,
+        oversizedHeadings,
+        mobileNavigationHeight,
         workspaceRole: document.querySelector('[data-workspace-role]')?.getAttribute('data-workspace-role') || '',
         pageScrollRange: Math.max(
           document.documentElement.scrollHeight,
@@ -292,6 +308,22 @@ async function inspectMobilePage(page, role, route) {
     result.nestedScrollGestureDelta = nestedScrollBefore === null || nestedScrollAfter === null
       ? 0
       : Math.round(nestedScrollAfter - nestedScrollBefore);
+    const scrollRetryPoints = [12, Math.max(12, auditViewport.width - 12)];
+    if (
+      result.pageScrollRange >= 8
+      && scrollAfter - scrollBefore <= 2
+      && result.nestedScrollGestureDelta <= 2
+    ) {
+      for (const retryX of scrollRetryPoints) {
+        const retryBefore = await page.evaluate(() => window.scrollY);
+        await page.mouse.move(retryX, scrollPoint.y);
+        await page.mouse.wheel(0, Math.max(320, Math.round(auditViewport.height * 0.7)));
+        await page.waitForTimeout(150);
+        const retryAfter = await page.evaluate(() => window.scrollY);
+        result.scrollGestureDelta = Math.max(result.scrollGestureDelta, Math.round(retryAfter - retryBefore));
+        if (result.scrollGestureDelta > 2) break;
+      }
+    }
     result.scrollGesturePassed = result.pageScrollRange < 8
       || result.scrollGestureDelta > 2
       || result.nestedScrollGestureDelta > 2;
@@ -309,6 +341,8 @@ async function inspectMobilePage(page, role, route) {
     if (!result.scrollGesturePassed) failures.push(`vertical scroll gesture did not move a ${Math.round(result.pageScrollRange)}px page range`);
     if (result.clippedNavigationLabels.length > 0) failures.push(`${result.clippedNavigationLabels.length} mobile navigation labels are clipped`);
     if (result.brokenImages.length > 0) failures.push(`${result.brokenImages.length} visible images failed to load`);
+    if (result.oversizedHeadings.length > 0) failures.push(`${result.oversizedHeadings.length} headings exceed the phone type scale`);
+    if (result.mobileNavigationHeight > 78) failures.push(`mobile navigation is taller than 78px (${result.mobileNavigationHeight}px)`);
     if (result.bodyLength < 30) failures.push('page rendered too little content');
     if (result.crashText) failures.push('crash text is visible');
     if (pageErrors.length > 0) failures.push(`${pageErrors.length} page errors`);

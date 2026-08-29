@@ -84,7 +84,30 @@ test('all role workspace shells contain content and overlays inside the mobile v
     assert.match(browserAudit, /scrollGesturePassed/);
     assert.match(browserAudit, /nestedScrollGestureDelta/);
     assert.match(browserAudit, /data-mobile-audit-scroll-probe/);
+    assert.match(browserAudit, /scrollRetryPoints/);
     assert.match(browserAudit, /vertical scroll gesture did not move/);
+});
+
+test('phone workspaces use an intentional compact type and spacing scale', () => {
+    const css = source('globals.css');
+    const dashboard = source('pages/user/dashboard/DashboardClient.tsx');
+    const discover = source('pages/user/dashboard/discover/page.tsx');
+    const userHeader = source('components/layout/UserHeader.tsx');
+    const roleNavigation = source('components/layout/RoleMobileNavigation.tsx');
+    const browserAudit = source('../scripts/mobile-responsive-audit.cjs');
+
+    assert.match(css, /--mobile-panel-padding:\s*1rem/);
+    assert.match(css, /role-workspace-content h1[\s\S]*clamp\(1\.5rem, 7vw, 1\.875rem\)/);
+    assert.match(css, /role-workspace-content h2[\s\S]*clamp\(1\.25rem, 5\.8vw, 1\.5rem\)/);
+    assert.match(css, /\[class~='p-8'\][\s\S]*padding:\s*var\(--mobile-panel-padding\)/);
+    assert.match(dashboard, /text-\[1\.75rem\]/);
+    assert.match(dashboard, /mobile-filter-rail mt-6 hidden/);
+    assert.match(discover, /grid min-h-11 grid-cols-3/);
+    assert.match(discover, /City, \$\{locationCodeLabel\.toLowerCase\(\)\}, or property/);
+    assert.match(userHeader, /min-\[360px\]:inline/);
+    assert.match(roleNavigation, /min-h-12/);
+    assert.match(browserAudit, /oversizedHeadings/);
+    assert.match(browserAudit, /mobile navigation is taller than/);
 });
 
 test('tablet workspaces preserve touch targets and delay dense registry layout until desktop', () => {

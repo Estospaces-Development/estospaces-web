@@ -95,17 +95,17 @@ const WelcomeBanner = ({
     ];
 
     return (
-        <div className="mb-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+        <div className="mb-4 sm:mb-6">
+            <div className="mb-3 flex flex-col items-start justify-between gap-3 sm:mb-4 sm:flex-row sm:items-center sm:gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome {displayName}</h1>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <h1 className="mb-1 text-[1.375rem] font-bold leading-tight text-gray-800 dark:text-white sm:mb-2 sm:text-2xl">Welcome {displayName}</h1>
+                    <p className="text-sm leading-5 text-gray-600 dark:text-gray-400 sm:text-base sm:leading-6">
                         Manage Your Properties, ideas, and grow your business
                     </p>
                 </div>
                 <button
                     onClick={() => navigate(actionPath)}
-                    className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-primary/20"
+                    className="flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:bg-primary-dark sm:px-6 sm:py-3"
                 >
                     <Plus className="w-5 h-5" />
                     <span>{actionLabel}</span>
@@ -113,7 +113,7 @@ const WelcomeBanner = ({
             </div>
 
             {/* Summary Stats */}
-            <div className="flex flex-wrap items-center gap-6 mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800 min-[360px]:grid-cols-3 sm:mt-4 sm:flex sm:flex-wrap sm:items-center sm:gap-6 sm:p-4">
                 {summaryItems.map((item, index) => (
                     <div key={item.path} className="contents">
                         {index > 0 && <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>}
@@ -121,10 +121,10 @@ const WelcomeBanner = ({
                             type="button"
                             onClick={() => navigate(item.path)}
                             aria-label={item.ariaLabel}
-                            className="flex items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-700"
+                            className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-700 sm:px-2"
                         >
                             <span className={`w-3 h-3 ${item.dotClassName} rounded-full animate-pulse`} aria-hidden="true"></span>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <span className="min-w-0 text-[12px] font-medium leading-4 text-gray-700 dark:text-gray-300 sm:text-sm">
                                 {item.label}
                             </span>
                         </button>

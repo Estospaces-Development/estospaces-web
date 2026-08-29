@@ -54,7 +54,7 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
   return (
     <nav
       aria-label={`${role === 'admin' ? 'Admin' : 'Manager'} mobile navigation`}
-      className="workspace-chrome mobile-role-navigation fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/96 px-2 pt-1.5 shadow-[0_-12px_32px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/96 lg:hidden"
+      className="workspace-chrome mobile-role-navigation fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/96 px-1.5 pt-1 shadow-[0_-10px_28px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/96 lg:hidden"
       data-mobile-role-navigation={role}
     >
       <div className="mx-auto grid max-w-lg grid-cols-5 gap-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -67,13 +67,13 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
               key={item.path}
               to={item.path}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 text-[10px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+              className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
                 active
                   ? 'bg-orange-50 text-orange-700 dark:bg-orange-500/12 dark:text-orange-300'
                   : 'text-gray-500 active:bg-gray-100 dark:text-gray-400 dark:active:bg-gray-800'
               }`}
             >
-              <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
+              <Icon aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 2} />
               <span className="max-w-full truncate">{item.label}</span>
               {active ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-orange-500" /> : null}
             </Link>
@@ -84,13 +84,13 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
           type="button"
           onClick={onOpenMore}
           aria-label={`Open all ${role} navigation`}
-          className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 text-[10px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+          className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
             primaryRouteActive
               ? 'text-gray-500 active:bg-gray-100 dark:text-gray-400 dark:active:bg-gray-800'
               : 'bg-orange-50 text-orange-700 dark:bg-orange-500/12 dark:text-orange-300'
           }`}
         >
-          <Menu aria-hidden="true" className="h-5 w-5" />
+          <Menu aria-hidden="true" className="h-[18px] w-[18px]" />
           <span>More</span>
           {!primaryRouteActive ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-orange-500" /> : null}
         </button>

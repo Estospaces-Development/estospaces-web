@@ -904,7 +904,7 @@ const DashboardClient = () => {
         <>
           <div
             id="hero-search"
-            className="group relative min-h-0 overflow-hidden rounded-[28px] shadow-xl animate-fadeIn md:min-h-[480px] md:rounded-[32px] md:shadow-2xl lg:min-h-[540px]"
+            className="group relative min-h-0 overflow-hidden rounded-[20px] shadow-lg animate-fadeIn sm:rounded-[28px] sm:shadow-xl md:min-h-[480px] md:rounded-[32px] md:shadow-2xl lg:min-h-[540px]"
           >
             <div
               className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 lg:group-hover:scale-105"
@@ -915,25 +915,25 @@ const DashboardClient = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-slate-950/78 via-slate-900/58 to-orange-950/30" />
             <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/25 to-transparent" />
 
-            <div className="relative z-10 flex min-h-0 items-start px-4 py-6 md:min-h-[480px] md:items-center md:px-6 md:py-10 lg:min-h-[540px] lg:px-10">
+            <div className="relative z-10 flex min-h-0 items-start px-3 py-4 sm:px-4 sm:py-6 md:min-h-[480px] md:items-center md:px-6 md:py-10 lg:min-h-[540px] lg:px-10">
               <div className="mx-auto min-w-0 w-full max-w-6xl">
                 <div className="max-w-3xl text-white">
                   <p className="hidden text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-300/90 sm:block">
                     Search sale and rental homes
                   </p>
                   <h1
-                    className="text-3xl font-bold leading-tight tracking-tight sm:mt-4 sm:text-4xl md:text-5xl lg:text-6xl"
+                    className="text-[1.75rem] font-bold leading-[1.12] tracking-tight sm:mt-4 sm:text-4xl md:text-5xl lg:text-6xl"
                     style={{ textShadow: '0 4px 20px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)' }}
                   >
                     Find your <span className="text-orange-400">perfect space</span>
                   </h1>
-                  <p className="mt-2 max-w-2xl text-sm text-white/88 sm:mt-4 sm:text-base md:text-lg">
+                  <p className="mt-2 max-w-2xl text-[13px] leading-5 text-white/88 sm:mt-4 sm:text-base md:text-lg">
                     {dashboardCopy.searchSubtitle}
                   </p>
                 </div>
 
                 <div
-                  className="mt-5 min-w-0 max-w-full rounded-[24px] border border-white/40 bg-white/95 p-3 shadow-2xl backdrop-blur-2xl ring-1 ring-black/5 sm:mt-8 sm:rounded-[28px] sm:p-5 md:p-6 lg:p-8"
+                  className="mt-4 min-w-0 max-w-full rounded-[18px] border border-white/40 bg-white/95 p-2.5 shadow-xl backdrop-blur-2xl ring-1 ring-black/5 sm:mt-8 sm:rounded-[28px] sm:p-5 sm:shadow-2xl md:p-6 lg:p-8"
                   style={{ animationDelay: '0.15s' }}
                 >
                   <div className="grid min-w-0 max-w-full gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
@@ -949,7 +949,7 @@ const DashboardClient = () => {
                         className="w-full text-left"
                       />
 
-                      <div className="mobile-filter-rail mt-4 flex snap-x snap-mandatory flex-nowrap items-center justify-start gap-2 overflow-x-auto pb-1 sm:mt-6 sm:flex-wrap sm:justify-center sm:gap-3 sm:overflow-visible sm:pb-0 lg:justify-start">
+                      <div className="mobile-filter-rail mt-6 hidden flex-wrap items-center justify-center gap-3 sm:flex lg:justify-start">
                         {dashboardFilterOptions.map((filter) => {
                           const selected = selectedFilters.includes(filter.id);
 

@@ -749,16 +749,16 @@ function DiscoverContent() {
                 </button>
 
                 {/* Header */}
-                <header className="mb-6 overflow-hidden rounded-[2rem] border border-orange-100 bg-gradient-to-br from-white via-white to-orange-50/80 p-6 shadow-[0_18px_55px_-42px_rgba(154,52,18,0.55)] dark:border-orange-900/30 dark:from-gray-900 dark:via-gray-900 dark:to-orange-950/30 sm:p-8">
-                    <div className="flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+                <header className="mb-4 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-white to-orange-50/80 p-4 shadow-[0_18px_55px_-42px_rgba(154,52,18,0.55)] dark:border-orange-900/30 dark:from-gray-900 dark:via-gray-900 dark:to-orange-950/30 sm:mb-6 sm:rounded-[2rem] sm:p-8">
+                    <div className="flex flex-col gap-4 sm:gap-7 xl:flex-row xl:items-end xl:justify-between">
                         <div className="max-w-2xl">
                             <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700 dark:text-orange-300">
                                 Homes on Estospaces
                             </p>
-                            <h1 className="mt-3 max-w-xl font-display text-3xl font-bold tracking-[-0.04em] text-gray-950 dark:text-white sm:text-4xl">
+                            <h1 className="mt-2 max-w-xl font-display text-[1.625rem] font-bold leading-tight tracking-[-0.04em] text-gray-950 dark:text-white sm:mt-3 sm:text-4xl">
                                 Find a home that fits your next move
                             </h1>
-                            <p className="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300 sm:mt-3 sm:text-base sm:leading-7">
                                 {statusFilter === 'sold'
                                     ? 'Review homes that have already completed their journey.'
                                     : activeTab === 'buy'
@@ -769,8 +769,8 @@ function DiscoverContent() {
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <div role="group" aria-label="Listing type" className="flex min-h-12 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3">
+                            <div role="group" aria-label="Listing type" className="grid min-h-11 grid-cols-3 gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex sm:min-h-12 sm:rounded-2xl">
                                 {([
                                     ['all', 'All homes'],
                                     ['buy', 'For sale'],
@@ -781,7 +781,7 @@ function DiscoverContent() {
                                         type="button"
                                         onClick={() => setActiveTab(value)}
                                         aria-pressed={activeTab === value}
-                                        className={`min-h-10 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === value
+                                        className={`min-h-10 rounded-lg px-2 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${activeTab === value
                                             ? 'bg-orange-600 text-white shadow-sm'
                                             : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                                             }`}
@@ -791,12 +791,12 @@ function DiscoverContent() {
                                 ))}
                             </div>
 
-                            <div role="group" aria-label="Results view" className="flex min-h-12 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            <div role="group" aria-label="Results view" className="grid min-h-11 grid-cols-2 gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex sm:min-h-12 sm:rounded-2xl">
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('grid')}
                                     aria-pressed={viewMode === 'grid'}
-                                    className={`flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'grid'
+                                    className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${viewMode === 'grid'
                                         ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-950'
                                         : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                                         }`}
@@ -808,7 +808,7 @@ function DiscoverContent() {
                                     type="button"
                                     onClick={() => setViewMode('map')}
                                     aria-pressed={viewMode === 'map'}
-                                    className={`flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'map'
+                                    className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${viewMode === 'map'
                                         ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-950'
                                         : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                                         }`}
@@ -822,8 +822,8 @@ function DiscoverContent() {
                 </header>
 
                 {/* Canonical property search */}
-                <section aria-label="Property search" className="mb-6 rounded-[1.75rem] border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end">
+                <section aria-label="Property search" className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:mb-6 sm:rounded-[1.75rem] sm:p-6">
+                    <div className="flex flex-col gap-3 sm:gap-5 lg:flex-row lg:items-end">
                         <div className="min-w-0 flex-1">
                             <label htmlFor="discover-property-search" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">
                                 Find a home
@@ -834,7 +834,7 @@ function DiscoverContent() {
                                     id="discover-property-search"
                                     aria-label="Search properties"
                                     type="text"
-                                    placeholder={`City, ${locationCodeLabel.toLowerCase()}, street, or property name`}
+                                    placeholder={`City, ${locationCodeLabel.toLowerCase()}, or property`}
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(normalizeSearchQueryInput(e.target.value));

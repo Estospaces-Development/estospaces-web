@@ -47,8 +47,8 @@ const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor, loa
                     </div>
                 ) : (
                     <>
-                        <p className="mb-1 text-2xl font-black text-gray-900 transition-all duration-300 group-hover:tracking-tight dark:text-white sm:text-3xl">{value}</p>
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400 sm:text-sm sm:tracking-widest">{title}</p>
+                        <p className="mb-1 text-xl font-black text-gray-900 transition-all duration-300 group-hover:tracking-tight dark:text-white min-[380px]:text-2xl sm:text-3xl">{value}</p>
+                        <p className="text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-gray-500 dark:text-gray-400 min-[380px]:text-[11px] sm:text-sm sm:tracking-widest">{title}</p>
                     </>
                 )}
             </div>

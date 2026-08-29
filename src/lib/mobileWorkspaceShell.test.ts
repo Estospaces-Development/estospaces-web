@@ -46,7 +46,7 @@ test('manager and admin expose app-like mobile bottom navigation without changin
   assert.match(mobileNavigation, /data-mobile-role-navigation=\{role\}/);
   assert.match(mobileNavigation, /lg:hidden/);
   assert.match(mobileNavigation, /env\(safe-area-inset-bottom\)/);
-  assert.match(mobileNavigation, /min-h-14/);
+  assert.match(mobileNavigation, /min-h-12/);
   assert.match(managerLayout, /RoleMobileNavigation role="manager"/);
   assert.match(adminLayout, /RoleMobileNavigation role="admin"/);
   assert.match(mobileNavigation, /activePaths: \['\/manager\/clients'\]/);
@@ -55,7 +55,7 @@ test('manager and admin expose app-like mobile bottom navigation without changin
 
 test('mobile headers preserve context while compacting the user wordmark', () => {
   assert.match(managerHeader, /getManagerPageTitle\(pathname\)/);
-  assert.match(userHeader, /min-\[400px\]:inline/);
+  assert.match(userHeader, /min-\[360px\]:inline/);
 });
 
 test('user bottom navigation uses concise labels that remain readable on 320px phones', () => {
@@ -73,7 +73,10 @@ test('mobile-only global safeguards prevent common overflow and input zoom failu
   assert.match(globalStyles, /scroll-padding-bottom/);
   assert.match(globalStyles, /min-height: 44px/);
   assert.match(globalStyles, /scroll-snap-type: x proximity/);
-  assert.doesNotMatch(globalStyles, /role-workspace-content h[12]/);
+  assert.match(globalStyles, /role-workspace-content h1/);
+  assert.match(globalStyles, /font-size: clamp\(1\.5rem, 7vw, 1\.875rem\)/);
+  assert.match(globalStyles, /role-workspace-content h2/);
+  assert.match(globalStyles, /font-size: clamp\(1\.25rem, 5\.8vw, 1\.5rem\)/);
 });
 
 test('notification dismiss controls remain safe touch targets across every role', () => {
@@ -136,7 +139,7 @@ test('small-phone dashboard skeletons and contract cards reflow without changing
 
 test('mobile dashboards use compact app-native hierarchy while desktop breakpoints stay intact', () => {
   assert.match(userDashboard, /min-h-0[^\n]+md:min-h-\[480px\][^\n]+lg:min-h-\[540px\]/);
-  assert.match(userDashboard, /mobile-filter-rail[^\n]+overflow-x-auto[^\n]+sm:flex-wrap/);
+  assert.match(userDashboard, /mobile-filter-rail[^\n]+hidden[^\n]+sm:flex/);
   assert.match(userDashboard, /hidden rounded-\[24px\][^\n]+lg:block/);
   assert.match(searchBar, /grid min-w-0 max-w-full grid-cols-3[^\n]+sm:inline-flex sm:w-auto/);
   assert.match(searchBar, /min-w-0 w-full bg-transparent[^\n]+placeholder-gray-400/);
