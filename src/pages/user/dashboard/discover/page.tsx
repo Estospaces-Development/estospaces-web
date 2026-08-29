@@ -714,6 +714,7 @@ function DiscoverContent() {
     }, [fastTrackConfirmationProperty, submitFastTrackRequestFromDiscover]);
 
     const handleClearFilters = () => {
+        clearPropertySearchReturnState(window.sessionStorage, DISCOVER_PATH);
         setSearchQuery('');
         setLocationQuery('');
         setStatusFilter('');
@@ -724,7 +725,9 @@ function DiscoverContent() {
         setDashboardFilter('');
         setSortBy('relevance');
         setFilterInputMessage('');
+        setActiveTab('all');
         setCurrentPage(1);
+        navigate(DISCOVER_PATH, { replace: true });
     };
 
     return (

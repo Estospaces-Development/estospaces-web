@@ -110,6 +110,9 @@ export default function ViewingsPage() {
                 propertyImage: viewing.property_image || PROPERTY_PLACEHOLDER_IMAGE,
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
+                propertyLocationCode: viewing.property_postcode
+                    || viewing.postcode
+                    || String(viewing.property_address || '').split(',').at(-1)?.trim(),
                 propertyPrice: viewing.property_price || 0,
                 propertyCountry: viewing.property_country || viewing.country,
                 propertyCurrency: viewing.property_currency || viewing.currency,
@@ -256,6 +259,7 @@ export default function ViewingsPage() {
     const formatViewingPrice = (viewing: any) => formatLaunchCurrencyForCountry(viewing.propertyPrice, {
         countryCode: viewing.propertyCountry,
         countryName: viewing.propertyCountry,
+        locationCode: viewing.propertyLocationCode,
         currencyCode: viewing.propertyCurrency,
     });
     const companionFastTrackCase = useMemo(() => (
