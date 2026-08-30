@@ -832,7 +832,7 @@ export default function RegisterPage() {
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 ${authFocusClass}`}
+                                className={`absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 ${authFocusClass}`}
                             >
                                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -895,7 +895,7 @@ export default function RegisterPage() {
                             <button
                                 type="button"
                                 onClick={openPrivacyModal}
-                                className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
+                                className={`inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-primary hover:bg-orange-50 hover:underline ${authFocusClass}`}
                             >
                                 Privacy Policy
                             </button>

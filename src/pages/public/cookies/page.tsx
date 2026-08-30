@@ -14,7 +14,7 @@ export default function CookiePolicyPage() {
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
+                        className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-gray-600 transition-colors hover:bg-orange-50 hover:text-orange-500"
                     >
                         <ArrowLeft size={20} />
                         <span className="text-sm font-medium">Back</span>

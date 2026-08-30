@@ -631,19 +631,19 @@ const PropertySearch = () => {
                 <button
                     type="button"
                     onClick={() => navigate(-1)}
-                    className="inline-flex items-center gap-1.5 text-gray-500 hover:text-orange-500 transition-colors dark:text-gray-400"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:text-gray-400 dark:hover:bg-zinc-800"
                     aria-label="Go back"
                 >
                     <ArrowLeft size={14} />
                     Back
                 </button>
-                <span className="text-gray-300 dark:text-gray-600">/</span>
-                <Link to="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-orange-500 transition-colors dark:text-gray-400">
+                <span className="hidden text-gray-300 dark:text-gray-600 sm:inline">/</span>
+                <Link to="/" className="hidden min-h-11 items-center gap-1.5 rounded-lg px-2 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:text-gray-400 dark:hover:bg-zinc-800 sm:inline-flex">
                     <Home size={14} />
                     Home
                 </Link>
-                <span className="text-gray-300 dark:text-gray-600">/</span>
-                <span className="text-gray-900 dark:text-white font-medium">Search Results</span>
+                <span className="hidden text-gray-300 dark:text-gray-600 sm:inline">/</span>
+                <span className="hidden font-medium text-gray-900 dark:text-white sm:inline">Search Results</span>
             </nav>
 
             <p role="status" aria-live="polite" className="sr-only">
@@ -1031,7 +1031,7 @@ const PropertySearch = () => {
                         aria-label="Show grid view"
                         aria-pressed={viewMode === 'grid'}
                         onClick={() => setViewMode('grid')}
-                        className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}
+                        className={`flex h-11 w-11 items-center justify-center rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}
                     >
                         <Grid3X3 className="w-4 h-4" />
                     </button>
@@ -1040,7 +1040,7 @@ const PropertySearch = () => {
                         aria-label="Show list view"
                         aria-pressed={viewMode === 'list'}
                         onClick={() => setViewMode('list')}
-                        className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}
+                        className={`flex h-11 w-11 items-center justify-center rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}
                     >
                         <List className="w-4 h-4" />
                     </button>
@@ -1100,7 +1100,7 @@ const PropertySearch = () => {
                                             event.stopPropagation();
                                             void handleSavePropertyFromSearch(p);
                                         }}
-                                        className={`absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-zinc-900 ${isSaved
+                                        className={`absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-zinc-900 ${isSaved
                                             ? 'bg-rose-500 text-white hover:bg-rose-600'
                                             : 'bg-white/95 text-gray-700 hover:bg-orange-50 hover:text-primary dark:bg-zinc-900/90 dark:text-gray-200 dark:hover:bg-zinc-800'
                                             }`}
@@ -1130,7 +1130,7 @@ const PropertySearch = () => {
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/user/properties/${p.id}`)}
-                                        className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors"
+                                        className="flex min-h-11 flex-1 items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
                                     >
                                         View details
                                     </button>

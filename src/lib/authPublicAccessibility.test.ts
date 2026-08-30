@@ -12,6 +12,12 @@ const verifyEmailPage = readFileSync(resolve(root, "src/pages/auth/verify-email/
 const faqPage = readFileSync(resolve(root, "src/pages/public/faq/page.tsx"), "utf8");
 const contactPage = readFileSync(resolve(root, "src/pages/public/contact/page.tsx"), "utf8");
 const publicFooter = readFileSync(resolve(root, "src/components/layout/Footer.tsx"), "utf8");
+const publicHeader = readFileSync(resolve(root, "src/components/layout/PublicHeader.tsx"), "utf8");
+const aboutPage = readFileSync(resolve(root, "src/pages/public/about/page.tsx"), "utf8");
+const privacyPage = readFileSync(resolve(root, "src/pages/public/privacy/page.tsx"), "utf8");
+const termsPage = readFileSync(resolve(root, "src/pages/public/terms/page.tsx"), "utf8");
+const cookiesPage = readFileSync(resolve(root, "src/pages/public/cookies/page.tsx"), "utf8");
+const publicSearchPage = readFileSync(resolve(root, "src/pages/user/search/page.tsx"), "utf8");
 const globalsCss = readFileSync(resolve(root, "src/globals.css"), "utf8");
 
 test("register form exposes role selection and field labels", () => {
@@ -53,8 +59,24 @@ test("login password reveal uses one custom control with non-inverted state", ()
   assert.match(loginPage, /password-input-no-native-reveal/);
   assert.match(loginPage, /aria-label=\{showPassword \? 'Hide password' : 'Show password'\}/);
   assert.match(loginPage, /\{showPassword \? <Eye size=\{20\} \/> : <EyeOff size=\{20\} \/>}/);
+  assert.match(loginPage, /flex h-11 w-11/);
+  assert.match(registerPage, /flex h-11 w-11/);
   assert.match(globalsCss, /input\[type="password"\]::\-ms-reveal/);
   assert.match(globalsCss, /input\[type="password"\]::\-ms-clear/);
+});
+
+test("public and authentication routes preserve phone-sized touch controls and type", () => {
+  assert.match(publicHeader, /flex min-h-11 items-center gap-2/);
+  assert.match(faqPage, /flex min-h-11 items-center gap-2/);
+  assert.match(contactPage, /flex min-h-11 items-center gap-2/);
+  assert.match(privacyPage, /flex min-h-11 items-center gap-2/);
+  assert.match(termsPage, /flex min-h-11 items-center gap-2/);
+  assert.match(cookiesPage, /flex min-h-11 items-center gap-2/);
+  assert.match(aboutPage, /text-3xl font-bold leading-tight sm:text-5xl/);
+  assert.match(publicSearchPage, /flex h-11 w-11 items-center justify-center/);
+  assert.match(publicSearchPage, /flex min-h-11 flex-1 items-center justify-center/);
+  assert.match(publicSearchPage, /hidden min-h-11 items-center[\s\S]*sm:inline-flex/);
+  assert.match(registerPage, /inline-flex min-h-11 items-center/);
 });
 
 test("faq search, category tabs, and accordions expose state", () => {

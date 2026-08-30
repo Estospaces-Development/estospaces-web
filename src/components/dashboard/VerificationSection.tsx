@@ -334,14 +334,14 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     : description;
 
         return (
-            <div className={`flex items-start gap-4 p-4 rounded-2xl border transition-all ${containerClass}`}>
+            <div className={`flex min-w-0 flex-col items-stretch gap-3 rounded-2xl border p-4 transition-all min-[360px]:flex-row min-[360px]:items-start min-[360px]:gap-4 ${containerClass}`}>
                 <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${iconClass}`}>
                     {isVerified ? <CheckCircle size={18} /> : isSubmitted ? <Clock size={18} /> : needsReupload ? <AlertCircle size={18} /> : <Icon size={18} />}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
+                    <div className="flex min-w-0 flex-col items-stretch gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between min-[360px]:gap-4">
+                        <div className="min-w-0">
                             <h3 className={`font-bold text-sm ${titleClass}`}>{title}</h3>
                             <p className={`text-xs mt-0.5 ${subtitleClass}`}>{subtitle}</p>
                         </div>
@@ -349,7 +349,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         {!isVerified && !isSubmitted && onAction && (
                             <button
                                 onClick={onAction}
-                                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95"
+                                className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-orange-600 active:scale-95 min-[360px]:w-auto min-[360px]:flex-shrink-0"
                             >
                                 {needsReupload ? 'Re-upload' : actionLabel}
                                 <ArrowRight size={14} />

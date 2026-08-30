@@ -59,7 +59,7 @@ export default function ContactPage() {
                     <button
                         type="button"
                         onClick={handleBack}
-                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors"
+                        className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-gray-600 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:text-gray-400 dark:hover:bg-gray-700"
                     >
                         <ArrowLeft size={20} />
                         <span className="text-sm font-medium">Back to Home</span>

@@ -818,8 +818,8 @@ function UserManagementContent() {
                             </button>
                         ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2">
+                    <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                        <div className="flex w-full min-w-0 flex-col items-stretch gap-2 min-[360px]:flex-row min-[360px]:items-center sm:w-auto">
                             <label
                                 htmlFor="admin-user-sort"
                                 className="text-[10px] font-black uppercase tracking-widest text-gray-400"
@@ -831,7 +831,7 @@ function UserManagementContent() {
                             aria-label={getAdminUserSortControlLabel()}
                             value={sortBy}
                             onChange={(event) => setSortBy(event.target.value as AdminUsersSortOption)}
-                            className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 outline-none transition-all hover:text-gray-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                            className="min-h-11 w-full min-w-0 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 outline-none transition-all hover:text-gray-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 min-[360px]:flex-1 lg:w-auto"
                         >
                             <option value="newest">Newest first</option>
                             <option value="oldest">Oldest first</option>
@@ -842,7 +842,7 @@ function UserManagementContent() {
                         </div>
                         <button
                             onClick={handleExportCSV}
-                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white min-[360px]:w-auto sm:border-0 sm:px-0"
                         >
                             <Download size={16} /> Export CSV
                         </button>

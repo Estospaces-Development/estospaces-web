@@ -801,12 +801,12 @@ export default function ContractsPage() {
                               : "border-transparent hover:border-orange-500/20"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                        <div className="flex min-w-0 flex-col items-start gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
+                          <div className="flex min-w-0 items-center gap-3 min-[360px]:gap-4">
                             <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-orange-500">
                               <FileText size={24} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h4 className="font-bold text-gray-900 dark:text-white">
                                 {(contract.contract_type || "Contract")
                                   .charAt(0)
@@ -828,14 +828,14 @@ export default function ContractsPage() {
                             </div>
                           </div>
                           <div
-                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyles(contract.status || "")}`}
+                            className={`max-w-full rounded-full border px-3 py-1 text-left text-[10px] font-black uppercase leading-4 tracking-widest min-[360px]:shrink-0 ${getStatusStyles(contract.status || "")}`}
                           >
                             {getStatusLabel(contract.status || "")}
                           </div>
                         </div>
 
                         {/* Signatures */}
-                        <div className="mt-4 flex items-center gap-6 text-xs">
+                        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs min-[360px]:gap-x-6">
                           <span
                             className={`flex items-center gap-1 ${contract.user_signed_at ? "text-green-600" : "text-gray-400"}`}
                           >

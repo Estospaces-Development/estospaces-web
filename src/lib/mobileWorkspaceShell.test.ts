@@ -38,6 +38,7 @@ const toast = readSource('../components/ui/Toast.tsx');
 const fastTrackLayout = readSource('../components/fast-track/FastTrackWorkspaceLayout.tsx');
 const fastTrackWorkspace = readSource('../components/fast-track/FastTrackWorkspace.tsx');
 const propertyForm = readSource('../pages/manager/dashboard/properties/add/page.tsx');
+const verificationSection = readSource('../components/dashboard/VerificationSection.tsx');
 
 test('all authenticated roles use a mobile app content shell with safe bottom navigation space', () => {
   assert.match(userLayout, /mobile-app-content/);
@@ -134,6 +135,8 @@ test('support and admin registry controls reflow into full-width mobile actions'
   assert.match(adminProperties, /min-h-11 w-full items-center justify-center/);
   assert.match(adminUsers, /data-mobile-table="cards"/);
   assert.match(adminUsers, /hidden max-w-full overflow-x-auto[^\n]+md:block/);
+  assert.match(adminUsers, /flex w-full min-w-0 flex-col items-stretch gap-3/);
+  assert.match(adminUsers, /min-h-11 w-full min-w-0 rounded-2xl/);
 });
 
 test('user activity navigation keeps every destination visible in a compact mobile grid', () => {
@@ -179,6 +182,11 @@ test('small-phone dashboard skeletons and contract cards reflow without changing
   assert.match(userContracts, /flex min-w-0 flex-col gap-4 min-\[380px\]:flex-row/);
   assert.match(userContracts, /h-40 w-full[^\n]+min-\[380px\]:h-24 min-\[380px\]:w-24/);
   assert.match(userContracts, /flex min-w-0 flex-col items-start gap-2 min-\[380px\]:flex-row/);
+  assert.match(userContracts, /flex min-w-0 flex-col items-start gap-3 min-\[360px\]:flex-row/);
+  assert.match(userContracts, /max-w-full rounded-full border/);
+  assert.match(verificationSection, /flex min-w-0 flex-col items-stretch gap-3/);
+  assert.match(verificationSection, /min-h-11 w-full items-center justify-center/);
+  assert.match(adminProperties, /flex min-w-0 flex-col items-start gap-2 min-\[360px\]:flex-row/);
 });
 
 test('mobile dashboards use compact app-native hierarchy while desktop breakpoints stay intact', () => {

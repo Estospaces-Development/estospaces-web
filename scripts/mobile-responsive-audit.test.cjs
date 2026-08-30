@@ -5,7 +5,11 @@ const test = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, 'mobile-responsive-audit.cjs'), 'utf8');
 
-test('mobile audit covers every authenticated role and route family', () => {
+test('mobile audit covers public routes plus every authenticated role and route family', () => {
+  assert.match(source, /public: \[/);
+  assert.match(source, /'\/login\/'/);
+  assert.match(source, /'\/reset-password'/);
+  assert.match(source, /'\/search'/);
   assert.match(source, /user: \[/);
   assert.match(source, /manager: \[/);
   assert.match(source, /admin: \[/);
@@ -15,6 +19,8 @@ test('mobile audit covers every authenticated role and route family', () => {
   assert.match(source, /\/admin\/research/);
   assert.match(source, /resolveDynamicRoutes/);
   assert.match(source, /properties\/edit/);
+  assert.match(source, /role === 'public'/);
+  assert.match(source, /browser\.newContext/);
 });
 
 test('mobile audit fails on real overflow, undersized touch targets, missing navigation, and runtime errors', () => {

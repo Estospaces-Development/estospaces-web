@@ -47,7 +47,7 @@ const PublicHeader = () => {
 
     const closeMenu = () => setIsMenuOpen(false);
 
-    const homeLinkClassName = 'flex items-center gap-2 transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+    const homeLinkClassName = 'flex min-h-11 items-center gap-2 rounded-lg transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
     const homeLinkContent = (
         <>
             <img

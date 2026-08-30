@@ -651,15 +651,15 @@ function PropertyManagementContent() {
                                 </div>
 
                                 <div className="p-8">
-                                    <div className="mb-4 flex items-start justify-between gap-4">
-                                        <div>
+                                    <div className="mb-4 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:justify-between min-[360px]:gap-4">
+                                        <div className="min-w-0">
                                             <h2 className="mb-1 text-xl font-black tracking-tight text-gray-900 dark:text-white">{property.title}</h2>
                                             <p className="flex items-center gap-1 text-xs font-bold text-gray-400">
                                                 <MapPin size={12} className="text-blue-500" />
                                                 {property.city || property.location?.city || 'Location unavailable'}
                                             </p>
                                         </div>
-                                        <span className="text-xl font-black text-blue-500">
+                                        <span className="max-w-full text-lg font-black leading-tight text-blue-500 min-[360px]:shrink-0 min-[360px]:text-xl">
                                             {(() => {
                                                 const propertyRecord = property as any;
                                                 return typeof property.price?.amount === 'number'

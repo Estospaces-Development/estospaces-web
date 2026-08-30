@@ -29,7 +29,7 @@ const outputRoot = path.join(
   `mobile-responsive-audit${auditSuffix}${outputLabel ? `-${outputLabel}` : ''}`,
 );
 const requestedRoles = new Set(
-  String(process.env.MOBILE_AUDIT_ROLES || 'user,manager,admin')
+  String(process.env.MOBILE_AUDIT_ROLES || 'public,user,manager,admin')
     .split(',')
     .map((role) => role.trim())
     .filter(Boolean),
@@ -37,6 +37,21 @@ const requestedRoles = new Set(
 const screenshotAllRoutes = process.env.MOBILE_AUDIT_SCREENSHOT_ALL === 'true';
 
 const routes = {
+  public: [
+    '/',
+    '/login/',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+    '/search',
+    '/about',
+    '/faq',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/cookies',
+  ],
   user: [
     '/user/dashboard',
     '/user/dashboard/bookings',
@@ -239,7 +254,9 @@ async function inspectMobilePage(page, role, route) {
         .map(describe);
 
       const bodyText = document.body.innerText || '';
-      const roleNavigation = expectedRole === 'user'
+      const roleNavigation = expectedRole === 'public'
+        ? null
+        : expectedRole === 'user'
         ? document.querySelector('nav[aria-label="Main navigation"]')
         : document.querySelector(`[data-mobile-role-navigation="${expectedRole}"]`);
       const clippedNavigationLabels = roleNavigation
@@ -351,18 +368,19 @@ async function inspectMobilePage(page, role, route) {
     const finalPath = new URL(page.url()).pathname;
     const redirectedToLogin = finalPath.startsWith('/login');
     const failures = [];
-    if (redirectedToLogin) failures.push('redirected to login');
-    if (result.workspaceRole !== role) failures.push(`workspace role is ${result.workspaceRole || 'missing'}`);
+    const publicRoute = role === 'public';
+    if (!publicRoute && redirectedToLogin) failures.push('redirected to login');
+    if (!publicRoute && result.workspaceRole !== role) failures.push(`workspace role is ${result.workspaceRole || 'missing'}`);
     if (result.documentWidth > result.viewportWidth + 2) failures.push(`document overflows by ${result.documentWidth - result.viewportWidth}px`);
     if (result.overflowElements.length > 0) failures.push(`${result.overflowElements.length} visible elements cross viewport edges`);
     if (result.smallTargets.length > 0) failures.push(`${result.smallTargets.length} touch targets are below 44px`);
-    if (!result.mobileNavigationVisible) failures.push('mobile role navigation is not visible');
-    if (!result.scrollRootPresent) failures.push('mobile scroll root is missing');
+    if (!publicRoute && !result.mobileNavigationVisible) failures.push('mobile role navigation is not visible');
+    if (!publicRoute && !result.scrollRootPresent) failures.push('mobile scroll root is missing');
     if (!result.scrollGesturePassed) failures.push(`vertical scroll gesture did not move a ${Math.round(result.pageScrollRange)}px page range`);
     if (result.clippedNavigationLabels.length > 0) failures.push(`${result.clippedNavigationLabels.length} mobile navigation labels are clipped`);
     if (result.brokenImages.length > 0) failures.push(`${result.brokenImages.length} visible images failed to load`);
     if (result.oversizedHeadings.length > 0) failures.push(`${result.oversizedHeadings.length} headings exceed the phone type scale`);
-    if (result.mobileNavigationHeight > 78) failures.push(`mobile navigation is taller than 78px (${result.mobileNavigationHeight}px)`);
+    if (!publicRoute && result.mobileNavigationHeight > 78) failures.push(`mobile navigation is taller than 78px (${result.mobileNavigationHeight}px)`);
     if (result.bodyLength < 30) failures.push('page rendered too little content');
     if (result.crashText) failures.push('crash text is visible');
     if (pageErrors.length > 0) failures.push(`${pageErrors.length} page errors`);
@@ -445,8 +463,10 @@ async function main() {
 
   try {
     for (const role of Object.keys(routes).filter((candidate) => requestedRoles.has(candidate))) {
-      const session = await loginViaApi(serviceTarget, role);
-      const context = await createAuthedContext(browser, session);
+      const session = role === 'public' ? { token: '' } : await loginViaApi(serviceTarget, role);
+      const context = role === 'public'
+        ? await browser.newContext({ viewport: auditViewport, ignoreHTTPSErrors: true })
+        : await createAuthedContext(browser, session);
       await context.addInitScript(() => {
         window.localStorage.setItem('estospaces_cookie_consent', 'rejected');
       });
@@ -454,7 +474,9 @@ async function main() {
       const page = await context.newPage();
       await page.setViewportSize(auditViewport);
 
-      const roleRoutes = [...routes[role], ...await resolveDynamicRoutes(role, session)];
+      const roleRoutes = role === 'public'
+        ? routes[role]
+        : [...routes[role], ...await resolveDynamicRoutes(role, session)];
       for (const route of roleRoutes) {
         const result = await inspectMobilePage(page, role, route);
         results.push(result);

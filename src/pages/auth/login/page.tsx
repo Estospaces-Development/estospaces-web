@@ -207,7 +207,7 @@ export default function LoginPage() {
                     <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white ${authFocusClass}`}
+                    className={`absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white ${authFocusClass}`}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                     {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
