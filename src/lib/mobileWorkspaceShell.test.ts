@@ -196,9 +196,13 @@ test('mobile dashboards use compact app-native hierarchy while desktop breakpoin
 test('focused mobile workflows disclose one current task before secondary tools', () => {
   assert.match(fastTrackLayout, /Step \{selectedIndex \+ 1\} of \{items\.length\}/);
   assert.match(fastTrackLayout, /aria-label="Choose fast-track stage"/);
-  assert.match(fastTrackLayout, /min-\[360px\]:flex-row/);
+  assert.match(fastTrackLayout, /data-mobile-fast-track-stage-picker/);
+  assert.match(fastTrackLayout, /data-mobile-fast-track-summary/);
+  assert.match(fastTrackLayout, /data-mobile-fast-track-metrics/);
   assert.match(fastTrackLayout, /hidden gap-1\.5 overflow-x-auto pb-1 sm:flex/);
   assert.match(fastTrackWorkspace, /data-mobile-current-task/);
+  assert.match(fastTrackWorkspace, /data-mobile-fast-track-page/);
+  assert.match(fastTrackWorkspace, /Share feedback when you are ready/);
   assert.match(fastTrackWorkspace, /Open case tools/);
   assert.match(propertyForm, /Step \{currentStep\} of \{steps\.length\}/);
   assert.match(propertyForm, /aria-label="Choose property form step"/);

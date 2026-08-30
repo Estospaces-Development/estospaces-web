@@ -98,14 +98,14 @@ export function FastTrackWorkspaceHeader({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden" data-fast-track-header data-mobile-focused-header>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex flex-wrap items-start gap-2.5">
+    <div className="flex min-w-0 max-w-full flex-col gap-2.5 overflow-hidden sm:gap-3" data-fast-track-header data-mobile-focused-header>
+      <div className="flex min-w-0 items-center justify-between gap-2 xl:items-start">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <button
             type="button"
             onClick={onBack}
             className={cn(
-              'inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:h-10 sm:w-10 sm:rounded-2xl',
               fastTrackFocusRing,
             )}
             aria-label="Back to dashboard"
@@ -118,8 +118,9 @@ export function FastTrackWorkspaceHeader({
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white sm:text-[26px]">
-                {copy.headerTitle}
+              <h1 className="truncate text-[18px] font-semibold tracking-[-0.025em] text-gray-900 dark:text-white sm:text-[26px] sm:font-bold">
+                <span className="sm:hidden">Fast Track</span>
+                <span className="hidden sm:inline">{copy.headerTitle}</span>
               </h1>
               <span className="hidden items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:inline-flex">
                 {role}
@@ -131,13 +132,13 @@ export function FastTrackWorkspaceHeader({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
           <button
             type="button"
             onClick={onToggleRail}
             data-fast-track-toggle-rail
             className={cn(
-              'inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:rounded-2xl sm:px-3.5',
+              'inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-3.5 sm:text-sm',
               fastTrackFocusRing,
             )}
           >
@@ -150,7 +151,7 @@ export function FastTrackWorkspaceHeader({
             onClick={onOpenCustomize}
             data-fast-track-customize-open
             className={cn(
-              'inline-flex h-10 w-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:w-auto sm:rounded-2xl sm:px-3.5',
+              'hidden h-10 w-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:inline-flex sm:w-auto sm:rounded-2xl sm:px-3.5',
               fastTrackFocusRing,
             )}
           >
@@ -161,16 +162,16 @@ export function FastTrackWorkspaceHeader({
       </div>
 
       {showMetricsStrip ? (
-        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2.5" data-fast-track-metrics-strip data-mobile-compact-summary-grid>
+        <div className="hidden flex-wrap gap-2.5 sm:flex" data-fast-track-metrics-strip data-mobile-compact-summary-grid data-mobile-fast-track-metrics>
           {stats.map((item) => (
             <div
               key={item.label}
-              className="flex min-w-0 flex-col gap-0.5 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:inline-flex sm:flex-row sm:items-center sm:gap-3 sm:rounded-full sm:px-4 sm:py-2.5"
+              className="inline-flex min-w-0 items-baseline justify-center gap-3 rounded-full border border-gray-100 bg-white px-4 py-2.5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
             >
-              <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-300 sm:text-[10px] sm:uppercase sm:tracking-[0.22em]">
+              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
                 {item.label}
               </p>
-              <p className="text-lg font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+              <p className="text-lg font-bold tabular-nums tracking-[-0.03em] text-gray-900 dark:text-white">
                 {item.value}
               </p>
             </div>
@@ -383,20 +384,20 @@ export function FastTrackCaseMasthead({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-sm dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)] sm:rounded-[30px] sm:shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)]" data-fast-track-masthead data-mobile-primary-task>
-      <div className="flex flex-col gap-3">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-3.5 shadow-sm dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)] sm:rounded-[30px] sm:p-4 sm:shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)]" data-fast-track-masthead data-mobile-primary-task data-mobile-fast-track-summary>
+      <div className="flex flex-col gap-2.5 sm:gap-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="min-w-0 max-w-full break-words text-xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white sm:text-[24px]">
+              <h2 className="min-w-0 max-w-full break-words text-[18px] font-semibold leading-6 tracking-[-0.025em] text-gray-900 dark:text-white sm:text-[24px] sm:font-bold">
                 {title}
               </h2>
-              <span className={cn('max-w-full shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold', statusTone)}>
+              <span className={cn('max-w-full shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold sm:px-3 sm:text-[11px]', statusTone)}>
                 {statusLabel}
               </span>
             </div>
             <p className="mt-1 hidden max-w-full break-words text-sm text-gray-600 dark:text-gray-300 sm:block">{subtitle}</p>
-            <p className="mt-2 line-clamp-2 max-w-2xl break-words text-sm leading-5 text-gray-700 dark:text-gray-200 sm:mt-3 sm:text-[13px] sm:leading-6">
+            <p className="mt-2 hidden max-w-2xl break-words text-sm leading-5 text-gray-700 dark:text-gray-200 sm:mt-3 sm:block sm:text-[13px] sm:leading-6">
               {statusSummary}
             </p>
           </div>
@@ -417,26 +418,35 @@ export function FastTrackCaseMasthead({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
-          <MastheadInfoCard label={copy.mastheadDeadlineLabel} value={deadlineLabel} />
-          <MastheadInfoCard label={copy.mastheadStageLabel} value={currentStage} />
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2.5">
           <div className="col-span-2 sm:contents">
-            <MastheadInfoCard label={copy.mastheadNextLabel} value={focus} />
+            <MastheadInfoCard label={copy.mastheadNextLabel} mobileLabel="Next" value={focus} />
           </div>
+          <MastheadInfoCard label={copy.mastheadDeadlineLabel} mobileLabel="24h" value={deadlineLabel} />
+          <MastheadInfoCard label={copy.mastheadStageLabel} mobileLabel="Stage" value={currentStage} />
         </div>
       </div>
     </section>
   );
 }
 
-function MastheadInfoCard({ label, value }: { label: string; value: string }) {
+function MastheadInfoCard({
+  label,
+  mobileLabel,
+  value,
+}: {
+  label: string;
+  mobileLabel?: string;
+  value: string;
+}) {
   return (
     <div
-      className="flex min-w-0 max-w-full flex-col gap-0.5 rounded-xl border border-white/70 bg-white/85 px-3 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5 sm:rounded-2xl sm:px-3.5"
+      className="flex min-w-0 max-w-full flex-col gap-0.5 rounded-xl border border-white/70 bg-white/85 px-2.5 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5 sm:rounded-2xl sm:px-3.5"
       data-fast-track-masthead-info-card={label}
     >
       <p className="min-w-0 max-w-full break-words text-[11px] font-semibold text-gray-500 dark:text-gray-300 sm:text-[10px] sm:uppercase sm:tracking-[0.22em]">
-        {label}
+        <span className="sm:hidden">{mobileLabel || label}</span>
+        <span className="hidden sm:inline">{label}</span>
       </p>
       <p className="min-w-0 max-w-full break-words text-sm font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
         {value}
@@ -456,20 +466,20 @@ export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepper
 
   return (
     <section className="sticky top-[4.5rem] z-20 min-w-0 max-w-full rounded-2xl border border-gray-100 bg-white/95 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 sm:top-20 sm:rounded-[24px]" data-fast-track-stepper>
-      <label className="flex min-h-12 flex-col items-stretch gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:gap-3 sm:hidden">
-        <span className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+      <label className="flex min-h-11 items-center gap-2 sm:hidden" data-mobile-fast-track-stage-picker>
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
             {selectedItem?.icon}
           </span>
           <span className="min-w-0">
-            <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Step {selectedIndex + 1} of {items.length}</span>
-            <span className="block truncate text-base font-bold text-gray-950 dark:text-white">{selectedItem?.label}</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Step {selectedIndex + 1} of {items.length}</span>
+            <span className="block truncate text-xs font-medium text-gray-700 dark:text-gray-200">Current stage</span>
           </span>
         </span>
         <select
           value={selectedItem?.key || ''}
           onChange={(event) => onSelect?.(event.target.value)}
-          className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white min-[360px]:w-auto min-[360px]:max-w-[7.5rem]"
+          className="h-11 w-[7.75rem] shrink-0 rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
           aria-label="Choose fast-track stage"
         >
           {items.map((item) => (
