@@ -399,6 +399,7 @@ const NearbyPropertiesMap = ({
     return (
         <div
             className="relative isolate h-full w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-950"
+            data-nearby-map-compact={compact ? 'true' : 'false'}
             data-nearby-map-style={mapStyle}
         >
             <MapContainer

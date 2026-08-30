@@ -989,6 +989,10 @@
     margin: 0.75rem;
   }
 
+  [data-nearby-map-compact='true'] .leaflet-control-zoom {
+    display: none;
+  }
+
   [data-mobile-table="cards"] :where(button, a, [role="button"]) {
     min-height: 44px;
   }

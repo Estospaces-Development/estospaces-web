@@ -79,12 +79,15 @@ test("dashboard map recomposes controls and supporting copy for narrow phones", 
   const dashboard = readSource("pages/user/dashboard/DashboardClient.tsx");
   const map = readSource("components/dashboard/NearbyPropertiesMap.tsx");
   const helpers = readSource("lib/nearbyMap.ts");
+  const globalStyles = readSource("globals.css");
 
   assert.match(dashboard, /data-mobile-nearby-map-section/);
   assert.match(dashboard, /grid min-w-0 gap-2\.5 sm:mb-4 sm:flex/);
   assert.match(dashboard, />Open Discover</);
   assert.doesNotMatch(dashboard, /This is a compact preview\. Open Browse All for the full map experience\./);
   assert.match(map, /grid w-full grid-cols-3 gap-1 rounded-xl/);
+  assert.match(map, /data-nearby-map-compact=\{compact \? 'true' : 'false'\}/);
+  assert.match(globalStyles, /\[data-nearby-map-compact='true'\] \.leaflet-control-zoom\s*\{\s*display: none;/);
   assert.match(map, /hidden bg-gradient-to-t[\s\S]*sm:block/);
   assert.match(helpers, /h-\[260px\] min-\[340px\]:h-\[280px\]/);
 });
