@@ -276,11 +276,11 @@ export default function AdminDashboard() {
                         <Clock size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
-                            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 sm:p-3">
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 sm:rounded-xl sm:p-3">
                                 <Zap className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">SLA Compliance</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">SLA Compliance</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.slaCompliance.toFixed(1)}%</span>
@@ -303,11 +303,11 @@ export default function AdminDashboard() {
                         <Zap size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
-                            <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 sm:p-3">
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 sm:rounded-xl sm:p-3">
                                 <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Avg Response</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Avg Response</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.avgResponseTime}</span>
@@ -322,11 +322,11 @@ export default function AdminDashboard() {
                         <Shield size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
-                            <div className="rounded-xl bg-orange-50 p-2.5 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 sm:p-3">
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-orange-50 p-2 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 sm:rounded-xl sm:p-3">
                                 <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Pending Verifications</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Pending Verifications</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.pendingVerifications}</span>
@@ -341,11 +341,11 @@ export default function AdminDashboard() {
                         <Activity size={100} />
                     </div>
                     <div className="relative z-10">
-                        <div className="mb-3 flex items-center gap-2 sm:mb-4 sm:gap-3">
-                            <div className="rounded-xl bg-white/10 p-2.5 text-white backdrop-blur-sm sm:p-3">
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-white/10 p-2 text-white backdrop-blur-sm sm:rounded-xl sm:p-3">
                                 <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-100 sm:text-xs sm:tracking-widest">Live Deals</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-orange-100 sm:text-xs sm:tracking-widest">Live Deals</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-white sm:text-3xl">{stats.activeTransactions}</span>

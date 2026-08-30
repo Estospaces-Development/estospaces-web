@@ -47,7 +47,8 @@ test('mobile audit narrowly permits documented compatibility and media fallbacks
 });
 
 test('mobile audit measures map containers without treating clipped Leaflet panes as page overflow', () => {
-  assert.match(source, /element\.closest\('\.leaflet-container'\)/);
+assert.match(source, /element\.closest\('\.leaflet-container'\)/);
+assert.match(source, /element\.tagName !== 'svg' && element\.closest\('svg'\)/);
 });
 
 test('mobile audit reports frontend and service environments without rewriting local to dev', () => {

@@ -75,6 +75,20 @@ test("nearby map reset reapplies bounds and restores the default presentation", 
   assert.match(source, /setFitSignal\(\(value\) => value \+ 1\)/);
 });
 
+test("dashboard map recomposes controls and supporting copy for narrow phones", () => {
+  const dashboard = readSource("pages/user/dashboard/DashboardClient.tsx");
+  const map = readSource("components/dashboard/NearbyPropertiesMap.tsx");
+  const helpers = readSource("lib/nearbyMap.ts");
+
+  assert.match(dashboard, /data-mobile-nearby-map-section/);
+  assert.match(dashboard, /grid min-w-0 gap-2\.5 sm:mb-4 sm:flex/);
+  assert.match(dashboard, />Open Discover</);
+  assert.doesNotMatch(dashboard, /This is a compact preview\. Open Browse All for the full map experience\./);
+  assert.match(map, /grid w-full grid-cols-3 gap-1 rounded-xl/);
+  assert.match(map, /hidden bg-gradient-to-t[\s\S]*sm:block/);
+  assert.match(helpers, /h-\[260px\] min-\[340px\]:h-\[280px\]/);
+});
+
 test("applications grid and list controls render structurally different views", () => {
   const source = readSource("pages/user/applications/page.tsx");
 
@@ -167,6 +181,9 @@ test("admin operational metrics use compact phone grids", () => {
   assert.match(users, /grid grid-cols-2 gap-3 lg:grid-cols-4/);
   assert.match(notifications, /mt-5 grid grid-cols-3 gap-2/);
   assert.doesNotMatch(notifications, /Opens \{targetPath\}/);
+
+  const dashboard = readSource("pages/admin/dashboard/page.tsx");
+  assert.equal((dashboard.match(/flex min-w-0 flex-col items-start gap-2 min-\[360px\]:flex-row/g) || []).length, 4);
 });
 
 test("narrow-phone guides wrap safely and settings tabs stay fully visible", () => {

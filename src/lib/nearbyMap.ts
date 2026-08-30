@@ -24,7 +24,7 @@ export const DASHBOARD_NEARBY_PROPERTY_LIMIT = 20;
 
 export const getDashboardMapHeightClass = (hasMapPreview: boolean): string => (
     hasMapPreview
-        ? 'h-[310px] sm:h-[350px] lg:h-[400px]'
+        ? 'h-[260px] min-[340px]:h-[280px] sm:h-[350px] lg:h-[400px]'
         : 'h-[320px] sm:h-[300px] lg:h-[320px]'
 );
 

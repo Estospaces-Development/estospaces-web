@@ -56,7 +56,7 @@ const HorizontalNavigation = ({
     {
       icon: MessageSquare,
       label: "Messages",
-      mobileLabel: "Messages",
+      mobileLabel: "Chat",
       path: "/user/dashboard/messages",
       showBadge: true,
       badgeCount: totalUnreadCount,
@@ -193,7 +193,7 @@ const HorizontalNavigation = ({
             const content = (
               <>
                 <Icon size={16} className="flex-shrink-0" />
-                <span className="max-w-full whitespace-nowrap">{item.mobileLabel}</span>
+                <span className="max-w-full whitespace-nowrap text-[10px] min-[320px]:text-[11px]">{item.mobileLabel}</span>
                 {item.showBadge && (item.badgeCount || 0) > 0 && (
                   <UnreadCountBadge count={item.badgeCount || 0} mobile />
                 )}

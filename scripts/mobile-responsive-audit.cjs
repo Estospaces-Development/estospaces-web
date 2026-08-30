@@ -198,6 +198,7 @@ async function inspectMobilePage(page, role, route) {
         .filter((element) => {
           if (!isVisible(element)) return false;
           if (element.closest('.leaflet-container')) return false;
+          if (element.tagName !== 'svg' && element.closest('svg')) return false;
           const rect = element.getBoundingClientRect();
           const style = window.getComputedStyle(element);
           if (style.position === 'fixed' && rect.width <= viewportWidth + 2) return false;

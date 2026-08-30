@@ -56,6 +56,7 @@ test('manager and admin expose app-like mobile bottom navigation without changin
   assert.match(mobileNavigation, /activePaths: \['\/manager\/clients'\]/);
   assert.match(mobileNavigation, /activePaths: \['\/admin\/user-management'\]/);
   assert.match(mobileNavigation, /label: 'Properties', mobileLabel: 'Listings'/);
+  assert.match(mobileNavigation, /label: 'Fast Track', mobileLabel: '24h'/);
   assert.match(mobileNavigation, /item\.mobileLabel === item\.label[\s\S]*item\.mobileLabel/);
   assert.match(mobileNavigation, /\{item\.mobileLabel\}/);
   assert.doesNotMatch(mobileNavigation, /truncate">\{item\.label\}/);
@@ -69,6 +70,7 @@ test('mobile headers preserve context while compacting the user wordmark', () =>
 
 test('user bottom navigation uses concise labels that remain readable on 320px phones', () => {
   assert.match(horizontalNavigation, /mobileLabel: "Home"/);
+  assert.match(horizontalNavigation, /mobileLabel: "Chat"/);
   assert.match(horizontalNavigation, /mobileLabel: "Activity"/);
   assert.match(horizontalNavigation, /\{item\.mobileLabel\}/);
   assert.doesNotMatch(horizontalNavigation, /truncate whitespace-nowrap">\{item\.label\}/);

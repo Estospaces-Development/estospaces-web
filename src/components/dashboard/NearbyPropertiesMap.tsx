@@ -499,7 +499,7 @@ const NearbyPropertiesMap = ({
                 })}
             </MapContainer>
 
-            <div className="absolute left-4 top-4 z-[1000] flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3">
+            <div className={`absolute z-[1000] ${compact ? 'inset-x-2 top-2 sm:inset-x-auto sm:left-4 sm:top-4' : 'left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3'}`}>
                 <div className={`rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Nearby map</p>
                     <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -510,12 +510,12 @@ const NearbyPropertiesMap = ({
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                <div className={`${compact ? 'grid w-full grid-cols-3 gap-1 rounded-xl p-1.5 sm:flex sm:w-auto sm:gap-2 sm:rounded-2xl sm:p-2' : 'flex items-center gap-2 rounded-2xl p-2'} bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90`}>
                     <button
                         type="button"
                         data-nearby-map-standard
                         onClick={() => setMapStyle('standard')}
-                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                        className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
                             mapStyle === 'standard'
                                 ? 'bg-orange-500 text-white'
                                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
@@ -528,7 +528,7 @@ const NearbyPropertiesMap = ({
                         type="button"
                         data-nearby-map-satellite
                         onClick={() => setMapStyle('satellite')}
-                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                        className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
                             mapStyle === 'satellite'
                                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
                                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
@@ -546,7 +546,7 @@ const NearbyPropertiesMap = ({
                             setSelectedPropertyID(propertiesWithCoords[0]?.id || null);
                             setFitSignal((value) => value + 1);
                         }}
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+                        className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] font-medium text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold"
                     >
                         <LocateFixed size={14} />
                         {compact ? 'Reset' : 'Recenter'}
@@ -634,7 +634,7 @@ const NearbyPropertiesMap = ({
             ) : null}
 
             {compact ? (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] hidden bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92 sm:block">
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/92 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/92">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Dashboard preview</p>

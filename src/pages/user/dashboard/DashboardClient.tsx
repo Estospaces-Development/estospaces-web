@@ -1252,27 +1252,27 @@ const DashboardClient = () => {
         </div>
       )}
 
-      <div>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <MapIcon className="text-orange-500" size={20} />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">{dashboardCopy.mapTitle}</h2>
+      <div data-mobile-nearby-map-section>
+          <div className="mb-3 grid min-w-0 gap-2.5 sm:mb-4 sm:flex sm:items-end sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <MapIcon className="h-4 w-4 shrink-0 text-orange-500 sm:h-5 sm:w-5" />
+                <h2 className="min-w-0 text-lg font-semibold leading-tight text-gray-900 dark:text-orange-500 sm:text-xl">{dashboardCopy.mapTitle}</h2>
               </div>
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+              <p className="mt-1 text-[13px] leading-[1.4] text-gray-600 dark:text-gray-300 sm:text-sm">
                 {dashboardCopy.mapSubtitle}
               </p>
-              <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                This is a compact preview. Open Browse All for the full map experience.
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:mt-2">
+                Preview nearby homes here. Open Discover for the full map.
               </p>
             </div>
             <button
               onClick={() => {
                 navigate('/user/dashboard/discover');
               }}
-              className="flex items-center gap-2 px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 text-sm font-medium transition-colors"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:border-orange-300 hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-300 dark:hover:bg-orange-950/40 sm:w-auto sm:shrink-0 sm:border-0 sm:bg-transparent sm:px-2 sm:text-orange-600 dark:sm:bg-transparent dark:sm:text-orange-400"
             >
-              <span>Browse All Properties</span>
+              <span>Open Discover</span>
               <ArrowRight size={16} />
             </button>
           </div>

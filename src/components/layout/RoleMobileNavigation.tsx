@@ -20,7 +20,7 @@ interface RoleMobileNavigationProps {
 const roleItems = {
   manager: [
     { icon: LayoutDashboard, label: 'Home', mobileLabel: 'Home', path: '/manager/dashboard', exact: true },
-    { icon: Zap, label: 'Fast Track', mobileLabel: 'Fast Track', path: '/manager/fast-track' },
+    { icon: Zap, label: 'Fast Track', mobileLabel: '24h', path: '/manager/fast-track' },
     { icon: Building2, label: 'Properties', mobileLabel: 'Listings', path: '/manager/dashboard/properties' },
     { icon: Users, label: 'Leads', mobileLabel: 'Leads', path: '/manager/leads', activePaths: ['/manager/clients'] },
   ],
@@ -76,7 +76,7 @@ const RoleMobileNavigation = ({ role, onOpenMore }: RoleMobileNavigationProps) =
               }`}
             >
               <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
-              <span className="max-w-full whitespace-nowrap">{item.mobileLabel}</span>
+              <span className="max-w-full whitespace-nowrap text-[10px] min-[320px]:text-[11px]">{item.mobileLabel}</span>
               {active ? <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-orange-500" /> : null}
             </Link>
           );

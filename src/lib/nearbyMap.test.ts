@@ -17,7 +17,7 @@ test('reserves enough mobile height for the empty-map action', () => {
     );
     assert.equal(
         getDashboardMapHeightClass(true),
-        'h-[310px] sm:h-[350px] lg:h-[400px]',
+        'h-[260px] min-[340px]:h-[280px] sm:h-[350px] lg:h-[400px]',
     );
 });
 

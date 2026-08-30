@@ -819,54 +819,24 @@
     scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
-  .role-workspace-content h1:not(:is(
-    [class~='text-xs'],
-    [class~='text-sm'],
-    [class~='text-base'],
-    [class~='text-lg'],
-    [class~='text-xl'],
-    [class~='text-2xl'],
-    [class~='text-3xl'],
-    [class~='text-4xl'],
-    [class~='text-5xl'],
-    [class*='text-[']
-  )) {
-    font-size: clamp(1.5rem, 7vw, 1.875rem);
+  .role-workspace-content h1 {
+    font-size: clamp(1.5rem, 7vw, 1.875rem) !important;
     line-height: 1.15;
+    font-weight: 600 !important;
     letter-spacing: -0.035em;
   }
 
-  .role-workspace-content h2:not(:is(
-    [class~='text-xs'],
-    [class~='text-sm'],
-    [class~='text-base'],
-    [class~='text-lg'],
-    [class~='text-xl'],
-    [class~='text-2xl'],
-    [class~='text-3xl'],
-    [class~='text-4xl'],
-    [class~='text-5xl'],
-    [class*='text-[']
-  )) {
-    font-size: clamp(1.25rem, 5.8vw, 1.5rem);
+  .role-workspace-content h2 {
+    font-size: clamp(1.25rem, 5.8vw, 1.5rem) !important;
     line-height: 1.2;
+    font-weight: 600 !important;
     letter-spacing: -0.025em;
   }
 
-  .role-workspace-content h3:not(:is(
-    [class~='text-xs'],
-    [class~='text-sm'],
-    [class~='text-base'],
-    [class~='text-lg'],
-    [class~='text-xl'],
-    [class~='text-2xl'],
-    [class~='text-3xl'],
-    [class~='text-4xl'],
-    [class~='text-5xl'],
-    [class*='text-[']
-  )) {
+  .role-workspace-content h3 {
     font-size: clamp(1.0625rem, 4.8vw, 1.25rem);
     line-height: 1.3;
+    font-weight: 600;
   }
 
   .role-workspace-content h4 {
