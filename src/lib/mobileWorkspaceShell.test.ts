@@ -112,7 +112,12 @@ test('dense record surfaces use dedicated mobile composition instead of squeezed
 });
 
 test('manager application card actions remain contained on narrow phones', () => {
+  assert.match(managerApplicationCard, /flex flex-col font-outfit min-\[480px\]:flex-row/);
+  assert.match(managerApplicationCard, /h-44 w-full flex-shrink-0 min-\[480px\]:h-auto/);
+  assert.match(managerApplicationCard, /grid-cols-1[^\n]+min-\[360px\]:grid-cols-2/);
   assert.match(managerApplicationCard, /flex min-w-0 flex-col items-stretch gap-3/);
+  assert.match(managerApplicationCard, /flex min-w-0 flex-wrap items-baseline gap-x-1/);
+  assert.match(managerApplicationCard, /max-w-full break-words text-base/);
   assert.match(managerApplicationCard, /grid-cols-\[44px_minmax\(0,1fr\)\]/);
   assert.match(managerApplicationCard, /min-h-11 min-w-11/);
   assert.match(managerApplicationCard, /min-h-11 min-w-0 items-center justify-center/);

@@ -356,12 +356,12 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     : 'border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800'
                 }`}
         >
-            <div className="flex font-outfit">
-                <div className="relative flex-shrink-0 w-32 sm:w-40 lg:w-48">
+            <div className="flex flex-col font-outfit min-[480px]:flex-row">
+                <div className="relative h-44 w-full flex-shrink-0 min-[480px]:h-auto min-[480px]:w-40 lg:w-48">
                     <img
                         src={application.propertyImage}
                         alt={application.propertyTitle}
-                        className="w-full h-full object-cover min-h-[160px]"
+                        className="h-full min-h-[160px] w-full object-cover"
                         onError={(e) => {
                                     (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                 }}
@@ -382,7 +382,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     )}
                 </div>
 
-                <div className="flex-1 p-4 lg:p-5 flex flex-col justify-between min-w-0">
+                <div className="flex min-w-0 flex-1 flex-col justify-between p-3 min-[360px]:p-4 lg:p-5">
                     <div>
                         <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="min-w-0">
@@ -397,7 +397,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             <ChevronRight size={20} className="text-gray-300 dark:text-gray-600 group-hover:text-orange-400 transition-colors flex-shrink-0 mt-1" />
                         </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-3 text-sm">
+                        <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm min-[360px]:grid-cols-2 lg:grid-cols-3">
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <User size={14} className="flex-shrink-0 text-gray-400" />
                                 <span className="truncate">{application.agentName}</span>
@@ -453,11 +453,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     </div>
 
                     <div className="mt-4 flex min-w-0 flex-col items-stretch gap-3 border-t border-gray-50 pt-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between dark:border-gray-700">
-                        <div className="min-w-0">
-                            <span className="text-lg font-bold text-gray-900 dark:text-white">
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1">
+                            <span className="max-w-full break-words text-base font-semibold text-gray-900 dark:text-white min-[360px]:text-lg min-[360px]:font-bold">
                                 {formattedPropertyPrice}
                             </span>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
+                            <span className="text-xs font-normal text-gray-500 dark:text-gray-400 min-[360px]:text-sm">
                                 {application.listingType === 'rent' || application.listingType === 'lease' ? '/month' : ''}
                             </span>
                         </div>
