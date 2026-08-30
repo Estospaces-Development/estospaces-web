@@ -292,27 +292,29 @@ export default function PropertyDetailPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-800 mb-6">
+            <div className="mb-6 grid grid-cols-2 border-b border-gray-200 dark:border-gray-800">
                 <button
                     onClick={() => setActiveTab('details')}
-                    className={`px-6 py-3 font-medium text-sm transition-colors relative ${activeTab === 'details'
+                    className={`relative min-h-11 min-w-0 px-2 py-3 text-sm font-medium transition-colors sm:px-6 ${activeTab === 'details'
                         ? 'text-orange-600 dark:text-orange-400'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                 >
-                    Property Details
+                    <span className="sm:hidden">Details</span>
+                    <span className="hidden sm:inline">Property Details</span>
                     {activeTab === 'details' && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 dark:bg-orange-400"></div>
                     )}
                 </button>
                 <button
                     onClick={() => setActiveTab('location')}
-                    className={`px-6 py-3 font-medium text-sm transition-colors relative flex items-center gap-2 ${activeTab === 'location'
+                    className={`relative flex min-h-11 min-w-0 items-center justify-center gap-2 px-2 py-3 text-sm font-medium transition-colors sm:px-6 ${activeTab === 'location'
                         ? 'text-orange-600 dark:text-orange-400'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                 >
-                    Location & Street View
+                    <span className="sm:hidden">Location</span>
+                    <span className="hidden sm:inline">Location &amp; Street View</span>
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     {activeTab === 'location' && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 dark:bg-orange-400"></div>

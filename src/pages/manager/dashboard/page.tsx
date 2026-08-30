@@ -488,7 +488,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
+    <div className="relative min-h-screen space-y-3.5 pb-20 font-outfit sm:space-y-6" data-manager-mobile-dashboard>
       <WelcomeBanner
         analytics={analytics}
         loading={!analytics && isLoading}
@@ -498,7 +498,7 @@ function DashboardContent() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
+      <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
         <StatCard
           title="Live Fast Track"
           value={stats.liveFastTrack}
@@ -546,7 +546,7 @@ function DashboardContent() {
 
       {/* Main Content Area */}
       {activeTab === 'overview' && (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-4 animate-in fade-in duration-500 sm:space-y-8">
           {!canLoadOperationalDashboard ? (
             <div
               data-testid="manager-dashboard-readiness-gate"

@@ -179,10 +179,10 @@ export default function ManagerNotificationsPage() {
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto p-4 sm:p-6 animate-fadeIn">
+        <div className="mx-auto max-w-5xl space-y-4 p-0 animate-fadeIn sm:space-y-6 sm:p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <h1 data-manager-mobile-page-title className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <Bell className="text-orange-500" />
                         Notifications
                         {unreadCount > 0 && (
@@ -195,7 +195,7 @@ export default function ManagerNotificationsPage() {
                 {unreadCount > 0 && (
                     <button 
                         onClick={() => markAllAsRead()}
-                        className="text-sm text-orange-600 hover:text-orange-700 font-medium transition-colors flex items-center gap-1"
+                        className="flex min-h-11 items-center gap-1 self-start rounded-xl px-3 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950/20"
                     >
                         <Check className="w-4 h-4" />
                         Mark all as read
@@ -203,7 +203,7 @@ export default function ManagerNotificationsPage() {
                 )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 items-center bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:gap-4 sm:p-4">
                 <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg w-full sm:w-auto">
                     {(['all', 'unread', 'read'] as const).map(f => (
                         <button

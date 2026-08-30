@@ -209,10 +209,10 @@ const Analytics = () => {
                     <div className="mb-4">
                         <BackButton />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analytics Overview</h1>
+                    <h1 data-manager-mobile-page-title className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analytics Overview</h1>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Detailed performance metrics for your properties</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div data-manager-mobile-actions className="flex items-center gap-3">
                     <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
                         <button
                             type="button"
@@ -282,6 +282,7 @@ const Analytics = () => {
 
                     return (
                     <div
+                        data-manager-mobile-metric
                         key={i}
                         id={metric.anchorId}
                         tabIndex={metric.anchorId ? -1 : undefined}

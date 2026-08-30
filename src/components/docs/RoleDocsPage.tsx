@@ -161,12 +161,13 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
         <div
             ref={pageRootRef}
             className="relative overflow-x-hidden bg-[linear-gradient(180deg,#fff8f2_0%,#fffdfb_24%,#f8fafc_100%)] pb-24 dark:bg-[linear-gradient(180deg,#09090b_0%,#111827_28%,#030712_100%)]"
+            data-role-docs={config.role}
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-[radial-gradient(circle_at_top_left,rgba(255,107,53,0.16),transparent_34%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.12),transparent_36%)]" />
             <div className="pointer-events-none absolute inset-x-0 top-60 h-64 bg-[linear-gradient(180deg,rgba(255,107,53,0.06),transparent)]" />
 
-            <div className="relative mx-auto w-full max-w-[1480px] min-w-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <section className="overflow-hidden rounded-[2rem] border border-orange-100/90 bg-white/95 shadow-[0_30px_90px_-48px_rgba(255,107,53,0.45)] backdrop-blur dark:border-orange-500/10 dark:bg-gray-950/95">
+            <div className="relative mx-auto w-full max-w-[1480px] min-w-0 px-0 py-2 sm:px-6 sm:py-8 lg:px-8">
+                <section className="overflow-hidden rounded-2xl border border-orange-100/90 bg-white/95 shadow-[0_30px_90px_-48px_rgba(255,107,53,0.45)] backdrop-blur dark:border-orange-500/10 dark:bg-gray-950/95 sm:rounded-[2rem]">
                     <div className="relative overflow-hidden border-b border-orange-100/80 bg-[linear-gradient(135deg,rgba(255,107,53,0.1),rgba(255,255,255,0.98),rgba(251,191,36,0.08))] px-4 py-5 dark:border-orange-500/10 dark:bg-[linear-gradient(135deg,rgba(255,107,53,0.12),rgba(17,24,39,0.96),rgba(3,7,18,0.98))] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
                         <div className="absolute inset-y-0 right-0 hidden w-[34%] bg-[radial-gradient(circle_at_top_right,rgba(255,107,53,0.18),transparent_60%)] xl:block" />
                         <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(340px,392px)] xl:items-start 2xl:grid-cols-[minmax(0,1.05fr)_420px]">
@@ -175,8 +176,11 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                     <Sparkles className="h-4 w-4" />
                                     {config.label}
                                 </div>
-                                <h1 className="max-w-4xl break-words text-2xl font-black leading-tight tracking-tight text-gray-950 [overflow-wrap:anywhere] dark:text-white sm:text-display-xl">
-                                    {config.title}
+                                <h1 className="max-w-4xl text-[1.35rem] font-semibold leading-[1.15] tracking-[-0.035em] text-gray-950 dark:text-white sm:text-display-xl sm:font-black">
+                                    <span className="sm:hidden">
+                                        {config.role === 'manager' ? 'Manager operating guide' : 'Your Estospaces guide'}
+                                    </span>
+                                    <span className="hidden sm:inline">{config.title}</span>
                                 </h1>
                                 <p className="mt-3 line-clamp-4 max-w-3xl text-sm leading-6 text-gray-700 dark:text-gray-300 sm:mt-5 sm:line-clamp-none sm:text-body-lg">
                                     {config.subtitle}

@@ -95,20 +95,25 @@ const WelcomeBanner = ({
     ];
 
     return (
-        <div className="mb-4 sm:mb-6">
-            <div className="mb-3 flex flex-col items-start justify-between gap-3 sm:mb-4 sm:flex-row sm:items-center sm:gap-4">
+        <div className="mb-3 sm:mb-6">
+            <div className="mb-2.5 flex items-center justify-between gap-2.5 sm:mb-4 sm:gap-4">
                 <div>
-                    <h1 className="mb-1 text-[1.375rem] font-bold leading-tight text-gray-800 dark:text-white sm:mb-2 sm:text-2xl">Welcome {displayName}</h1>
+                    <h1 className="mb-0.5 text-lg font-semibold leading-tight tracking-[-0.025em] text-gray-800 dark:text-white sm:mb-2 sm:text-2xl sm:font-bold">
+                        <span className="sm:hidden">Welcome back</span>
+                        <span className="hidden sm:inline">Welcome {displayName}</span>
+                    </h1>
                     <p className="hidden text-sm leading-5 text-gray-600 dark:text-gray-400 sm:block sm:text-base sm:leading-6">
                         Manage Your Properties, ideas, and grow your business
                     </p>
                 </div>
                 <button
                     onClick={() => navigate(actionPath)}
-                    className="flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:bg-primary-dark sm:px-6 sm:py-3"
+                    aria-label={actionLabel}
+                    className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-2.5 py-2.5 text-xs font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:bg-primary-dark min-[360px]:px-3 min-[360px]:text-sm sm:px-6 sm:py-3"
                 >
                     <Plus className="w-5 h-5" />
-                    <span>{actionLabel}</span>
+                    <span className="sm:hidden">Add</span>
+                    <span className="hidden sm:inline">{actionLabel}</span>
                 </button>
             </div>
 

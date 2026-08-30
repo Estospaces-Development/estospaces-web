@@ -196,7 +196,9 @@ test("narrow-phone guides wrap safely and settings tabs stay fully visible", () 
   const settings = readSource("pages/user/dashboard/settings/page.tsx");
 
   assert.match(docs, /min-w-0 max-w-4xl/);
-  assert.match(docs, /break-words text-2xl[\s\S]*\[overflow-wrap:anywhere\]/);
+  assert.match(docs, /data-role-docs=\{config\.role\}/);
+  assert.match(docs, /Manager operating guide/);
+  assert.doesNotMatch(docs, /\[overflow-wrap:anywhere\]/);
   assert.match(settings, /grid grid-cols-2 gap-2/);
   assert.match(settings, /min-h-12 min-w-0 items-center justify-center/);
 });

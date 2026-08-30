@@ -198,7 +198,7 @@ test('community surfaces avoid low-contrast active and helper text tokens', () =
 
   assert.match(communityPage, /bg-indigo-800 hover:bg-indigo-900/);
   assert.match(filterBar, /bg-indigo-800 text-white/);
-  assert.match(stats, /text-sm font-medium text-gray-800 dark:text-gray-300/);
+  assert.match(stats, /text-\[11px\] font-semibold[^\n]+text-gray-700 dark:text-gray-300[^\n]+sm:text-sm sm:font-medium/);
   assert.match(postCard, /text-indigo-900/);
   assert.match(postCard, /text-gray-900 dark:text-gray-200/);
   assert.match(createPostModal, /bg-indigo-800 hover:bg-indigo-900/);

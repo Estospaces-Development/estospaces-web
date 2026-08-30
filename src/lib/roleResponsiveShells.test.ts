@@ -41,7 +41,7 @@ test('every signed-in role renders inside the shared responsive workspace contra
     assert.match(managerLayout, /role-workspace-content/);
     assert.match(adminLayout, /role-workspace-content/);
     assert.match(globals, /\.role-workspace-content \{[\s\S]*width: 100%;[\s\S]*min-width: 0;[\s\S]*max-width: 100%;/);
-    assert.match(globals, /@media \(max-width: 639px\)[\s\S]*overflow-wrap: anywhere;[\s\S]*font-size: 16px;/);
+    assert.match(globals, /@media \(max-width: 639px\)[\s\S]*overflow-wrap: break-word;[\s\S]*word-break: normal;[\s\S]*font-size: 16px;/);
     assert.match(globals, /@media \(pointer: coarse\)[\s\S]*\.workspace-chrome[\s\S]*min-height: 44px;/);
     assert.match(documentShell, /content="width=device-width, initial-scale=1\.0"/);
     assert.doesNotMatch(documentShell, /viewport-fit=cover/);

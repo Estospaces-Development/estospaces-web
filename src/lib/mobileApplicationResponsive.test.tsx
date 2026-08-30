@@ -86,6 +86,9 @@ test('all role workspace shells contain content and overlays inside the mobile v
     assert.match(browserAudit, /data-mobile-audit-scroll-probe/);
     assert.match(browserAudit, /scrollRetryPoints/);
     assert.match(browserAudit, /vertical scroll gesture did not move/);
+    assert.match(browserAudit, /MOBILE_AUDIT_ROLES/);
+    assert.match(browserAudit, /MOBILE_AUDIT_SCREENSHOT_ALL/);
+    assert.match(browserAudit, /MOBILE_AUDIT_OUTPUT_LABEL/);
 });
 
 test('phone workspaces use an intentional compact type and spacing scale', () => {

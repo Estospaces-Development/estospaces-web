@@ -31,6 +31,7 @@ const managerDashboard = readSource('../pages/manager/dashboard/page.tsx');
 const managerTabBar = readSource('../components/dashboard/TabBar.tsx');
 const managerAnalytics = readSource('../pages/manager/analytics/page.tsx');
 const statCard = readSource('../components/dashboard/StatCard.tsx');
+const brokerResponseWidget = readSource('../components/dashboard/BrokerResponseWidget.tsx');
 const adminDashboard = readSource('../pages/admin/dashboard/page.tsx');
 const adminProfile = readSource('../pages/admin/profile/page.tsx');
 const toast = readSource('../components/ui/Toast.tsx');
@@ -63,7 +64,8 @@ test('manager and admin expose app-like mobile bottom navigation without changin
 });
 
 test('mobile headers preserve context while compacting the user wordmark', () => {
-  assert.match(managerHeader, /getManagerPageTitle\(pathname\)/);
+  assert.match(managerHeader, /getManagerMobilePageTitle\(pathname\)/);
+  assert.match(managerHeader, /hidden min-\[340px\]:block/);
   assert.match(userHeader, /min-\[360px\]:inline/);
   assert.match(userHeader, /hidden h-11 min-w-11 max-w-full/);
 });
@@ -88,6 +90,8 @@ test('mobile-only global safeguards prevent common overflow and input zoom failu
   assert.match(globalStyles, /font-size: clamp\(1\.5rem, 7vw, 1\.875rem\)/);
   assert.match(globalStyles, /role-workspace-content h2/);
   assert.match(globalStyles, /font-size: clamp\(1\.25rem, 5\.8vw, 1\.5rem\)/);
+  assert.match(globalStyles, /word-break: normal/);
+  assert.match(globalStyles, /manager-mobile-content/);
 });
 
 test('notification dismiss controls remain safe touch targets across every role', () => {
@@ -188,8 +192,11 @@ test('mobile dashboards use compact app-native hierarchy while desktop breakpoin
   assert.match(searchBar, /grid min-w-0 max-w-full grid-cols-3[^\n]+sm:inline-flex sm:w-auto/);
   assert.match(searchBar, /min-w-0 w-full bg-transparent[^\n]+placeholder-gray-400/);
   assert.match(messageInboxFab, /hidden[^\n]+md:inline-flex/);
-  assert.match(managerDashboard, /grid grid-cols-2 gap-3[^\n]+lg:grid-cols-4/);
-  assert.match(statCard, /rounded-2xl sm:rounded-3xl[^\n]+p-3\.5 sm:p-6/);
+  assert.match(managerDashboard, /grid grid-cols-2 gap-2[^\n]+lg:grid-cols-4/);
+  assert.match(statCard, /rounded-xl sm:rounded-3xl[^\n]+p-2\.5 sm:p-6/);
+  assert.match(brokerResponseWidget, /data-manager-mobile-live-response/);
+  assert.match(brokerResponseWidget, /View queue/);
+  assert.match(brokerResponseWidget, /hidden sm:block/);
   assert.match(adminDashboard, /grid grid-cols-2 gap-3[^\n]+lg:grid-cols-4/);
 });
 

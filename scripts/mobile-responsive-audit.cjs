@@ -19,7 +19,22 @@ const auditViewport = {
 const auditSuffix = auditViewport.width === 390 && auditViewport.height === 844
   ? ''
   : `-${auditViewport.width}x${auditViewport.height}`;
-const outputRoot = path.join(process.cwd(), 'output', 'playwright', `mobile-responsive-audit${auditSuffix}`);
+const outputLabel = String(process.env.MOBILE_AUDIT_OUTPUT_LABEL || '')
+  .trim()
+  .replace(/[^a-z0-9_-]+/gi, '-');
+const outputRoot = path.join(
+  process.cwd(),
+  'output',
+  'playwright',
+  `mobile-responsive-audit${auditSuffix}${outputLabel ? `-${outputLabel}` : ''}`,
+);
+const requestedRoles = new Set(
+  String(process.env.MOBILE_AUDIT_ROLES || 'user,manager,admin')
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean),
+);
+const screenshotAllRoutes = process.env.MOBILE_AUDIT_SCREENSHOT_ALL === 'true';
 
 const routes = {
   user: [
@@ -143,6 +158,7 @@ async function inspectMobilePage(page, role, route) {
     await page.goto(`${baseUrl}${route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(settleMs);
     await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => {});
+    await page.locator('[data-loading-layer]').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
 
     const result = await page.evaluate(({ expectedRole, crashSource }) => {
       const viewportWidth = window.innerWidth;
@@ -355,7 +371,7 @@ async function inspectMobilePage(page, role, route) {
 
     const status = failures.length === 0 ? 'passed' : 'failed';
     await page.evaluate(() => window.scrollTo(0, 0));
-    if (representativeRoutes.has(route)) {
+    if (screenshotAllRoutes || representativeRoutes.has(route)) {
       await page.screenshot({
         path: path.join(outputRoot, `${role}-${safeName(route)}-viewport.png`),
         fullPage: false,
@@ -428,7 +444,7 @@ async function main() {
   const results = [];
 
   try {
-    for (const role of Object.keys(routes)) {
+    for (const role of Object.keys(routes).filter((candidate) => requestedRoles.has(candidate))) {
       const session = await loginViaApi(serviceTarget, role);
       const context = await createAuthedContext(browser, session);
       await context.addInitScript(() => {

@@ -879,7 +879,8 @@
   }
 
   .role-workspace-content :where(h1, h2, h3, p, label, dd, dt) {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .role-workspace-content .mobile-summary-label {
@@ -939,6 +940,62 @@
 
   .mobile-role-navigation {
     transform: translateZ(0);
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content {
+    --mobile-panel-padding: 0.875rem;
+    --mobile-section-gap: 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content :where([class~='p-5'], [class~='p-4']) {
+    padding: var(--mobile-panel-padding);
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content :where([class~='gap-8'], [class~='gap-6']) {
+    gap: var(--mobile-section-gap);
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content :where(.font-black) {
+    font-weight: 700;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content :where(.uppercase) {
+    overflow-wrap: normal;
+    word-break: normal;
+    letter-spacing: 0.08em;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content :where(.hover\:-translate-y-1, .hover\:-translate-y-0\.5) {
+    transform: none;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content [data-manager-mobile-page-title] {
+    display: none;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content [data-manager-mobile-actions] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+    width: 100%;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content [data-manager-mobile-actions] > :where(button, a) {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.75rem;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content [data-manager-mobile-metric] {
+    min-height: 5.75rem;
+    padding: 0.75rem;
+  }
+
+  [data-workspace-role='manager'] .manager-mobile-content [data-manager-mobile-metric] :where(h3, [data-manager-mobile-metric-value]) {
+    font-size: 1.25rem;
+    line-height: 1.2;
   }
 
   [data-mobile-primary-task] {

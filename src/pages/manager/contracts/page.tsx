@@ -435,8 +435,8 @@ export default function ManagerContractsPage() {
     return (
         <div className="p-6 md:p-8 font-outfit">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="mb-4 sm:mb-6">
+                <h1 data-manager-mobile-page-title className="text-3xl font-bold text-gray-900 dark:text-white">
                     Contracts
                 </h1>
                 <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -459,19 +459,19 @@ export default function ManagerContractsPage() {
                         className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                     />
                 </div>
-                <div className="flex flex-wrap items-center gap-3 self-end md:self-auto">
+                <div data-manager-mobile-actions className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center md:gap-3 md:self-auto">
                     <button
                         type="button"
                         aria-label="Create contract from approved application"
                         onClick={handleCreateContractEntry}
                         disabled={createContractEntryState.status === 'loading'}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
                     >
                         <PenTool size={16} /> {createContractEntryState.status === 'loading' ? 'Loading...' : 'Create contract'}
                     </button>
                     <button
                         onClick={fetchContracts}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                        className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 sm:px-4"
                     >
                         {loading ? <ActionSpinner size="xs" label="Refreshing contracts" /> : <RefreshCw size={16} />} Refresh
                     </button>
@@ -479,12 +479,12 @@ export default function ManagerContractsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <div className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:overflow-x-auto sm:pb-2">
                 {tabs.map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.key
+                        className={`min-h-11 min-w-0 rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-4 sm:text-sm sm:whitespace-nowrap ${activeTab === tab.key
                                 ? 'bg-orange-500 text-white shadow-md'
                                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}

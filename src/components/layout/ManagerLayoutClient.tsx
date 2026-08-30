@@ -122,7 +122,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                                     >
                                         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
                                         <main
-                                            className="role-workspace-content mobile-app-content flex-1 overflow-x-hidden bg-gray-50 p-3 pb-24 font-manager transition-colors duration-300 dark:bg-black sm:p-6 sm:pb-24 lg:p-8"
+                                            className="role-workspace-content manager-mobile-content mobile-app-content flex-1 overflow-x-hidden bg-gray-50 p-2.5 pb-24 font-manager transition-colors duration-300 dark:bg-black sm:p-6 sm:pb-24 lg:p-8"
                                             data-mobile-scroll-root
                                         >
                                             <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">

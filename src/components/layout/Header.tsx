@@ -34,7 +34,18 @@ export const getManagerPageTitle = (pathname: string) => {
     if (pathname.startsWith('/manager/docs')) return 'Docs';
     if (pathname.startsWith('/manager/help')) return 'Help & Support';
     if (pathname.startsWith('/manager/case-files')) return 'Case Files';
+    if (pathname.startsWith('/manager/notifications')) return 'Notifications';
+    if (pathname.startsWith('/manager/community')) return 'Community';
     return 'Manager';
+};
+
+export const getManagerMobilePageTitle = (pathname: string) => {
+    const title = getManagerPageTitle(pathname);
+    if (title === 'Leads & Clients') return 'Leads';
+    if (title === 'Help & Support') return 'Support';
+    if (title === 'Add Property') return 'Add listing';
+    if (title === 'Edit Property') return 'Edit listing';
+    return title;
 };
 
 const Header = ({ onMenuToggle }: HeaderProps) => {
@@ -151,11 +162,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     return (
-        <header className="workspace-chrome sticky top-0 z-40 h-16 border-b border-gray-100 bg-white transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex h-full items-center justify-between gap-2 px-2.5 sm:gap-3 sm:px-6 lg:px-8">
+        <header className="workspace-chrome sticky top-0 z-40 h-14 border-b border-gray-100 bg-white transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900 sm:h-16">
+            <div className="flex h-full items-center justify-between gap-1.5 px-2 sm:gap-3 sm:px-6 lg:px-8">
 
                 {/* Left: Mobile Menu & Search */}
-                <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 min-[340px]:gap-2.5 sm:gap-4">
                     <button
                         type="button"
                         onClick={onMenuToggle}
@@ -165,8 +176,8 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <Menu size={20} />
                     </button>
 
-                    <h1 className="min-w-0 flex-1 truncate text-base font-bold leading-tight text-gray-900 dark:text-white md:hidden">
-                        {getManagerPageTitle(pathname)}
+                    <h1 className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight tracking-[-0.01em] text-gray-900 dark:text-white min-[340px]:text-base md:hidden">
+                        {getManagerMobilePageTitle(pathname)}
                     </h1>
 
                     <form ref={searchRef} onSubmit={handleSearch} className="group relative hidden w-full max-w-md items-center md:flex">
@@ -247,7 +258,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     </div>
 
                     {/* Profile Dropdown */}
-                    <div className="relative" ref={profileRef}>
+                    <div className="relative hidden min-[340px]:block" ref={profileRef}>
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                             className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-full p-1 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800"
