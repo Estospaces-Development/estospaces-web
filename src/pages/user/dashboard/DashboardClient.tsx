@@ -934,34 +934,34 @@ const DashboardClient = () => {
                 </div>
 
                 <div
-                  className="min-w-0 max-w-full rounded-[18px] border border-white/40 bg-white/95 p-4 shadow-xl backdrop-blur-2xl ring-1 ring-black/5 sm:mt-8 sm:rounded-[28px] sm:p-5 sm:shadow-2xl md:p-6 lg:p-8"
+                  className="min-w-0 max-w-full rounded-2xl border border-white/40 bg-white/95 p-3 shadow-lg backdrop-blur-2xl ring-1 ring-black/5 sm:mt-8 sm:rounded-[28px] sm:p-5 sm:shadow-2xl md:p-6 lg:p-8"
                   style={{ animationDelay: '0.15s' }}
                 >
                   <div className="sm:hidden" data-mobile-primary-task>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-orange-700">
                       Your next step
                     </p>
-                    <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                    <h1 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-slate-950">
                       {nextStepSummary.title}
                     </h1>
-                    <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600">
+                    <p className="mt-1.5 line-clamp-2 text-[13px] leading-[1.4] text-slate-600">
                       {journeySummaryLoading ? 'Checking your latest update…' : nextStepSummary.now}
                     </p>
                     <button
                       type="button"
                       onClick={nextStepSummary.primaryAction}
-                      className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
+                      className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-700"
                     >
                       {nextStepSummary.primaryLabel}
-                      <ArrowRight size={18} />
+                      <ArrowRight size={16} />
                     </button>
                     {nextStepSummary.primaryLabel.trim().toLowerCase() !== 'find a home' ? (
                       <button
                         type="button"
                         onClick={() => navigate('/user/dashboard/discover')}
-                        className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-800 transition-colors hover:bg-slate-50"
+                        className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
                       >
-                        <Search size={18} />
+                        <Search size={16} />
                         Find a home
                       </button>
                     ) : null}

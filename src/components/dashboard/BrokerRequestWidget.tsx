@@ -893,42 +893,45 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const nearbyBrokerKeyFor = createDuplicateSafeKeyResolver('broker-request-nearby-broker');
 
     return (
-        <div data-mobile-broker-request className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800 sm:p-6">
+        <div data-mobile-broker-request className="rounded-xl bg-white p-2.5 shadow-sm dark:bg-gray-800 sm:p-6">
             <div role="status" aria-live="polite" className="sr-only">
                 {selectionStatusMessage}
             </div>
-            <div className="mb-3 flex items-center gap-2.5 sm:mb-6 sm:gap-3">
-                <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
-                    <Send size={20} className="h-[18px] w-[18px] text-orange-600 dark:text-orange-400 sm:h-5 sm:w-5" />
+            <div className="mb-3 flex items-start gap-2 sm:mb-6 sm:items-center sm:gap-3">
+                <div className="shrink-0 rounded-lg bg-orange-100 p-1.5 dark:bg-orange-900/30 sm:p-2">
+                    <Send size={18} className="text-orange-600 dark:text-orange-400 sm:h-5 sm:w-5" />
                 </div>
                 <div className="min-w-0">
-                    <h2 className="text-[15px] font-bold leading-tight text-gray-900 dark:text-white sm:text-base">{brokerCopy.panelTitle}</h2>
-                    <p className="mt-0.5 text-[11px] leading-4 text-gray-500 dark:text-gray-400 sm:text-xs">{brokerCopy.panelSubtitle}</p>
+                    <h2 className="text-sm font-semibold leading-tight text-gray-900 dark:text-white sm:text-base sm:font-bold">{brokerCopy.panelTitle}</h2>
+                    <p className="mt-0.5 text-[11px] leading-[1.35] text-gray-500 dark:text-gray-400 sm:text-xs">
+                        <span className="sm:hidden">Find an agent and matching homes.</span>
+                        <span className="hidden sm:inline">{brokerCopy.panelSubtitle}</span>
+                    </p>
                 </div>
             </div>
 
             {activeRequest && (
                 <div
                     ref={workspaceContainerRef}
-                    className={`mb-6 rounded-2xl border p-3 transition-all duration-300 sm:p-4 ${workspaceTone} ${
+                    className={`mb-4 rounded-xl border p-2.5 transition-all duration-300 sm:mb-6 sm:rounded-2xl sm:p-4 ${workspaceTone} ${
                         workspacePulse ? 'ring-2 ring-orange-300 shadow-lg shadow-orange-500/15' : ''
                     }`}
                 >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="grid gap-2 sm:flex sm:items-start sm:justify-between sm:gap-3">
                         <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">
+                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-orange-500 dark:text-orange-300 sm:text-xs sm:font-semibold sm:tracking-[0.18em]">
                                 <span className="sm:hidden">Request</span>
                                 <span className="hidden sm:inline">{brokerCopy.activeRequestEyebrow}</span>
                             </p>
-                            <h3 className="mt-1 text-[15px] font-semibold leading-tight text-gray-900 dark:text-white sm:mt-2 sm:text-lg">
+                            <h3 className="mt-1 text-sm font-medium leading-tight text-gray-900 dark:text-white sm:mt-2 sm:text-lg sm:font-semibold">
                                 {dispatchWorkspaceSummary.title}
                             </h3>
-                            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-gray-600 dark:text-gray-300 sm:line-clamp-none sm:text-sm">
+                            <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:line-clamp-none sm:text-sm">
                                 {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
                             </p>
                         </div>
-                        <div className={`shrink-0 rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
-                            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        <div className={`w-fit max-w-full rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:shrink-0 sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
+                            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] sm:gap-2 sm:text-[11px] sm:font-semibold sm:tracking-[0.18em]">
                                 <span className="relative flex h-2.5 w-2.5">
                                     {requestIsActive && (
                                         <span className={`absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping ${countdownTone.dot}`} />
@@ -939,7 +942,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                             </div>
                             <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
                                 <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
-                                <span className="font-mono text-lg font-bold tracking-[0.18em]">
+                                <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
@@ -971,7 +974,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     {activeRequest && (
                         <>
                             <details className="group mt-3 rounded-xl border border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-zinc-950/60 md:hidden">
-                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:text-sm">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:text-sm sm:font-semibold">
                                     <span>Request details</span>
                                     <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
                                 </summary>
@@ -1026,10 +1029,10 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                             <BadgeCheck size={12} />
                                             {brokerCopy.matchedBrokerLabel}
                                         </span>
-                                        <p className="break-words text-lg font-semibold leading-tight text-gray-900 dark:text-white sm:mt-4 sm:text-2xl">
+                                        <p className="break-words text-base font-medium leading-tight text-gray-900 dark:text-white sm:mt-4 sm:text-2xl sm:font-semibold">
                                             {matchedBroker?.name || 'Your property agent is ready'}
                                         </p>
-                                        <p className="mt-1.5 line-clamp-2 text-[13px] leading-5 text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none sm:text-sm">
+                                        <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none sm:text-sm">
                                             {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequestArea ? ` in ${activeRequestArea}` : ''}.
                                         </p>
@@ -1097,7 +1100,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     {matchedBroker?.phone && (
                                         <a
                                             href={`tel:${matchedBroker.phone}`}
-                                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-orange-700 sm:w-auto sm:text-sm"
+                                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-700 sm:w-auto sm:px-4 sm:text-sm sm:font-semibold"
                                         >
                                             <Phone size={15} />
                                             Call agent
@@ -1107,7 +1110,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                         type="button"
                                         onClick={handleOpenConversation}
                                         disabled={openingConversation}
-                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:w-auto sm:text-sm"
+                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:w-auto sm:px-4 sm:text-sm sm:font-semibold"
                                     >
                                         {openingConversation ? <ActionSpinner size={15} className="" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
@@ -1119,9 +1122,9 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 open={Boolean(selectedProperty || availableSharedProperties.length > 0)}
                                 className="group rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40 sm:rounded-2xl sm:border-gray-100 sm:p-5"
                             >
-                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:hidden">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:hidden">
                                     <span className="min-w-0">
-                                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Next step</span>
+                                        <span className="block text-[9px] font-medium uppercase tracking-[0.14em] text-orange-500">Next step</span>
                                         <span className="mt-0.5 block truncate">
                                             {selectedProperty
                                                 ? 'Continue with your selected home'
@@ -1481,7 +1484,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     <button
                         type="button"
                         onClick={handleStartAnotherRequest}
-                        className="mb-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden"
+                        className="mb-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden"
                     >
                         <span>Start a different request</span>
                         <ArrowRight size={16} className="shrink-0" aria-hidden="true" />
@@ -1613,13 +1616,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-                    <div className="flex items-center justify-between gap-3">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50 sm:p-4">
+                    <div className="block sm:flex sm:items-center sm:justify-between sm:gap-3">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{brokerCopy.nearbyBrokersTitle}</p>
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{brokerCopy.nearbyBrokersSubtitle}</p>
+                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500 sm:text-xs sm:font-semibold sm:tracking-[0.2em]">{brokerCopy.nearbyBrokersTitle}</p>
+                            <p className="mt-1 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:text-sm">{brokerCopy.nearbyBrokersSubtitle}</p>
                         </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300">
+                        <div className="mt-2 hidden items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300 sm:mt-0 sm:inline-flex">
                             <Clock size={13} />
                             Quick help
                         </div>
@@ -1629,14 +1632,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     ) : visibleNearbyBrokers.length > 0 ? (
                         <div className="mt-4 space-y-2">
                             {visibleNearbyBrokers.map((broker, index) => (
-                                <div key={nearbyBrokerKeyFor(broker.id, index)} className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <div key={nearbyBrokerKeyFor(broker.id, index)} className="grid min-w-0 gap-2 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex sm:items-start sm:justify-between sm:gap-3">
                                     <div className="min-w-0 flex-1">
-                                        <p className="break-words text-sm font-semibold text-gray-900 dark:text-white">
+                                        <p className="break-words text-xs font-medium text-gray-900 dark:text-white sm:text-sm sm:font-semibold">
                                             {index + 1}. {' '}
                                             <button
                                                 type="button"
                                                 onClick={() => handleOpenBrokerConversation(broker)}
-                                                className="text-left text-sm font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                className="text-left text-xs font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 sm:text-sm sm:font-semibold"
                                             >
                                                 {broker.name}
                                             </button>
@@ -1646,7 +1649,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                             {formatBrokerDistance(broker.distance_miles) ? ` - ${formatBrokerDistance(broker.distance_miles)}` : ''}
                                         </p>
                                     </div>
-                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                    <span className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300 sm:shrink-0 sm:text-[11px] sm:font-semibold">
                                         <BadgeCheck size={12} />
                                         {broker.fast_track_eligible ? brokerCopy.nearbyBrokerAvailableLabel : brokerCopy.nearbyBrokerQueuedLabel}
                                     </span>

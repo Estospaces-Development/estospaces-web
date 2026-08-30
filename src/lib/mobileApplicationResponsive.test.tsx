@@ -97,8 +97,9 @@ test('phone workspaces use an intentional compact type and spacing scale', () =>
     const browserAudit = source('../scripts/mobile-responsive-audit.cjs');
 
     assert.match(css, /--mobile-panel-padding:\s*1rem/);
-    assert.match(css, /role-workspace-content h1[\s\S]*clamp\(1\.5rem, 7vw, 1\.875rem\)/);
-    assert.match(css, /role-workspace-content h2[\s\S]*clamp\(1\.25rem, 5\.8vw, 1\.5rem\)/);
+    assert.match(css, /role-workspace-content h1:not\(:is\([\s\S]*clamp\(1\.5rem, 7vw, 1\.875rem\)/);
+    assert.match(css, /role-workspace-content h2:not\(:is\([\s\S]*clamp\(1\.25rem, 5\.8vw, 1\.5rem\)/);
+    assert.match(css, /\[class~='text-sm'\][\s\S]*\[class~='text-xl'\][\s\S]*\[class\*='text-\['\]/);
     assert.match(css, /\[class~='p-8'\][\s\S]*padding:\s*var\(--mobile-panel-padding\)/);
     assert.match(dashboard, /text-\[1\.75rem\]/);
     assert.match(dashboard, /mobile-filter-rail mt-6 hidden/);

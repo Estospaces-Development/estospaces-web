@@ -44,7 +44,25 @@ test("journey progress uses a compact phone header and discloses secondary contr
   assert.match(source, /flex snap-x gap-1 overflow-x-auto/);
   assert.match(source, /> Filter and sort</);
   assert.match(source, /hidden gap-3 pt-3 group-open:grid sm:grid/);
-  assert.match(source, /grid grid-cols-\[56px_minmax\(0,1fr\)\]/);
+  assert.match(source, /grid grid-cols-\[44px_minmax\(0,1fr\)\]/);
+  assert.match(source, /item\.source === 'broker_request' \? 'Agent request'/);
+  assert.match(source, /text-xs font-medium text-gray-900[^\n]+sm:text-base sm:font-semibold/);
+});
+
+test("283px dashboard hierarchy uses lighter type and stacked narrow-phone groups", () => {
+  const dashboard = readSource("pages/user/dashboard/DashboardClient.tsx");
+  const requestWidget = readSource("components/dashboard/BrokerRequestWidget.tsx");
+  const nearbyAgents = readSource("components/dashboard/NearbyAgenciesList.tsx");
+
+  assert.match(dashboard, /data-mobile-primary-task/);
+  assert.match(dashboard, /text-xl font-semibold leading-tight/);
+  assert.match(dashboard, /min-h-11[^\n]+text-sm font-medium/);
+  assert.match(requestWidget, /grid gap-2 sm:flex sm:items-start sm:justify-between/);
+  assert.match(requestWidget, /Find an agent and matching homes\./);
+  assert.match(requestWidget, /block sm:flex sm:items-center sm:justify-between/);
+  assert.match(requestWidget, /grid min-w-0 gap-2[^\n]+sm:flex sm:items-start/);
+  assert.match(nearbyAgents, /data-mobile-nearby-agencies/);
+  assert.match(nearbyAgents, /grid min-w-0 gap-1 sm:flex/);
 });
 
 test("nearby map reset reapplies bounds and restores the default presentation", () => {
