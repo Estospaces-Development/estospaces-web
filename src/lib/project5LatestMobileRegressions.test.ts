@@ -152,7 +152,9 @@ test("user notification and virtual-storage metrics stay compact on phones", () 
 test("mobile property detail keeps price and actions ahead of supporting content", () => {
   const source = readSource("pages/user/properties/[id]/page.tsx");
 
-  assert.match(source, /line-clamp-4 max-w-2xl/);
+  assert.match(source, /data-mobile-property-summary/);
+  assert.match(source, /line-clamp-3 max-w-2xl/);
+  assert.match(source, /hidden rounded-\[1\.8rem\][^\n]+sm:block/);
   assert.match(source, /mt-6 hidden sm:block/);
 });
 

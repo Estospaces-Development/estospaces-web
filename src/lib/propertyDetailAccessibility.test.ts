@@ -32,13 +32,17 @@ test("property gallery image area remains keyboard accessible", () => {
 
 test("property gallery reflows into an image-first narrow-phone experience", () => {
   assert.match(propertyDetailSource, /data-mobile-property-hero/);
+  assert.match(propertyDetailSource, /data-mobile-property-summary/);
+  assert.match(propertyDetailSource, /data-mobile-gallery-dock/);
   assert.doesNotMatch(propertyDetailSource, /Tap the image for the full-screen gallery/);
   assert.match(propertyDetailSource, /aria-label=\{`Open full-screen gallery for \$\{property\.title\}`\}/);
-  assert.match(propertyDetailSource, /aspect-\[4\/3\] min-h-0[^\n]+sm:aspect-video[^\n]+lg:min-h-\[58vh\]/);
+  assert.match(propertyDetailSource, /h-\[100dvh\][^\n]+overflow-hidden/);
+  assert.match(propertyDetailSource, /grid-rows-\[minmax\(0,1fr\)_auto\][^\n]+lg:grid-rows-1/);
+  assert.match(propertyDetailSource, /h-14 w-16[^\n]+lg:h-28 lg:w-full/);
   assert.match(propertyDetailSource, /hidden rounded-\[1\.8rem\][^\n]+lg:block/);
   assert.match(propertyDetailSource, /hidden flex-wrap gap-2 sm:flex/);
   assert.match(propertyDetailSource, /hidden min-h-11 items-center[^\n]+sm:inline-flex/);
   assert.match(propertyDetailSource, /hidden rounded-full[^\n]+lg:block/);
-  assert.match(propertyDetailSource, /w-full min-w-0 max-w-\[1500px\][^\n]+overflow-x-hidden/);
-  assert.match(propertyDetailSource, /grid min-h-0 w-full min-w-0 gap-3/);
+  assert.match(propertyDetailSource, /w-full min-w-0 max-w-\[1500px\][^\n]+overflow-hidden/);
+  assert.match(propertyDetailSource, /grid min-h-0 w-full min-w-0 flex-1/);
 });
