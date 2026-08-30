@@ -154,6 +154,11 @@ test('manager dashboard avoids duplicate phone navigation while preserving deskt
   assert.match(managerTabBar, /hidden overflow-x-auto[^"]+sm:block/);
   assert.match(managerTabBar, /Overview/);
   assert.match(managerTabBar, /Analytics/);
+  assert.match(managerDashboard, /<div className="hidden sm:block">[\s\S]*<RoleDocsPreviewCard/);
+  assert.match(managerDashboard, /data-mobile-reservation-summary/);
+  assert.match(managerDashboard, /grid w-full grid-cols-2 gap-2[\s\S]*sm:grid-cols-4/);
+  assert.match(managerDashboard, /whitespace-nowrap/);
+  assert.match(managerDashboard, /min-h-11 w-full items-center justify-center[\s\S]*sm:w-auto/);
 });
 
 test('application summary cards preserve complete metric labels on narrow phones', () => {
