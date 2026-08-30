@@ -75,7 +75,10 @@ const UserActivitySubnav = () => {
         </div>
       </div>
 
-      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 xl:grid-cols-6">
+      <nav
+        aria-label="My activity sections"
+        className="grid grid-cols-3 gap-1.5 rounded-2xl border border-gray-200/80 bg-white p-1.5 shadow-sm sm:grid-cols-2 sm:gap-2 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none lg:grid-cols-3 xl:grid-cols-6 dark:border-gray-700 dark:bg-gray-900 dark:sm:bg-transparent"
+      >
         {activityItems.map((item) => {
           const Icon = item.icon;
           const active = item.activePaths
@@ -87,7 +90,7 @@ const UserActivitySubnav = () => {
               key={item.path}
               to={item.path}
               aria-label={item.mobileLabel === item.label ? item.label : `${item.mobileLabel} (${item.label})`}
-              className={`group flex min-h-12 min-w-[150px] snap-start items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-all duration-200 sm:min-h-[68px] sm:min-w-0 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 ${
+              className={`group flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1 py-1.5 text-center transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 sm:min-h-[68px] sm:flex-row sm:justify-start sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-left dark:focus-visible:ring-offset-gray-900 ${
                 active
                   ? "border-orange-200 bg-orange-50 text-orange-700 shadow-[0_18px_40px_-28px_rgba(249,115,22,0.75)] dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
                   : "border-transparent bg-gray-50 text-gray-600 hover:border-orange-100 hover:bg-white hover:text-gray-950 dark:bg-gray-800/70 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
@@ -95,16 +98,16 @@ const UserActivitySubnav = () => {
               aria-current={active ? "page" : undefined}
             >
               <span
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors sm:h-10 sm:w-10 sm:rounded-xl ${
+                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-colors sm:h-10 sm:w-10 sm:rounded-xl ${
                   active
                     ? "bg-orange-500 text-white"
                     : "bg-white text-gray-400 group-hover:text-orange-500 dark:bg-gray-900 dark:text-gray-500"
                 }`}
               >
-                <Icon size={18} />
+                <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
               </span>
-              <span className="min-w-0">
-                <span className="block whitespace-nowrap text-sm font-bold sm:hidden">
+              <span className="w-full min-w-0 sm:w-auto">
+                <span className="block truncate text-[11px] font-semibold leading-4 sm:hidden">
                   {item.mobileLabel}
                 </span>
                 <span className="hidden truncate text-sm font-bold sm:block">
@@ -123,7 +126,7 @@ const UserActivitySubnav = () => {
             </Link>
           );
         })}
-      </div>
+      </nav>
     </section>
   );
 };

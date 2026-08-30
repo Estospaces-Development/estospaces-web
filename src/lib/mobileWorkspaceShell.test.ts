@@ -132,13 +132,15 @@ test('support and admin registry controls reflow into full-width mobile actions'
   assert.match(adminUsers, /hidden max-w-full overflow-x-auto[^\n]+md:block/);
 });
 
-test('user activity navigation becomes a compact mobile carousel instead of a tall desktop grid', () => {
-  assert.match(userActivitySubnav, /snap-x snap-mandatory/);
-  assert.match(userActivitySubnav, /min-w-\[150px\] snap-start/);
+test('user activity navigation keeps every destination visible in a compact mobile grid', () => {
+  assert.match(userActivitySubnav, /grid grid-cols-3 gap-1\.5/);
+  assert.match(userActivitySubnav, /min-h-14 min-w-0/);
   assert.match(userActivitySubnav, /mobileLabel: "Documents"/);
-  assert.match(userActivitySubnav, /whitespace-nowrap text-sm font-bold sm:hidden/);
+  assert.match(userActivitySubnav, /truncate text-\[11px\] font-semibold leading-4 sm:hidden/);
   assert.match(userActivitySubnav, /hidden truncate text-xs sm:block/);
-  assert.match(userActivitySubnav, /sm:grid sm:grid-cols-2/);
+  assert.match(userActivitySubnav, /sm:grid-cols-2/);
+  assert.doesNotMatch(userActivitySubnav, /overflow-x-auto/);
+  assert.doesNotMatch(userActivitySubnav, /min-w-\[150px\]/);
 });
 
 test('manager dashboard avoids duplicate phone navigation while preserving desktop tabs', () => {
