@@ -163,9 +163,7 @@ function MessagesContent() {
                         <div className="flex-1 overflow-y-auto">
                             <ConversationThread conversationId={selectedConversationId} />
                         </div>
-                        <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
-                            <MessageInput conversationId={selectedConversationId} />
-                        </div>
+                        <MessageInput conversationId={selectedConversationId} />
                     </>
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-gray-50/50 dark:bg-gray-900/50">

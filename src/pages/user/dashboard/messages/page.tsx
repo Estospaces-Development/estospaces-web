@@ -311,11 +311,12 @@ function MessagesContent() {
     const activeThreadIssue = !selectedConversationId
         ? conversationThreadIssue ?? routeConversationIssue
         : null;
+    const isMobileThreadOpen = mobileView === 'thread' && Boolean(selectedConversationId);
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
+        <div className={`${isMobileThreadOpen ? 'min-h-0 pb-0' : 'min-h-screen pb-12'} bg-gray-50 dark:bg-gray-900 md:min-h-screen md:pb-12`}>
+            <div className={`${isMobileThreadOpen ? 'h-[calc(100dvh-8.75rem)] px-2 py-2' : 'px-3 py-4'} mx-auto w-full max-w-7xl sm:px-6 sm:py-6 lg:px-8 lg:py-8`}>
+                <div className={`${isMobileThreadOpen ? 'hidden lg:block' : ''} mb-5 sm:mb-8`}>
                     <button
                         onClick={() => navigate('/user/dashboard')}
                         className="mb-4 flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors group"
@@ -359,7 +360,7 @@ function MessagesContent() {
                     </div>
                 )}
 
-                <div className="grid min-h-[640px] grid-cols-1 gap-6 lg:grid-cols-12 lg:h-[700px]">
+                <div className={`${isMobileThreadOpen ? 'h-full min-h-0' : 'min-h-[36rem]'} grid grid-cols-1 gap-3 sm:gap-6 lg:h-[700px] lg:min-h-[640px] lg:grid-cols-12`}>
                     {/* Conversation list panel — hidden on mobile when viewing a thread */}
                     <div className={`${mobileView === 'thread' ? 'hidden lg:block' : ''} min-w-0 overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-gray-800 lg:col-span-4`}>
                         {isLoading ? (
@@ -377,12 +378,12 @@ function MessagesContent() {
 
                     {/* Thread panel — shown on mobile when a conversation is selected, always shown on desktop */}
                     {selectedConversationId ? (
-                        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} min-w-0 flex-col overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-gray-800 lg:col-span-8`}>
+                        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800 sm:rounded-3xl lg:col-span-8`}>
                             {/* Mobile back button */}
                             <button
                                 type="button"
                                 onClick={() => setMobileView('list')}
-                                className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors border-b border-gray-100 dark:border-gray-700 lg:hidden"
+                                className="flex min-h-11 flex-shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:text-orange-500 dark:border-gray-700 lg:hidden"
                             >
                                 <ArrowLeft size={16} />
                                 Back

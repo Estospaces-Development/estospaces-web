@@ -38,7 +38,7 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
     return (
         <div
             ref={pickerRef}
-            className="absolute bottom-full right-0 z-50 mb-2 flex h-96 w-[calc(100vw-2rem)] max-w-80 flex-col rounded-lg border border-gray-100 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+            className="absolute bottom-full -right-12 z-50 mb-2 flex h-[min(24rem,calc(100dvh-9rem))] w-[calc(100vw-1rem)] max-w-80 flex-col rounded-lg border border-gray-100 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 sm:right-0 sm:h-96 sm:w-[calc(100vw-2rem)]"
         >
             <div className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Emoji</h3>

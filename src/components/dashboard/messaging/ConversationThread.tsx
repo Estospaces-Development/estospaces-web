@@ -72,9 +72,9 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     };
 
     return (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900/50" tabIndex={0} aria-label="Conversation messages">
+        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-gray-50 p-2.5 dark:bg-gray-900/50 sm:gap-4 sm:p-4 md:p-6" tabIndex={0} aria-label="Conversation messages">
             {conversation && (
-                <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2.5 rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800 sm:gap-3 sm:p-4 md:flex-row md:items-center md:justify-between">
                     <div className="min-w-0 text-left">
                         <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
                             {conversation.contactName || conversation.agentName || 'Conversation'}
@@ -83,31 +83,35 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                             {conversation.propertyTitle || conversation.agentAgency || 'General conversation'}
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
                     {propertyPath ? (
                         <button
                             type="button"
                             onClick={() => navigate(propertyPath)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300"
+                            aria-label="Back to property"
+                            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300 sm:gap-2 sm:px-4 sm:text-sm"
                         >
                             <Home size={16} />
-                            Back to property
+                            <span className="sm:hidden">Property</span>
+                            <span className="hidden sm:inline">Back to property</span>
                         </button>
                     ) : null}
                     <button
                         type="button"
                         onClick={() => void handleCreateSupportTicket()}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-200 px-4 py-2 text-sm font-semibold text-orange-700 transition-colors hover:border-orange-400 hover:text-orange-600 dark:border-orange-500/20 dark:text-orange-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300"
+                        aria-label="Create support ticket"
+                        className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-orange-200 px-2 py-2 text-[11px] font-semibold text-orange-700 transition-colors hover:border-orange-400 hover:text-orange-600 dark:border-orange-500/20 dark:text-orange-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300 sm:gap-2 sm:px-4 sm:text-sm"
                     >
                         <LifeBuoy size={16} />
-                        Create support ticket
+                        <span className="sm:hidden">Support</span>
+                        <span className="hidden sm:inline">Create support ticket</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => void handleToggleMute()}
                         disabled={isSavingPreference}
                         aria-label={conversation.isMuted ? 'Unmute conversation notifications' : 'Mute conversation notifications'}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300"
+                        className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300 sm:gap-2 sm:px-4 sm:text-sm"
                     >
                         {conversation.isMuted ? <Bell size={16} /> : <BellOff size={16} />}
                         {isSavingPreference ? 'Updating...' : conversation.isMuted ? 'Unmute' : 'Mute'}
@@ -152,7 +156,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                     })}
                 </>
             ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
+                <div className="flex min-h-28 flex-1 flex-col items-center justify-center px-4 text-center text-gray-500 dark:text-gray-400">
                     <p className="text-sm font-medium">No messages yet</p>
                     <p className="text-xs">Start the conversation by sending a message below.</p>
                 </div>
