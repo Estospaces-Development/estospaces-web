@@ -86,14 +86,16 @@ test('Fast Track requests require an informed confirmation on list, map, and pro
     assert.match(fastTrackConfirmationModal, /Send Fast Track request/);
 });
 
-test('discover result summary is compact, honest, and responsive', () => {
+test('discover result summary shows only aggregate property totals', () => {
     assert.match(discoverPage, /data-discover-results-summary/);
     assert.match(discoverPage, /Available homes/);
-    assert.match(discoverPage, /Countries represented in these results/);
+    assert.match(discoverPage, /\{total\} \{total === 1 \? 'home' : 'homes'\} found/);
+    assert.match(discoverPage, /Showing \$\{paginatedProperties\.length\} on this page/);
+    assert.doesNotMatch(discoverPage, /Countries represented in these results/);
     assert.doesNotMatch(discoverPage, /Markets represented in these results/);
-    assert.match(discoverPage, /\{group\.label\} · \{group\.count\} shown/);
+    assert.doesNotMatch(discoverPage, /\{group\.label\} · \{group\.count\} shown/);
+    assert.doesNotMatch(discoverPage, /getCountryAwarePropertyGroups/);
     assert.doesNotMatch(discoverPage, /Country-aware groups/);
-    assert.match(discoverPage, /sm:flex-row sm:items-center sm:justify-between/);
 });
 
 test('discover cards preserve the flow with a clear primary and secondary action', () => {

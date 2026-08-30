@@ -16,6 +16,20 @@ test("Home Choices content can wrap without being squeezed by its deadline card"
   assert.match(source, /sm:w-auto sm:shrink-0 sm:whitespace-nowrap sm:text-right/);
 });
 
+test("matched agent requests use compact progressive disclosure on phones", () => {
+  const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
+
+  assert.match(source, /data-mobile-broker-request/);
+  assert.match(source, /<details className="group mt-3[^\n]+md:hidden"/);
+  assert.match(source, />Request details</);
+  assert.match(source, /mt-4 hidden gap-3 md:grid md:grid-cols-3/);
+  assert.match(source, /hidden min-w-\[180px\][^\n]+sm:block/);
+  assert.match(source, /mt-5 hidden gap-3 sm:grid sm:grid-cols-2/);
+  assert.match(source, /min-h-11 w-full[^\n]+sm:w-auto/);
+  assert.match(source, /View \{matchedExperienceSteps\.length\} next steps/);
+  assert.match(source, /mt-4 hidden gap-3 sm:grid md:grid-cols-3/);
+});
+
 test("nearby map reset reapplies bounds and restores the default presentation", () => {
   const source = readSource("components/dashboard/NearbyPropertiesMap.tsx");
 

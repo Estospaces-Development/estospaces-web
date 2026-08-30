@@ -10,6 +10,7 @@ import {
     BadgeCheck,
     Building2,
     CheckCircle2,
+    ChevronDown,
     Clock,
     MapPin,
     MessageSquare,
@@ -892,11 +893,11 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const nearbyBrokerKeyFor = createDuplicateSafeKeyResolver('broker-request-nearby-broker');
 
     return (
-        <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+        <div data-mobile-broker-request className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800 sm:p-6">
             <div role="status" aria-live="polite" className="sr-only">
                 {selectionStatusMessage}
             </div>
-            <div className="mb-6 flex items-center gap-3">
+            <div className="mb-4 flex items-center gap-3 sm:mb-6">
                 <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
                     <Send size={20} className="text-orange-600 dark:text-orange-400" />
                 </div>
@@ -909,21 +910,24 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             {activeRequest && (
                 <div
                     ref={workspaceContainerRef}
-                    className={`mb-6 rounded-2xl border p-4 transition-all duration-300 ${workspaceTone} ${
+                    className={`mb-6 rounded-2xl border p-3 transition-all duration-300 sm:p-4 ${workspaceTone} ${
                         workspacePulse ? 'ring-2 ring-orange-300 shadow-lg shadow-orange-500/15' : ''
                     }`}
                 >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">{brokerCopy.activeRequestEyebrow}</p>
-                            <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">
+                                <span className="sm:hidden">Request</span>
+                                <span className="hidden sm:inline">{brokerCopy.activeRequestEyebrow}</span>
+                            </p>
+                            <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white sm:mt-2 sm:text-lg">
                                 {dispatchWorkspaceSummary.title}
                             </h3>
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300 sm:line-clamp-none">
                                 {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
                             </p>
                         </div>
-                        <div className={`min-w-[168px] rounded-2xl border px-4 py-3 shadow-sm ${countdownTone.pill}`}>
+                        <div className={`shrink-0 rounded-full border px-3 py-2 shadow-sm sm:min-w-[168px] sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
                             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
                                 <span className="relative flex h-2.5 w-2.5">
                                     {requestIsActive && (
@@ -933,13 +937,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 </span>
                                 {countdownTone.eyebrow}
                             </div>
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
                                 <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
                                 <span className="font-mono text-lg font-bold tracking-[0.18em]">
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
-                            <p className="mt-1 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                            <p className="mt-1 hidden text-[11px] font-medium text-gray-600 dark:text-gray-300 sm:block">
                                 {countdownTone.caption}
                             </p>
                         </div>
@@ -965,7 +969,32 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     )}
 
                     {activeRequest && (
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <>
+                            <details className="group mt-3 rounded-xl border border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-zinc-950/60 md:hidden">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white">
+                                    <span>Request details</span>
+                                    <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                                </summary>
+                                <dl className="grid gap-3 border-t border-gray-100 px-3 py-3 text-sm dark:border-gray-800">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <dt className="text-gray-500 dark:text-gray-400">Search area</dt>
+                                        <dd className="min-w-0 max-w-[62%] break-words text-right font-semibold text-gray-900 dark:text-white">{submittedArea || 'Area shared in your request'}</dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <dt className="text-gray-500 dark:text-gray-400">Budget</dt>
+                                        <dd className="min-w-0 max-w-[62%] break-words text-right font-semibold text-gray-900 dark:text-white">{submittedBudget || 'Saved in your request'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-gray-500 dark:text-gray-400">Requirements</dt>
+                                        <dd className="mt-1 break-words font-medium text-gray-900 dark:text-white">{formatRequirementsPreview(submittedRequirements) || 'Attached to your request'}</dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <dt className="text-gray-500 dark:text-gray-400">Reference</dt>
+                                        <dd className="font-semibold text-gray-900 dark:text-white">{formatWorkspaceReference(activeRequest.id)}</dd>
+                                    </div>
+                                </dl>
+                            </details>
+                            <div className="mt-4 hidden gap-3 md:grid md:grid-cols-3">
                             <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Search area</p>
                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -984,27 +1013,28 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     {formatRequirementsPreview(submittedRequirements) || 'Your requirements stay attached to this request.'}
                                 </p>
                             </div>
-                        </div>
+                            </div>
+                        </>
                     )}
 
                     {requestIsMatched ? (
-                        <div className="mt-5 space-y-4">
-                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                                <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
+                        <div className="mt-3 space-y-3 sm:mt-5 sm:space-y-4">
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 sm:p-5">
+                                <div className="flex items-start justify-between gap-3 sm:flex-wrap sm:gap-4">
+                                    <div className="min-w-0 flex-1">
                                         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-zinc-950 dark:text-emerald-300">
                                             <BadgeCheck size={12} />
                                             {brokerCopy.matchedBrokerLabel}
                                         </span>
-                                        <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
+                                        <p className="mt-3 break-words text-xl font-semibold text-gray-900 dark:text-white sm:mt-4 sm:text-2xl">
                                             {matchedBroker?.name || 'Your property agent is ready'}
                                         </p>
-                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                        <p className="mt-1.5 line-clamp-2 text-sm text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none">
                                             {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequestArea ? ` in ${activeRequestArea}` : ''}.
                                         </p>
                                     </div>
-                                    <details className="min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
+                                    <details className="hidden min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950 sm:block">
                                         <summary className="cursor-pointer list-none text-sm font-semibold text-gray-900 dark:text-white">
                                             {brokerCopy.detailsToggleLabel}
                                         </summary>
@@ -1021,7 +1051,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     </details>
                                 </div>
 
-                                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                                <div className="mt-5 hidden gap-3 sm:grid sm:grid-cols-2">
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             <MapPin size={15} className="text-orange-500" />
@@ -1063,11 +1093,11 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     </div>
                                 </div>
 
-                                <div className="mt-5 flex flex-wrap gap-3">
+                                <div className="mt-4 grid gap-2 sm:mt-5 sm:flex sm:flex-wrap sm:gap-3">
                                     {matchedBroker?.phone && (
                                         <a
                                             href={`tel:${matchedBroker.phone}`}
-                                            className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 sm:w-auto"
                                         >
                                             <Phone size={15} />
                                             Call agent
@@ -1077,7 +1107,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                         type="button"
                                         onClick={handleOpenConversation}
                                         disabled={openingConversation}
-                                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:w-auto"
                                     >
                                         {openingConversation ? <ActionSpinner size={15} className="" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
@@ -1090,11 +1120,31 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     <CheckCircle2 size={18} className="text-orange-500" />
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">What happens next</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Your property agent stays linked here until home choices are shared and you pick one.</p>
+                                        <p className="line-clamp-2 text-xs text-gray-500 dark:text-gray-400 sm:line-clamp-none">Your property agent stays linked here until home choices are shared and you pick one.</p>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                <details className="group mt-3 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-950/70 sm:hidden">
+                                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white">
+                                        <span>View {matchedExperienceSteps.length} next steps</span>
+                                        <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                                    </summary>
+                                    <ol className="grid gap-3 border-t border-gray-100 p-3 dark:border-gray-800">
+                                        {matchedExperienceSteps.map((step, index) => (
+                                            <li key={`${step.id}-mobile`} className="flex items-start gap-3">
+                                                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                                    {index + 1}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{step.title}</p>
+                                                    <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{step.description}</p>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </details>
+
+                                <div className="mt-4 hidden gap-3 sm:grid md:grid-cols-3">
                                     {matchedExperienceSteps.map((step, index) => (
                                         <div key={step.id} className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                             <div className="flex items-start gap-3">

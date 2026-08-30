@@ -882,16 +882,16 @@ const ApplicationTimelineWidget = () => {
     return (
         <div id="realtime-tracking-widget" className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-8 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-orange-50/50 to-transparent dark:from-orange-900/10">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
-                            <Activity size={28} className="text-orange-600 dark:text-orange-400" />
+            <div className="border-b border-gray-100 bg-gradient-to-r from-orange-50/50 to-transparent px-4 py-5 dark:border-gray-800 dark:from-orange-900/10 sm:px-8 sm:py-8">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+                        <div className="shrink-0 rounded-xl bg-orange-100 p-3 dark:bg-orange-900/30 sm:p-4">
+                            <Activity size={24} className="text-orange-600 dark:text-orange-400 sm:h-7 sm:w-7" />
                         </div>
-                        <div>
-                            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                                Your journey progress
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm font-semibold rounded-full">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="flex flex-wrap items-center gap-2 text-xl font-bold leading-tight text-gray-900 dark:text-white sm:text-2xl lg:text-3xl">
+                                <span>Your journey progress</span>
+                                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-300 sm:px-3 sm:py-1.5 sm:text-sm">
                                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                     Live
                                 </span>
@@ -902,7 +902,7 @@ const ApplicationTimelineWidget = () => {
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 rounded-xl bg-gray-100 p-1.5 dark:bg-gray-800" role="tablist" aria-label="Portfolio journey groups">
+                    <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-gray-100 p-1.5 dark:bg-gray-800 sm:flex sm:flex-wrap" role="tablist" aria-label="Portfolio journey groups">
                         {timelineTabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -910,7 +910,7 @@ const ApplicationTimelineWidget = () => {
                                 role="tab"
                                 aria-selected={activeTab === tab.id}
                                 onClick={() => handleTabChange(tab.id)}
-                                className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${activeTab === tab.id ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                                className={`min-h-11 min-w-0 rounded-lg px-2 py-2.5 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 sm:px-4 ${activeTab === tab.id ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
                             >
                                 {tab.label} ({tab.count})
                             </button>
@@ -977,20 +977,20 @@ const ApplicationTimelineWidget = () => {
                     <>
                         {currentPageItems.map((item) => (
                             <div key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                                <div className="px-6 py-5 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-                                    <div className="flex items-start gap-5">
+                                <div className="cursor-pointer px-4 py-4 sm:px-6 sm:py-5" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                                    <div className="relative grid grid-cols-[64px_minmax(0,1fr)] items-start gap-3 sm:flex sm:gap-5">
                                         <div className="relative flex-shrink-0">
                                             {item.property.image_urls[0] && !failedImages[item.id] ? (
                                                 <img
                                                     src={item.property.image_urls[0]}
                                                     alt={getTimelineCardTitle(item)}
-                                                    className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700"
+                                                    className="h-16 w-16 rounded-xl bg-gray-100 object-cover shadow-sm dark:bg-gray-700 sm:h-20 sm:w-20"
                                                     onError={() => {
                                                         setFailedImages((previous) => ({ ...previous, [item.id]: true }));
                                                     }}
                                                 />
                                             ) : (
-                                                <div className="w-20 h-20 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100 text-gray-400 shadow-sm dark:bg-gray-700 dark:text-gray-500 sm:h-20 sm:w-20">
                                                     <FileText size={24} />
                                                 </div>
                                             )}
@@ -999,13 +999,13 @@ const ApplicationTimelineWidget = () => {
                                             </span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{getTimelineCardTitle(item)}</h3>
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
+                                            <div className="mb-2 flex flex-col gap-2 pr-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pr-0">
+                                                <div className="min-w-0">
+                                                    <h3 className="break-words text-base font-semibold leading-snug text-gray-900 dark:text-white sm:text-lg">{getTimelineCardTitle(item)}</h3>
+                                                    <p className="mt-0.5 flex min-w-0 items-start gap-1.5 text-sm text-gray-500 dark:text-gray-400"><MapPin size={14} className="mt-0.5 shrink-0" /><span className="break-words">{item.property.city || 'Location unavailable'}</span></p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-xl text-gray-900 dark:text-white">
+                                                <div className="min-w-0 sm:text-right">
+                                                    <p className="break-words text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
                                                         {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
                                                     <p className="text-xs text-gray-400 mt-1">{formatLastUpdatedLabel(item.lastUpdated)}</p>
@@ -1013,8 +1013,8 @@ const ApplicationTimelineWidget = () => {
                                             </div>
                                             <div className="flex items-center gap-4 mt-3">
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
+                                                    <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
                                                             {item.progress >= 75 ? <CheckCircle2 size={14} /> : <Clock size={14} />}
                                                         </div>
                                                         <span className="font-semibold text-gray-900 dark:text-white">{item.currentStage}</span>
@@ -1026,12 +1026,12 @@ const ApplicationTimelineWidget = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <ChevronDown size={20} className={`text-gray-400 transition-transform duration-200 ${expandedId === item.id ? 'rotate-180' : ''}`} />
+                                        <ChevronDown size={20} className={`absolute right-0 top-0 text-gray-400 transition-transform duration-200 sm:static ${expandedId === item.id ? 'rotate-180' : ''}`} />
                                     </div>
                                 </div>
 
                                 {expandedId === item.id && (
-                                    <div className="px-6 pb-6 animate-fadeIn">
+                                    <div className="animate-fadeIn px-4 pb-5 sm:px-6 sm:pb-6">
                                         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 mb-5">
                                             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-orange-500" /> Complete Journey Progress</h3>
                                             <div className="relative space-y-4">
@@ -1064,7 +1064,7 @@ const ApplicationTimelineWidget = () => {
                                             </div>
                                         )}
 
-                                        <div className="flex gap-3">
+                                        <div className="flex flex-col gap-3 sm:flex-row">
                                             <button
                                                 onClick={() => navigate(item.primaryActionPath || `/user/properties/${item.property.id}`)}
                                                 className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"

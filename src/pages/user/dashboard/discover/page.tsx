@@ -27,7 +27,6 @@ import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
 import { toDiscoverNearbyMapProperties } from '@/lib/discoverMap';
 import {
-    getCountryAwarePropertyGroups,
     getPriceBoundAdjustmentMessage,
     getSearchFilterValidationMessage,
     getPropertySearchSortOptions,
@@ -531,10 +530,6 @@ function DiscoverContent() {
 
     // The backend now handles all filtering and pagination natively.
     const filteredProperties = properties;
-    const countryGroups = useMemo(
-        () => getCountryAwarePropertyGroups(filteredProperties),
-        [filteredProperties],
-    );
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
@@ -1080,18 +1075,6 @@ function DiscoverContent() {
                         </p>
                     </div>
 
-                    {countryGroups.length > 0 && (
-                        <div className="flex flex-wrap gap-2" aria-label="Countries represented in these results">
-                            {countryGroups.map((group) => (
-                                <span
-                                    key={group.key}
-                                    className="inline-flex min-h-9 items-center rounded-full border border-orange-200 bg-orange-50 px-3 text-sm font-semibold text-orange-800 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-200"
-                                >
-                                    {group.label} · {group.count} shown
-                                </span>
-                            ))}
-                        </div>
-                    )}
                 </section>
 
                 {/* Content */}

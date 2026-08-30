@@ -50,7 +50,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
         <>
             <header className="workspace-chrome sticky top-0 z-30 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
                 <div className="mx-auto grid min-h-16 w-full max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:gap-4 sm:px-4 lg:px-6">
-                    <div className="flex shrink-0 items-center">
+                    <div className="col-start-1 flex shrink-0 items-center">
                         <Link
                             to={getLinkPath('/user/dashboard')}
                             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
@@ -71,7 +71,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                     <button
                         type="button"
                         onClick={() => setAppSearchOpen(true)}
-                        className="hidden h-11 min-w-11 max-w-full items-center justify-center gap-2 justify-self-center rounded-full border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600 md:inline-flex md:px-4"
+                        className="col-start-2 hidden h-11 min-w-11 max-w-full items-center justify-center gap-2 justify-self-center rounded-full border border-white/25 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-orange-600 md:inline-flex md:px-4"
                         aria-label="Search Estospaces pages and activities"
                         aria-haspopup="dialog"
                     >
@@ -79,7 +79,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                         <span className="hidden truncate md:inline">Search Estospaces</span>
                     </button>
 
-                    <div className="flex shrink-0 items-center gap-1 sm:gap-2" aria-label="Account actions">
+                    <div className="col-start-3 flex shrink-0 items-center gap-1 justify-self-end sm:gap-2" aria-label="Account actions">
                         <NotificationDropdown appearance="brand" />
 
                         <div className="relative">

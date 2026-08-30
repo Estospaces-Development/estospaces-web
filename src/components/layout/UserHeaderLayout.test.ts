@@ -21,9 +21,11 @@ test('user header centers its navigation content with balanced outer spacing', (
 
 test('user header keeps one centered app-search launcher between brand and account actions', () => {
   assert.match(headerSource, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+  assert.match(headerSource, /col-start-1 flex shrink-0 items-center/);
   assert.match(headerSource, /aria-label="Search Estospaces pages and activities"/);
   assert.match(headerSource, /aria-haspopup="dialog"/);
-  assert.match(headerSource, /justify-self-center/);
+  assert.match(headerSource, /col-start-2 hidden[^\n]+justify-self-center/);
+  assert.match(headerSource, /col-start-3 flex shrink-0 items-center[^\n]+justify-self-end[^\n]+aria-label="Account actions"/);
   assert.doesNotMatch(headerSource, /Center - Global Search/);
 });
 

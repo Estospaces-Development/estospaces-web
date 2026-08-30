@@ -2357,13 +2357,13 @@ const UserPropertyDetail = () => {
     }
 
     return (
-        <div className="relative mx-auto max-w-[1480px] px-4 py-8 pb-20">
+        <div className="relative mx-auto max-w-[1480px] px-3 py-5 pb-24 sm:px-4 sm:py-8 sm:pb-20">
             <p role="status" aria-live="polite" className="sr-only">
                 {savedPropertyStatusMessage}
             </p>
             <div className="pointer-events-none absolute inset-x-10 top-12 -z-10 h-64 rounded-[3rem] bg-orange-50/90 blur-3xl dark:bg-orange-950/20" />
             <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-5 flex items-center justify-between sm:mb-8">
                 <button
                     type="button"
                     onClick={handleBackNavigation}
@@ -2396,7 +2396,7 @@ const UserPropertyDetail = () => {
 
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.36fr)_minmax(420px,0.92fr)] xl:items-start">
                 <div className="min-w-0 space-y-8">
-                    <div className="overflow-hidden rounded-[2.4rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-900">
+                    <div data-mobile-property-hero className="overflow-hidden rounded-[1.75rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-900 sm:rounded-[2.4rem]">
                         <div className="relative">
                             <button
                                 type="button"
@@ -2414,8 +2414,8 @@ const UserPropertyDetail = () => {
                                 />
                                 <div className="pointer-events-none absolute inset-0 bg-black/10" />
                             </button>
-                            <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">
-                                <span className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] shadow-lg ${
+                            <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2 sm:left-5 sm:top-5">
+                                <span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] shadow-lg sm:px-4 sm:text-xs sm:tracking-[0.18em] ${
                                     property.listing_type === 'rent'
                                         ? 'bg-sky-700 text-white'
                                         : 'bg-emerald-700 text-white'
@@ -2423,13 +2423,13 @@ const UserPropertyDetail = () => {
                                     {listingLabel}
                                 </span>
                                 {property.is_verified && (
-                                    <span className="rounded-full border border-white/80 bg-white/88 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gray-900 shadow-sm backdrop-blur">
+                                    <span className="hidden rounded-full border border-white/80 bg-white/88 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gray-900 shadow-sm backdrop-blur sm:inline-flex">
                                         Verified listing
                                     </span>
                                 )}
                             </div>
-                            <div className="absolute right-5 top-5 flex items-center gap-2">
-                                <div className="pointer-events-none rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg backdrop-blur">
+                            <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-5 sm:top-5">
+                                <div className="pointer-events-none rounded-full border border-white/75 bg-white/88 px-3 py-2 text-xs font-semibold text-gray-900 shadow-lg backdrop-blur sm:px-4 sm:text-sm">
                                     {selectedImageIndex + 1} / {images.length}
                                 </div>
                                 <button
@@ -2438,7 +2438,7 @@ const UserPropertyDetail = () => {
                                         event.stopPropagation();
                                         openGallery(undefined, event.currentTarget);
                                     }}
-                                    className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white"
+                                    className="hidden min-h-11 items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white sm:inline-flex"
                                 >
                                     <ImageIcon size={15} className="text-orange-500" />
                                     <span>Open gallery</span>
@@ -2452,7 +2452,7 @@ const UserPropertyDetail = () => {
                                             event.stopPropagation();
                                             showPreviousImage();
                                         }}
-                                        className="absolute left-5 top-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-white/88 p-3 text-gray-900 shadow-lg transition hover:bg-white"
+                                        className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-white/88 text-gray-900 shadow-lg transition hover:bg-white sm:left-5"
                                         aria-label="Show previous property image"
                                     >
                                         <ChevronLeft size={18} />
@@ -2463,22 +2463,31 @@ const UserPropertyDetail = () => {
                                             event.stopPropagation();
                                             showNextImage();
                                         }}
-                                        className="absolute right-5 top-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-white/88 p-3 text-gray-900 shadow-lg transition hover:bg-white"
+                                        className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-white/88 text-gray-900 shadow-lg transition hover:bg-white sm:right-5"
                                         aria-label="Show next property image"
                                     >
                                         <ChevronRight size={18} />
                                     </button>
                                 </>
                             )}
-                            <div className="pointer-events-none absolute bottom-5 left-5 rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-medium text-gray-900 shadow-lg backdrop-blur">
-                                Tap the image for the full-screen gallery
-                            </div>
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    openGallery(undefined, event.currentTarget);
+                                }}
+                                className="absolute bottom-3 right-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/80 bg-white/92 px-3.5 py-2 text-sm font-semibold text-gray-900 shadow-lg backdrop-blur transition hover:bg-white sm:hidden"
+                                aria-label={`Open full-screen gallery for ${property.title}`}
+                            >
+                                <ImageIcon size={16} className="text-orange-500" />
+                                Gallery
+                            </button>
                         </div>
-                        <div className="border-t border-stone-200/80 bg-white px-6 py-6 dark:border-zinc-800 dark:bg-zinc-900">
+                        <div className="border-t border-stone-200/80 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-6">
                             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
                                 <div className="min-w-0">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400">Property gallery</p>
-                                    <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-gray-900 md:text-[2.45rem] dark:text-white">
+                                    <h1 className="mt-3 break-words text-2xl font-semibold leading-tight tracking-tight text-gray-900 sm:text-3xl md:text-[2.45rem] dark:text-white">
                                         {property.title}
                                     </h1>
                                     <div className="mt-3 flex items-start gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -3264,7 +3273,7 @@ const UserPropertyDetail = () => {
 
             {isGalleryOpen && (
                 <div
-                    className="fixed inset-0 z-[140] overflow-y-auto bg-[rgba(8,15,30,0.92)] px-3 py-3 backdrop-blur-md sm:px-5 sm:py-5"
+                    className="fixed inset-0 z-[140] overflow-y-auto bg-[rgba(8,15,30,0.92)] p-0 backdrop-blur-md sm:px-5 sm:py-5"
                     onClick={closeGallery}
                 >
                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -3283,20 +3292,20 @@ const UserPropertyDetail = () => {
                         role="dialog"
                         aria-modal="true"
                         aria-label={getImmersiveGalleryDialogLabel(property.title)}
-                        className="relative mx-auto flex min-h-full max-w-[1500px] flex-col"
+                        className="relative mx-auto flex min-h-[100dvh] w-full min-w-0 max-w-[1500px] flex-col overflow-x-hidden sm:min-h-full"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-start justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 px-5 py-4 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-white/6 px-3 py-3 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl sm:items-start sm:gap-4 sm:rounded-[1.75rem] sm:border sm:px-5 sm:py-4">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Full-screen gallery</p>
-                                <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[2rem]">{property.title}</h2>
-                                <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
+                                <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55 sm:block">Full-screen gallery</p>
+                                <h2 className="truncate text-base font-semibold tracking-tight sm:mt-2 sm:text-[2rem]">{property.title}</h2>
+                                <div className="mt-2 hidden items-center gap-2 text-sm text-white/70 sm:flex">
                                     <MapPin size={15} className="text-orange-400" />
                                     <span className="truncate">{propertyAddress || locationLabel}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/85">
+                            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                                <div className="whitespace-nowrap rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-medium text-white/85 sm:px-4 sm:text-sm">
                                     {selectedImageIndex + 1} / {images.length}
                                 </div>
                                 <button
@@ -3311,10 +3320,10 @@ const UserPropertyDetail = () => {
                             </div>
                         </div>
 
-                        <div className="mt-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,1.18fr)_320px]">
+                        <div className="grid min-h-0 w-full min-w-0 gap-3 sm:mt-4 sm:gap-4 lg:flex-1 lg:grid-cols-[minmax(0,1.18fr)_320px]">
                             <div
                                 data-testid="immersive-gallery-stage"
-                                className="relative min-h-[58vh] overflow-hidden rounded-[2.2rem] border border-white/10 bg-black/25 shadow-[0_32px_80px_-38px_rgba(15,23,42,0.88)]"
+                                className="relative aspect-[4/3] min-h-0 min-w-0 overflow-hidden border-y border-white/10 bg-black/25 shadow-[0_32px_80px_-38px_rgba(15,23,42,0.88)] sm:aspect-video sm:rounded-[2.2rem] sm:border lg:aspect-auto lg:min-h-[58vh]"
                             >
                                 <img
                                     src={coverImage}
@@ -3332,7 +3341,7 @@ const UserPropertyDetail = () => {
                                         <button
                                             type="button"
                                             onClick={showPreviousImage}
-                                            className="absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/22 p-3 text-white shadow-lg backdrop-blur transition hover:bg-black/34"
+                                            className="absolute left-2 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/30 text-white shadow-lg backdrop-blur transition hover:bg-black/45 sm:left-4"
                                             aria-label="Show previous property image"
                                         >
                                             <ChevronLeft size={18} />
@@ -3340,7 +3349,7 @@ const UserPropertyDetail = () => {
                                         <button
                                             type="button"
                                             onClick={showNextImage}
-                                            className="absolute right-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/22 p-3 text-white shadow-lg backdrop-blur transition hover:bg-black/34"
+                                            className="absolute right-2 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/30 text-white shadow-lg backdrop-blur transition hover:bg-black/45 sm:right-4"
                                             aria-label="Show next property image"
                                         >
                                             <ChevronRight size={18} />
@@ -3350,13 +3359,13 @@ const UserPropertyDetail = () => {
 
                                 <div
                                     data-testid="immersive-gallery-zoom-surface"
-                                    className={`relative z-10 flex h-full items-center justify-center overflow-hidden px-4 py-6 sm:px-8 sm:py-10 ${
-                                        isImmersiveZoomActive ? 'cursor-zoom-out' : 'cursor-zoom-in'
+                                    className={`relative z-10 flex h-full items-center justify-center overflow-hidden p-0 sm:px-8 sm:py-10 ${
+                                        isImmersiveZoomActive ? 'lg:cursor-zoom-out' : 'lg:cursor-zoom-in'
                                     }`}
                                     onMouseMove={handleImmersiveGalleryMouseMove}
                                     onMouseLeave={handleImmersiveGalleryMouseLeave}
                                 >
-                                    <div className="pointer-events-none absolute left-5 top-5 z-20 rounded-full border border-white/15 bg-black/24 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82 shadow-lg backdrop-blur-md">
+                                    <div className="pointer-events-none absolute left-5 top-5 z-20 hidden rounded-full border border-white/15 bg-black/24 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82 shadow-lg backdrop-blur-md lg:block">
                                         {isImmersiveZoomActive ? 'Move to inspect details' : 'Hover to zoom'}
                                     </div>
                                     <img
@@ -3364,7 +3373,7 @@ const UserPropertyDetail = () => {
                                         src={coverImage}
                                         alt={`${property.title} full view ${selectedImageIndex + 1}`}
                                         data-testid="immersive-gallery-image"
-                                        className="max-h-[74vh] w-auto max-w-full rounded-[1.7rem] object-contain shadow-[0_30px_80px_-34px_rgba(0,0,0,0.88)] transition-transform duration-200 ease-out will-change-transform"
+                                        className="h-full w-full object-contain shadow-[0_30px_80px_-34px_rgba(0,0,0,0.88)] transition-transform duration-200 ease-out will-change-transform sm:h-auto sm:max-h-[74vh] sm:w-auto sm:max-w-full sm:rounded-[1.7rem]"
                                         style={{
                                             transform: `scale(${isImmersiveZoomActive ? 2.35 : 1})`,
                                             transformOrigin: formatImmersiveGalleryTransformOrigin(immersiveZoomPoint),
@@ -3375,14 +3384,14 @@ const UserPropertyDetail = () => {
                                     />
                                 </div>
 
-                                <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5">
+                                <div className="absolute inset-x-0 bottom-0 z-20 p-3 sm:p-5">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                                        <div className="max-w-lg rounded-[1.5rem] border border-white/10 bg-black/24 px-4 py-3 text-white shadow-lg backdrop-blur-md">
+                                        <div className="max-w-lg rounded-full border border-white/10 bg-black/35 px-3 py-2 text-white shadow-lg backdrop-blur-md sm:rounded-[1.5rem] sm:px-4 sm:py-3">
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">
                                                 {images.length > 1 ? `Photo ${selectedImageIndex + 1} of ${images.length}` : 'Featured property view'}
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="hidden flex-wrap gap-2 sm:flex">
                                             <span className="rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/88 backdrop-blur">
                                                 {listingLabel}
                                             </span>
@@ -3401,9 +3410,9 @@ const UserPropertyDetail = () => {
 
                             <div
                                 data-testid="immersive-gallery-sidebar"
-                                className="flex flex-col gap-4"
+                                className="flex min-w-0 flex-col gap-4"
                             >
-                                <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-5 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                                <div className="hidden rounded-[1.8rem] border border-white/10 bg-white/6 p-5 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl lg:block">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">Viewing mode</p>
                                     <h3 className="mt-3 text-xl font-semibold tracking-tight">Designed to keep the photo in focus</h3>
                                     <p className="mt-3 text-sm leading-6 text-white/72">
@@ -3430,12 +3439,12 @@ const UserPropertyDetail = () => {
                                 </div>
 
                                 {images.length > 1 && (
-                                    <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-4 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                                    <div className="min-w-0 rounded-[1.8rem] border border-white/10 bg-white/6 p-4 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
                                         <div className="flex items-center justify-between gap-3">
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">Photo rail</p>
                                             <span className="text-xs font-medium text-white/55">Switch instantly</span>
                                         </div>
-                                        <div className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
+                                        <div className="mt-4 flex max-w-full gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
                                             {images.map((image, index) => (
                                                     <button
                                                         key={`${image}-${index}-fullscreen`}
