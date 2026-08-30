@@ -28,6 +28,23 @@ test("matched agent requests use compact progressive disclosure on phones", () =
   assert.match(source, /min-h-11 w-full[^\n]+sm:w-auto/);
   assert.match(source, /View \{matchedExperienceSteps\.length\} next steps/);
   assert.match(source, /mt-4 hidden gap-3 sm:grid md:grid-cols-3/);
+  assert.match(source, /Next step/);
+  assert.match(source, /open=\{Boolean\(selectedProperty \|\| availableSharedProperties\.length > 0\)\}/);
+  assert.match(source, /Waiting for home choices/);
+  assert.match(source, />Start a different request</);
+  assert.match(source, /onClick=\{handleStartAnotherRequest\}/);
+  assert.match(source, /activeRequest \? 'hidden sm:block' : 'block'/);
+});
+
+test("journey progress uses a compact phone header and discloses secondary controls on demand", () => {
+  const source = readSource("components/dashboard/ApplicationTimelineWidget.tsx");
+
+  assert.match(source, /grid min-w-0 grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+  assert.match(source, /whitespace-nowrap rounded-full bg-green-100/);
+  assert.match(source, /flex snap-x gap-1 overflow-x-auto/);
+  assert.match(source, /> Filter and sort</);
+  assert.match(source, /hidden gap-3 pt-3 group-open:grid sm:grid/);
+  assert.match(source, /grid grid-cols-\[56px_minmax\(0,1fr\)\]/);
 });
 
 test("nearby map reset reapplies bounds and restores the default presentation", () => {

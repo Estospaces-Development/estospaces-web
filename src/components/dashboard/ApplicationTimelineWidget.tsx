@@ -882,27 +882,27 @@ const ApplicationTimelineWidget = () => {
     return (
         <div id="realtime-tracking-widget" className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             {/* Header */}
-            <div className="border-b border-gray-100 bg-gradient-to-r from-orange-50/50 to-transparent px-4 py-5 dark:border-gray-800 dark:from-orange-900/10 sm:px-8 sm:py-8">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-                        <div className="shrink-0 rounded-xl bg-orange-100 p-3 dark:bg-orange-900/30 sm:p-4">
+            <div className="border-b border-gray-100 bg-gradient-to-r from-orange-50/50 to-transparent px-3 py-4 dark:border-gray-800 dark:from-orange-900/10 sm:px-8 sm:py-8">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 sm:flex sm:items-center sm:gap-4">
+                        <div className="shrink-0 rounded-xl bg-orange-100 p-2.5 dark:bg-orange-900/30 sm:p-4">
                             <Activity size={24} className="text-orange-600 dark:text-orange-400 sm:h-7 sm:w-7" />
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h2 className="flex flex-wrap items-center gap-2 text-xl font-bold leading-tight text-gray-900 dark:text-white sm:text-2xl lg:text-3xl">
-                                <span>Your journey progress</span>
-                                <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-300 sm:px-3 sm:py-1.5 sm:text-sm">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                    Live
-                                </span>
+                            <h2 className="text-[17px] font-bold leading-tight text-gray-900 dark:text-white sm:text-2xl lg:text-3xl">
+                                Your journey progress
                             </h2>
-                            <p className="text-base text-gray-600 dark:text-gray-300 mt-1">
+                            <p className="mt-1 text-[13px] leading-snug text-gray-600 dark:text-gray-300 sm:text-base">
                                 Follow each property step in one place.
                             </p>
                         </div>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-300 sm:px-3 sm:py-1.5 sm:text-sm">
+                            <span className="h-2 w-2 rounded-full bg-green-500 motion-safe:animate-pulse" />
+                            Live
+                        </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-gray-100 p-1.5 dark:bg-gray-800 sm:flex sm:flex-wrap" role="tablist" aria-label="Portfolio journey groups">
+                    <div className="-mx-1 flex snap-x gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1.5 [scrollbar-width:none] dark:bg-gray-800 [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible" role="tablist" aria-label="Portfolio journey groups">
                         {timelineTabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -910,7 +910,7 @@ const ApplicationTimelineWidget = () => {
                                 role="tab"
                                 aria-selected={activeTab === tab.id}
                                 onClick={() => handleTabChange(tab.id)}
-                                className={`min-h-11 min-w-0 rounded-lg px-2 py-2.5 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 sm:px-4 ${activeTab === tab.id ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                                className={`min-h-11 shrink-0 snap-start whitespace-nowrap rounded-lg px-3 py-2.5 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 sm:px-4 sm:text-sm ${activeTab === tab.id ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
                             >
                                 {tab.label} ({tab.count})
                             </button>
@@ -922,7 +922,12 @@ const ApplicationTimelineWidget = () => {
                     {statusSummary}
                 </p>
 
-                <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                <details className="group mt-3 sm:mt-6">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden">
+                        <span className="inline-flex items-center gap-2"><SlidersHorizontal size={16} /> Filter and sort</span>
+                        <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                    </summary>
+                    <div className="hidden gap-3 pt-3 group-open:grid sm:grid sm:pt-0 md:grid-cols-[minmax(0,1fr)_220px]">
                     <div>
                         <label htmlFor="portfolio-journey-filter" className="sr-only">Filter portfolio journeys</label>
                         <div className="relative">
@@ -956,7 +961,8 @@ const ApplicationTimelineWidget = () => {
                             </select>
                         </div>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
 
             {/* Content */}
@@ -977,20 +983,20 @@ const ApplicationTimelineWidget = () => {
                     <>
                         {currentPageItems.map((item) => (
                             <div key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                                <div className="cursor-pointer px-4 py-4 sm:px-6 sm:py-5" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-                                    <div className="relative grid grid-cols-[64px_minmax(0,1fr)] items-start gap-3 sm:flex sm:gap-5">
+                                <div className="cursor-pointer px-3 py-4 sm:px-6 sm:py-5" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                                    <div className="relative grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3 sm:flex sm:gap-5">
                                         <div className="relative flex-shrink-0">
                                             {item.property.image_urls[0] && !failedImages[item.id] ? (
                                                 <img
                                                     src={item.property.image_urls[0]}
                                                     alt={getTimelineCardTitle(item)}
-                                                    className="h-16 w-16 rounded-xl bg-gray-100 object-cover shadow-sm dark:bg-gray-700 sm:h-20 sm:w-20"
+                                                    className="h-14 w-14 rounded-xl bg-gray-100 object-cover shadow-sm dark:bg-gray-700 sm:h-20 sm:w-20"
                                                     onError={() => {
                                                         setFailedImages((previous) => ({ ...previous, [item.id]: true }));
                                                     }}
                                                 />
                                             ) : (
-                                                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100 text-gray-400 shadow-sm dark:bg-gray-700 dark:text-gray-500 sm:h-20 sm:w-20">
+                                                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-100 text-gray-400 shadow-sm dark:bg-gray-700 dark:text-gray-500 sm:h-20 sm:w-20">
                                                     <FileText size={24} />
                                                 </div>
                                             )}
@@ -999,26 +1005,26 @@ const ApplicationTimelineWidget = () => {
                                             </span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="mb-2 flex flex-col gap-2 pr-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pr-0">
+                                            <div className="mb-2 flex flex-col gap-1.5 pr-7 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pr-0">
                                                 <div className="min-w-0">
-                                                    <h3 className="break-words text-base font-semibold leading-snug text-gray-900 dark:text-white sm:text-lg">{getTimelineCardTitle(item)}</h3>
-                                                    <p className="mt-0.5 flex min-w-0 items-start gap-1.5 text-sm text-gray-500 dark:text-gray-400"><MapPin size={14} className="mt-0.5 shrink-0" /><span className="break-words">{item.property.city || 'Location unavailable'}</span></p>
+                                                    <h3 className="line-clamp-2 break-words text-sm font-semibold leading-snug text-gray-900 dark:text-white sm:text-lg">{getTimelineCardTitle(item)}</h3>
+                                                    <p className="mt-0.5 flex min-w-0 items-start gap-1.5 text-xs leading-4 text-gray-500 dark:text-gray-400 sm:text-sm sm:leading-normal"><MapPin size={13} className="mt-0.5 shrink-0 sm:h-3.5 sm:w-3.5" /><span className="line-clamp-2 break-words">{item.property.city || 'Location unavailable'}</span></p>
                                                 </div>
                                                 <div className="min-w-0 sm:text-right">
-                                                    <p className="break-words text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
+                                                    <p className="break-words text-[15px] font-bold text-gray-900 dark:text-white sm:text-xl">
                                                         {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
-                                                    <p className="text-xs text-gray-400 mt-1">{formatLastUpdatedLabel(item.lastUpdated)}</p>
+                                                    <p className="mt-0.5 text-[11px] text-gray-400 sm:mt-1 sm:text-xs">{formatLastUpdatedLabel(item.lastUpdated)}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4 mt-3">
+                                            <div className="mt-2 flex items-center gap-3 sm:mt-3 sm:gap-4">
                                                 <div className="flex-1">
                                                     <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                                                         <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
                                                             {item.progress >= 75 ? <CheckCircle2 size={14} /> : <Clock size={14} />}
                                                         </div>
-                                                        <span className="font-semibold text-gray-900 dark:text-white">{item.currentStage}</span>
-                                                        <span className="text-sm text-gray-400">Step {item.currentStageNumber} of {item.totalStages}</span>
+                                                        <span className="min-w-0 truncate text-[13px] font-semibold text-gray-900 dark:text-white sm:text-base">{item.currentStage}</span>
+                                                        <span className="shrink-0 text-xs text-gray-400 sm:text-sm">{item.currentStageNumber}/{item.totalStages}</span>
                                                     </div>
                                                     <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                                         <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500" style={{ width: `${item.progress}%` }} />
@@ -1080,7 +1086,7 @@ const ApplicationTimelineWidget = () => {
                             </div>
                         ))}
 
-                        <div className="bg-gradient-to-r from-orange-50/50 via-white to-orange-50/50 px-6 py-5 dark:from-orange-950/10 dark:via-gray-900 dark:to-orange-950/10">
+                            <div className="bg-gradient-to-r from-orange-50/50 via-white to-orange-50/50 px-3 py-3 dark:from-orange-950/10 dark:via-gray-900 dark:to-orange-950/10 sm:px-6 sm:py-5">
                             <PaginationBar
                                 currentPage={activePage}
                                 totalPages={totalPages}

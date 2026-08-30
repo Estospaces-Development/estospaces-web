@@ -159,10 +159,10 @@ test('shared verification queue stacks search, sort, and refresh controls on nar
 test('small-phone dashboard skeletons and contract cards reflow without changing desktop composition', () => {
   assert.match(applicationTimeline, /min-w-0 flex-1 space-y-3/);
   assert.match(applicationTimeline, /h-6 w-full max-w-48/);
-  assert.match(applicationTimeline, /grid grid-cols-2 gap-1\.5[^\n]+sm:flex sm:flex-wrap/);
+  assert.match(applicationTimeline, /flex snap-x gap-1 overflow-x-auto[^\n]+sm:flex-wrap sm:overflow-visible/);
   assert.match(applicationTimeline, /inline-flex shrink-0 items-center[^\n]+whitespace-nowrap/);
-  assert.match(applicationTimeline, /grid grid-cols-\[64px_minmax\(0,1fr\)\][^\n]+sm:flex sm:gap-5/);
-  assert.match(applicationTimeline, /flex flex-col gap-2 pr-8[^\n]+sm:flex-row/);
+  assert.match(applicationTimeline, /grid grid-cols-\[56px_minmax\(0,1fr\)\][^\n]+sm:flex sm:gap-5/);
+  assert.match(applicationTimeline, /flex flex-col gap-1\.5 pr-7[^\n]+sm:flex-row/);
   assert.match(userContracts, /flex min-w-0 flex-col gap-4 min-\[380px\]:flex-row/);
   assert.match(userContracts, /h-40 w-full[^\n]+min-\[380px\]:h-24 min-\[380px\]:w-24/);
   assert.match(userContracts, /flex min-w-0 flex-col items-start gap-2 min-\[380px\]:flex-row/);

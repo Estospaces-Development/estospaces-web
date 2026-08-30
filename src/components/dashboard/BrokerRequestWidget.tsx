@@ -893,17 +893,17 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const nearbyBrokerKeyFor = createDuplicateSafeKeyResolver('broker-request-nearby-broker');
 
     return (
-        <div data-mobile-broker-request className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800 sm:p-6">
+        <div data-mobile-broker-request className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800 sm:p-6">
             <div role="status" aria-live="polite" className="sr-only">
                 {selectionStatusMessage}
             </div>
-            <div className="mb-4 flex items-center gap-3 sm:mb-6">
+            <div className="mb-3 flex items-center gap-2.5 sm:mb-6 sm:gap-3">
                 <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
-                    <Send size={20} className="text-orange-600 dark:text-orange-400" />
+                    <Send size={20} className="h-[18px] w-[18px] text-orange-600 dark:text-orange-400 sm:h-5 sm:w-5" />
                 </div>
-                <div>
-                    <h2 className="font-bold text-gray-900 dark:text-white">{brokerCopy.panelTitle}</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{brokerCopy.panelSubtitle}</p>
+                <div className="min-w-0">
+                    <h2 className="text-[15px] font-bold leading-tight text-gray-900 dark:text-white sm:text-base">{brokerCopy.panelTitle}</h2>
+                    <p className="mt-0.5 text-[11px] leading-4 text-gray-500 dark:text-gray-400 sm:text-xs">{brokerCopy.panelSubtitle}</p>
                 </div>
             </div>
 
@@ -920,14 +920,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 <span className="sm:hidden">Request</span>
                                 <span className="hidden sm:inline">{brokerCopy.activeRequestEyebrow}</span>
                             </p>
-                            <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white sm:mt-2 sm:text-lg">
+                            <h3 className="mt-1 text-[15px] font-semibold leading-tight text-gray-900 dark:text-white sm:mt-2 sm:text-lg">
                                 {dispatchWorkspaceSummary.title}
                             </h3>
-                            <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300 sm:line-clamp-none">
+                            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-gray-600 dark:text-gray-300 sm:line-clamp-none sm:text-sm">
                                 {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
                             </p>
                         </div>
-                        <div className={`shrink-0 rounded-full border px-3 py-2 shadow-sm sm:min-w-[168px] sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
+                        <div className={`shrink-0 rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
                             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
                                 <span className="relative flex h-2.5 w-2.5">
                                     {requestIsActive && (
@@ -971,7 +971,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     {activeRequest && (
                         <>
                             <details className="group mt-3 rounded-xl border border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-zinc-950/60 md:hidden">
-                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:text-sm">
                                     <span>Request details</span>
                                     <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
                                 </summary>
@@ -1019,17 +1019,17 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
                     {requestIsMatched ? (
                         <div className="mt-3 space-y-3 sm:mt-5 sm:space-y-4">
-                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 sm:p-5">
+                            <div className="rounded-xl border-0 bg-transparent p-0 dark:bg-transparent sm:rounded-2xl sm:border sm:border-emerald-200 sm:bg-emerald-50/70 sm:p-5 sm:dark:border-emerald-900/40 sm:dark:bg-emerald-950/20">
                                 <div className="flex items-start justify-between gap-3 sm:flex-wrap sm:gap-4">
                                     <div className="min-w-0 flex-1">
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-zinc-950 dark:text-emerald-300">
+                                        <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-zinc-950 dark:text-emerald-300 sm:inline-flex">
                                             <BadgeCheck size={12} />
                                             {brokerCopy.matchedBrokerLabel}
                                         </span>
-                                        <p className="mt-3 break-words text-xl font-semibold text-gray-900 dark:text-white sm:mt-4 sm:text-2xl">
+                                        <p className="break-words text-lg font-semibold leading-tight text-gray-900 dark:text-white sm:mt-4 sm:text-2xl">
                                             {matchedBroker?.name || 'Your property agent is ready'}
                                         </p>
-                                        <p className="mt-1.5 line-clamp-2 text-sm text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none">
+                                        <p className="mt-1.5 line-clamp-2 text-[13px] leading-5 text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none sm:text-sm">
                                             {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequestArea ? ` in ${activeRequestArea}` : ''}.
                                         </p>
@@ -1097,7 +1097,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     {matchedBroker?.phone && (
                                         <a
                                             href={`tel:${matchedBroker.phone}`}
-                                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 sm:w-auto"
+                                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-orange-700 sm:w-auto sm:text-sm"
                                         >
                                             <Phone size={15} />
                                             Call agent
@@ -1107,7 +1107,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                         type="button"
                                         onClick={handleOpenConversation}
                                         disabled={openingConversation}
-                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:w-auto"
+                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:w-auto sm:text-sm"
                                     >
                                         {openingConversation ? <ActionSpinner size={15} className="" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
@@ -1115,8 +1115,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 </div>
                             </div>
 
-                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/40">
-                                <div className="flex items-center gap-2">
+                            <details
+                                open={Boolean(selectedProperty || availableSharedProperties.length > 0)}
+                                className="group rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40 sm:rounded-2xl sm:border-gray-100 sm:p-5"
+                            >
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:hidden">
+                                    <span className="min-w-0">
+                                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Next step</span>
+                                        <span className="mt-0.5 block truncate">
+                                            {selectedProperty
+                                                ? 'Continue with your selected home'
+                                                : availableSharedProperties.length > 0
+                                                    ? 'Review your home choices'
+                                                    : 'Waiting for home choices'}
+                                        </span>
+                                    </span>
+                                    <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                                </summary>
+                                <div className="hidden p-3 group-open:block sm:block sm:p-0">
+                                <div className="hidden items-center gap-2 sm:flex">
                                     <CheckCircle2 size={18} className="text-orange-500" />
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">What happens next</p>
@@ -1371,13 +1388,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                 The shared home is no longer available. Ask your property agent to refresh the shortlist before starting a 24-hour journey.
                                             </div>
                                         ) : (
-                                            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100">
-                                                Your property agent is connected, but home choices are not ready yet. Once they arrive, you can compare them here and start your 24-hour journey.
+                                            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-3 py-3 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100 sm:px-4 sm:py-4">
+                                                <span className="sm:hidden">Your agent is preparing homes. They will appear here when ready.</span>
+                                                <span className="hidden sm:inline">Your property agent is connected, but home choices are not ready yet. Once they arrive, you can compare them here and start your 24-hour journey.</span>
                                             </div>
                                         )}
 
                                         {!selectedProperty && requestReplacementLocked ? (
-                                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                                            <div className="mt-4 hidden rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 sm:block">
                                                 Your property agent is locked for this request. Continue with this agent, review shared homes, or start another request without changing this match.
                                             </div>
                                         ) : !selectedProperty ? (
@@ -1397,12 +1415,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 <button
                                     type="button"
                                     onClick={handleStartAnotherRequest}
-                                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                    className="mt-4 hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:inline-flex"
                                 >
                                     <Radio size={14} />
                                     {brokerCopy.restartRequestLabel}
                                 </button>
-                            </div>
+                                </div>
+                            </details>
                         </div>
                     ) : (
                         <>
@@ -1457,7 +1476,21 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                {activeRequest && (
+                    <button
+                        type="button"
+                        onClick={handleStartAnotherRequest}
+                        className="mb-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden"
+                    >
+                        <span>Start a different request</span>
+                        <ArrowRight size={16} className="shrink-0" aria-hidden="true" />
+                    </button>
+                )}
+                <form
+                    onSubmit={handleSubmit}
+                    className={`space-y-4 ${activeRequest ? 'hidden sm:block' : 'block'}`}
+                >
                 <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700/50">
                     {['buy', 'rent', 'sell'].map((type) => (
                         <button
@@ -1659,7 +1692,8 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
                     {brokerCopy.requestFormHelper}
                 </p>
-            </form>
+                </form>
+            </div>
         </div>
     );
 };
