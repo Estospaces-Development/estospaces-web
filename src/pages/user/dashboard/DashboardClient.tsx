@@ -38,6 +38,7 @@ import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
 import { hasFastTrackReachedCompletion } from '@/lib/fastTrackWorkflow';
 import { getUserBrokerRequests, type BrokerRequestRecord } from '@/services/leadsService';
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
+import { shouldAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
@@ -1123,7 +1124,14 @@ const DashboardClient = () => {
               }`}
             >
               <Suspense fallback={<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />}>
-                <BrokerRequestWidget onLocationContextChange={handleBrokerRequestLocationContextChange} />
+                <BrokerRequestWidget
+                  onLocationContextChange={handleBrokerRequestLocationContextChange}
+                  preferredRequestId={activeJourney?.brokerRequestId || (
+                    activeBrokerRequest && shouldAutoResumeBrokerRequest(activeBrokerRequest)
+                      ? activeBrokerRequest.id
+                      : null
+                  )}
+                />
               </Suspense>
             </div>
             <div>

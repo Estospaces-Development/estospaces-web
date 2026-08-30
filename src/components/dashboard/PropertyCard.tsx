@@ -24,7 +24,6 @@ import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
-import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import type { FastTrackRequestStatus } from '@/lib/propertyFastTrackRequest';
 import {
@@ -121,7 +120,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     };
 
     const images = getPropertyImages(property);
-    const displayImages = images.length > 0 ? images : [PROPERTY_PLACEHOLDER_IMAGE];
+    const displayImages = images;
     const hasMultipleImages = images.length > 1;
 
     const nextImage = (e: React.MouseEvent) => {
@@ -268,7 +267,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 <div className={`relative flex-shrink-0 overflow-hidden bg-gray-100 dark:bg-gray-800 ${isDiscoveryCard ? 'h-52 sm:h-56' : 'h-56'}`}>
                     <>
                         <PropertyMediaImage
-                            src={displayImages[currentImageIndex] || PROPERTY_PLACEHOLDER_IMAGE}
+                            src={displayImages[currentImageIndex]}
                             alt={displayTitle}
                             className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

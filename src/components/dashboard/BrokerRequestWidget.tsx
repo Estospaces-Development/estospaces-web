@@ -43,6 +43,15 @@ import {
     publishBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
+import {
+    beginBrokerRequestAction,
+    cancelBrokerRequestAction,
+    createBrokerRequestActionState,
+    finishBrokerRequestAction,
+    hasActiveBrokerRequestAction,
+    isBrokerRequestActionCurrent,
+} from '@/lib/brokerRequestAction';
+import { getBrokerRequestBudgetError, toBrokerRequestType, type BrokerRequestType } from '@/lib/brokerRequestBudget';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 import { useAuth } from '@/contexts/AuthContext';
@@ -73,6 +82,10 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
 
 const DISMISSED_REQUEST_KEY = 'estospaces_dismissed_broker_request_id';
+const NEW_REQUEST_MODE_KEY = 'estospaces_broker_new_request_mode';
+const getUserScopedRequestKey = (key: string, userId?: string | null) => (
+    userId ? `${key}:${userId}` : null
+);
 
 export const limitNearestAgenciesForDashboard = (brokers: LeadBrokerSummary[]) => (
     brokers.slice(0, USER_DASHBOARD_NEAREST_AGENCY_LIMIT)
@@ -259,14 +272,15 @@ const hasBrokerRequestDraft = ({
 
 interface BrokerRequestWidgetProps {
     onLocationContextChange?: (locationCode: string | null) => void;
+    preferredRequestId?: string | null;
 }
 
-const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetProps = {}) => {
+const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: BrokerRequestWidgetProps = {}) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
-    const [requestType, setRequestType] = useState('buy');
+    const [requestType, setRequestType] = useState<BrokerRequestType>('buy');
     const [details, setDetails] = useState('');
     const [location, setLocation] = useState('');
     const [locationPostcode, setLocationPostcode] = useState('');
@@ -274,6 +288,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const [fastTrackEnabled, setFastTrackEnabled] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [budgetError, setBudgetError] = useState<string | null>(null);
     const [postcodeError, setPostcodeError] = useState<string | null>(null);
     const [nearbyBrokers, setNearbyBrokers] = useState<LeadBrokerSummary[]>([]);
     const [isRankingLoading, setIsRankingLoading] = useState(false);
@@ -283,18 +298,24 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const [selectingPropertyId, setSelectingPropertyId] = useState<string | null>(null);
     const [rematching, setRematching] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
-    const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(() => {
-        try {
-            return localStorage.getItem(DISMISSED_REQUEST_KEY);
-        } catch {
-            return null;
-        }
-    });
+    const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(null);
+    const [suppressAutoResume, setSuppressAutoResume] = useState(false);
     const [sharedHomeSearch, setSharedHomeSearch] = useState('');
     const [sharedHomeSort, setSharedHomeSort] = useState<'rank' | 'price_desc' | 'price_asc' | 'title_asc'>('rank');
     const [selectionStatusMessage, setSelectionStatusMessage] = useState('');
     const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
     const draftStateRef = useRef(false);
+    const activeRequestLoadIdRef = useRef(0);
+    const createdRequestIdRef = useRef<string | null>(null);
+    const asyncActionStateRef = useRef(createBrokerRequestActionState());
+    const rematchActionRef = useRef(0);
+    const selectionActionRef = useRef(0);
+    const conversationActionRef = useRef(0);
+    const activeUserIdRef = useRef(user?.id);
+    activeUserIdRef.current = user?.id;
+    const activeRequestIdRef = useRef<string | null>(activeRequest?.id || null);
+    activeRequestIdRef.current = activeRequest?.id || null;
+    const explicitResetRequestIdRef = useRef<string | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
         ? searchParams.get('request')?.trim() || null
@@ -308,6 +329,69 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationPostcode);
     const geoMarketCurrencyCode = geoMarket === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;
     const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
+    const beginAsyncAction = useCallback((requestId: string | null) => {
+        const generation = beginBrokerRequestAction(asyncActionStateRef.current);
+        if (generation === null) {
+            return null;
+        }
+        activeRequestLoadIdRef.current += 1;
+        return {
+            generation,
+            requestId,
+            userId: activeUserIdRef.current,
+        };
+    }, []);
+    const isAsyncActionCurrent = useCallback((action: {
+        generation: number;
+        requestId: string | null;
+        userId?: string;
+    }) => (
+        isBrokerRequestActionCurrent(asyncActionStateRef.current, action.generation)
+        && activeUserIdRef.current === action.userId
+        && (!action.requestId || activeRequestIdRef.current === action.requestId)
+    ), []);
+    const finishAsyncAction = useCallback((action: {
+        generation: number;
+        userId?: string;
+    }) => {
+        if (!finishBrokerRequestAction(asyncActionStateRef.current, action.generation)) {
+            return false;
+        }
+        return activeUserIdRef.current === action.userId;
+    }, []);
+
+    useEffect(() => {
+        activeRequestLoadIdRef.current += 1;
+        cancelBrokerRequestAction(asyncActionStateRef.current);
+        rematchActionRef.current = 0;
+        selectionActionRef.current = 0;
+        conversationActionRef.current = 0;
+        setActiveRequest(null);
+        setRequestType('buy');
+        setDetails('');
+        setLocation('');
+        setLocationPostcode('');
+        setBudget('');
+        setFastTrackEnabled(true);
+        setLoading(false);
+        setRematching(false);
+        setSelectingPropertyId(null);
+        setOpeningConversation(false);
+        setError(null);
+        setBudgetError(null);
+        setPostcodeError(null);
+        setSelectionStatusMessage('');
+        publishBrokerRequestWorkspaceSelection(null);
+        const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
+        const newRequestModeKey = getUserScopedRequestKey(NEW_REQUEST_MODE_KEY, user?.id);
+        try {
+            setDismissedRequestId(dismissedKey ? localStorage.getItem(dismissedKey) : null);
+            setSuppressAutoResume(newRequestModeKey ? sessionStorage.getItem(newRequestModeKey) === 'true' : false);
+        } catch {
+            setDismissedRequestId(null);
+            setSuppressAutoResume(false);
+        }
+    }, [user?.id]);
 
     useEffect(() => {
         draftStateRef.current = hasBrokerRequestDraft({
@@ -351,16 +435,62 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
         setBudget('');
         setFastTrackEnabled(true);
         setError(null);
+        setBudgetError(null);
         setPostcodeError(null);
     }, []);
 
+    const clearNewRequestMode = useCallback(() => {
+        const newRequestModeKey = getUserScopedRequestKey(NEW_REQUEST_MODE_KEY, user?.id);
+        try {
+            if (newRequestModeKey) sessionStorage.removeItem(newRequestModeKey);
+        } catch {}
+        setSuppressAutoResume(false);
+    }, [user?.id]);
+
     const loadActiveRequest = useCallback(async () => {
-        if (requestedWorkspaceRequestId) {
-            const { data } = await getBrokerRequestById(requestedWorkspaceRequestId, { suppressErrorToast: true });
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+        const loadId = activeRequestLoadIdRef.current + 1;
+        activeRequestLoadIdRef.current = loadId;
+        let effectiveDismissedRequestId = dismissedRequestId;
+        let prefetchedRequests: Awaited<ReturnType<typeof getUserBrokerRequests>> | null = null;
+        const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
+        if (!effectiveDismissedRequestId && dismissedKey) {
+            try {
+                const legacyDismissedRequestId = localStorage.getItem(DISMISSED_REQUEST_KEY);
+                if (legacyDismissedRequestId) {
+                    prefetchedRequests = await getUserBrokerRequests({ suppressErrorToast: true });
+                    if (activeRequestLoadIdRef.current !== loadId) {
+                        return;
+                    }
+                    if ((prefetchedRequests.data || []).some((request) => request.id === legacyDismissedRequestId)) {
+                        localStorage.setItem(dismissedKey, legacyDismissedRequestId);
+                        localStorage.removeItem(DISMISSED_REQUEST_KEY);
+                        effectiveDismissedRequestId = legacyDismissedRequestId;
+                        setDismissedRequestId(legacyDismissedRequestId);
+                    }
+                }
+            } catch {}
+        }
+        const exactRequestId = requestedWorkspaceRequestId
+            ? requestedWorkspaceRequestId === explicitResetRequestIdRef.current
+                ? null
+                : requestedWorkspaceRequestId
+            : createdRequestIdRef.current
+                || (suppressAutoResume || preferredRequestId === effectiveDismissedRequestId
+                    ? null
+                    : preferredRequestId);
+        if (exactRequestId) {
+            const { data } = await getBrokerRequestById(exactRequestId, { suppressErrorToast: true });
+            if (activeRequestLoadIdRef.current !== loadId) {
+                return;
+            }
             if (data) {
+                clearNewRequestMode();
                 setActiveRequest(data);
                 publishBrokerRequestWorkspaceSelection(data.id);
-                setRequestType(data.request_type || 'buy');
+                setRequestType(toBrokerRequestType(data.request_type));
                 setLocationPostcode(data.location_postcode || '');
                 setLocation(data.location || '');
                 setBudget(data.budget || '');
@@ -370,14 +500,27 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             }
         }
 
-        const { data, error } = await getUserBrokerRequests({ suppressErrorToast: true });
+        if (suppressAutoResume && !requestedWorkspaceRequestId) {
+            setActiveRequest(null);
+            publishBrokerRequestWorkspaceSelection(null);
+            if (!draftStateRef.current) {
+                resetWorkspaceForm();
+            }
+            return;
+        }
+
+        const { data, error } = prefetchedRequests
+            || await getUserBrokerRequests({ suppressErrorToast: true });
+        if (activeRequestLoadIdRef.current !== loadId) {
+            return;
+        }
         if (error) {
             return;
         }
 
         const userMarket = user?.country === 'India' || user?.country_code === 'IN' || user?.countryCode === 'IN' ? 'IN' : 'GB';
         const filteredRequests = (data || []).filter((req) => {
-            if (dismissedRequestId && req.id === dismissedRequestId) {
+            if (effectiveDismissedRequestId && req.id === effectiveDismissedRequestId) {
                 return false;
             }
             const reqMarket = getLaunchCountryFromLocationCode(req.location_postcode);
@@ -405,16 +548,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setActiveRequest(latestRequest);
         publishBrokerRequestWorkspaceSelection(latestRequest.id);
-        setRequestType(latestRequest.request_type || 'buy');
+        setRequestType(toBrokerRequestType(latestRequest.request_type));
         setLocationPostcode(latestRequest.location_postcode || '');
         setLocation(latestRequest.location || '');
         setBudget(latestRequest.budget || '');
         setDetails(latestRequest.details || '');
         setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
-    }, [requestedWorkspaceRequestId, resetWorkspaceForm, user, dismissedRequestId]);
+    }, [clearNewRequestMode, dismissedRequestId, preferredRequestId, requestedWorkspaceRequestId, resetWorkspaceForm, suppressAutoResume, user]);
+
+    useEffect(() => {
+        if (!requestedWorkspaceRequestId) {
+            explicitResetRequestIdRef.current = null;
+        }
+    }, [requestedWorkspaceRequestId]);
 
     useEffect(() => {
         void loadActiveRequest();
+        return () => {
+            activeRequestLoadIdRef.current += 1;
+        };
     }, [loadActiveRequest]);
 
     useEffect(() => {
@@ -474,12 +626,19 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     }, [fastTrackEnabled, geoMarket, locationPostcode]);
 
     const refreshActiveRequest = useCallback(async () => {
-        if (!activeRequest?.id) {
+        if (!activeRequest?.id || hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
             return;
         }
 
-        const { data } = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
-        if (data) {
+        const requestId = activeRequest.id;
+        const loadGeneration = activeRequestLoadIdRef.current + 1;
+        activeRequestLoadIdRef.current = loadGeneration;
+        const { data } = await getBrokerRequestById(requestId, { suppressErrorToast: true });
+        if (
+            data
+            && data.id === requestId
+            && activeRequestLoadIdRef.current === loadGeneration
+        ) {
             setActiveRequest(data);
             publishBrokerRequestWorkspaceSelection(data.id);
         }
@@ -491,12 +650,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             WORKSPACE_SYNC_TAGS.FAST_TRACK,
             WORKSPACE_SYNC_TAGS.MESSAGES,
         ],
-        refresh: () => activeRequest?.id ? refreshActiveRequest() : loadActiveRequest(),
+        refresh: () => hasActiveBrokerRequestAction(asyncActionStateRef.current)
+            ? Promise.resolve()
+            : activeRequest?.id
+                ? refreshActiveRequest()
+                : loadActiveRequest(),
         enabled: Boolean(activeRequest?.id || requestedWorkspaceRequestId),
     });
 
     const handleRematch = async () => {
-        if (!activeRequest?.id) {
+        if (!activeRequest?.id || hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
             return;
         }
 
@@ -509,9 +672,18 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setRematching(true);
         setError(null);
+        const action = beginAsyncAction(activeRequest.id);
+        if (!action) {
+            setRematching(false);
+            return;
+        }
+        rematchActionRef.current = action.generation;
 
         try {
             const { data, error: rematchError } = await rematchBrokerRequest(activeRequest.id);
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             if (rematchError || !data) {
                 throw new Error(rematchError || 'Unable to find another property agent right now.');
             }
@@ -533,15 +705,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             });
             toast.success(brokerCopy.rematchSuccess);
         } catch (actionError: any) {
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             const message = actionError?.message || 'Unable to find another property agent right now.';
             setError(message);
             toast.error(message);
         } finally {
-            setRematching(false);
+            if (finishAsyncAction(action) && rematchActionRef.current === action.generation) {
+                rematchActionRef.current = 0;
+                setRematching(false);
+            }
         }
     };
 
     const handleSelectProperty = async (propertyId: string) => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
         if (!activeRequest?.id || !user?.id) {
             setSelectionStatusMessage('Please sign in again before selecting a property.');
             toast.error('Please sign in again before selecting a property.');
@@ -550,9 +732,19 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setSelectingPropertyId(propertyId);
         setError(null);
+        const requestId = activeRequest.id;
+        const action = beginAsyncAction(requestId);
+        if (!action) {
+            setSelectingPropertyId(null);
+            return;
+        }
+        selectionActionRef.current = action.generation;
 
         try {
-            const { data: selectedRequest, error: selectionError } = await selectBrokerRequestProperty(activeRequest.id, propertyId);
+            const { data: selectedRequest, error: selectionError } = await selectBrokerRequestProperty(requestId, propertyId);
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             if (selectionError || !selectedRequest) {
                 throw new Error(selectionError || 'Unable to save this home to your guided journey.');
             }
@@ -565,7 +757,10 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 throw new Error('The selected home could not be opened from this agent request.');
             }
 
-            const refreshedRequest = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
+            const refreshedRequest = await getBrokerRequestById(requestId, { suppressErrorToast: true });
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             const resolvedRequest = refreshedRequest.data || selectedRequest;
             setActiveRequest(resolvedRequest);
 
@@ -591,22 +786,38 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             });
             navigate(`/user/properties/${propertyId}?${params.toString()}`);
         } catch (actionError: any) {
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             const message = actionError?.message || 'Unable to select this property right now.';
             setError(message);
             setSelectionStatusMessage(message);
             toast.error(message);
         } finally {
-            setSelectingPropertyId(null);
+            if (finishAsyncAction(action) && selectionActionRef.current === action.generation) {
+                selectionActionRef.current = 0;
+                setSelectingPropertyId(null);
+            }
         }
     };
 
     const handleOpenConversation = async () => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
         if (!activeRequest?.matched_broker_id || !user) {
             toast.error('The matched agent conversation is not ready yet.');
             return;
         }
 
         setOpeningConversation(true);
+        const action = beginAsyncAction(activeRequest.id);
+        if (!action) {
+            setOpeningConversation(false);
+            return;
+        }
+        conversationActionRef.current = action.generation;
         try {
             const propertyContext = selectedProperty
                 ? {
@@ -634,21 +845,40 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 recipientAgency: matchedBroker?.company_name || '',
             });
 
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
+
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            if (isAsyncActionCurrent(action)) {
+                toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            }
         } finally {
-            setOpeningConversation(false);
+            if (finishAsyncAction(action) && conversationActionRef.current === action.generation) {
+                conversationActionRef.current = 0;
+                setOpeningConversation(false);
+            }
         }
     };
 
     const handleOpenBrokerConversation = async (broker: LeadBrokerSummary) => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
         if (!user) {
             toast.error('Sign in to message this agent.');
             return;
         }
 
         setOpeningConversation(true);
+        const action = beginAsyncAction(null);
+        if (!action) {
+            setOpeningConversation(false);
+            return;
+        }
+        conversationActionRef.current = action.generation;
         try {
             const conversation = await messagesService.upsertDirectConversation(broker.id, {
                 propertyTitle: `${formatRequestTypeLabel(requestType)} enquiry`,
@@ -662,21 +892,56 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 recipientPhone: broker.phone || '',
                 recipientAgency: broker.company_name || '',
             });
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            if (isAsyncActionCurrent(action)) {
+                toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            }
         } finally {
-            setOpeningConversation(false);
+            if (finishAsyncAction(action) && conversationActionRef.current === action.generation) {
+                conversationActionRef.current = 0;
+                setOpeningConversation(false);
+            }
         }
     };
 
     const handleStartAnotherRequest = useCallback(() => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+        const requestIdToDismiss = activeRequest?.id || requestedWorkspaceRequestId || preferredRequestId;
+        if (requestIdToDismiss) {
+            explicitResetRequestIdRef.current = requestIdToDismiss;
+            const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
+            try {
+                if (dismissedKey) localStorage.setItem(dismissedKey, requestIdToDismiss);
+            } catch {}
+            setDismissedRequestId(requestIdToDismiss);
+        }
+        const newRequestModeKey = getUserScopedRequestKey(NEW_REQUEST_MODE_KEY, user?.id);
+        try {
+            if (newRequestModeKey) sessionStorage.setItem(newRequestModeKey, 'true');
+        } catch {}
+        setSuppressAutoResume(true);
+        createdRequestIdRef.current = null;
+        activeRequestLoadIdRef.current += 1;
+        cancelBrokerRequestAction(asyncActionStateRef.current);
+        rematchActionRef.current = 0;
+        selectionActionRef.current = 0;
+        conversationActionRef.current = 0;
+        setLoading(false);
+        setRematching(false);
+        setSelectingPropertyId(null);
+        setOpeningConversation(false);
         setActiveRequest(null);
-        setError(null);
+        resetWorkspaceForm();
         setSelectionStatusMessage('');
         publishBrokerRequestWorkspaceSelection(null);
         navigate('/user/dashboard', { replace: true });
-    }, [navigate]);
+    }, [activeRequest?.id, navigate, preferredRequestId, requestedWorkspaceRequestId, resetWorkspaceForm, user?.id]);
 
     const handleLockedMatchAction = () => {
         if (!activeRequest?.id) {
@@ -704,6 +969,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
+        const nextBudgetError = getBrokerRequestBudgetError(budget, requestType);
+        if (nextBudgetError) {
+            setBudgetError(nextBudgetError);
+            return;
+        }
+
         const trimmedPostcode = normalizePostcode(locationPostcode);
         if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
             setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
@@ -717,7 +992,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setLoading(true);
         setError(null);
+        setBudgetError(null);
         setPostcodeError(null);
+        const action = beginAsyncAction(null);
+        if (!action) {
+            setLoading(false);
+            return;
+        }
 
         try {
             const { success, data, error: requestError } = await createBrokerRequest({
@@ -729,21 +1010,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 fastTrackEnabled,
             });
 
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
+
             if (!success) {
                 throw new Error(normalizeLaunchLocationCodeErrorMessage(requestError || 'Failed to submit request', formattedPostcode));
             }
 
             if (data) {
+                const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
                 try {
-                    localStorage.removeItem(DISMISSED_REQUEST_KEY);
+                    if (dismissedKey) localStorage.removeItem(dismissedKey);
                 } catch {}
                 setDismissedRequestId(null);
+                clearNewRequestMode();
 
-                const hydratedRequest = data.id
-                    ? await getBrokerRequestById(data.id, { suppressErrorToast: true })
-                    : { data: null };
-                const resolvedRequest = hydratedRequest.data || data;
+                const resolvedRequest = data;
 
+                createdRequestIdRef.current = resolvedRequest.id;
                 setActiveRequest(resolvedRequest);
                 publishBrokerRequestWorkspaceSelection(resolvedRequest.id);
                 publishWorkspaceSync({
@@ -763,9 +1048,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 navigate(buildBrokerRequestWorkspacePath(resolvedRequest.id), { replace: true });
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to submit request. Please try again.');
+            if (isAsyncActionCurrent(action)) {
+                setError(err.message || 'Failed to submit request. Please try again.');
+            }
         } finally {
-            setLoading(false);
+            if (finishAsyncAction(action)) {
+                setLoading(false);
+            }
         }
     };
 
@@ -1418,7 +1707,8 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 <button
                                     type="button"
                                     onClick={handleStartAnotherRequest}
-                                    className="mt-4 hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:inline-flex"
+                                    disabled={loading || rematching || Boolean(selectingPropertyId) || openingConversation}
+                                    className="mt-4 hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:inline-flex"
                                 >
                                     <Radio size={14} />
                                     {brokerCopy.restartRequestLabel}
@@ -1484,7 +1774,8 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     <button
                         type="button"
                         onClick={handleStartAnotherRequest}
-                        className="mb-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden"
+                        disabled={loading || rematching || Boolean(selectingPropertyId) || openingConversation}
+                        className="mb-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden"
                     >
                         <span>Start a different request</span>
                         <ArrowRight size={16} className="shrink-0" aria-hidden="true" />
@@ -1495,11 +1786,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     className={`space-y-4 ${activeRequest ? 'hidden sm:block' : 'block'}`}
                 >
                 <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700/50">
-                    {['buy', 'rent', 'sell'].map((type) => (
+                    {(['buy', 'rent', 'sell'] as BrokerRequestType[]).map((type) => (
                         <button
                             key={type}
                             type="button"
-                            onClick={() => setRequestType(type)}
+                            onClick={() => {
+                                setRequestType(type);
+                                setBudgetError(budget.trim()
+                                    ? getBrokerRequestBudgetError(budget, type)
+                                    : null);
+                            }}
                             className={`flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition-all ${
                                 requestType === type
                                     ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
@@ -1538,12 +1834,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
                 <div className="space-y-3">
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-location" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             Preferred Location
                         </label>
                         <div className="relative">
                             <MapPin size={14} className="absolute left-3 top-2.5 text-gray-400" />
                             <input
+                                id="broker-request-location"
                                 type="text"
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
@@ -1556,10 +1853,11 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     </div>
 
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-location-code" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             {locationCodeLabel}
                         </label>
                         <input
+                            id="broker-request-location-code"
                             type="text"
                             value={locationPostcode}
                             onChange={(e) => {
@@ -1574,30 +1872,43 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                             }}
                             placeholder={locationCodePlaceholder}
                             maxLength={8}
+                            aria-invalid={Boolean(postcodeError)}
+                            aria-describedby={postcodeError ? 'broker-request-location-code-error' : undefined}
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
                         />
                         {postcodeError && (
-                            <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
+                            <p id="broker-request-location-code-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
                         )}
                     </div>
 
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-budget" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             Budget / Price Range ({geoMarketCurrencyCode})
                         </label>
                         <div className="relative">
                             <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{geoMarketCurrencyCode}</span>
                             <input
+                                id="broker-request-budget"
                                 type="text"
                                 value={budget}
-                                onChange={(e) => setBudget(e.target.value)}
+                                onChange={(e) => {
+                                    setBudget(e.target.value);
+                                    if (budgetError) {
+                                        setBudgetError(null);
+                                    }
+                                }}
                                 placeholder="e.g. 500k - 600k"
                                 maxLength={255}
+                                aria-invalid={Boolean(budgetError)}
+                                aria-describedby={budgetError ? 'broker-request-budget-error' : undefined}
                                 className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-12 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                                 required
                             />
                         </div>
+                        {budgetError && (
+                            <p id="broker-request-budget-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{budgetError}</p>
+                        )}
                     </div>
 
                     <div>
@@ -1639,7 +1950,9 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                             <button
                                                 type="button"
                                                 onClick={() => handleOpenBrokerConversation(broker)}
-                                                className="text-left text-xs font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 sm:text-sm sm:font-semibold"
+                                                disabled={openingConversation}
+                                                aria-label={`Message ${broker.name}`}
+                                                className="text-left text-xs font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 disabled:cursor-wait disabled:opacity-60 dark:text-blue-400 dark:hover:text-blue-300 sm:text-sm sm:font-semibold"
                                             >
                                                 {broker.name}
                                             </button>

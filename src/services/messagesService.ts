@@ -1,4 +1,5 @@
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { getAuthTokenVersion } from '@/lib/authToken';
 
 const MESSAGING_URL = () => getServiceUrl('messaging');
 
@@ -208,7 +209,8 @@ export async function upsertDirectConversation(
     recipientId: string,
     context?: ConversationContext,
 ): Promise<Conversation> {
-    return apiFetch<Conversation>(`${MESSAGING_URL()}/api/v1/conversations/direct`, {
+    const authTokenVersion = getAuthTokenVersion();
+    const conversation = await apiFetch<Conversation>(`${MESSAGING_URL()}/api/v1/conversations/direct`, {
         method: 'POST',
         suppressErrorToast: true,
         body: JSON.stringify({
@@ -216,6 +218,24 @@ export async function upsertDirectConversation(
             context: mapConversationContext(context),
         }),
     });
+    directConversationUpsertListeners.forEach((listener) => listener({ conversation, authTokenVersion }));
+    return conversation;
+}
+
+export interface DirectConversationUpsertEvent {
+    conversation: Conversation;
+    authTokenVersion: number;
+}
+
+type DirectConversationUpsertListener = (event: DirectConversationUpsertEvent) => void;
+
+const directConversationUpsertListeners = new Set<DirectConversationUpsertListener>();
+
+export function subscribeToDirectConversationUpserts(listener: DirectConversationUpsertListener) {
+    directConversationUpsertListeners.add(listener);
+    return () => {
+        directConversationUpsertListeners.delete(listener);
+    };
 }
 
 export async function markAsRead(conversationId: string): Promise<void> {

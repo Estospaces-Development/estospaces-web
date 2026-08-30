@@ -87,7 +87,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(userDashboardSource, /locationContextCode=\{brokerRequestLocationContext \|\| activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
-    assert.match(userDashboardSource, /<BrokerRequestWidget onLocationContextChange=\{handleBrokerRequestLocationContextChange\} \/>/);
+    assert.match(userDashboardSource, /<BrokerRequestWidget[\s\S]*onLocationContextChange=\{handleBrokerRequestLocationContextChange\}[\s\S]*preferredRequestId=\{activeJourney\?\.brokerRequestId \|\| \([\s\S]*activeBrokerRequest && shouldAutoResumeBrokerRequest\(activeBrokerRequest\)[\s\S]*\? activeBrokerRequest\.id[\s\S]*: null[\s\S]*\)\}[\s\S]*\/>/);
 });
 
 test('free-text property titles do not select a country market', () => {

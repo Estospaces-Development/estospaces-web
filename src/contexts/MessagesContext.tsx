@@ -6,8 +6,18 @@ import { useAuth } from './AuthContext';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
+    clearAuthorizedConversations,
+    forgetAuthorizedConversation,
+    isUserVisibleConversation,
+    mergeUserVisibleConversations,
+    rememberAuthorizedConversation,
+} from '@/lib/conversationVisibility';
+import { getAuthTokenVersion } from '@/lib/authToken';
+import { mergeLatestMessagePage } from '@/lib/messagePagination';
+import {
     createUnavailableConversationThreadIssue,
     isUnavailableConversationThreadError,
+    resolveHasLoadedConversations,
     type ConversationThreadIssue,
 } from '@/lib/messagesInbox';
 
@@ -77,7 +87,13 @@ interface MessagesContextType {
     deleteConversation: (conversationId: string) => void;
     getConversation: (conversationId: string) => Conversation | undefined;
     quickReplyTemplates: string[];
-    refreshConversations: () => Promise<void>;
+    refreshConversations: () => Promise<ConversationRefreshResult>;
+}
+
+export interface ConversationRefreshResult {
+    success: boolean;
+    conversationIds: string[];
+    outcome: 'success' | 'failed' | 'superseded';
 }
 
 const MessagesContext = createContext<MessagesContextType | undefined>(undefined);
@@ -203,6 +219,40 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
     const [conversationThreadIssue, setConversationThreadIssue] = useState<ConversationThreadIssue | null>(null);
     const locallyReadConversationMarkersRef = useRef<Record<string, string>>({});
+    const authorizedConversationIdsRef = useRef<Set<string>>(new Set());
+    const conversationLoadGenerationRef = useRef(0);
+    const foregroundConversationLoadGenerationRef = useRef(0);
+    const foregroundConversationLoadInFlightRef = useRef(false);
+    const silentConversationLoadGenerationRef = useRef<number | null>(null);
+    const messageLoadGenerationRef = useRef<Map<string, number>>(new Map());
+    const messageLoadsInFlightRef = useRef<Map<string, Promise<boolean>>>(new Map());
+    const activeUserIdRef = useRef<string | null>(user?.id || null);
+    const previousUserIdRef = useRef<string | null>(user?.id || null);
+    activeUserIdRef.current = user?.id || null;
+
+    useEffect(() => {
+        const nextUserId = user?.id || null;
+        if (previousUserIdRef.current === nextUserId) {
+            return;
+        }
+        const previousUserId = previousUserIdRef.current;
+        previousUserIdRef.current = nextUserId;
+        conversationLoadGenerationRef.current += 1;
+        foregroundConversationLoadGenerationRef.current += 1;
+        authorizedConversationIdsRef.current = new Set();
+        if (previousUserId) {
+            clearAuthorizedConversations(previousUserId);
+        }
+        messageLoadGenerationRef.current = new Map();
+        messageLoadsInFlightRef.current = new Map();
+        setConversations([]);
+        setSelectedConversationIdState(null);
+        setConversationThreadIssue(null);
+        setHasLoadedConversations(false);
+        setIsLoading(false);
+        foregroundConversationLoadInFlightRef.current = false;
+        silentConversationLoadGenerationRef.current = null;
+    }, [user?.id]);
 
     const getConversationReadMarker = useCallback((conversation: {
         id?: string;
@@ -348,39 +398,37 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         };
     }, [getConversationReadMarker, mapBackendMessage, selectedConversationIdState]);
 
-    const ensureConversationShell = useCallback((conversationId: string) => {
-        setConversations((previous) => {
-            if (previous.some((conversation) => conversation.id === conversationId)) {
-                return previous;
-            }
+    useEffect(() => messagesService.subscribeToDirectConversationUpserts(({ conversation: backendConversation, authTokenVersion }) => {
+        const userId = activeUserIdRef.current;
+        if (
+            !userId
+            || authTokenVersion !== getAuthTokenVersion()
+            || !isUserVisibleConversation(backendConversation)
+        ) {
+            return;
+        }
 
-            return [createPlaceholderConversation(conversationId), ...previous];
+        rememberAuthorizedConversation(userId, backendConversation);
+        authorizedConversationIdsRef.current.add(backendConversation.id);
+        setConversations((previous) => {
+            const existingConversation = previous.find((conversation) => conversation.id === backendConversation.id);
+            const mappedConversation = mapBackendConversation(backendConversation, existingConversation);
+            if (existingConversation) {
+                return previous.map((conversation) => (
+                    conversation.id === backendConversation.id ? mappedConversation : conversation
+                ));
+            }
+            return [mappedConversation, ...previous];
         });
-    }, []);
+    }), [mapBackendConversation]);
 
     const setSelectedConversationId = useCallback((id: string | null) => {
         setConversationThreadIssue(null);
-        if (id) {
-            ensureConversationShell(id);
-        }
         setSelectedConversationIdState(id);
-    }, [ensureConversationShell]);
+    }, []);
 
     const clearConversationThreadIssue = useCallback(() => {
         setConversationThreadIssue(null);
-    }, []);
-
-    const clearConversationMessages = useCallback((conversationId: string) => {
-        setConversations((previous) =>
-            previous.map((conversation) =>
-                conversation.id === conversationId
-                    ? {
-                        ...conversation,
-                        messages: [],
-                    }
-                    : conversation,
-            ),
-        );
     }, []);
 
     const handleUnavailableConversationThread = useCallback((conversationId: string, error: unknown) => {
@@ -388,80 +436,136 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             return false;
         }
 
-        clearConversationMessages(conversationId);
+        setConversations((previous) => previous.filter((conversation) => conversation.id !== conversationId));
+        if (activeUserIdRef.current) {
+            forgetAuthorizedConversation(activeUserIdRef.current, conversationId);
+        }
+        authorizedConversationIdsRef.current.delete(conversationId);
         setConversationThreadIssue(createUnavailableConversationThreadIssue(conversationId));
         setSelectedConversationIdState((current) => (current === conversationId ? null : current));
         return true;
-    }, [clearConversationMessages]);
+    }, []);
 
     const loadConversations = useCallback(async (silent: boolean) => {
         if (!user) {
+            conversationLoadGenerationRef.current += 1;
+            authorizedConversationIdsRef.current = new Set();
+            messageLoadGenerationRef.current = new Map();
+            messageLoadsInFlightRef.current = new Map();
             setConversations([]);
             setSelectedConversationIdState(null);
             setConversationThreadIssue(null);
             setHasLoadedConversations(false);
-            return;
+            silentConversationLoadGenerationRef.current = null;
+            return { success: false, conversationIds: [], outcome: 'failed' as const };
+        }
+        if (silent && silentConversationLoadGenerationRef.current !== null) {
+            return { success: false, conversationIds: [], outcome: 'superseded' as const };
+        }
+        if (silent && foregroundConversationLoadInFlightRef.current) {
+            return { success: false, conversationIds: [], outcome: 'superseded' as const };
         }
 
         if (!silent) {
             setIsLoading(true);
+            foregroundConversationLoadInFlightRef.current = true;
+        }
+        const requestUserId = user.id;
+        const loadGeneration = conversationLoadGenerationRef.current + 1;
+        conversationLoadGenerationRef.current = loadGeneration;
+        if (silent) {
+            silentConversationLoadGenerationRef.current = loadGeneration;
+        }
+        const foregroundLoadGeneration = !silent
+            ? foregroundConversationLoadGenerationRef.current + 1
+            : foregroundConversationLoadGenerationRef.current;
+        if (!silent) {
+            foregroundConversationLoadGenerationRef.current = foregroundLoadGeneration;
         }
 
         try {
             const backendConversations = await messagesService.getConversations();
+            if (
+                conversationLoadGenerationRef.current !== loadGeneration
+                || activeUserIdRef.current !== requestUserId
+            ) {
+                return { success: false, conversationIds: [], outcome: 'superseded' as const };
+            }
+            const visibleBackendConversations = mergeUserVisibleConversations(requestUserId, backendConversations);
+            authorizedConversationIdsRef.current = new Set(visibleBackendConversations.map((conversation) => conversation.id));
             setConversations((previous) =>
                 {
-                    const mappedConversations = backendConversations
-                    .filter((conversation) => {
-                        const convType = ((conversation as messagesService.Conversation & { type?: string }).type ?? '') as string;
-                        const metadataStr = typeof conversation.metadata === 'string' ? conversation.metadata : JSON.stringify(conversation.metadata);
-                        if (convType === 'system' || metadataStr.includes('"is_system":true')) {
-                            return false;
-                        }
-                        if (metadataStr.includes('"is_test":true') || metadataStr.includes('"qa_test"')) {
-                            return false;
-                        }
-                        return true;
-                    })
+                    const mappedConversations = visibleBackendConversations
                     .map((conversation) =>
                         mapBackendConversation(
                             conversation,
                             previous.find((existingConversation) => existingConversation.id === conversation.id),
                         ),
                     );
-                    const preservedConversations = previous.filter((existingConversation) => {
-                        const existsInBackend = backendConversations.some((conversation) => conversation.id === existingConversation.id);
-                        if (existsInBackend) {
-                            return false;
-                        }
-
-                        return existingConversation.id === selectedConversationIdState || existingConversation.messages.length > 0;
-                    });
-
-                    return [...mappedConversations, ...preservedConversations];
+                    return mappedConversations;
                 },
             );
+            setHasLoadedConversations((wasLoaded) => resolveHasLoadedConversations(wasLoaded, true));
+            return {
+                success: true,
+                conversationIds: visibleBackendConversations.map((conversation) => conversation.id),
+                outcome: 'success' as const,
+            };
         } catch {
-            // Keep the current state if a polling request fails.
-        } finally {
-            if (!silent) {
-                setIsLoading(false);
+            if (
+                !silent
+                && conversationLoadGenerationRef.current === loadGeneration
+                && activeUserIdRef.current === requestUserId
+            ) {
                 setHasLoadedConversations(true);
             }
+            // Keep the current conversation rows if a polling or foreground request fails.
+            return { success: false, conversationIds: [], outcome: 'failed' as const };
+        } finally {
+            if (silent && silentConversationLoadGenerationRef.current === loadGeneration) {
+                silentConversationLoadGenerationRef.current = null;
+            }
+            if (
+                !silent
+                && foregroundConversationLoadGenerationRef.current === foregroundLoadGeneration
+                && activeUserIdRef.current === requestUserId
+            ) {
+                setIsLoading(false);
+                foregroundConversationLoadInFlightRef.current = false;
+            }
         }
-    }, [mapBackendConversation, selectedConversationIdState, user]);
+    }, [mapBackendConversation, user]);
 
     const refreshConversations = useCallback(async () => {
-        await loadConversations(false);
+        return loadConversations(false);
     }, [loadConversations]);
 
     const loadConversationMessages = useCallback(async (conversationId: string) => {
-        try {
-            const backendMessages = await messagesService.getMessages(conversationId, 1, MESSAGE_PAGE_SIZE);
-            const mappedMessages = backendMessages.map(mapBackendMessage);
+        if (!authorizedConversationIdsRef.current.has(conversationId)) {
+            return false;
+        }
+        const existingLoad = messageLoadsInFlightRef.current.get(conversationId);
+        if (existingLoad) {
+            return existingLoad;
+        }
+        const requestUserId = activeUserIdRef.current;
+        const generationKey = `${conversationId}:latest`;
+        const loadGeneration = (messageLoadGenerationRef.current.get(generationKey) || 0) + 1;
+        messageLoadGenerationRef.current.set(generationKey, loadGeneration);
 
-            setConversations((previous) =>
-                {
+        const loadPromise = (async () => {
+            try {
+                const backendMessages = await messagesService.getMessages(conversationId, 1, MESSAGE_PAGE_SIZE);
+                if (
+                    messageLoadGenerationRef.current.get(generationKey) !== loadGeneration
+                    || activeUserIdRef.current !== requestUserId
+                    || !authorizedConversationIdsRef.current.has(conversationId)
+                ) {
+                    return false;
+                }
+                const mappedMessages = backendMessages.map(mapBackendMessage);
+
+                setConversations((previous) => {
                     let didUpdateConversation = false;
                     const updatedConversations = previous.map((conversation) => {
                         if (conversation.id !== conversationId) {
@@ -469,11 +573,14 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                         }
 
                         didUpdateConversation = true;
+                        const hasLoadedOlderPages = conversation.messagesPage > 1;
                         return {
                             ...conversation,
-                            messages: mappedMessages,
-                            messagesPage: 1,
-                            hasOlderMessages: backendMessages.length === MESSAGE_PAGE_SIZE,
+                            messages: mergeLatestMessagePage(conversation.messages, mappedMessages),
+                            messagesPage: Math.max(conversation.messagesPage, 1),
+                            hasOlderMessages: hasLoadedOlderPages
+                                ? conversation.hasOlderMessages
+                                : backendMessages.length === MESSAGE_PAGE_SIZE,
                             isLoadingOlderMessages: false,
                             lastMessage: mappedMessages[mappedMessages.length - 1]?.text || conversation.lastMessage,
                             lastMessageTime: mappedMessages.length > 0
@@ -499,26 +606,46 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                         },
                         ...updatedConversations,
                     ];
-                },
-            );
-            return true;
-        } catch (error) {
-            if (handleUnavailableConversationThread(conversationId, error)) {
+                });
+                return true;
+            } catch (error) {
+                const requestIsCurrent = messageLoadGenerationRef.current.get(generationKey) === loadGeneration
+                    && activeUserIdRef.current === requestUserId
+                    && authorizedConversationIdsRef.current.has(conversationId);
+                if (requestIsCurrent && handleUnavailableConversationThread(conversationId, error)) {
+                    return false;
+                }
+
+                // Keep the existing local state if a non-fatal polling request fails.
                 return false;
             }
-
-            // Keep the existing local state if a non-fatal polling request fails.
-            return false;
+        })();
+        messageLoadsInFlightRef.current.set(conversationId, loadPromise);
+        try {
+            return await loadPromise;
+        } finally {
+            if (messageLoadsInFlightRef.current.get(conversationId) === loadPromise) {
+                messageLoadsInFlightRef.current.delete(conversationId);
+            }
         }
     }, [handleUnavailableConversationThread, mapBackendMessage]);
 
     const loadOlderMessages = useCallback(async (conversationId: string) => {
         const conversation = conversations.find((item) => item.id === conversationId);
-        if (!conversation || conversation.isLoadingOlderMessages || !conversation.hasOlderMessages) {
+        if (
+            !conversation
+            || !authorizedConversationIdsRef.current.has(conversationId)
+            || conversation.isLoadingOlderMessages
+            || !conversation.hasOlderMessages
+        ) {
             return;
         }
 
         const nextPage = Math.max(conversation.messagesPage, 1) + 1;
+        const requestUserId = activeUserIdRef.current;
+        const generationKey = `${conversationId}:older`;
+        const loadGeneration = (messageLoadGenerationRef.current.get(generationKey) || 0) + 1;
+        messageLoadGenerationRef.current.set(generationKey, loadGeneration);
         setConversations((previous) =>
             previous.map((item) =>
                 item.id === conversationId ? { ...item, isLoadingOlderMessages: true } : item,
@@ -527,6 +654,13 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
 
         try {
             const backendMessages = await messagesService.getMessages(conversationId, nextPage, MESSAGE_PAGE_SIZE);
+            if (
+                messageLoadGenerationRef.current.get(generationKey) !== loadGeneration
+                || activeUserIdRef.current !== requestUserId
+                || !authorizedConversationIdsRef.current.has(conversationId)
+            ) {
+                return;
+            }
             const mappedMessages = backendMessages.map(mapBackendMessage);
             setConversations((previous) =>
                 previous.map((item) => {
@@ -546,6 +680,12 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 }),
             );
         } catch (error) {
+            const requestIsCurrent = messageLoadGenerationRef.current.get(generationKey) === loadGeneration
+                && activeUserIdRef.current === requestUserId
+                && authorizedConversationIdsRef.current.has(conversationId);
+            if (!requestIsCurrent) {
+                return;
+            }
             if (handleUnavailableConversationThread(conversationId, error)) {
                 return;
             }
@@ -575,6 +715,11 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         }
 
         setConversations([]);
+        conversationLoadGenerationRef.current += 1;
+        foregroundConversationLoadGenerationRef.current += 1;
+        foregroundConversationLoadInFlightRef.current = false;
+        authorizedConversationIdsRef.current = new Set();
+        messageLoadGenerationRef.current = new Map();
         setSelectedConversationIdState(null);
         setConversationThreadIssue(null);
         setHasLoadedConversations(false);
@@ -647,25 +792,14 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             return;
         }
 
-        const hasConversation = conversations.some((conversation) => conversation.id === selectedConversationIdState);
-        if (conversations.length === 0) {
+        if (!hasLoadedConversations) {
             return;
         }
+        const hasConversation = conversations.some((conversation) => conversation.id === selectedConversationIdState);
         if (!hasConversation) {
             setSelectedConversationIdState(null);
         }
-    }, [conversations, selectedConversationIdState]);
-
-    useEffect(() => {
-        if (!selectedConversationIdState) {
-            return;
-        }
-
-        const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationIdState);
-        if (selectedConversation && selectedConversation.messages.length === 0) {
-            void loadConversationMessages(selectedConversationIdState);
-        }
-    }, [conversations, loadConversationMessages, selectedConversationIdState]);
+    }, [conversations, hasLoadedConversations, selectedConversationIdState]);
 
     const totalUnreadCount = conversations.reduce((sum, conversation) => {
         if (conversation.isArchived) {
@@ -715,6 +849,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         try {
             const context = buildConversationContext(user, agentData, propertyData);
             const conversation = await messagesService.upsertDirectConversation(agentData.id, context);
+            if (user?.id) {
+                rememberAuthorizedConversation(user.id, conversation);
+            }
             const introduction = `Hi, I'm interested in "${propertyData?.title || 'this property'}".`;
 
             await messagesService.sendMessage({
@@ -724,7 +861,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             });
 
             await refreshConversations();
-            await loadConversationMessages(conversation.id);
             setSelectedConversationId(conversation.id);
             publishWorkspaceSync({
                 key: `messages:create:${conversation.id}`,
@@ -739,7 +875,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         } finally {
             setIsLoading(false);
         }
-    }, [loadConversationMessages, publishWorkspaceSync, refreshConversations, setSelectedConversationId, user]);
+    }, [publishWorkspaceSync, refreshConversations, setSelectedConversationId, user]);
 
     const sendMessage = useCallback(async (conversationId: string, text: string, attachments: any[] = []) => {
         if (!text.trim() && attachments.length === 0) {

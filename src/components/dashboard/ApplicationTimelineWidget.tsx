@@ -173,7 +173,7 @@ const buildJourneyKey = (payload: {
 };
 
 const TIMELINE_PAGE_SIZE = 4;
-type TimelineTab = 'applications' | 'viewings' | 'contracts' | 'listings';
+type TimelineTab = 'applications' | 'requests' | 'viewings' | 'contracts' | 'listings';
 type TimelineSort = 'updated_desc' | 'updated_asc' | 'price_desc' | 'price_asc' | 'progress_desc';
 
 const toPropertyImages = (value: unknown) => getPropertyImages({ image_urls: value });
@@ -262,11 +262,13 @@ const ApplicationTimelineWidget = () => {
     const [showTimeline, setShowTimeline] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(true);
     const [applications, setApplications] = useState<ApplicationItem[]>([]);
+    const [brokerRequests, setBrokerRequests] = useState<ApplicationItem[]>([]);
     const [viewingItems, setViewingItems] = useState<ApplicationItem[]>([]);
     const [contractItems, setContractItems] = useState<ApplicationItem[]>([]);
     const [listings, setListings] = useState<ApplicationItem[]>([]);
     const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
     const [applicationsPage, setApplicationsPage] = useState(1);
+    const [brokerRequestsPage, setBrokerRequestsPage] = useState(1);
     const [viewingsPage, setViewingsPage] = useState(1);
     const [contractsPage, setContractsPage] = useState(1);
     const [listingsPage, setListingsPage] = useState(1);
@@ -688,10 +690,13 @@ const ApplicationTimelineWidget = () => {
                 });
 
                 setApplications(
-                    [...mappedBrokerRequests, ...mappedSaleProgressions, ...mappedApps].sort(
+                    [...mappedSaleProgressions, ...mappedApps].sort(
                         (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
                     ),
                 );
+                setBrokerRequests(mappedBrokerRequests.sort(
+                    (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
+                ));
                 setViewingItems(mappedViewings.sort(
                     (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
                 ));
@@ -765,12 +770,16 @@ const ApplicationTimelineWidget = () => {
 
     useEffect(() => {
         const applicationsTotalPages = Math.max(1, Math.ceil(applications.length / TIMELINE_PAGE_SIZE));
+        const brokerRequestsTotalPages = Math.max(1, Math.ceil(brokerRequests.length / TIMELINE_PAGE_SIZE));
         const viewingsTotalPages = Math.max(1, Math.ceil(viewingItems.length / TIMELINE_PAGE_SIZE));
         const contractsTotalPages = Math.max(1, Math.ceil(contractItems.length / TIMELINE_PAGE_SIZE));
         const listingsTotalPages = Math.max(1, Math.ceil(listings.length / TIMELINE_PAGE_SIZE));
 
         if (applicationsPage > applicationsTotalPages) {
             setApplicationsPage(applicationsTotalPages);
+        }
+        if (brokerRequestsPage > brokerRequestsTotalPages) {
+            setBrokerRequestsPage(brokerRequestsTotalPages);
         }
         if (viewingsPage > viewingsTotalPages) {
             setViewingsPage(viewingsTotalPages);
@@ -785,6 +794,8 @@ const ApplicationTimelineWidget = () => {
     }, [
         applications.length,
         applicationsPage,
+        brokerRequests.length,
+        brokerRequestsPage,
         contractItems.length,
         contractsPage,
         listings.length,
@@ -795,22 +806,26 @@ const ApplicationTimelineWidget = () => {
 
     const sourceItems = activeTab === 'applications'
         ? applications
-        : activeTab === 'viewings'
-            ? viewingItems
-            : activeTab === 'contracts'
-                ? contractItems
-                : listings;
+        : activeTab === 'requests'
+            ? brokerRequests
+            : activeTab === 'viewings'
+                ? viewingItems
+                : activeTab === 'contracts'
+                    ? contractItems
+                    : listings;
     const dataToShow = useMemo(
         () => filterTimelineItems(sourceItems, timelineFilter, timelineSort),
         [sourceItems, timelineFilter, timelineSort],
     );
     const activePage = activeTab === 'applications'
         ? applicationsPage
-        : activeTab === 'viewings'
-            ? viewingsPage
-            : activeTab === 'contracts'
-                ? contractsPage
-                : listingsPage;
+        : activeTab === 'requests'
+            ? brokerRequestsPage
+            : activeTab === 'viewings'
+                ? viewingsPage
+                : activeTab === 'contracts'
+                    ? contractsPage
+                    : listingsPage;
     const totalPages = Math.max(1, Math.ceil(dataToShow.length / TIMELINE_PAGE_SIZE));
     const currentPageItems = dataToShow.slice(
         (activePage - 1) * TIMELINE_PAGE_SIZE,
@@ -820,6 +835,8 @@ const ApplicationTimelineWidget = () => {
     useEffect(() => {
         if (activeTab === 'applications') {
             setApplicationsPage(1);
+        } else if (activeTab === 'requests') {
+            setBrokerRequestsPage(1);
         } else if (activeTab === 'viewings') {
             setViewingsPage(1);
         } else if (activeTab === 'contracts') {
@@ -841,6 +858,10 @@ const ApplicationTimelineWidget = () => {
             setApplicationsPage(page);
             return;
         }
+        if (activeTab === 'requests') {
+            setBrokerRequestsPage(page);
+            return;
+        }
         if (activeTab === 'viewings') {
             setViewingsPage(page);
             return;
@@ -855,6 +876,7 @@ const ApplicationTimelineWidget = () => {
 
     const timelineTabs: Array<{ id: TimelineTab; label: string; count: number; itemLabel: string }> = [
         { id: 'applications', label: 'Applications', count: applications.length, itemLabel: 'applications' },
+        { id: 'requests', label: 'Agent requests', count: brokerRequests.length, itemLabel: 'agent requests' },
         { id: 'viewings', label: 'Viewings', count: viewingItems.length, itemLabel: 'viewings' },
         { id: 'contracts', label: 'Contracts', count: contractItems.length, itemLabel: 'contracts' },
         { id: 'listings', label: 'My homes', count: listings.length, itemLabel: 'listings' },

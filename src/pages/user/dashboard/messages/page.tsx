@@ -5,7 +5,7 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowLeft, MessageSquare, PlusCircle, RefreshCw, UserRound } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -18,10 +18,13 @@ import { getApplications } from '@/services/applicationsService';
 import { getUserLeads } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
 import {
-
+    buildConversationListUrl,
+    createConversationRefreshFailedIssue,
+    createUnavailableConversationThreadIssue,
     resolveConversationQuerySelection,
     type ConversationThreadIssue,
 } from '@/lib/messagesInbox';
+import { rememberAuthorizedConversation } from '@/lib/conversationVisibility';
 
 type ManagerRecommendation = {
     managerId: string;
@@ -69,12 +72,15 @@ function formatLeadAddress(lead: NonNullable<Awaited<ReturnType<typeof getUserLe
 }
 
 function MessagesContent() {
+    const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
     const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
     const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
+    const requestedConversationIdRef = useRef<string | null>(null);
+    const threadIssueRef = useRef<HTMLDivElement | null>(null);
     const {
         conversations: _conversations,
         allConversations,
@@ -96,6 +102,7 @@ function MessagesContent() {
     const requestedConversationId = searchParams.get('conversation');
     const newConversationWith = searchParams.get('newConversationWith');
     const normalizedRequestedConversationId = requestedConversationId?.trim() || null;
+    requestedConversationIdRef.current = normalizedRequestedConversationId;
 
     useEffect(() => {
         if (!newConversationWith) {
@@ -201,11 +208,37 @@ function MessagesContent() {
         }
 
         if (queryResolution.status === 'refresh' && queryResolution.conversationId) {
-            attemptedConversationRefreshesRef.current.add(queryResolution.conversationId);
-            conversationRefreshesInFlightRef.current.add(queryResolution.conversationId);
+            const conversationId = queryResolution.conversationId;
+            conversationRefreshesInFlightRef.current.add(conversationId);
             void refreshConversations()
+                .then((result) => {
+                    if (requestedConversationIdRef.current !== conversationId) {
+                        return;
+                    }
+                    if (result.outcome === 'superseded') {
+                        return;
+                    }
+                    if (!result.success) {
+                        setSelectedConversationId(null);
+                        setRouteConversationIssue(createConversationRefreshFailedIssue(conversationId));
+                        setMobileView('thread');
+                        navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+                        return;
+                    }
+                    attemptedConversationRefreshesRef.current.add(conversationId);
+                    if (result.conversationIds.includes(conversationId)) {
+                        setRouteConversationIssue(null);
+                        setSelectedConversationId(conversationId);
+                        setMobileView('thread');
+                        return;
+                    }
+                    setSelectedConversationId(null);
+                    setRouteConversationIssue(createUnavailableConversationThreadIssue(conversationId));
+                    setMobileView('thread');
+                    navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+                })
                 .finally(() => {
-                    conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId!);
+                    conversationRefreshesInFlightRef.current.delete(conversationId);
                 });
             return;
         }
@@ -222,10 +255,18 @@ function MessagesContent() {
             return;
         }
 
+        if (queryResolution.status === 'unavailable' && queryResolution.conversationId) {
+            setSelectedConversationId(null);
+            setRouteConversationIssue(createUnavailableConversationThreadIssue(queryResolution.conversationId));
+            setMobileView('thread');
+            navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+        }
+
     }, [
         allConversations,
-        clearConversationThreadIssue,
         hasLoadedConversations,
+        location.pathname,
+        location.search,
         navigate,
         normalizedRequestedConversationId,
         refreshConversations,
@@ -287,6 +328,7 @@ function MessagesContent() {
                 recipientPhone: managerRecommendation.managerPhone || '',
                 recipientAgency: managerRecommendation.managerAgency || '',
             });
+            rememberAuthorizedConversation(user.id, conversation);
             await refreshConversations();
             setSelectedConversationId(conversation.id);
             navigate('/user/dashboard/messages?conversation=' + conversation.id);
@@ -299,12 +341,32 @@ function MessagesContent() {
 
     const handleRetryUnavailableThread = async () => {
         const conversationId = (conversationThreadIssue ?? routeConversationIssue)?.conversationId;
+        if (!conversationId) {
+            return;
+        }
+        const result = await refreshConversations();
+        if (!result.success) {
+            return;
+        }
+        if (result.conversationIds.includes(conversationId)) {
+            clearConversationThreadIssue();
+            setRouteConversationIssue(null);
+            setSelectedConversationId(conversationId);
+            setMobileView('thread');
+            return;
+        }
+        clearConversationThreadIssue();
+        setRouteConversationIssue(createUnavailableConversationThreadIssue(conversationId));
+        setSelectedConversationId(null);
+        setMobileView('thread');
+    };
+
+    const handleBackToConversations = () => {
         clearConversationThreadIssue();
         setRouteConversationIssue(null);
-        await refreshConversations();
-        if (conversationId) {
-            setSelectedConversationId(conversationId);
-        }
+        setSelectedConversationId(null);
+        setMobileView('list');
+        navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
     };
 
     const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
@@ -312,6 +374,14 @@ function MessagesContent() {
         ? conversationThreadIssue ?? routeConversationIssue
         : null;
     const isMobileThreadOpen = mobileView === 'thread' && Boolean(selectedConversationId);
+
+    useEffect(() => {
+        if (!activeThreadIssue) {
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => threadIssueRef.current?.focus());
+        return () => window.cancelAnimationFrame(frame);
+    }, [activeThreadIssue]);
 
     return (
         <div className={`${isMobileThreadOpen ? 'min-h-0 pb-0' : 'min-h-screen pb-12'} bg-gray-50 dark:bg-gray-900 md:min-h-screen md:pb-12`}>
@@ -399,7 +469,7 @@ function MessagesContent() {
                             <ConversationThreadSkeleton />
                         </div>
                     ) : mobileView === 'thread' && activeThreadIssue ? (
-                        <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
+                        <div ref={threadIssueRef} role="alert" aria-live="assertive" tabIndex={-1} className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30 focus:outline-none">
                             <div className="mb-6 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 w-20 h-20 rounded-full flex items-center justify-center">
                                 <AlertCircle size={34} />
                             </div>
@@ -410,6 +480,14 @@ function MessagesContent() {
                                 {activeThreadIssue.message}
                             </p>
                             <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleBackToConversations}
+                                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold hover:border-orange-400 hover:text-orange-500 transition-colors lg:hidden"
+                                >
+                                    <ArrowLeft size={18} />
+                                    Back to conversations
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => void handleRetryUnavailableThread()}
