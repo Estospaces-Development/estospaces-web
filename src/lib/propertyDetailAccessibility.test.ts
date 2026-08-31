@@ -25,9 +25,18 @@ test("property detail does not render gallery instructions as listing content", 
 test("property gallery image area remains keyboard accessible", () => {
   assert.match(
     propertyDetailSource,
-    /<button\s+type="button"[\s\S]*aria-label=\{`Open image gallery for \$\{property\.title\}`\}/,
+    /galleryDisplayState\.hasImages \? \(\s*<button[\s\S]*aria-label=\{`Open image gallery for \$\{property\.title\}`\}/,
   );
-  assert.match(propertyDetailSource, /className="[^"]*\bcursor-zoom-in\b[^"]*"/);
+  assert.match(propertyDetailSource, /\) : \(\s*<div[\s\S]*Property media unavailable for \$\{property\.title\}/);
+  assert.doesNotMatch(propertyDetailSource, /disabled=\{!galleryDisplayState\.hasImages\}/);
+  assert.match(propertyDetailSource, /cursor-zoom-in/);
+});
+
+test("property gallery releases modal state when media becomes empty", () => {
+  assert.match(
+    propertyDetailSource,
+    /if \(images\.length === 0\) \{\s*setIsGalleryOpen\(false\);\s*\}/,
+  );
 });
 
 test("property gallery reflows into an image-first narrow-phone experience", () => {
