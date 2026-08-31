@@ -537,7 +537,12 @@ function PropertyManagementContent() {
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex flex-1 flex-wrap gap-4">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Type</span>
+                            <span
+                                aria-label="Registry filter group Type"
+                                className="inline-flex self-start rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                            >
+                                Type
+                            </span>
                             {ADMIN_PROPERTY_TYPE_FILTERS.map((type) => (
                                 <button
                                     key={type.value}
@@ -555,7 +560,12 @@ function PropertyManagementContent() {
                             ))}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</span>
+                            <span
+                                aria-label="Registry filter group Status"
+                                className="inline-flex self-start rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                            >
+                                Status
+                            </span>
                             {ADMIN_PROPERTY_STATUS_FILTERS.map((status) => (
                                 <button
                                     key={status.value}
