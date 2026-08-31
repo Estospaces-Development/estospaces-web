@@ -525,7 +525,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
             )}
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 min-h-0">
+            <div className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
                 {/* Profile Information Card */}
                 <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 p-5">
                     <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -665,7 +665,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
             </div>
 
             {/* Actions Footer */}
-            <div className="p-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white flex-shrink-0">
+            <div className="flex-shrink-0 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white p-4 sm:p-6">
                 {!isRejected && approvalBlocker && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
                         <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
@@ -832,18 +832,18 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         </div>
                     </div>
                 ) : (
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 sm:gap-3">
                         <button
                             onClick={() => setShowApproveConfirm(true)}
                             disabled={approvalBlocker !== null}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
+                            className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-700 disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-base"
                         >
                             <CheckCircle size={18} />
                             Approve
                         </button>
                         <button
                             onClick={() => setShowRejectForm(true)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-all shadow-lg shadow-red-500/20"
+                            className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-2.5 py-3 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:bg-red-700 sm:gap-2 sm:px-4 sm:text-base"
                         >
                             <XCircle size={18} />
                             Reject
@@ -897,7 +897,7 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
                 role="dialog"
                 aria-modal="true"
                 aria-label="Manager verification review"
-                className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300"
+                className="relative flex max-h-[90vh] w-full max-w-2xl min-w-0 flex-col overflow-x-hidden rounded-3xl bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300"
             >
                 {children}
             </div>
@@ -993,9 +993,9 @@ const DocumentCard: React.FC<{
         }, [document.id, toast]);
 
         return (
-            <div className="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-300 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
+            <div className="min-w-0 rounded-xl border border-gray-100 bg-white p-4 transition-colors hover:border-gray-300">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
                         <div className={`p-2.5 rounded-xl ${docStatusConfig.bgColor}`}>
                             <FileText className={docStatusConfig.textColor} size={18} />
                         </div>
@@ -1014,7 +1014,7 @@ const DocumentCard: React.FC<{
                             )}
                         </div>
                     </div>
-                    <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${docStatusConfig.bgColor} ${docStatusConfig.textColor}`}>
+                    <span className={`inline-flex flex-shrink-0 self-start items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium ${docStatusConfig.bgColor} ${docStatusConfig.textColor}`}>
                         <docStatusConfig.icon size={12} />
                         {docStatusConfig.label}
                     </span>
