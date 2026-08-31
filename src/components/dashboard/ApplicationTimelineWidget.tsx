@@ -25,7 +25,9 @@ import PaginationBar from '@/components/ui/PaginationBar';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import {
     dedupeBrokerRequestsForTimeline,
+    getBrokerRequestBudgetDisplayLabel,
     getBrokerRequestDisplayTitle,
+    getBrokerRequestRequestedLabel,
     isUserVisibleBrokerRequest,
 } from '@/lib/brokerRequestTimeline';
 
@@ -80,6 +82,7 @@ interface ApplicationItem {
     stats?: { views: number; inquiries: number; saved: number };
     primaryActionPath?: string;
     primaryActionLabel?: string;
+    requestedLabel?: string;
 }
 
 // --- Constants & Config ---
@@ -484,6 +487,7 @@ const ApplicationTimelineWidget = () => {
                             lastUpdated: getStableActivityTimestamp(request.updated_at, request.created_at),
                             nextAction: summary.nextAction,
                             estimatedCompletion: 'Property agent search is live',
+                            requestedLabel: getBrokerRequestRequestedLabel(request),
                             property: {
                                 id: request.selected_property_id || request.selected_property?.id || request.id,
                                 title: getBrokerRequestDisplayTitle(request),
@@ -491,7 +495,7 @@ const ApplicationTimelineWidget = () => {
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
                                 country: request.selected_property?.country,
                                 currency: (request.selected_property as any)?.currency || (request.selected_property as any)?.currency_code,
-                                priceLabel: request.budget ? `Budget ${request.budget}` : 'Property agent request',
+                                priceLabel: getBrokerRequestBudgetDisplayLabel(request),
                                 image_urls: toPropertyImages(request.selected_property?.image_urls),
                             },
                             broker: request.matched_broker ? {
@@ -1039,7 +1043,9 @@ const ApplicationTimelineWidget = () => {
                                                     <p className="break-words text-[13px] font-medium text-gray-900 dark:text-white sm:text-xl sm:font-bold">
                                                         {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
-                                                    <p className="mt-0.5 text-[11px] text-gray-400 sm:mt-1 sm:text-xs">{formatLastUpdatedLabel(item.lastUpdated)}</p>
+                                                    <p className="mt-0.5 text-[11px] text-gray-400 sm:mt-1 sm:text-xs">
+                                                        {item.requestedLabel || formatLastUpdatedLabel(item.lastUpdated)}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="mt-2 flex items-center gap-3 sm:mt-3 sm:gap-4">

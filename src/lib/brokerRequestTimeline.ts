@@ -1,4 +1,7 @@
+import { format } from 'date-fns';
+
 import { getApplicationPropertyDisplayTitle, isInternalApplicationTitle } from './applicationDisplayTitle';
+import { getBrokerRequestBudgetError, toBrokerRequestType } from './brokerRequestBudget';
 import { dedupeBrokerRequestsBySubmissionSignature } from './brokerRequestSelection';
 import type { BrokerRequestRecord } from '@/services/leadsService';
 
@@ -13,6 +16,26 @@ export const getBrokerRequestDisplayTitle = (request: BrokerRequestRecord) => (
     'Property agent request',
   )
 );
+
+export const getBrokerRequestRequestedLabel = (request: BrokerRequestRecord) => {
+  const requestedAt = new Date(request.created_at || '');
+  if (!Number.isFinite(requestedAt.getTime())) {
+    return 'Requested date unavailable';
+  }
+
+  return `Requested ${format(requestedAt, 'd MMM, HH:mm:ss')}`;
+};
+
+export const getBrokerRequestBudgetDisplayLabel = (request: BrokerRequestRecord) => {
+  const budget = String(request.budget || '').trim();
+  if (!budget) {
+    return 'Budget unavailable';
+  }
+
+  return getBrokerRequestBudgetError(budget, toBrokerRequestType(request.request_type))
+    ? 'Budget needs updating'
+    : `Budget ${budget}`;
+};
 
 export const dedupeBrokerRequestsForTimeline = (requests: BrokerRequestRecord[]) => (
   dedupeBrokerRequestsBySubmissionSignature(requests)

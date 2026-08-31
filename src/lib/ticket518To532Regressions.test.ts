@@ -11,6 +11,8 @@ test('user journey separates formal applications from agent requests', () => {
     assert.match(source, /id: 'requests', label: 'Agent requests'/);
     assert.match(source, /setApplications\(\s*\[\.\.\.mappedSaleProgressions, \.\.\.mappedApps\]/);
     assert.match(source, /setBrokerRequests\(mappedBrokerRequests/);
+    assert.match(source, /requestedLabel: getBrokerRequestRequestedLabel\(request\)/);
+    assert.match(source, /priceLabel: getBrokerRequestBudgetDisplayLabel\(request\)/);
 });
 
 test('dashboard agent request workspace follows the active journey', () => {
