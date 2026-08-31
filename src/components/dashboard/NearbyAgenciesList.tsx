@@ -7,6 +7,7 @@ import { MapPin, Star, Building2, Clock, BadgeCheck, Search, X } from 'lucide-re
 import { Link, useSearchParams } from 'react-router-dom';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
+import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import {
     BROKER_REQUEST_WORKSPACE_EVENT,
     readBrokerRequestWorkspaceSelection,
@@ -40,6 +41,12 @@ const formatBrokerDistance = (distanceMiles?: number) => {
 
     return `${(distanceMiles * 1.609344).toFixed(1)} km away`;
 };
+const getPublicBrokerCompanyName = (value?: string) => {
+    const companyName = String(value || '').trim();
+    return companyName && !isPlaceholderManagerCompanyName(companyName)
+        ? companyName
+        : 'Independent agent';
+};
 
 export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary; index: number }) => {
     const agentProfileLink = `/user/dashboard/messages?recipient=${encodeURIComponent(broker.id)}&name=${encodeURIComponent(broker.name)}`;
@@ -62,7 +69,7 @@ export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary;
                 </span>
             </div>
             <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
-                {broker.company_name || 'Independent agent'}
+                {getPublicBrokerCompanyName(broker.company_name)}
                 {broker.postcode ? ` - ${formatBrokerArea(broker.postcode)}` : ''}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
