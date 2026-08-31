@@ -51,10 +51,14 @@ test('hides explicit system and automation-only conversations', () => {
     assert.equal(isUserVisibleConversation(conversation({ metadata: '{qa_test:false' })), false);
     assert.equal(isUserVisibleConversation(conversation({ title: 'Mobile Live Approval mobile-live-1781121818495034' })), false);
     assert.equal(isUserVisibleConversation(conversation({ property_title: 'QA trace 2026-08-30T10-22-33' })), false);
+    assert.equal(isUserVisibleConversation(conversation({ title: 'Round698 Contact Agent Proof Home' })), false);
+    assert.equal(isUserVisibleConversation(conversation({ title: "Test User's fast-track case" })), false);
 });
 
 test('keeps legitimate customer conversations and links', () => {
     assert.equal(isUserVisibleConversation(conversation({ title: 'Canal View Apartment' })), true);
+    assert.equal(isUserVisibleConversation(conversation({ title: 'Contact agent about Canal View Apartment' })), true);
+    assert.equal(isUserVisibleConversation(conversation({ title: "Priya's fast-track case" })), true);
     assert.equal(isUserVisibleConversation(conversation({ metadata: 'null' })), true);
     assert.equal(isUserVisibleConversation(conversation({ metadata: '[]' })), true);
     assert.equal(isUserVisibleConversation(conversation({ metadata: '"legacy"' })), true);
