@@ -128,6 +128,29 @@ test('nearby broker cards hide internal Estospaces company identifiers', () => {
   assert.match(markup, /Independent agent/);
 });
 
+test('nearby broker cards hide the bare Estospaces placeholder before appending a postcode', () => {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter>
+      <NearbyBrokerCard
+        broker={{
+          id: 'bare-placeholder-broker',
+          name: 'SRINI Agency',
+          company_name: 'Estospaces',
+          postcode: '321123',
+          service_areas: ['600001'],
+          rating: 0,
+          review_count: 0,
+          fast_track_eligible: true,
+        }}
+        index={0}
+      />
+    </MemoryRouter>,
+  );
+
+  assert.doesNotMatch(markup, /Estospaces - 321123/);
+  assert.match(markup, /Independent agent - 321123/);
+});
+
 test('[SCENARIO 4 - edge] very long names and unicode characters do not overflow or break the link', () => {
   const markup = renderToStaticMarkup(
     <MemoryRouter>

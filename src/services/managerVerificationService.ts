@@ -121,6 +121,7 @@ export interface ManagerVerificationDetails {
 }
 
 const PLACEHOLDER_MANAGER_COMPANY_NAMES = new Set([
+    'estospaces',
     'pending broker profile',
     'pending company profile',
     'pending profile',
