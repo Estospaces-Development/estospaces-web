@@ -48,11 +48,13 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import {
+    buildDiscoverPath,
     buildDiscoverSearchParams,
     consumeDiscoverReturnHistoryState,
     isDiscoverReturnHistoryState,
     markDiscoverReturnHistoryState,
     readDiscoverViewMode,
+    resolveDiscoverPage,
     selectDiscoverSearchSource,
 } from '@/lib/discoverSearchState';
 import {
@@ -487,12 +489,16 @@ function DiscoverContent() {
                 sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
                 dashboardFilter,
             );
-            const pageStart = (currentPage - 1) * ITEMS_PER_PAGE;
+            const resolvedPage = resolveDiscoverPage(currentPage, sorted.length, ITEMS_PER_PAGE);
+            const pageStart = (resolvedPage - 1) * ITEMS_PER_PAGE;
 
             setAllSectionProperties(sectionProperties);
             setFilterOptions(buildFilterOptionsFromProperties(sectionProperties));
             setProperties(sorted.slice(pageStart, pageStart + ITEMS_PER_PAGE));
             setTotal(sorted.length);
+            if (resolvedPage !== currentPage) {
+                setCurrentPage(resolvedPage);
+            }
         } catch {
             setProperties([]);
             setAllSectionProperties([]);
@@ -556,6 +562,13 @@ function DiscoverContent() {
         : error
             ? error
             : `${paginatedProperties.length} of ${total} discovery properties shown in ${viewMode} view sorted by ${sortBy} from property sections.`;
+
+    useEffect(() => {
+        const nextPath = buildDiscoverPath(DISCOVER_PATH, discoverReturnSearch);
+        if (`${window.location.pathname}${window.location.search}` !== nextPath) {
+            navigate(nextPath, { replace: true });
+        }
+    }, [discoverReturnSearch, navigate]);
 
     useEffect(() => {
         const cachedSearch = cachedDiscoverSearchRef.current;
@@ -777,7 +790,10 @@ function DiscoverContent() {
                                     <button
                                         key={value}
                                         type="button"
-                                        onClick={() => setActiveTab(value)}
+                                        onClick={() => {
+                                            setActiveTab(value);
+                                            setCurrentPage(1);
+                                        }}
                                         aria-pressed={activeTab === value}
                                         className={`min-h-10 rounded-lg px-2 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${activeTab === value
                                             ? 'bg-orange-600 text-white shadow-sm'
