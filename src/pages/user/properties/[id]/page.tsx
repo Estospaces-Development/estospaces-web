@@ -950,6 +950,10 @@ const UserPropertyDetail = () => {
     const [uploadingFastTrackDocumentType, setUploadingFastTrackDocumentType] = useState<'identity' | 'address' | null>(null);
     const [liveWorkspaceLoaded, setLiveWorkspaceLoaded] = useState(false);
 
+    React.useLayoutEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }, [id]);
+
     const fastTrackRequestStorageKey = useMemo(() => (
         user?.id && property?.id
             ? getFastTrackRequestPendingKey(user.id, property.id)

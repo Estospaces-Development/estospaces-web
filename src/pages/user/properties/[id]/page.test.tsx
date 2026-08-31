@@ -222,6 +222,12 @@ test("public property detail does not use browser history for signed-out Back", 
   assert.equal(shouldUseBrowserHistoryForPropertyDetailBack({ id: "user-1" }), true);
 });
 
+test("property detail starts at the top after navigation from a scrolled discovery view", () => {
+  assert.match(propertyDetailSource, /React\.useLayoutEffect\(\(\) => \{/);
+  assert.match(propertyDetailSource, /window\.scrollTo\(\{ top: 0, left: 0, behavior: 'auto' \}\);/);
+  assert.match(propertyDetailSource, /\}, \[id\]\);/);
+});
+
 test("full-screen gallery exposes a stable dialog label without virtual-tour-like copy", () => {
   assert.equal(
     getImmersiveGalleryDialogLabel("Canary Wharf loft"),
