@@ -2,23 +2,29 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import PaginationBar from '@/components/ui/PaginationBar';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, MessageSquare, ArrowLeft, Calendar, Trash2, Plus, X } from 'lucide-react';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import { useToast } from '@/contexts/ToastContext';
+import {
+    getPaginatedUserReviews,
+    type UserReviewSortMode,
+    type UserReviewStatusFilter,
+} from '@/lib/userReviews';
 
 const REVIEW_COMMENT_MAX_LENGTH = 1000;
-type ReviewStatusFilter = 'all' | 'pending' | 'approved';
-type ReviewSortMode = 'newest' | 'oldest' | 'highest' | 'lowest';
+const USER_REVIEWS_PAGE_SIZE = 8;
 
 export default function ReviewsPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [reviews, setReviews] = useState<Review[]>([]);
-    const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
-    const [sortMode, setSortMode] = useState<ReviewSortMode>('newest');
+    const [statusFilter, setStatusFilter] = useState<UserReviewStatusFilter>('all');
+    const [sortMode, setSortMode] = useState<UserReviewSortMode>('newest');
+    const [currentPage, setCurrentPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showWriteForm, setShowWriteForm] = useState(false);
@@ -43,27 +49,17 @@ export default function ReviewsPage() {
         fetchReviews();
     }, [fetchReviews]);
 
-    const filteredReviews = React.useMemo(() => {
-        const matched = reviews.filter((review) => {
-            if (statusFilter !== 'all' && review.status !== statusFilter) {
-                return false;
-            }
-            return true;
-        });
+    const reviewPagination = useMemo(() => getPaginatedUserReviews(
+        reviews,
+        statusFilter,
+        sortMode,
+        currentPage,
+        USER_REVIEWS_PAGE_SIZE,
+    ), [currentPage, reviews, sortMode, statusFilter]);
 
-        return [...matched].sort((left, right) => {
-            if (sortMode === 'oldest') {
-                return new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
-            }
-            if (sortMode === 'highest') {
-                return right.rating - left.rating;
-            }
-            if (sortMode === 'lowest') {
-                return left.rating - right.rating;
-            }
-            return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
-        });
-    }, [reviews, sortMode, statusFilter]);
+    useEffect(() => {
+        setCurrentPage(reviewPagination.currentPage);
+    }, [reviewPagination.currentPage]);
 
     const handleDelete = async (id: string) => {
         setDeletingId(id);
@@ -152,9 +148,9 @@ export default function ReviewsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
                 {/* Header */}
-                <div className="mb-10">
+                <div className="mb-6 sm:mb-10">
                     <button
                         onClick={() => navigate('/user/dashboard')}
                         className="mb-6 flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-all group"
@@ -167,7 +163,7 @@ export default function ReviewsPage() {
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div className="flex-1">
-                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-3">
+                            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-2 sm:text-4xl sm:mb-3">
                                 My Reviews
                             </h1>
                             <p className="text-gray-500 dark:text-gray-400 font-medium">
@@ -180,7 +176,10 @@ export default function ReviewsPage() {
                             <select
                                 id="user-review-status-filter"
                                 value={statusFilter}
-                                onChange={(event) => setStatusFilter(event.target.value as ReviewStatusFilter)}
+                                onChange={(event) => {
+                                    setStatusFilter(event.target.value as UserReviewStatusFilter);
+                                    setCurrentPage(1);
+                                }}
                                 className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 sm:w-44"
                             >
                                 <option value="all">All statuses</option>
@@ -191,7 +190,10 @@ export default function ReviewsPage() {
                             <select
                                 id="user-review-sort"
                                 value={sortMode}
-                                onChange={(event) => setSortMode(event.target.value as ReviewSortMode)}
+                                onChange={(event) => {
+                                    setSortMode(event.target.value as UserReviewSortMode);
+                                    setCurrentPage(1);
+                                }}
                                 className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 sm:w-44"
                             >
                                 <option value="newest">Newest first</option>
@@ -212,7 +214,7 @@ export default function ReviewsPage() {
 
                 {/* Write Review Form */}
                 {showWriteForm && (
-                    <div className="mb-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 border border-orange-200 dark:border-orange-800/40 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="mb-8 rounded-2xl border border-orange-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 dark:border-orange-800/40 dark:bg-gray-800 sm:rounded-3xl sm:p-8">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-black text-gray-900 dark:text-white">Leave a Review</h2>
                             <button onClick={() => setShowWriteForm(false)} aria-label="Close review form" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
@@ -264,11 +266,11 @@ export default function ReviewsPage() {
                     </div>
                 )}
 
-                {filteredReviews.length > 0 ? (
-                    <div className="space-y-6">
-                        {filteredReviews.map((review) => (
-                            <div key={review.id} className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 border border-transparent hover:border-orange-500/20 transition-all group">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                {reviewPagination.totalItems > 0 ? (
+                    <div className="space-y-4 sm:space-y-6">
+                        {reviewPagination.items.map((review) => (
+                            <div key={review.id} className="group rounded-2xl border border-transparent bg-white p-4 shadow-xl transition-all hover:border-orange-500/20 dark:bg-gray-800 sm:rounded-3xl sm:p-8">
+                                <div className="mb-4 flex flex-col justify-between gap-3 sm:mb-6 md:flex-row md:items-center md:gap-4">
                                     <div className="flex items-center gap-4">
                                         <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl text-orange-500">
                                             <MessageSquare size={24} />
@@ -307,6 +309,16 @@ export default function ReviewsPage() {
                                 </p>
                             </div>
                         ))}
+                        <PaginationBar
+                            currentPage={reviewPagination.currentPage}
+                            totalPages={reviewPagination.totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={reviewPagination.totalItems}
+                            pageSize={USER_REVIEWS_PAGE_SIZE}
+                            currentItemCount={reviewPagination.items.length}
+                            itemLabel="reviews"
+                            showWhenSinglePage
+                        />
                     </div>
                 ) : (
                     <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-xl p-16 text-center">

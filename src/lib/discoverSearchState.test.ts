@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildDiscoverPath,
   buildDiscoverSearchParams,
   consumeDiscoverReturnHistoryState,
   isDiscoverReturnHistoryState,
   markDiscoverReturnHistoryState,
   readDiscoverViewMode,
+  resolveDiscoverPage,
   selectDiscoverSearchSource,
 } from './discoverSearchState';
 
@@ -143,4 +145,18 @@ test('native Back restores an unfiltered Discover entry when provenance matches'
     useCachedSearch: true,
     discardCachedSearch: false,
   });
+});
+
+test('a listing filter cannot leave Discover on a page beyond the filtered results', () => {
+  assert.equal(resolveDiscoverPage(2, 10, 12), 1);
+  assert.equal(resolveDiscoverPage(2, 14, 12), 2);
+  assert.equal(resolveDiscoverPage(4, 0, 12), 1);
+});
+
+test('clearing Discover search produces a route without the stale query', () => {
+  assert.equal(buildDiscoverPath('/user/dashboard/discover', ''), '/user/dashboard/discover');
+  assert.equal(
+    buildDiscoverPath('/user/dashboard/discover', '?type=rent&q=PR15QH'),
+    '/user/dashboard/discover?type=rent&q=PR15QH',
+  );
 });

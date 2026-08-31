@@ -63,6 +63,29 @@ const normalizeSearch = (value: string) => {
   return normalized ? new URLSearchParams(normalized).toString() : '';
 };
 
+export const resolveDiscoverPage = (
+  currentPage: number,
+  totalItems: number,
+  pageSize: number,
+) => {
+  const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.trunc(pageSize) : 1;
+  const safeTotalItems = Number.isFinite(totalItems) && totalItems > 0 ? Math.trunc(totalItems) : 0;
+  const totalPages = Math.max(1, Math.ceil(safeTotalItems / safePageSize));
+  const safeCurrentPage = Number.isFinite(currentPage) && currentPage > 0
+    ? Math.trunc(currentPage)
+    : 1;
+
+  return Math.min(safeCurrentPage, totalPages);
+};
+
+export const buildDiscoverPath = (
+  pathname: string,
+  search: string,
+) => {
+  const normalizedSearch = normalizeSearch(search);
+  return normalizedSearch ? `${pathname}?${normalizedSearch}` : pathname;
+};
+
 export const selectDiscoverSearchSource = (
   urlSearch: string,
   cachedSearch: string | null,
