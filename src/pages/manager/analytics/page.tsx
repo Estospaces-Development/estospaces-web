@@ -213,24 +213,6 @@ const Analytics = () => {
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Detailed performance metrics for your properties</p>
                 </div>
                 <div data-manager-mobile-actions className="flex items-center gap-3">
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                        <button
-                            type="button"
-                            onClick={() => setTimeRange('6m')}
-                            style={{ minHeight: 48 }}
-                            className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        >
-                            6 Months
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setTimeRange('12m')}
-                            style={{ minHeight: 48 }}
-                            className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        >
-                            Yearly
-                        </button>
-                    </div>
                     <button
                         type="button"
                         aria-label="Export analytics CSV"
@@ -245,6 +227,10 @@ const Analytics = () => {
             </div>
 
             {/* Analytics Metrics Cards */}
+            <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Current overview</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Live account totals; these are not changed by the trend period below.</p>
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { 
@@ -393,14 +379,37 @@ const Analytics = () => {
 
             {/* Monthly Revenue Trend */}
             <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Revenue Analysis</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue trends and growth projections</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue trends for the selected period</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded-xl">
-                        <Calendar className="w-4 h-4" />
-                        <span>Last Updated: Today</span>
+                    <div className="flex flex-col gap-2 md:items-end">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Trend period</p>
+                        <div className="flex rounded-xl bg-gray-100 p-1 dark:bg-gray-800" aria-label="Revenue trend period">
+                            <button
+                                type="button"
+                                onClick={() => setTimeRange('6m')}
+                                aria-pressed={timeRange === '6m'}
+                                style={{ minHeight: 48 }}
+                                className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                            >
+                                6 Months
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTimeRange('12m')}
+                                aria-pressed={timeRange === '12m'}
+                                style={{ minHeight: 48 }}
+                                className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                            >
+                                Yearly
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-400 dark:bg-gray-900">
+                            <Calendar className="h-4 w-4" />
+                            <span>Last updated today</span>
+                        </div>
                     </div>
                 </div>
 

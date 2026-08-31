@@ -367,25 +367,25 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2 space-y-8">
 
                     {/* Quick Actions Rail */}
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+                        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white sm:mb-6">
                             <Zap className="text-orange-500" size={20} /> Quick Actions
                         </h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <button
                                 onClick={() => navigate('/admin/verifications')}
-                                className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/30 transition-all text-left flex items-center justify-between"
+                                className="group flex items-center justify-between gap-3 rounded-xl border border-transparent bg-gray-50 p-3 text-left transition-all hover:border-orange-100 hover:bg-orange-50 dark:bg-gray-800 dark:hover:border-orange-900/30 dark:hover:bg-orange-900/10 sm:p-4"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
+                                <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                                    <div className="rounded-lg bg-white p-2.5 text-orange-500 shadow-sm transition-transform group-hover:scale-110 dark:bg-gray-700 sm:p-3">
                                         <Shield size={24} />
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Verifications</h3>
+                                    <div className="min-w-0">
+                                        <h3 className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-orange-700 dark:text-white dark:group-hover:text-orange-400 sm:text-base">Verifications</h3>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">{data?.pending_verifications || 0} Pending Reviews</p>
                                     </div>
                                 </div>
-                                <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
+                                <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-orange-500 opacity-0 shadow-sm transition-all group-hover:opacity-100 dark:bg-gray-700 sm:flex">
                                     <ArrowRight size={16} />
                                 </div>
                             </button>

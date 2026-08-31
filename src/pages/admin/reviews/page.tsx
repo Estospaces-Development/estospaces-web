@@ -149,8 +149,9 @@ export default function AdminReviewsPage() {
                 <button
                     type="button"
                     onClick={handleRefresh}
+                    disabled={isRefreshing}
                     aria-label="Refresh review moderation queue"
-                    className="rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                    className="self-start rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:self-auto"
                 >
                     {isRefreshing ? <ActionSpinner size="sm" label="Refreshing reviews" /> : <RefreshCw size={20} />}
                 </button>

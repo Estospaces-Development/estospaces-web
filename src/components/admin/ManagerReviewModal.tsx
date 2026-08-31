@@ -444,9 +444,9 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     : 'from-blue-500 via-indigo-500 to-purple-500'
                     } opacity-10`} />
 
-                <div className="relative p-6">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
+                <div className="relative p-4 sm:p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                             {/* Premium Avatar */}
                             <div className="relative">
                                 <Avatar
@@ -466,14 +466,14 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 </div>
                             </div>
 
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900">
+                            <div className="min-w-0">
+                                <h2 className="truncate text-lg font-bold text-gray-900 sm:text-xl">
                                     {userInfo?.full_name ||
                                         userInfo?.email?.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) ||
                                         'Unknown Manager'}
                                 </h2>
-                                <div className="flex items-center gap-3 mt-1">
-                                    <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                                <div className="mt-1 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                    <span className="flex min-w-0 items-center gap-1.5 break-all text-sm text-gray-500">
                                         <Mail size={14} />
                                         {userInfo?.email || managerId.slice(0, 8) + '...'}
                                     </span>
@@ -488,7 +488,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex self-start items-center gap-3 sm:self-auto">
                             {/* Status Badge */}
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium shadow-sm ${statusConfig.bgColor} ${statusConfig.textColor}`}>
                                 <statusConfig.icon size={14} />

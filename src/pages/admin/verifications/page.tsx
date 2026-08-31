@@ -13,12 +13,24 @@ import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import Avatar from '@/components/ui/Avatar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import Toggle from '@/components/ui/Toggle';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
 import {  useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'all' | 'pending' | 'review' | 'approved' | 'rejected';
+
+const ARCHIVED_MANAGER_STATUSES = new Set([
+  'archived',
+  'archived_rejected',
+  'archived_approved',
+  'archived_pending',
+]);
+
+const isArchivedManager = (manager: ManagerProfile) => (
+  ARCHIVED_MANAGER_STATUSES.has(manager.verification_status)
+);
 
 const getInitialEntityTab = (searchParams: URLSearchParams): 'user' | 'manager' => {
   const entity = searchParams.get('entity');
@@ -43,7 +55,6 @@ function VerificationsContent() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [showArchived, setShowArchived] = useState(false);
-  const [_archivedManagers, setArchivedManagers] = useState<ManagerProfile[]>([]);
 
   const fetchManagers = useCallback(async () => {
     try {
@@ -143,18 +154,14 @@ function VerificationsContent() {
 
   const stats = getStats();
 
-  const filteredManagers = managers.filter(m => {
-    // Exclude archived managers from the main view (they are shown in the Archived tab)
-    if (showArchived) return true;
-    const archivedStatuses = ['archived', 'archived_rejected', 'archived_approved', 'archived_pending'];
-    if (archivedStatuses.includes(m.verification_status)) return false;
-    return true;
-    // Map internal status to tab types for filtering
+  const filteredManagers = managers.filter(manager => {
+    if (showArchived !== isArchivedManager(manager)) return false;
+
     let mappedStatus = 'other';
-    if (isPending(m.verification_status)) mappedStatus = 'pending';
-    else if (isReview(m.verification_status)) mappedStatus = 'review';
-    else if (isApproved(m.verification_status)) mappedStatus = 'approved';
-    else if (isRejected(m.verification_status)) mappedStatus = 'rejected';
+    if (isPending(manager.verification_status)) mappedStatus = 'pending';
+    else if (isReview(manager.verification_status)) mappedStatus = 'review';
+    else if (isApproved(manager.verification_status)) mappedStatus = 'approved';
+    else if (isRejected(manager.verification_status)) mappedStatus = 'rejected';
 
     if (activeTab !== 'all') {
         const tabToStatusMap: Record<string, string> = {
@@ -165,13 +172,13 @@ function VerificationsContent() {
         };
         if (mappedStatus !== tabToStatusMap[activeTab]) return false;
     }
-    
+
     const searchLower = searchQuery.toLowerCase();
-    const displayName = getManagerDisplayName(m);
+    const displayName = getManagerDisplayName(manager);
     const nameMatch = displayName.toLowerCase().includes(searchLower);
-    const companyMatch = (m.company_name || '').toLowerCase().includes(searchLower);
-    const emailMatch = (m.authorized_representative_email || '').toLowerCase().includes(searchLower);
-    
+    const companyMatch = (manager.company_name || '').toLowerCase().includes(searchLower);
+    const emailMatch = (manager.authorized_representative_email || '').toLowerCase().includes(searchLower);
+
     return !searchQuery || nameMatch || companyMatch || emailMatch;
   });
 
@@ -213,17 +220,16 @@ function VerificationsContent() {
                 Review Portfolios
               </h1>
             </div>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
+            <div className="grid w-full gap-3 sm:grid-cols-[auto_minmax(0,16rem)_auto] sm:items-center md:w-auto">
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm select-none dark:border-gray-700 dark:bg-gray-800 sm:justify-start">
+                <Toggle
                   checked={autoRefresh}
-                  onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  onChange={() => setAutoRefresh((current) => !current)}
+                  ariaLabel="Automatically refresh manager verifications"
                 />
-                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Auto-refresh</span>
+                <span className="whitespace-nowrap text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Auto-refresh</span>
               </label>
-              <div className="relative group">
+              <div className="relative w-full group sm:w-64">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
                 <input
                   type="text"
@@ -231,14 +237,15 @@ function VerificationsContent() {
                   placeholder="Search managers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-orange-500/10 font-bold text-sm w-64 shadow-sm transition-all"
+                  className="w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64"
                 />
               </div>
               <button
                 onClick={handleRefresh}
+                disabled={isRefreshing}
                 aria-label="Refresh manager verification queue"
                 title="Refresh manager verification queue"
-                className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
+                className="flex min-h-12 min-w-12 items-center justify-center rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
               >
                 {isRefreshing ? <ActionSpinner size="sm" label="Refreshing verifications" /> : <RefreshCw size={20} />}
               </button>
@@ -250,7 +257,10 @@ function VerificationsContent() {
             {stats.map((stat) => (
               <button
                 key={stat.id}
-                onClick={() => setActiveTab(stat.id === 'submitted' ? 'pending' : stat.id === 'under_review' ? 'review' : stat.id as TabType)}
+                onClick={() => {
+                  setShowArchived(false);
+                  setActiveTab(stat.id === 'submitted' ? 'pending' : stat.id === 'under_review' ? 'review' : stat.id as TabType);
+                }}
                 aria-pressed={(activeTab === 'pending' && stat.id === 'submitted') ||
                   (activeTab === 'review' && stat.id === 'under_review') ||
                   activeTab === stat.id}
@@ -288,17 +298,23 @@ function VerificationsContent() {
       {/* List Container */}
       <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden relative">
         {/* Sub-Header / Tabs */}
-        <div className="px-10 py-6 border-b dark:border-gray-700 flex items-center justify-between">
-          <div className="flex gap-8">
+        <div className="flex items-center justify-between gap-4 border-b px-4 py-5 dark:border-gray-700 sm:px-10 sm:py-6">
+          <div className="flex min-w-0 gap-5 sm:gap-8">
             <button
-              onClick={() => setActiveTab('all')}
+              onClick={() => {
+                setShowArchived(false);
+                setActiveTab('all');
+              }}
               className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === 'all' ? 'border-orange-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
             >
               All Applications
             </button>
             <button
-              onClick={() => { const archived = managers.filter(m => ['archived', 'archived_rejected', 'archived_approved', 'archived_pending'].includes(m.verification_status)); setArchivedManagers(archived); setShowArchived(true); setActiveTab('all'); }}
+              onClick={() => {
+                setShowArchived(true);
+                setActiveTab('all');
+              }}
               className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${showArchived ? 'border-orange-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >Archived</button>
           </div>
