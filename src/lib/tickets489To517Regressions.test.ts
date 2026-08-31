@@ -65,6 +65,19 @@ test('ticket 511 keeps the review refresh action compact on phones', () => {
     assert.match(reviews, /disabled=\{isRefreshing\}/);
 });
 
+test('ticket 509 distinguishes registry filter group labels from filter values', () => {
+    const registry = source('pages/admin/properties/page.tsx');
+
+    assert.match(
+        registry,
+        /aria-label="Registry filter group Type"[\s\S]*?className="[^"]*bg-gray-100[^"]*text-\[9px\][^"]*font-bold/,
+    );
+    assert.match(
+        registry,
+        /aria-label="Registry filter group Status"[\s\S]*?className="[^"]*dark:bg-gray-900/,
+    );
+});
+
 test('ticket 514 stacks the manager review identity and status safely on narrow phones', () => {
     const modal = source('components/admin/ManagerReviewModal.tsx');
 
