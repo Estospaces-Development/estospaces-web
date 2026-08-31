@@ -32,6 +32,7 @@ import {
     LeadBrokerSummary,
 } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
+import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import {
     formatRequestTypeLabel,
     getDispatchWorkspaceSummary,
@@ -86,6 +87,13 @@ const NEW_REQUEST_MODE_KEY = 'estospaces_broker_new_request_mode';
 const getUserScopedRequestKey = (key: string, userId?: string | null) => (
     userId ? `${key}:${userId}` : null
 );
+
+const getPublicAgencyName = (companyName?: string) => {
+    const normalizedName = String(companyName || '').trim();
+    return normalizedName && !isPlaceholderManagerCompanyName(normalizedName)
+        ? normalizedName
+        : '';
+};
 
 export const limitNearestAgenciesForDashboard = (brokers: LeadBrokerSummary[]) => (
     brokers.slice(0, USER_DASHBOARD_NEAREST_AGENCY_LIMIT)
@@ -842,7 +850,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                 recipientName: matchedBroker?.name || '',
                 recipientEmail: matchedBroker?.email || '',
                 recipientPhone: matchedBroker?.phone || '',
-                recipientAgency: matchedBroker?.company_name || '',
+                recipientAgency: getPublicAgencyName(matchedBroker?.company_name),
             });
 
             if (!isAsyncActionCurrent(action)) {
@@ -890,7 +898,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                 recipientName: broker.name,
                 recipientEmail: broker.email || '',
                 recipientPhone: broker.phone || '',
-                recipientAgency: broker.company_name || '',
+                recipientAgency: getPublicAgencyName(broker.company_name),
             });
             if (!isAsyncActionCurrent(action)) {
                 return;
@@ -1322,7 +1330,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                             {matchedBroker?.name || 'Your property agent is ready'}
                                         </p>
                                         <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none sm:text-sm">
-                                            {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
+                                            {getPublicAgencyName(matchedBroker?.company_name) || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequestArea ? ` in ${activeRequestArea}` : ''}.
                                         </p>
                                     </div>
@@ -1359,7 +1367,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                             Agent profile
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {matchedBroker?.company_name || 'Independent agent'}
+                                            {getPublicAgencyName(matchedBroker?.company_name) || 'Independent agent'}
                                             {formatBrokerDistance(matchedBroker?.distance_miles) ? ` - ${formatBrokerDistance(matchedBroker?.distance_miles)} away` : ''}
                                         </p>
                                     </div>
@@ -1958,7 +1966,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                             </button>
                                         </p>
                                         <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
-                                            {broker.company_name || 'Independent agent'}
+                                            {getPublicAgencyName(broker.company_name) || 'Independent agent'}
                                             {formatBrokerDistance(broker.distance_miles) ? ` - ${formatBrokerDistance(broker.distance_miles)}` : ''}
                                         </p>
                                     </div>

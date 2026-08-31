@@ -3,11 +3,17 @@ import assert from 'node:assert/strict';
 
 import {
   getManagerApprovalBlocker,
+  isPlaceholderManagerCompanyName,
   mapManagerProfile,
   normalizeManagerServiceAreas,
   type ManagerDocument,
   type ManagerProfile,
 } from './managerVerificationService';
+
+test('manager company validation rejects internal Estospaces identifiers', () => {
+  assert.equal(isPlaceholderManagerCompanyName('Estospaces - 321123'), true);
+  assert.equal(isPlaceholderManagerCompanyName('SRINI Agency'), false);
+});
 
 const buildProfile = (overrides: Partial<ManagerProfile> = {}): ManagerProfile => ({
   id: 'manager-1',
