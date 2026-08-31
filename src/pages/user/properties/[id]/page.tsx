@@ -72,6 +72,7 @@ import {
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages, getPropertyVideos } from '@/lib/propertyImages';
+import { getPropertyGalleryDisplayState } from '@/lib/propertyGalleryState';
 import {
     MAX_SALE_OFFER_NOTES_LENGTH,
     buildSaleOfferPayload,
@@ -1153,12 +1154,12 @@ const UserPropertyDetail = () => {
         };
     }, [id]);
 
-    const images = useMemo(() => {
-        const resolvedImages = getPropertyImages(property);
-        return resolvedImages.length > 0 ? resolvedImages : [PROPERTY_PLACEHOLDER_IMAGE];
-    }, [property]);
-    const realImages = useMemo(() => getPropertyImages(property), [property]);
-    const realImageCount = realImages.length;
+    const images = useMemo(() => getPropertyImages(property), [property]);
+    const realImageCount = images.length;
+    const galleryDisplayState = useMemo(
+        () => getPropertyGalleryDisplayState(realImageCount, selectedImageIndex),
+        [realImageCount, selectedImageIndex],
+    );
     const propertyVideos = useMemo(() => getPropertyVideos(property), [property]);
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
@@ -1410,6 +1411,9 @@ const UserPropertyDetail = () => {
         setSelectedImageIndex((previous) => (previous === images.length - 1 ? 0 : previous + 1));
     }, [images.length]);
     const openGallery = (index = selectedImageIndex, trigger?: HTMLElement | null) => {
+        if (!galleryDisplayState.hasImages) {
+            return;
+        }
         immersiveGalleryTriggerRef.current = trigger || (document.activeElement as HTMLElement | null);
         setSelectedImageIndex(index);
         setIsGalleryOpen(true);
@@ -1538,6 +1542,9 @@ const UserPropertyDetail = () => {
 
     useEffect(() => {
         setSelectedImageIndex(0);
+        if (images.length === 0) {
+            setIsGalleryOpen(false);
+        }
     }, [images.length]);
 
     useEffect(() => {
@@ -2402,22 +2409,33 @@ const UserPropertyDetail = () => {
                 <div className="min-w-0 space-y-8">
                     <div data-mobile-property-hero className="overflow-hidden rounded-[1.35rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_24px_64px_-40px_rgba(15,23,42,0.32)] dark:border-zinc-800 dark:bg-zinc-900 sm:rounded-[2.4rem] sm:shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)]">
                         <div className="relative">
-                            <button
-                                type="button"
-                                onClick={(event) => openGallery(undefined, event.currentTarget)}
-                                className="relative block aspect-[16/10] w-full cursor-zoom-in overflow-hidden bg-gray-100 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:bg-zinc-800 sm:aspect-[4/3] md:aspect-[16/9]"
-                                aria-label={`Open image gallery for ${property.title}`}
-                            >
-                                <img
-                                    src={coverImage}
-                                    alt={property.title}
-                                    className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
-                                    onError={(event) => {
-                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                    }}
-                                />
-                                <div className="pointer-events-none absolute inset-0 bg-black/10" />
-                            </button>
+                            {galleryDisplayState.hasImages ? (
+                                <button
+                                    type="button"
+                                    onClick={(event) => openGallery(undefined, event.currentTarget)}
+                                    className="relative block aspect-[16/10] w-full cursor-zoom-in overflow-hidden bg-gray-100 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:bg-zinc-800 sm:aspect-[4/3] md:aspect-[16/9]"
+                                    aria-label={`Open image gallery for ${property.title}`}
+                                >
+                                    <img
+                                        src={coverImage}
+                                        alt={property.title}
+                                        className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
+                                        onError={(event) => {
+                                            event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                        }}
+                                    />
+                                    <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                                </button>
+                            ) : (
+                                <div className="relative block aspect-[16/10] w-full cursor-default overflow-hidden bg-gray-100 dark:bg-zinc-800 sm:aspect-[4/3] md:aspect-[16/9]">
+                                    <img
+                                        src={coverImage}
+                                        alt={`Property media unavailable for ${property.title}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                    <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                                </div>
+                            )}
                             <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2 sm:left-5 sm:top-5">
                                 <span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] shadow-lg sm:px-4 sm:text-xs sm:tracking-[0.18em] ${
                                     property.listing_type === 'rent'
@@ -2434,19 +2452,21 @@ const UserPropertyDetail = () => {
                             </div>
                             <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-5 sm:top-5">
                                 <div className="pointer-events-none rounded-full border border-white/75 bg-white/88 px-3 py-2 text-xs font-semibold text-gray-900 shadow-lg backdrop-blur sm:px-4 sm:text-sm">
-                                    {selectedImageIndex + 1} / {images.length}
+                                    {galleryDisplayState.positionLabel}
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        openGallery(undefined, event.currentTarget);
-                                    }}
-                                    className="hidden min-h-11 items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white sm:inline-flex"
-                                >
-                                    <ImageIcon size={15} className="text-orange-500" />
-                                    <span>Open gallery</span>
-                                </button>
+                                {galleryDisplayState.hasImages && (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            openGallery(undefined, event.currentTarget);
+                                        }}
+                                        className="hidden min-h-11 items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white sm:inline-flex"
+                                    >
+                                        <ImageIcon size={15} className="text-orange-500" />
+                                        <span>Open gallery</span>
+                                    </button>
+                                )}
                             </div>
                             {images.length > 1 && (
                                 <>
@@ -2474,18 +2494,20 @@ const UserPropertyDetail = () => {
                                     </button>
                                 </>
                             )}
-                            <button
-                                type="button"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    openGallery(undefined, event.currentTarget);
-                                }}
-                                className="absolute bottom-3 right-3 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-white/80 bg-white/94 px-3 py-2 text-xs font-semibold text-gray-900 shadow-lg backdrop-blur transition hover:bg-white sm:hidden"
-                                aria-label={`Open full-screen gallery for ${property.title}`}
-                            >
-                                <ImageIcon size={16} className="text-orange-500" />
-                                Gallery
-                            </button>
+                            {galleryDisplayState.hasImages && (
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        openGallery(undefined, event.currentTarget);
+                                    }}
+                                    className="absolute bottom-3 right-3 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-white/80 bg-white/94 px-3 py-2 text-xs font-semibold text-gray-900 shadow-lg backdrop-blur transition hover:bg-white sm:hidden"
+                                    aria-label={`Open full-screen gallery for ${property.title}`}
+                                >
+                                    <ImageIcon size={16} className="text-orange-500" />
+                                    Gallery
+                                </button>
+                            )}
                         </div>
                         <div className="border-t border-stone-200/80 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-6">
                             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
@@ -2572,7 +2594,7 @@ const UserPropertyDetail = () => {
                                     ) : (
                                         <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200">
                                             <ImageIcon size={15} className="text-orange-500" />
-                                            <span>{realImageCount === 1 ? '1 curated photo available' : `${realImageCount} curated photos available`}</span>
+                                            <span>{realImageCount === 0 ? 'No property photos available' : '1 curated photo available'}</span>
                                         </div>
                                     )}
                                 </div>
@@ -2587,14 +2609,16 @@ const UserPropertyDetail = () => {
                                             )}
                                         </p>
                                         <div className="mt-4 flex flex-wrap gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={(event) => openGallery(selectedImageIndex, event.currentTarget)}
-                                                className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
-                                            >
-                                                <ImageIcon size={16} />
-                                                <span>Open full-screen gallery</span>
-                                            </button>
+                                            {galleryDisplayState.hasImages && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => openGallery(selectedImageIndex, event.currentTarget)}
+                                                    className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+                                                >
+                                                    <ImageIcon size={16} />
+                                                    <span>Open full-screen gallery</span>
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={(event) => {
@@ -3300,7 +3324,7 @@ const UserPropertyDetail = () => {
                 onConfirm={confirmFastTrackRequest}
             />
 
-            {isGalleryOpen && (
+            {isGalleryOpen && galleryDisplayState.hasImages && (
                 <div
                     className="fixed inset-0 z-[140] overflow-hidden bg-[#05070b] p-0 sm:overflow-y-auto sm:bg-[rgba(8,15,30,0.92)] sm:px-5 sm:py-5 sm:backdrop-blur-md"
                     onClick={closeGallery}
