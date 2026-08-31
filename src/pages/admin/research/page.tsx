@@ -107,6 +107,7 @@ export default function AdminResearchPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [summary, setSummary] = useState(() => summarizeResearchWorkspace(null));
     const [sessions, setSessions] = useState<ResearchSession[]>([]);
@@ -140,12 +141,23 @@ export default function AdminResearchPage() {
                 if (current && nextSessions.some((session) => session.id === current)) return current;
                 return nextSessions[0]?.id || '';
             });
+            return true;
         } catch (error) {
             toast.error(getResearchWorkspaceErrorMessage(error));
+            return false;
         } finally {
             if (!silent) setLoading(false);
         }
     }, [activeTrack, toast]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        const refreshed = await loadResearch(true);
+        setIsRefreshing(false);
+        if (refreshed) {
+            toast.success('Research workspace refreshed.');
+        }
+    };
 
     useEffect(() => {
         void loadResearch();
@@ -368,11 +380,12 @@ export default function AdminResearchPage() {
                 <div className="flex flex-wrap gap-3">
                     <button
                         type="button"
-                        onClick={() => loadResearch(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:bg-orange-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-500/10"
+                        onClick={() => void handleRefresh()}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:bg-orange-50 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-500/10"
                     >
-                        <RefreshCw size={16} />
-                        Refresh
+                        {isRefreshing ? <ActionSpinner size="sm" label="Refreshing research" /> : <RefreshCw size={16} />}
+                        {isRefreshing ? 'Refreshing' : 'Refresh'}
                     </button>
                     <button
                         type="button"

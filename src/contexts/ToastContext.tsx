@@ -142,7 +142,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         <ToastActionsContext.Provider value={actionsValue}>
             <ToastStateContext.Provider value={stateValue}>
                 {children}
-                <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
+                <div className="fixed left-3 right-3 top-[calc(env(safe-area-inset-top)+1rem)] z-[9999] flex flex-col gap-3 pointer-events-none sm:left-auto sm:right-4 sm:max-w-sm">
                     {toasts.map((toast) => (
                         <div key={toast.id} className="pointer-events-auto">
                             <Toast

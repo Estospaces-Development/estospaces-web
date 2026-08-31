@@ -16,6 +16,7 @@ import { getPropertyMapState } from '@/lib/propertyMaps';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { useToast } from '@/contexts/ToastContext';
 
 // Helper for currency formatting
 const formatPrice = (price: any, property?: any) => {
@@ -35,6 +36,7 @@ const formatArea = (area: number, unit: string = 'sqft') => {
 export default function PropertyDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const appToast = useToast();
 
     const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementShares } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
@@ -98,6 +100,7 @@ export default function PropertyDetailPage() {
         if (id) {
             const duplicate = await duplicateProperty(id);
             if (duplicate) {
+                appToast.success(`Draft copy created. You are now editing ${duplicate.title}.`);
                 navigate(`/manager/dashboard/properties/edit/${duplicate.id}`);
             }
         }

@@ -261,6 +261,7 @@ export default function ManagerLeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(searchParamQuery);
     const [statusFilter, setStatusFilter] = useState('all');
@@ -316,17 +317,30 @@ export default function ManagerLeadsPage() {
                 selectedStatus,
             ));
             setFastTrackCases(fastTrackCasesResult.data || []);
+            return true;
         } catch (fetchError: any) {
             if (!options.silent) {
                 setError(fetchError?.message || 'Failed to load leads');
                 setLeads([]);
             }
+            return false;
         } finally {
             if (!options.silent) {
                 setLoading(false);
             }
         }
     }, [statusFilter]);
+
+    const handleManualRefresh = async () => {
+        setIsRefreshing(true);
+        const refreshed = await fetchLeads(statusFilter, { silent: true });
+        setIsRefreshing(false);
+        if (refreshed) {
+            toast.success('Lead response desk refreshed.');
+        } else {
+            toast.error('Unable to refresh leads right now.');
+        }
+    };
 
     useEffect(() => {
         void fetchLeads(statusFilter);
@@ -341,7 +355,9 @@ export default function ManagerLeadsPage() {
             WORKSPACE_SYNC_TAGS.VIEWINGS,
             WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
         ],
-        refresh: () => fetchLeads(statusFilter, { silent: true }),
+        refresh: async () => {
+            await fetchLeads(statusFilter, { silent: true });
+        },
     });
 
     const visibleSourceLeads = useMemo(() => (
@@ -780,11 +796,13 @@ export default function ManagerLeadsPage() {
                         <span className="hidden sm:inline">Add manual lead</span>
                     </button>
                     <button
-                        onClick={() => void fetchLeads(statusFilter)}
-                        className={`inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900 ${managerLeadFocusClass}`}
+                        type="button"
+                        onClick={() => void handleManualRefresh()}
+                        disabled={isRefreshing}
+                        className={`inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900 ${managerLeadFocusClass}`}
                     >
-                        <RefreshCw className="h-4 w-4" />
-                        <span>Refresh</span>
+                        {isRefreshing ? <ActionSpinner size="sm" label="Refreshing leads" /> : <RefreshCw className="h-4 w-4" />}
+                        <span>{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
                     </button>
                     <button
                         type="button"

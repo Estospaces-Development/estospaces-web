@@ -235,8 +235,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                 {/* Right: Actions & Profile */}
                 <div className="flex shrink-0 items-center gap-0.5 sm:gap-2 lg:gap-4">
-                    {/* Theme Toggle */}
-                    {/* Theme Toggle */}
+                    <div className="sm:hidden"><ThemeSwitcher /></div>
                     <div className="hidden sm:block"><ThemeSwitcher /></div>
 
                     {/* Verification Badge (Desktop) */}
