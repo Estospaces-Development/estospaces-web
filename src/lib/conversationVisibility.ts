@@ -10,6 +10,10 @@ interface AuthorizedConversationEntry {
 const AUTHORIZED_CONVERSATION_TTL_MS = 30_000;
 const AUTHORIZED_CONVERSATION_STORAGE_PREFIX = 'estospaces:authorized-conversations:v1:';
 const recentlyAuthorizedConversations = new Map<string, Map<string, AuthorizedConversationEntry>>();
+const INTERNAL_CONVERSATION_TITLE_PATTERNS = [
+    /\bround\d+\s+contact\s+agent\s+proof(?:\s+home)?\b/i,
+    /^test\s+user(?:'s)?\s+fast[-\s]*track\s+case$/i,
+];
 
 const getAuthorizedConversationStorage = () => {
     try {
@@ -223,7 +227,10 @@ export const isUserVisibleConversation = (conversation: Conversation) => {
         readText(metadata.applicationTitle),
     ];
 
-    return !displayNames.some((value) => isInternalApplicationTitle(value));
+    return !displayNames.some((value) => (
+        isInternalApplicationTitle(value)
+        || INTERNAL_CONVERSATION_TITLE_PATTERNS.some((pattern) => pattern.test(readText(value).trim()))
+    ));
 };
 
 export const rememberAuthorizedConversation = (
