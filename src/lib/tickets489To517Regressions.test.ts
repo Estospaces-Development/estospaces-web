@@ -72,6 +72,9 @@ test('ticket 514 stacks the manager review identity and status safely on narrow 
     assert.match(modal, /min-w-0/);
     assert.match(modal, /break-all/);
     assert.match(modal, /self-start[^\n]*sm:self-auto/);
+    assert.match(modal, /max-w-2xl[^\n]*min-w-0[^\n]*overflow-x-hidden/);
+    assert.match(modal, /overflow-x-hidden overflow-y-auto/);
+    assert.match(modal, /flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between/);
 });
 
 test('ticket 491 labels current metrics separately from the trend period selector', () => {
