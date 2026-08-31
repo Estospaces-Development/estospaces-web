@@ -104,6 +104,30 @@ test('[SCENARIO 3 - error] error state shows error message without broker link',
   assert.match(markup, /Independent agent/);
 });
 
+test('nearby broker cards hide internal Estospaces company identifiers', () => {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter>
+      <NearbyBrokerCard
+        broker={{
+          id: 'internal-company-broker',
+          name: 'SRINI Agency',
+          company_name: 'Estospaces - 321123',
+          postcode: 'SW1A 1AA',
+          service_areas: ['SW1A 1AA'],
+          rating: 4.5,
+          review_count: 10,
+          distance_miles: 1,
+          fast_track_eligible: true,
+        }}
+        index={0}
+      />
+    </MemoryRouter>,
+  );
+
+  assert.doesNotMatch(markup, /Estospaces - 321123/);
+  assert.match(markup, /Independent agent/);
+});
+
 test('[SCENARIO 4 - edge] very long names and unicode characters do not overflow or break the link', () => {
   const markup = renderToStaticMarkup(
     <MemoryRouter>
