@@ -79,6 +79,10 @@ import {
     isSaleOfferListingType,
 } from '@/lib/saleOfferEntry';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    resetPropertyDetailScroll,
+    shouldResetPropertyDetailScroll,
+} from '@/lib/propertyDetailScroll';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
 import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
@@ -952,8 +956,20 @@ const UserPropertyDetail = () => {
     const [liveWorkspaceLoaded, setLiveWorkspaceLoaded] = useState(false);
 
     React.useLayoutEffect(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    }, [id]);
+        if (!shouldResetPropertyDetailScroll(location.hash)) {
+            return;
+        }
+
+        return resetPropertyDetailScroll(window);
+    }, [id, location.hash]);
+
+    useEffect(() => {
+        if (loading || !shouldResetPropertyDetailScroll(location.hash)) {
+            return;
+        }
+
+        return resetPropertyDetailScroll(window);
+    }, [id, loading, location.hash]);
 
     const fastTrackRequestStorageKey = useMemo(() => (
         user?.id && property?.id
