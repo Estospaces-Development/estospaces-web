@@ -104,6 +104,13 @@ test('manager property upload controls expose button copy and format help', () =
   });
 });
 
+test('manager property media empty state does not contradict selected previews', () => {
+  assert.match(
+    managerPropertyFormPage,
+    /imagePreviews\.length > 0 \|\| videoPreviews\.length > 0[\s\S]*Selected media is ready below/,
+  );
+});
+
 test('manager property edit submit intent saves instead of advancing steps', () => {
   assert.equal(
     getManagerPropertySubmitIntent({ mode: 'create', currentStep: 1, totalSteps: 5 }),
