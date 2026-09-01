@@ -10,6 +10,7 @@ import {
   getManagerPropertyFieldId,
   getManagerPropertyFieldState,
   getManagerPropertyFormStatusMessage,
+  getManagerPropertyMediaEmptyStateMessage,
   getManagerPropertySubmitIntent,
   getManagerPropertyUploadControlCopy,
 } from './managerPropertyFormAccessibility';
@@ -102,6 +103,22 @@ test('manager property upload controls expose button copy and format help', () =
     ariaLabel: 'Upload property videos',
     helpText: 'MP4, WebM, MOV up to 30MB each',
   });
+});
+
+test('manager property media empty state distinguishes saved and pending previews', () => {
+  assert.equal(
+    getManagerPropertyMediaEmptyStateMessage({ hasPreviews: true, hasPendingFiles: true }),
+    'Selected media is ready below. Save the property to add it to My Uploads.',
+  );
+  assert.equal(
+    getManagerPropertyMediaEmptyStateMessage({ hasPreviews: true, hasPendingFiles: false }),
+    'This property has saved media shown below. My Uploads lists files added through the media library.',
+  );
+  assert.equal(
+    getManagerPropertyMediaEmptyStateMessage({ hasPreviews: false, hasPendingFiles: false }),
+    'No media saved yet. Use the upload area below to add property images and videos.',
+  );
+  assert.match(managerPropertyFormPage, /getManagerPropertyMediaEmptyStateMessage/);
 });
 
 test('manager property edit submit intent saves instead of advancing steps', () => {

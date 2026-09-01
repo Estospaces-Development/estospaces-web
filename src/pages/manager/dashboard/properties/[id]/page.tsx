@@ -15,6 +15,7 @@ import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
+import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -60,6 +61,7 @@ export default function PropertyDetailPage() {
     const property = id ? getProperty(id) : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
+    const amenities = flattenPropertyAmenities(property?.amenities);
 
     useEffect(() => {
         if (toast.visible) {
@@ -509,19 +511,15 @@ export default function PropertyDetailPage() {
                             </div>
 
                             {/* Amenities */}
-                            {(property.amenities?.interior?.length || property.amenities?.exterior?.length || property.amenities?.community?.length) && (
+                            {amenities.length > 0 && (
                                 <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                                         <CheckCircle className="w-5 h-5 text-orange-600" />
                                         Amenities
                                     </h3>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {[
-                                            ...(property.amenities?.interior || []),
-                                            ...(property.amenities?.exterior || []),
-                                            ...(property.amenities?.community || [])
-                                        ].map((amenity, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                        {amenities.map((amenity) => (
+                                            <div key={amenity} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                 <CheckCircle size={16} className="text-orange-600" />
                                                 <span className="capitalize text-sm">{amenity}</span>
                                             </div>
