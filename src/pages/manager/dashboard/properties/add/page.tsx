@@ -3331,7 +3331,9 @@ export default function AddPropertyPage() {
                 ) : (
                   <p className="text-sm text-gray-600 dark:text-gray-300">
                     {imagePreviews.length > 0 || videoPreviews.length > 0
-                      ? "Selected media is ready below. Save the property to add it to My Uploads."
+                      ? isEditMode
+                        ? "This property has saved media shown below. My Uploads lists files added through the media library."
+                        : "Selected media is ready below. Save the property to add it to My Uploads."
                       : "No media saved yet. Use the upload area below to add property images and videos."}
                   </p>
                 )}

@@ -104,10 +104,10 @@ test('manager property upload controls expose button copy and format help', () =
   });
 });
 
-test('manager property media empty state does not contradict selected previews', () => {
+test('manager property media empty state distinguishes saved and pending previews', () => {
   assert.match(
     managerPropertyFormPage,
-    /imagePreviews\.length > 0 \|\| videoPreviews\.length > 0[\s\S]*Selected media is ready below/,
+    /imagePreviews\.length > 0 \|\| videoPreviews\.length > 0[\s\S]*isEditMode[\s\S]*This property has saved media shown below[\s\S]*Selected media is ready below/,
   );
 });
 
