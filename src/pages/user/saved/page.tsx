@@ -33,8 +33,9 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { paginateItems } from '@/lib/pagination';
 import { shouldShowScopedListSearch } from '@/lib/userAppSearch';
 import {
-    buildSavedSearchPageParams,
-    getSavedSearchTargetPage,
+  buildSavedSearchPageParams,
+  buildSavedSearchRerunParams,
+  getSavedSearchTargetPage,
 } from '@/lib/savedSearchPagination';
 
 const SAVED_PROPERTIES_PAGE_SIZE = 12;
@@ -454,16 +455,7 @@ function SavedSearchesTab() {
     };
 
     const handleReRun = (search: SavedSearch) => {
-        const params = new URLSearchParams();
-        if (search.query) params.append('q', search.query);
-        if (search.location) params.append('location', search.location);
-        if (search.min_price !== undefined && search.min_price !== null) params.append('minPrice', search.min_price.toString());
-        if (search.max_price !== undefined && search.max_price !== null) params.append('maxPrice', search.max_price.toString());
-        if (search.property_type) params.append('propertyType', search.property_type);
-        if (search.listing_type) params.append('type', search.listing_type);
-        if (search.bedrooms !== undefined && search.bedrooms !== null) params.append('beds', search.bedrooms.toString());
-        if (search.bathrooms !== undefined && search.bathrooms !== null) params.append('baths', search.bathrooms.toString());
-        
+        const params = buildSavedSearchRerunParams(search);
         navigate(`/user/search?${params.toString()}`);
     };
 

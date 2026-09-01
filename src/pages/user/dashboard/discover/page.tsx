@@ -376,6 +376,7 @@ function DiscoverContent() {
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [globalFilterOptions, setGlobalFilterOptions] = useState<FilterOptions | null>(null);
+    const fetchRequestIdRef = useRef(0);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
@@ -418,10 +419,16 @@ function DiscoverContent() {
 
     useEffect(() => {
         let isMounted = true;
+        fetchRequestIdRef.current += 1;
+        setGlobalFilterOptions(null);
+        setFilterOptions(null);
+        setAllSectionProperties([]);
+        setProperties([]);
+        setTotal(0);
 
         const loadGlobalFilters = async () => {
-            const options = await searchService.getFilters();
-            if (isMounted && options) {
+            const options = await searchService.getFilters(geoMarket);
+            if (isMounted) {
                 setGlobalFilterOptions(options);
             }
         };
@@ -430,7 +437,7 @@ function DiscoverContent() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [geoMarket]);
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
@@ -455,10 +462,14 @@ function DiscoverContent() {
     }, [searchParamSnapshot]);
 
     const fetchData = useCallback(async () => {
+        const requestId = ++fetchRequestIdRef.current;
         setLoading(true);
         setError(null);
         try {
             const result = await searchService.getPropertySections(geoMarket);
+            if (requestId !== fetchRequestIdRef.current) {
+                return;
+            }
 
             if (!result.success) {
                 setProperties([]);
@@ -500,22 +511,31 @@ function DiscoverContent() {
                 setCurrentPage(resolvedPage);
             }
         } catch {
+            if (requestId !== fetchRequestIdRef.current) {
+                return;
+            }
             setProperties([]);
             setAllSectionProperties([]);
             setTotal(0);
             setFilterOptions(null);
             setError('An unexpected error occurred while processing property sections.');
         } finally {
-            setLoading(false);
+            if (requestId === fetchRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [activeTab, baths, beds, currentPage, dashboardFilter, geoMarket, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {
+        fetchRequestIdRef.current += 1;
         const timer = setTimeout(() => {
-            fetchData();
+            void fetchData();
         }, 300);
-        return () => clearTimeout(timer);
+        return () => {
+            fetchRequestIdRef.current += 1;
+            clearTimeout(timer);
+        };
     }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, fetchData]);
 
     // Autocomplete location suggestions

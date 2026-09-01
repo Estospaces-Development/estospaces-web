@@ -52,11 +52,28 @@ test('public search property type dropdown uses cleaned downward-opening options
 test('discover property type dropdown uses the shared global filter options', () => {
     assert.match(discoverSource, /import \{ buildPropertyTypeOptions \} from '@\/lib\/propertyTypeOptions';/);
     assert.match(discoverSource, /const \[globalFilterOptions, setGlobalFilterOptions\] = useState<FilterOptions \| null>\(null\);/);
-    assert.match(discoverSource, /const options = await searchService\.getFilters\(\);/);
+    assert.match(discoverSource, /const options = await searchService\.getFilters\(geoMarket\);/);
     assert.match(discoverSource, /globalFilterOptions\?\.property_types\?\.length[\s\S]*\? globalFilterOptions\.property_types[\s\S]*: filterOptions\?\.property_types/);
     assert.match(discoverSource, /buildPropertyTypeOptions\(propertyTypes\)\.map/);
     assert.match(discoverSource, /discoverPropertyTypeOptions\.map\(\(option\) =>/);
     assert.doesNotMatch(discoverSource, /\(filterOptions\?\.property_types \|\| \[\]\)\.map/);
+});
+
+test('market-specific filter requests clear old options and ignore stale responses', () => {
+    assert.match(source, /let cancelled = false;[\s\S]*setFilterOptions\(null\);[\s\S]*getFilters\(searchMarket\)[\s\S]*if \(!cancelled\) setFilterOptions\(opts\);[\s\S]*cancelled = true;/);
+    assert.match(publicSearchSource, /let cancelled = false;[\s\S]*setFilterOptions\(null\);[\s\S]*getFilters\(activeMarket\)[\s\S]*if \(!cancelled\) setFilterOptions\(opts\);[\s\S]*cancelled = true;/);
+    assert.match(discoverSource, /let isMounted = true;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*getFilters\(geoMarket\)[\s\S]*if \(isMounted\)[\s\S]*setGlobalFilterOptions\(options\);[\s\S]*isMounted = false;/);
+});
+
+test('market-specific autocomplete ignores stale responses after the market changes', () => {
+    assert.match(source, /let cancelled = false;[\s\S]*setLocationSuggestions\(\[\]\);[\s\S]*autocomplete\(filters\.location, searchMarket\)[\s\S]*if \(!cancelled\)[\s\S]*setLocationSuggestions\(selectLocationSuggestions\(suggestions\)\)[\s\S]*cancelled = true;[\s\S]*clearTimeout\(timer\)/);
+    assert.match(publicSearchSource, /let isMounted = true;[\s\S]*setLocationSuggestions\(\[\]\);[\s\S]*autocomplete\(query, activeMarket\)[\s\S]*if \(!isMounted\)[\s\S]*isMounted = false;/);
+});
+
+test('Discover clears previous-market options and invalidates stale property requests', () => {
+    assert.match(discoverSource, /fetchRequestIdRef\.current \+= 1;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*setFilterOptions\(null\);[\s\S]*setAllSectionProperties\(\[\]\);/);
+    assert.match(discoverSource, /const requestId = \+\+fetchRequestIdRef\.current;[\s\S]*getPropertySections\(geoMarket\);[\s\S]*requestId !== fetchRequestIdRef\.current/);
+    assert.match(discoverSource, /return \(\) => \{[\s\S]*fetchRequestIdRef\.current \+= 1;[\s\S]*clearTimeout\(timer\);/);
 });
 
 test('location suggestions keep long dashboard results contained', () => {

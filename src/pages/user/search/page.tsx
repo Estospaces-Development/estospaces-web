@@ -247,12 +247,19 @@ const PropertySearch = () => {
 
     // Initial load for filters
     useEffect(() => {
+        let cancelled = false;
+        setFilterOptions(null);
+
         const loadFilters = async () => {
-            const opts = await searchService.getFilters();
-            if (opts) setFilterOptions(opts);
+            const opts = await searchService.getFilters(activeMarket);
+            if (!cancelled) setFilterOptions(opts);
         };
-        loadFilters();
-    }, []);
+
+        void loadFilters();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeMarket]);
 
     useEffect(() => {
         void loadSearchHistory();
@@ -451,11 +458,12 @@ const PropertySearch = () => {
     // Autocomplete location suggestions
     useEffect(() => {
         let isMounted = true;
+        setLocationSuggestions([]);
 
         const fetchSuggestions = async () => {
             if (query.length >= 2) {
                 try {
-                    const suggestions = await searchService.autocomplete(query);
+                    const suggestions = await searchService.autocomplete(query, activeMarket);
                     if (!isMounted) {
                         return;
                     }
@@ -486,7 +494,9 @@ const PropertySearch = () => {
                     }
                 }
             } else {
-                setLocationSuggestions([]);
+                if (isMounted) {
+                    setLocationSuggestions([]);
+                }
             }
         };
 
@@ -497,7 +507,7 @@ const PropertySearch = () => {
             isMounted = false;
             clearTimeout(timer);
         };
-    }, [location, market, query]);
+    }, [activeMarket, location, market, query]);
 
     const openSaveSearchModal = () => {
         if (!isAuthenticated) {
@@ -528,6 +538,7 @@ const PropertySearch = () => {
                     inferredLocationRef.current,
                 ),
                 location,
+                country: activeMarket,
                 property_type: propertyType,
                 min_price: minPrice ? parseInt(minPrice) : undefined,
                 max_price: maxPrice ? parseInt(maxPrice) : undefined,

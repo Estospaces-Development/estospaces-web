@@ -550,6 +550,52 @@ test('section errors recover legacy catalog rows without country metadata', asyn
     }
 });
 
+test('autocomplete and dynamic filters forward the account market', async () => {
+    const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = async (input) => {
+        const url = String(input);
+        requestedUrls.push(url);
+        if (url.includes('/search/autocomplete?')) {
+            return new Response(JSON.stringify({
+                success: true,
+                data: { suggestions: [{ text: 'Attur', city: 'Attur', type: 'city' }] },
+            }), {
+                status: 200,
+                headers: { 'content-type': 'application/json' },
+            });
+        }
+
+        return new Response(JSON.stringify({
+            success: true,
+            data: {
+                property_types: ['house'],
+                listing_types: ['sale'],
+                locations: ['Attur'],
+                price_range: { min: 1000, max: 5000 },
+            },
+        }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    try {
+        const suggestions = await searchService.autocomplete('att', 'India');
+        const filters = await searchService.getFilters('India');
+
+        assert.equal(suggestions[0]?.text, 'Attur');
+        assert.deepEqual(filters?.locations, ['Attur']);
+        assert.equal(requestedUrls.length, 2);
+        for (const requestedUrl of requestedUrls) {
+            assert.equal(new URL(requestedUrl).searchParams.get('country'), 'IN');
+        }
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
 test('primary public search uses a short fallback timeout for launch readiness', () => {
     assert.equal(PRIMARY_SEARCH_SERVICE_TIMEOUT_MS <= 5000, true);
 });

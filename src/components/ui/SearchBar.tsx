@@ -144,17 +144,25 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
     // Fetch dynamic filters
     useEffect(() => {
+        let cancelled = false;
+        setFilterOptions(null);
+
         if (!usesDynamicFilters) {
-            setFilterOptions(null);
-            return;
+            return () => {
+                cancelled = true;
+            };
         }
 
         const loadFilters = async () => {
-            const opts = await searchService.getFilters();
-            if (opts) setFilterOptions(opts);
+            const opts = await searchService.getFilters(searchMarket);
+            if (!cancelled) setFilterOptions(opts);
         };
-        loadFilters();
-    }, [usesDynamicFilters]);
+
+        void loadFilters();
+        return () => {
+            cancelled = true;
+        };
+    }, [searchMarket, usesDynamicFilters]);
 
     // Sync with initialFilters anytime they change substantially
     useEffect(() => {
@@ -197,28 +205,34 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }, [initialFilters, searchParams, variant]);
 
     // Location autocomplete
-    const fetchLocationSuggestions = useCallback(async (query: string) => {
-        if (query.length < 2) {
-            setLocationSuggestions([]);
-            return;
-        }
-
-        try {
-            const suggestions = await searchService.autocomplete(query);
-            setLocationSuggestions(selectLocationSuggestions(suggestions));
-        } catch {
-            setLocationSuggestions([]);
-        }
-    }, []);
-
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (filters.location) {
-                fetchLocationSuggestions(filters.location);
+        let cancelled = false;
+        setLocationSuggestions([]);
+
+        if (filters.location.length < 2) {
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        const timer = setTimeout(async () => {
+            try {
+                const suggestions = await searchService.autocomplete(filters.location, searchMarket);
+                if (!cancelled) {
+                    setLocationSuggestions(selectLocationSuggestions(suggestions));
+                }
+            } catch {
+                if (!cancelled) {
+                    setLocationSuggestions([]);
+                }
             }
         }, 300);
-        return () => clearTimeout(timer);
-    }, [filters.location, fetchLocationSuggestions]);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [filters.location, searchMarket]);
 
     const handleInputChange = (field: keyof SearchFilters, value: string | number | null) => {
         if (field === 'keyword' && typeof value === 'string') {

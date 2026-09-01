@@ -457,8 +457,12 @@ const failedSearchResponse = (filters: Record<string, any>, error?: string): Sea
 });
 
 
-const buildAutocompleteFallback = async (query: string): Promise<AutocompleteSuggestion[]> => {
-    const fallback = await coreSearchFallback(query, { page: 1, limit: 10 });
+const buildAutocompleteFallback = async (query: string, country = ''): Promise<AutocompleteSuggestion[]> => {
+    const fallback = await coreSearchFallback(query, {
+        country: normalizeCountryFilter(country) || undefined,
+        page: 1,
+        limit: 10,
+    });
     const suggestions: AutocompleteSuggestion[] = [];
     const seen = new Set<string>();
 
@@ -509,8 +513,12 @@ const buildAutocompleteFallback = async (query: string): Promise<AutocompleteSug
     return suggestions;
 };
 
-const buildFiltersFallback = async (): Promise<FilterOptions | null> => {
-    const fallback = await coreSearchFallback('', { page: 1, limit: 100 });
+const buildFiltersFallback = async (country = ''): Promise<FilterOptions | null> => {
+    const fallback = await coreSearchFallback('', {
+        country: normalizeCountryFilter(country) || undefined,
+        page: 1,
+        limit: 100,
+    });
     return buildFallbackFilters(fallback.data);
 };
 
@@ -724,6 +732,7 @@ export interface SavedSearch {
     query?: string;
     location?: string;
     postcode?: string;
+    country?: string;
     min_price?: number;
     max_price?: number;
     property_type?: string;
@@ -789,6 +798,7 @@ const normalizeSavedSearchPayload = (data: Partial<SavedSearch>): Partial<SavedS
     query: normalizeSearchQueryInput(data.query || ''),
     location: normalizeLooseClientText(data.location),
     postcode: normalizeLooseClientText(data.postcode),
+    country: normalizeCountryFilter(data.country),
     property_type: normalizeSearchOptionText(data.property_type),
     listing_type: normalizeListingType(data.listing_type),
     min_price: toOptionalPrice(data.min_price),
@@ -972,21 +982,24 @@ export const searchService = {
     /**
      * Get autocomplete suggestions
      */
-    autocomplete: async (query: string): Promise<AutocompleteSuggestion[]> => {
+    autocomplete: async (query: string, country = ''): Promise<AutocompleteSuggestion[]> => {
         const normalizedQuery = normalizeSearchQueryInput(query);
+        const normalizedCountry = normalizeCountryFilter(country);
         if (!normalizedQuery || normalizedQuery.length < 2) return [];
 
         if (shouldBypassPrimarySearchService()) {
             try {
-                return await buildAutocompleteFallback(normalizedQuery);
+                return await buildAutocompleteFallback(normalizedQuery, normalizedCountry);
             } catch {
                 return [];
             }
         }
 
         try {
+            const params = new URLSearchParams({ q: normalizedQuery });
+            if (normalizedCountry) params.set('country', normalizedCountry);
             const data = await apiFetch<{ suggestions: AutocompleteSuggestion[] }>(
-                `${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(normalizedQuery)}`,
+                `${API_URL}/api/v1/search/autocomplete?${params.toString()}`,
                 { suppressErrorToast: true, auth: false },
             );
             const suggestions = data?.suggestions || [];
@@ -1003,7 +1016,7 @@ export const searchService = {
             markPrimarySearchServiceUnavailable();
 
             try {
-                return await buildAutocompleteFallback(normalizedQuery);
+                return await buildAutocompleteFallback(normalizedQuery, normalizedCountry);
             } catch {
                 return [];
             }
@@ -1028,18 +1041,22 @@ export const searchService = {
     /**
      * Get available search dynamic filters
      */
-    getFilters: async (): Promise<FilterOptions | null> => {
+    getFilters: async (country = ''): Promise<FilterOptions | null> => {
+        const normalizedCountry = normalizeCountryFilter(country);
         if (shouldBypassPrimarySearchService()) {
             try {
-                return await buildFiltersFallback();
+                return await buildFiltersFallback(normalizedCountry);
             } catch {
                 return null;
             }
         }
 
         try {
+            const params = new URLSearchParams();
+            if (normalizedCountry) params.set('country', normalizedCountry);
+            const query = params.toString();
             const data = await apiFetch<FilterOptions>(
-                `${API_URL}/api/v1/search/filters`,
+                `${API_URL}/api/v1/search/filters${query ? `?${query}` : ''}`,
                 { suppressErrorToast: true, auth: false },
             );
             if (looksLikePlaceholderFilters(data || null)) {
@@ -1053,7 +1070,7 @@ export const searchService = {
             markPrimarySearchServiceUnavailable();
 
             try {
-                return await buildFiltersFallback();
+                return await buildFiltersFallback(normalizedCountry);
             } catch {
                 return null;
             }
