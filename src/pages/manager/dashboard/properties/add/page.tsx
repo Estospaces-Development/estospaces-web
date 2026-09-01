@@ -98,6 +98,7 @@ import {
   getManagerPropertyFieldId,
   getManagerPropertyFieldState,
   getManagerPropertyFormStatusMessage,
+  getManagerPropertyMediaEmptyStateMessage,
   getManagerPropertySubmitIntent,
   getManagerPropertyUploadControlCopy,
 } from "@/lib/managerPropertyFormAccessibility";
@@ -2272,6 +2273,10 @@ export default function AddPropertyPage() {
     file.entity_type === "property" &&
     (file.entity_id === mediaSourceEntityId || file.entity_id === idValue)
   ));
+  const hasMediaPreviews = imagePreviews.length > 0 || videoPreviews.length > 0;
+  const hasPendingMediaFiles = [...formData.images, ...formData.videos].some(
+    (entry) => typeof entry !== "string",
+  );
   const currentStepTitle =
     steps.find((step) => step.number === currentStep)?.title || "Property form";
   const auditActorName =
@@ -3330,11 +3335,10 @@ export default function AddPropertyPage() {
                   </table>
                 ) : (
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {imagePreviews.length > 0 || videoPreviews.length > 0
-                      ? isEditMode
-                        ? "This property has saved media shown below. My Uploads lists files added through the media library."
-                        : "Selected media is ready below. Save the property to add it to My Uploads."
-                      : "No media saved yet. Use the upload area below to add property images and videos."}
+                    {getManagerPropertyMediaEmptyStateMessage({
+                      hasPreviews: hasMediaPreviews,
+                      hasPendingFiles: hasPendingMediaFiles,
+                    })}
                   </p>
                 )}
               </div>

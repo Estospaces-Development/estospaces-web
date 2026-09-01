@@ -14,6 +14,24 @@ export interface ManagerPropertyFormStatusInput {
 export type ManagerPropertyUploadKind = 'images' | 'videos';
 export type ManagerPropertySubmitIntent = 'advance-step' | 'save-property';
 
+export function getManagerPropertyMediaEmptyStateMessage({
+  hasPreviews,
+  hasPendingFiles,
+}: {
+  hasPreviews: boolean;
+  hasPendingFiles: boolean;
+}): string {
+  if (hasPendingFiles) {
+    return 'Selected media is ready below. Save the property to add it to My Uploads.';
+  }
+
+  if (hasPreviews) {
+    return 'This property has saved media shown below. My Uploads lists files added through the media library.';
+  }
+
+  return 'No media saved yet. Use the upload area below to add property images and videos.';
+}
+
 export interface ManagerPropertyAuditSummaryInput {
   mode: ManagerPropertyFormMode;
   status: string;
