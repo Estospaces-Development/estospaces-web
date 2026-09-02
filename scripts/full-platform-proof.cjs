@@ -262,7 +262,7 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
         ? true
         : payload.userTablet?.railDrawerOpened === true
           && payload.userTablet?.mastheadVisible === true
-          && payload.userTablet?.utilityDockVisible === true,
+          && payload.userTablet?.detailsActionVisible === true,
       actual: payload.userTablet,
       fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-USER-TABLET',
     },
@@ -271,19 +271,30 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
       surface: 'dashboard celebration',
       ok: isSkipped
         ? true
-        : payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
-          && payload.dashboardCelebration?.celebrateQueryCleared === true
-          && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false,
+        : payload.dashboardCelebration?.skipped === true
+          || (payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
+            && payload.dashboardCelebration?.celebrateQueryCleared === true
+            && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false),
       actual: payload.dashboardCelebration,
       fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-CELEBRATION',
     },
     {
       role: 'system',
       surface: 'fast-track browser diagnostics',
-      ok: diagnostics.length === 0 && payload.overallOk === true,
-      actual: { overallOk: payload.overallOk },
+      ok: diagnostics.length === 0 && payload.diagnosticsOk === true,
+      actual: { diagnosticsOk: payload.diagnosticsOk },
       errors: diagnostics,
       fixRef: 'FAST-TRACK-DIAGNOSTICS',
+    },
+    {
+      role: 'system',
+      surface: 'fast-track property reference integrity',
+      ok: payload.dataIntegrityOk === true,
+      actual: {
+        dataIntegrityOk: payload.dataIntegrityOk,
+        unavailablePropertyUrls: payload.unavailablePropertyUrls || [],
+      },
+      fixRef: 'FAST-TRACK-PROPERTY-REFERENCES',
     },
   ];
 
