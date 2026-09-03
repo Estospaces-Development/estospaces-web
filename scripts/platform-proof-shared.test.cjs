@@ -124,3 +124,19 @@ test('isIgnorableConsoleError only ignores the known Firefox Google Fonts warnin
     false,
   );
 });
+
+test('shouldRecordConsoleError keeps genuine errors and excludes the known Firefox font warning', () => {
+  delete require.cache[modulePath];
+  const { shouldRecordConsoleError } = require(modulePath);
+
+  assert.equal(typeof shouldRecordConsoleError, 'function');
+  assert.equal(
+    shouldRecordConsoleError(
+      'error',
+      '[JavaScript Error: "downloadable font: download failed source: https://fonts.gstatic.com/s/inter/v20/example.woff2"]',
+    ),
+    false,
+  );
+  assert.equal(shouldRecordConsoleError('error', 'ReferenceError: dashboard failed to render'), true);
+  assert.equal(shouldRecordConsoleError('warning', 'ReferenceError: warning-only diagnostic'), false);
+});

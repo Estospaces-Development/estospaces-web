@@ -274,6 +274,10 @@ function isIgnorableConsoleError(message) {
   });
 }
 
+function shouldRecordConsoleError(type, message) {
+  return type === 'error' && !isIgnorableConsoleError(message);
+}
+
 function normalizeRole(roleName) {
   const role = String(roleName || '').trim().toLowerCase();
   if (role === 'admin') {
@@ -300,6 +304,7 @@ module.exports = {
   ensureReachable,
   getRoleBaseUrl,
   isIgnorableConsoleError,
+  shouldRecordConsoleError,
   loginViaApi,
   parseOption,
   parseTarget,

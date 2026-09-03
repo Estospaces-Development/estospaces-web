@@ -4,6 +4,7 @@ const { chromium, firefox } = require('playwright');
 const {
   buildArtifactPath,
   resolveTarget,
+  shouldRecordConsoleError,
 } = require('./platform-proof-shared.cjs');
 
 const publicRoutes = [
@@ -124,7 +125,7 @@ async function runPublicBrowserPass(browserType, target, viewport, label) {
 
   page.on('pageerror', (error) => pageErrors.push(String(error)));
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+    if (shouldRecordConsoleError(msg.type(), msg.text())) {
       consoleErrors.push(msg.text());
     }
   });
