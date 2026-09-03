@@ -6,6 +6,7 @@ const {
   resolveTarget,
   shouldRecordConsoleError,
 } = require('./platform-proof-shared.cjs');
+const { summarizeFailedResults } = require('./release-smoke-diagnostics.cjs');
 
 const publicRoutes = [
   { route: '/', expected: /Search|Dashboard|Estospaces|Login/i },
@@ -276,6 +277,8 @@ async function main() {
   process.stdout.write(`${JSON.stringify(payload.summary, null, 2)}\n`);
 
   if (!payload.summary.overallOk) {
+    const failedResults = summarizeFailedResults(results);
+    process.stderr.write(`Failed release smoke checks:\n${JSON.stringify(failedResults, null, 2)}\n`);
     process.exitCode = 1;
   }
 }
