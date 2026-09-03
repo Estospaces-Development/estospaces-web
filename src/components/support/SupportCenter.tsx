@@ -16,6 +16,7 @@ import { SupportTranscript } from '@/components/support/SupportTranscript';
 import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
+    focusSupportTicketComposer,
     getAutoSelectedSupportTicketId,
     getLaunchSafeSupportCategoryLabel,
     hasActiveSupportFilters,
@@ -125,6 +126,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const [detailLoading, setDetailLoading] = useState(false);
     const [resumingTicketId, setResumingTicketId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [composerFocusRequest, setComposerFocusRequest] = useState(0);
     const [adminUsers, setAdminUsers] = useState<User[]>([]);
     const [filters, setFilters] = useState<SupportFilterState>({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
     const [composer, setComposer] = useState(() => buildPrefilledSupportComposer({
@@ -169,6 +171,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const loadingTicketDetailsRef = useRef(new Set<string>());
     const detailRequestVersionRef = useRef(0);
     const supportCenterMountedRef = useRef(false);
+    const composerHeadingRef = useRef<HTMLHeadingElement>(null);
+
+    const handleStartNewTicket = useCallback(() => {
+        setSearchParams(new URLSearchParams(), { replace: true });
+        setComposerFocusRequest((current) => current + 1);
+    }, [setSearchParams]);
 
     useEffect(() => {
         supportCenterMountedRef.current = true;
@@ -178,6 +186,15 @@ export function SupportCenter({ role }: SupportCenterProps) {
             detailRequestVersionRef.current += 1;
         };
     }, []);
+
+    useEffect(() => {
+        if (isAdmin || selectedTicket || composerFocusRequest === 0) return;
+
+        const frame = window.requestAnimationFrame(() => {
+            focusSupportTicketComposer(composerHeadingRef.current);
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [composerFocusRequest, isAdmin, selectedTicket]);
     const adminQueueTabs = useMemo(() => ADMIN_QUEUE_TABS.map((tab) => {
         const tabFilters: SupportFilterState = {
             search: filters.search,
@@ -635,7 +652,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{tickets.length} visible right now</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            {!isAdmin && <button type="button" onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900">New ticket</button>}
+                            {!isAdmin && <button type="button" onClick={handleStartNewTicket} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900">New ticket</button>}
                             <button type="button" onClick={() => void fetchTickets()} disabled={loading} aria-busy={loading || undefined} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900" aria-label="Refresh support tickets">{loading ? <ActionSpinner size="sm" label="Refreshing support tickets" /> : <RefreshCw className="h-4 w-4" />}</button>
                         </div>
                     </div>
@@ -659,7 +676,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 <div className="min-w-0 space-y-5">
                     {!isAdmin && !selectedTicket && (
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
-                            <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 className="text-2xl font-black text-gray-950 dark:text-white">Open a support ticket</h2></div>
+                            <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 ref={composerHeadingRef} tabIndex={-1} className="text-2xl font-black text-gray-950 outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:text-white dark:focus-visible:ring-offset-gray-900">Open a support ticket</h2></div>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <select value={composer.category} onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket category">{ROLE_COPY[role].categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
                                 <select value={composer.priority} onChange={(event) => setComposer((current) => ({ ...current, priority: event.target.value as SupportTicketSummary['priority'] }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
