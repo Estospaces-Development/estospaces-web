@@ -89,7 +89,9 @@
     "vite": "^6.1.1"
   },
   "overrides": {
+    "@humanfs/node": "0.16.8",
     "brace-expansion": "5.0.9",
+    "fflate": "0.8.3",
     "postcss": "8.5.23",
     "follow-redirects": "^1.16.0",
     "minimatch": "^3.1.5"
