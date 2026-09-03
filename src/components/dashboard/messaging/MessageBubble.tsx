@@ -98,6 +98,8 @@ const MessageBubble = ({ message, isUser, isSupportConversation = false, showAva
                     <a
                         href={attachment.file_url}
                         download={attachment.file_name}
+                        aria-label={`Download ${attachment.file_name}`}
+                        title={`Download ${attachment.file_name}`}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                         <Download size={16} />
@@ -116,6 +118,8 @@ const MessageBubble = ({ message, isUser, isSupportConversation = false, showAva
                     <a
                         href={attachment.file_url}
                         download={attachment.file_name}
+                        aria-label={`Download ${attachment.file_name}`}
+                        title={`Download ${attachment.file_name}`}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                         <Download size={16} />
