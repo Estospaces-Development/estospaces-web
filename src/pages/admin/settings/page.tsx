@@ -1,10 +1,10 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useState, useEffect } from 'react';
-import { Shield, Bell, Globe, Database, Save } from 'lucide-react';
+import { Shield, Bell, Globe, Database, Save, LockKeyhole } from 'lucide-react';
 import { adminService, type SystemSettings, type PlatformStats } from '../../../services/adminService';
 import { useToast } from '../../../contexts/ToastContext';
 import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
@@ -70,14 +70,7 @@ export default function AdminSettingsPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-                <div className="text-center">
-                    <BrandLoader className="w-10 h-10 text-orange-500 mx-auto mb-4" />
-                    <p className="text-gray-500">Loading system settings...</p>
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading system settings..." />;
     }
 
     if (!settings) return null;
@@ -154,15 +147,27 @@ export default function AdminSettingsPage() {
                             )}
                         </div>
                         <div>
-                            <label htmlFor="admin-settings-currency" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Currency</label>
-                            <select
-                                id="admin-settings-currency"
-                                value={settings.defaultCurrency}
-                                onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                            <span
+                                id="admin-settings-currency-label"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                             >
-                                <option>{LAUNCH_CURRENCY_CODE}</option>
-                            </select>
+                                Default Currency
+                            </span>
+                            <output
+                                id="admin-settings-currency"
+                                aria-labelledby="admin-settings-currency-label"
+                                aria-describedby="admin-settings-currency-help"
+                                className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            >
+                                <span className="font-semibold">{settings.defaultCurrency}</span>
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    <LockKeyhole size={14} aria-hidden="true" />
+                                    Launch default
+                                </span>
+                            </output>
+                            <p id="admin-settings-currency-help" className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                Fixed to {LAUNCH_CURRENCY_CODE} for the current launch configuration.
+                            </p>
                         </div>
                     </div>
                 </div>

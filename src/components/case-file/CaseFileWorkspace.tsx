@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -1590,7 +1590,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   if (loading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-gray-100 bg-white p-8 dark:border-zinc-800 dark:bg-black">
-        <BrandLoader className="h-8 w-8 text-orange-500" />
+        <BrandLoadingScreen variant="panel" label="Loading case files..." />
       </div>
     );
   }
@@ -2165,7 +2165,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                                 {item.state === "approved" ? (
                                   <CheckCircle2 className="h-3.5 w-3.5" />
                                 ) : item.state === "uploading" ? (
-                                  <BrandLoader className="h-3.5 w-3.5" />
+                                  <ActionSpinner size={14} aria-hidden />
                                 ) : item.state === "review" ? (
                                   <Clock3 className="h-3.5 w-3.5" />
                                 ) : item.state === "attention" ? (
@@ -2363,7 +2363,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${itemStatusTone}`}
                             >
                               {item.status === "uploading" ? (
-                                <BrandLoader className="h-3.5 w-3.5" />
+                                <ActionSpinner size={14} aria-hidden />
                               ) : item.status === "uploaded" ? (
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                               ) : item.status === "failed" ? (

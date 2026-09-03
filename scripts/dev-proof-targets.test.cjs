@@ -30,8 +30,20 @@ test('full platform performance proof rejects login errors and enforces the laun
   assert.match(source, /`\$\{target\.adminBaseUrl\}\/login\/`/);
   assert.doesNotMatch(source, /`\$\{target\.(?:app|admin)BaseUrl\}\/login`/);
   assert.match(source, /item\.status >= 200 && item\.status < 400/);
-  assert.match(source, /p95 <= latencyBudgetMs/);
-  assert.match(source, /const latencyBudgetMs = 1000/);
+  assert.match(source, /appP95 <= applicationLatencyBudgetMs/);
+  assert.match(source, /clientP95 <= remoteReachabilityBudgetMs/);
+  assert.match(source, /const applicationLatencyBudgetMs = 1000/);
+  assert.match(source, /const remoteReachabilityBudgetMs = 5000/);
+  assert.match(source, /response\.headers\.get\('server-timing'\)/);
+});
+
+test('authenticated smoke proof uses the current canonical login route', () => {
+  const source = readScript('e2e-smoke.cjs');
+
+  assert.match(source, /return hostname\.endsWith\("\.run\.app"\) \? "\/login\/" : "\/login"/);
+  assert.doesNotMatch(source, /sessions\/create/);
+  assert.match(source, /const reportPath = path\.join\(screenshotRoot, "report\.json"\)/);
+  assert.match(source, /fs\.writeFileSync\(reportPath, JSON\.stringify\(report, null, 2\)\)/);
 });
 
 test('dev proof helpers default to deployed Cloud Run when FRONTEND_URL is absent', () => {

@@ -5,6 +5,7 @@ const { gotoWithRetry } = require("./platform-proof-browser-helpers.cjs");
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
+const reportPath = path.join(screenshotRoot, "report.json");
 const routeSettleMs = Number(process.env.E2E_ROUTE_SETTLE_MS || "1500");
 const DEV_WEB_BASE_URL = "https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app";
 
@@ -228,7 +229,7 @@ function parseOption(argv, name) {
 
 function resolveLoginPath(baseUrl) {
   const hostname = new URL(baseUrl).hostname;
-  return hostname.endsWith(".run.app") ? "/sessions/create/" : "/sessions/create";
+  return hostname.endsWith(".run.app") ? "/login/" : "/login";
 }
 
 async function ensureReachable(baseUrl) {
@@ -571,6 +572,7 @@ async function main() {
     results: allResults,
   };
 
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 
   if (summary.failed > 0) {

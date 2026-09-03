@@ -67,14 +67,82 @@ test('all role workspace shells contain content and overlays inside the mobile v
     ]) {
         const contents = source(file);
         assert.match(contents, /role-workspace-content/);
+        assert.match(contents, /data-mobile-scroll-root/);
         assert.match(contents, /overflow-x-hidden/);
+        assert.doesNotMatch(contents, /role-workspace-content[^\n]*overflow-y-auto/);
     }
 
     const css = source('globals.css');
+    const browserAudit = source('../scripts/mobile-responsive-audit.cjs');
     assert.match(css, /text-size-adjust:\s*100%/);
     assert.match(css, /font-size:\s*16px/);
     assert.match(css, /max-height:\s*calc\(100dvh - 1rem\)/);
     assert.match(css, /env\(safe-area-inset-bottom\)/);
+    assert.match(css, /role-workspace-content[\s\S]*overflow-y:\s*visible/);
+    assert.match(css, /role-workspace-content[\s\S]*overscroll-behavior-y:\s*auto/);
+    assert.match(browserAudit, /page\.mouse\.wheel/);
+    assert.match(browserAudit, /scrollGesturePassed/);
+    assert.match(browserAudit, /nestedScrollGestureDelta/);
+    assert.match(browserAudit, /data-mobile-audit-scroll-probe/);
+    assert.match(browserAudit, /scrollRetryPoints/);
+    assert.match(browserAudit, /vertical scroll gesture did not move/);
+    assert.match(browserAudit, /MOBILE_AUDIT_ROLES/);
+    assert.match(browserAudit, /MOBILE_AUDIT_SCREENSHOT_ALL/);
+    assert.match(browserAudit, /MOBILE_AUDIT_OUTPUT_LABEL/);
+});
+
+test('phone workspaces use an intentional compact type and spacing scale', () => {
+    const css = source('globals.css');
+    const dashboard = source('pages/user/dashboard/DashboardClient.tsx');
+    const discover = source('pages/user/dashboard/discover/page.tsx');
+    const userHeader = source('components/layout/UserHeader.tsx');
+    const userNavigation = source('components/layout/HorizontalNavigation.tsx');
+    const roleNavigation = source('components/layout/RoleMobileNavigation.tsx');
+    const browserAudit = source('../scripts/mobile-responsive-audit.cjs');
+
+    assert.match(css, /--mobile-panel-padding:\s*1rem/);
+    assert.match(css, /role-workspace-content h1 \{[\s\S]*clamp\(1\.5rem, 7vw, 1\.875rem\) !important/);
+    assert.match(css, /role-workspace-content h2 \{[\s\S]*clamp\(1\.25rem, 5\.8vw, 1\.5rem\) !important/);
+    assert.match(css, /role-workspace-content h3 \{[\s\S]*font-weight:\s*600/);
+    assert.match(css, /\[class~='p-8'\][\s\S]*padding:\s*var\(--mobile-panel-padding\)/);
+    assert.match(dashboard, /text-\[1\.75rem\]/);
+    assert.match(dashboard, /mobile-filter-rail mt-6 hidden/);
+    assert.match(discover, /grid min-h-11 grid-cols-3/);
+    assert.match(discover, /City, \$\{locationCodeLabel\.toLowerCase\(\)\}, or property/);
+    assert.match(userHeader, /min-\[360px\]:inline/);
+    assert.match(roleNavigation, /min-h-14/);
+    assert.match(roleNavigation, /mobileLabel: '24h'/);
+    assert.match(userNavigation, /mobileLabel: "Chat"/);
+    assert.match(browserAudit, /oversizedHeadings/);
+    assert.match(browserAudit, /viewportWidth < 640/);
+    assert.match(browserAudit, /\{ h1: 32, h2: 26 \}/);
+    assert.match(browserAudit, /\{ h1: 48, h2: 36 \}/);
+    assert.match(browserAudit, /mobile navigation is taller than/);
+});
+
+test('overseas hero preserves the tablet type scale and reserves the largest heading for desktop', () => {
+    const overseasPage = source('pages/user/dashboard/overseas/page.tsx');
+
+    assert.match(overseasPage, /sm:text-4xl lg:text-5xl/);
+    assert.doesNotMatch(overseasPage, /sm:text-4xl md:text-5xl/);
+});
+
+test('tablet workspaces preserve touch targets and delay dense registry layout until desktop', () => {
+    const css = source('globals.css');
+    const backButton = source('components/ui/BackButton.tsx');
+    const adminProperties = source('pages/admin/properties/page.tsx');
+    const userNavigation = source('components/layout/HorizontalNavigation.tsx');
+    const themeSwitcher = source('components/dashboard/ThemeSwitcher.tsx');
+    const adminHeader = source('components/layout/AdminHeader.tsx');
+
+    assert.match(css, /@media \(min-width: 640px\) and \(max-width: 1023px\)[\s\S]*min-height: 44px;[\s\S]*min-width: 44px;/);
+    assert.match(backButton, /min-h-12 min-w-12/);
+    assert.match(adminProperties, /xl:flex-row xl:items-center xl:justify-between/);
+    assert.doesNotMatch(adminProperties, /md:flex-row md:items-center md:justify-between/);
+    assert.match(userNavigation, /relative inline-flex min-h-11 items-center/);
+    assert.match(themeSwitcher, /inline-flex h-11 w-11 items-center justify-center/);
+    assert.match(adminHeader, /hidden h-11 min-w-11 shrink-0/);
+    assert.match(adminHeader, /hidden min-h-11 items-center/);
 });
 
 test('public phone navigation exposes full-size touch targets inside the viewport', () => {

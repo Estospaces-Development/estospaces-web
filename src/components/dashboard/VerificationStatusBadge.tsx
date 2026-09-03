@@ -1,6 +1,6 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -84,7 +84,7 @@ const VerificationStatusBadge: React.FC<VerificationStatusBadgeProps> = ({
     if (isLoading && showLoading) {
         return (
             <div className={`inline-flex items-center gap-1.5 ${className}`}>
-                <BrandLoader className="text-gray-400" size={getSizeConfig(size).iconSize} />
+                <ActionSpinner className="text-gray-400" size={getSizeConfig(size).iconSize} aria-hidden />
                 {!iconOnly && <span className="text-gray-400 text-sm">Loading...</span>}
             </div>
         );

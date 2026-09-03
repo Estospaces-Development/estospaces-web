@@ -16,6 +16,55 @@ test("Home Choices content can wrap without being squeezed by its deadline card"
   assert.match(source, /sm:w-auto sm:shrink-0 sm:whitespace-nowrap sm:text-right/);
 });
 
+test("matched agent requests use compact progressive disclosure on phones", () => {
+  const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
+
+  assert.match(source, /data-mobile-broker-request/);
+  assert.match(source, /<details className="group mt-3[^\n]+md:hidden"/);
+  assert.match(source, />Request details</);
+  assert.match(source, /mt-4 hidden gap-3 md:grid md:grid-cols-3/);
+  assert.match(source, /hidden min-w-\[180px\][^\n]+sm:block/);
+  assert.match(source, /mt-5 hidden gap-3 sm:grid sm:grid-cols-2/);
+  assert.match(source, /min-h-11 w-full[^\n]+sm:w-auto/);
+  assert.match(source, /View \{matchedExperienceSteps\.length\} next steps/);
+  assert.match(source, /mt-4 hidden gap-3 sm:grid md:grid-cols-3/);
+  assert.match(source, /Next step/);
+  assert.match(source, /open=\{Boolean\(selectedProperty \|\| availableSharedProperties\.length > 0\)\}/);
+  assert.match(source, /Waiting for home choices/);
+  assert.match(source, />Start a different request</);
+  assert.match(source, /onClick=\{handleStartAnotherRequest\}/);
+  assert.match(source, /activeRequest \? 'hidden sm:block' : 'block'/);
+});
+
+test("journey progress uses a compact phone header and discloses secondary controls on demand", () => {
+  const source = readSource("components/dashboard/ApplicationTimelineWidget.tsx");
+
+  assert.match(source, /grid min-w-0 grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+  assert.match(source, /whitespace-nowrap rounded-full bg-green-100/);
+  assert.match(source, /flex snap-x gap-1 overflow-x-auto/);
+  assert.match(source, /> Filter and sort</);
+  assert.match(source, /hidden gap-3 pt-3 group-open:grid sm:grid/);
+  assert.match(source, /grid grid-cols-\[44px_minmax\(0,1fr\)\]/);
+  assert.match(source, /item\.source === 'broker_request' \? 'Agent request'/);
+  assert.match(source, /text-xs font-medium text-gray-900[^\n]+sm:text-base sm:font-semibold/);
+});
+
+test("283px dashboard hierarchy uses lighter type and stacked narrow-phone groups", () => {
+  const dashboard = readSource("pages/user/dashboard/DashboardClient.tsx");
+  const requestWidget = readSource("components/dashboard/BrokerRequestWidget.tsx");
+  const nearbyAgents = readSource("components/dashboard/NearbyAgenciesList.tsx");
+
+  assert.match(dashboard, /data-mobile-primary-task/);
+  assert.match(dashboard, /text-xl font-semibold leading-tight/);
+  assert.match(dashboard, /min-h-11[^\n]+text-sm font-medium/);
+  assert.match(requestWidget, /grid gap-2 sm:flex sm:items-start sm:justify-between/);
+  assert.match(requestWidget, /Find an agent and matching homes\./);
+  assert.match(requestWidget, /block sm:flex sm:items-center sm:justify-between/);
+  assert.match(requestWidget, /grid min-w-0 gap-2[^\n]+sm:flex sm:items-start/);
+  assert.match(nearbyAgents, /data-mobile-nearby-agencies/);
+  assert.match(nearbyAgents, /grid min-w-0 gap-1 sm:flex/);
+});
+
 test("nearby map reset reapplies bounds and restores the default presentation", () => {
   const source = readSource("components/dashboard/NearbyPropertiesMap.tsx");
 
@@ -24,6 +73,23 @@ test("nearby map reset reapplies bounds and restores the default presentation", 
   assert.match(source, /setIsSelectionDismissed\(false\)/);
   assert.match(source, /setSelectedPropertyID\(propertiesWithCoords\[0\]\?\.id \|\| null\)/);
   assert.match(source, /setFitSignal\(\(value\) => value \+ 1\)/);
+});
+
+test("dashboard map recomposes controls and supporting copy for narrow phones", () => {
+  const dashboard = readSource("pages/user/dashboard/DashboardClient.tsx");
+  const map = readSource("components/dashboard/NearbyPropertiesMap.tsx");
+  const helpers = readSource("lib/nearbyMap.ts");
+  const globalStyles = readSource("globals.css");
+
+  assert.match(dashboard, /data-mobile-nearby-map-section/);
+  assert.match(dashboard, /grid min-w-0 gap-2\.5 sm:mb-4 sm:flex/);
+  assert.match(dashboard, />Open Discover</);
+  assert.doesNotMatch(dashboard, /This is a compact preview\. Open Browse All for the full map experience\./);
+  assert.match(map, /grid w-full grid-cols-3 gap-1 rounded-xl/);
+  assert.match(map, /data-nearby-map-compact=\{compact \? 'true' : 'false'\}/);
+  assert.match(globalStyles, /\[data-nearby-map-compact='true'\] \.leaflet-control-zoom\s*\{\s*display: none;/);
+  assert.match(map, /hidden bg-gradient-to-t[\s\S]*sm:block/);
+  assert.match(helpers, /h-\[260px\] min-\[340px\]:h-\[280px\]/);
 });
 
 test("applications grid and list controls render structurally different views", () => {
@@ -65,4 +131,74 @@ test("manager case-file documents follow both light and dark themes", () => {
   assert.match(source, /border-gray-200 bg-white p-6 shadow-sm dark:border-\[#262626\] dark:bg-\[#050505\]/);
   assert.match(source, /border-orange-200 bg-orange-50\/70 p-5 shadow-sm dark:border-\[#35261a\] dark:bg-\[#101010\]/);
   assert.match(source, /border-gray-200 bg-gray-50 p-5 shadow-sm dark:border-\[#252525\] dark:bg-\[#0c0c0c\]/);
+});
+
+test("role guides surface actions before supporting desktop detail on phones", () => {
+  const source = readSource("components/docs/RoleDocsPage.tsx");
+
+  assert.match(source, /hidden gap-4 sm:grid/);
+  assert.match(source, /mt-5 grid grid-cols-2 gap-3/);
+  assert.match(source, /hidden text-sm leading-6[\s\S]*sm:block/);
+});
+
+test("user notification and virtual-storage metrics stay compact on phones", () => {
+  const notifications = readSource("pages/user/dashboard/notifications/page.tsx");
+  const storage = readSource("pages/user/virtual-storage/page.tsx");
+
+  assert.match(notifications, /mt-5 grid grid-cols-3 gap-2/);
+  assert.match(storage, /grid grid-cols-2 gap-3/);
+});
+
+test("mobile property detail keeps price and actions ahead of supporting content", () => {
+  const source = readSource("pages/user/properties/[id]/page.tsx");
+
+  assert.match(source, /data-mobile-property-summary/);
+  assert.match(source, /line-clamp-3 max-w-2xl/);
+  assert.match(source, /hidden rounded-\[1\.8rem\][^\n]+sm:block/);
+  assert.match(source, /mt-6 hidden sm:block/);
+});
+
+test("overseas discovery keeps its hero copy readable on dark imagery", () => {
+  const source = readSource("pages/user/dashboard/overseas/page.tsx");
+
+  assert.match(source, /text-white\/85 dark:text-gray-600/);
+  assert.match(source, /px-5 py-10 text-center/);
+});
+
+test("manager summary metrics use compact phone grids", () => {
+  const appointments = readSource("pages/manager/appointments/page.tsx");
+  const verification = readSource("components/verification/UserVerificationQueue.tsx");
+  const community = readSource("components/community/CommunityStats.tsx");
+
+  assert.match(appointments, /grid grid-cols-2 gap-3 min-\[360px\]:grid-cols-3/);
+  assert.match(verification, /grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4/);
+  assert.match(community, /grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4/);
+});
+
+test("admin operational metrics use compact phone grids", () => {
+  const analytics = readSource("pages/admin/analytics/page.tsx");
+  const research = readSource("pages/admin/research/page.tsx");
+  const users = readSource("pages/admin/users/page.tsx");
+  const notifications = readSource("pages/admin/notifications/page.tsx");
+
+  assert.match(analytics, /grid grid-cols-2 gap-3/);
+  assert.match(research, /grid grid-cols-2 gap-3/);
+  assert.match(users, /grid grid-cols-2 gap-3 lg:grid-cols-4/);
+  assert.match(notifications, /mt-5 grid grid-cols-3 gap-2/);
+  assert.doesNotMatch(notifications, /Opens \{targetPath\}/);
+
+  const dashboard = readSource("pages/admin/dashboard/page.tsx");
+  assert.equal((dashboard.match(/flex min-w-0 flex-col items-start gap-2 min-\[360px\]:flex-row/g) || []).length, 4);
+});
+
+test("narrow-phone guides wrap safely and settings tabs stay fully visible", () => {
+  const docs = readSource("components/docs/RoleDocsPage.tsx");
+  const settings = readSource("pages/user/dashboard/settings/page.tsx");
+
+  assert.match(docs, /min-w-0 max-w-4xl/);
+  assert.match(docs, /data-role-docs=\{config\.role\}/);
+  assert.match(docs, /Manager operating guide/);
+  assert.doesNotMatch(docs, /\[overflow-wrap:anywhere\]/);
+  assert.match(settings, /grid grid-cols-2 gap-2/);
+  assert.match(settings, /min-h-12 min-w-0 items-center justify-center/);
 });

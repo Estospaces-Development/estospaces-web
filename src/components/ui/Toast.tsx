@@ -85,7 +85,7 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                         aria-label="Close notification"
                     >
                         <X size={18} />

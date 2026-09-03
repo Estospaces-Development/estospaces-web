@@ -40,3 +40,17 @@ test("user activity subnav includes fast track", () => {
   assert.match(markup, /Active cases/);
   assertOnlyActive(markup, "/user/dashboard/fast-track");
 });
+
+test("user activity subnav exposes every mobile destination without a scrolling rail", () => {
+  const markup = renderActivitySubnav("/user/dashboard/saved");
+
+  assert.equal((markup.match(/<a\s/g) || []).length, 6);
+  assert.match(markup, />Saved</);
+  assert.match(markup, />Applications</);
+  assert.match(markup, />Documents</);
+  assert.match(markup, />Fast Track</);
+  assert.match(markup, />Viewings</);
+  assert.match(markup, />My homes</);
+  assert.match(markup, /grid-cols-3/);
+  assert.doesNotMatch(markup, /overflow-x-auto/);
+});

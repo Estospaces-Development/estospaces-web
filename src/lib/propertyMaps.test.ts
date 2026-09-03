@@ -27,7 +27,7 @@ test("getPropertyMapState builds a pin-based map state for valid coordinates", (
   assert.match(state.externalUrl ?? "", /query=51\.5034%2C-0\.1276/);
 });
 
-test("getPropertyMapState normalizes string coordinates and preserves zero values", () => {
+test("getPropertyMapState rejects zero-coordinate sentinel values", () => {
   const state = getPropertyMapState({
     location: {
       addressLine1: "Equator House",
@@ -37,11 +37,10 @@ test("getPropertyMapState normalizes string coordinates and preserves zero value
     },
   });
 
-  assert.equal(state.hasCoordinates, true);
-  assert.equal(state.coordinates?.latitude, 0);
-  assert.equal(state.coordinates?.longitude, 0);
-  assert.match(state.embedUrl ?? "", /0%2C0/);
-  assert.doesNotMatch(state.embedUrl ?? "", /51\.505|-0\.09/);
+  assert.equal(state.hasCoordinates, false);
+  assert.equal(state.coordinates, null);
+  assert.equal(state.embedUrl, null);
+  assert.equal(state.statusTitle, "Address available — pin not verified");
 });
 
 test("getPropertyMapState avoids a guessed preview pin when coordinates are unavailable", () => {
@@ -87,15 +86,15 @@ test("getPreferredMapsProvider selects Apple Maps for Apple user agents", () => 
   );
 });
 
-test("getPropertyMapState builds Apple Maps URLs when requested", () => {
+test("getPropertyMapState builds Apple Maps URLs for a verified launch location", () => {
   const state = getPropertyMapState(
     {
       location: {
-        addressLine1: "1 Infinite Loop",
-        city: "Cupertino",
-        country: "United States",
-        latitude: 37.3318,
-        longitude: -122.0312,
+        addressLine1: "10 Downing Street",
+        city: "London",
+        country: "United Kingdom",
+        latitude: 51.5034,
+        longitude: -0.1276,
       },
     },
     { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0)" },
@@ -104,8 +103,8 @@ test("getPropertyMapState builds Apple Maps URLs when requested", () => {
   const externalUrl = new URL(state.externalUrl ?? "");
   assert.equal(state.provider, "apple");
   assert.equal(externalUrl.hostname, "maps.apple.com");
-  assert.equal(externalUrl.searchParams.get("ll"), "37.3318,-122.0312");
-  assert.match(externalUrl.searchParams.get("q") ?? "", /1 Infinite Loop/);
+  assert.equal(externalUrl.searchParams.get("ll"), "51.5034,-0.1276");
+  assert.match(externalUrl.searchParams.get("q") ?? "", /10 Downing Street/);
 });
 
 test("getPropertyDisplayAddress combines nested and fallback address fields without duplicates", () => {

@@ -45,6 +45,7 @@ test('manager header global search offers query-scoped workspace destinations', 
 
   assert.match(header, /const normalizedSearchQuery = searchQuery\.trim\(\)\.replace\(\/\\s\+\/g, ' '\);/);
   assert.match(header, /getManagerSearchDestinations\(searchQuery\)/);
+  assert.match(header, /type="text"\s+role="combobox"/);
   assert.match(header, /aria-label="Choose where to search"/);
   assert.match(header, /openSearchDestination\(destination\.path\)/);
   assert.doesNotMatch(header, /navigate\(`\/manager\/leads\?search=/);

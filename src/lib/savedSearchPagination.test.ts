@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildSavedSearchPageParams,
+  buildSavedSearchRerunParams,
   getSavedSearchTargetPage,
 } from '@/lib/savedSearchPagination';
 
@@ -40,4 +41,20 @@ test('the first saved-search page omits the redundant page parameter', () => {
 test('an alert deep link wins over a stale saved-search page number', () => {
   assert.equal(getSavedSearchTargetPage(99, 16, 11, 10), 2);
   assert.equal(getSavedSearchTargetPage(99, 16, -1, 10), 2);
+});
+
+test('rerunning a saved search preserves its market restriction', () => {
+  const params = buildSavedSearchRerunParams({
+    query: 'apartment',
+    location: 'Chennai',
+    country: 'IN',
+    listing_type: 'sale',
+    bedrooms: 2,
+  });
+
+  assert.equal(params.get('q'), 'apartment');
+  assert.equal(params.get('location'), 'Chennai');
+  assert.equal(params.get('market'), 'IN');
+  assert.equal(params.get('type'), 'sale');
+  assert.equal(params.get('beds'), '2');
 });

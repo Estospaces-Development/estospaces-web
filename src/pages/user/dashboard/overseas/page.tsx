@@ -44,7 +44,7 @@ export default function OverseasPage() {
                 <div className="mb-10">
                     <button
                         onClick={() => navigate('/user/dashboard')}
-                        className="mb-6 flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-all group"
+                        className="mb-6 hidden items-center gap-2 text-gray-400 transition-all group hover:text-orange-500 sm:flex"
                     >
                         <div className="p-2 rounded-xl group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20 transition-all">
                             <ArrowLeft size={18} />
@@ -54,7 +54,7 @@ export default function OverseasPage() {
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
-                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none mb-2">
+                            <h1 className="mb-2 text-3xl font-black leading-none tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                                 Overseas
                             </h1>
                             <p className="text-gray-500 dark:text-gray-400 font-medium">
@@ -80,15 +80,15 @@ export default function OverseasPage() {
                 </div>
 
                 {/* Hero Search Section */}
-                <div className="relative rounded-[3rem] overflow-hidden bg-gray-900 dark:bg-white mb-16 shadow-2xl group">
+                <div className="group relative mb-10 overflow-hidden rounded-[2rem] bg-gray-900 shadow-2xl dark:bg-white sm:mb-16 sm:rounded-[3rem]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.35),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_40%),linear-gradient(135deg,_rgba(17,24,39,0.96),_rgba(55,65,81,0.92))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),_transparent_40%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(243,244,246,0.92))] opacity-100 group-hover:scale-105 transition-transform duration-1000"></div>
-                    <div className="relative z-10 px-10 py-20 text-center max-w-3xl mx-auto">
-                        <h2 className="text-4xl md:text-5xl font-black text-white dark:text-gray-900 mb-6 tracking-tight">
+                    <div className="relative z-10 mx-auto max-w-3xl px-5 py-10 text-center sm:px-10 sm:py-20">
+                        <h2 className="mb-4 text-3xl font-black tracking-tight text-white dark:text-gray-900 sm:mb-6 sm:text-4xl lg:text-5xl">
                             Find Your Dream <span className="text-orange-500">Global</span> Sanctuary
                         </h2>
-                        <p className="text-gray-400 dark:text-gray-500 font-bold mb-10 text-lg">Curated properties in the world's most desired locations.</p>
+                        <p className="mb-6 text-sm font-semibold leading-6 text-white/85 dark:text-gray-600 sm:mb-10 sm:text-lg">Curated properties in the world's most desired locations.</p>
 
-                        <div className="flex flex-col md:flex-row gap-4 p-4 bg-white/10 dark:bg-gray-100 backdrop-blur-xl rounded-[2.5rem]">
+                        <div className="flex flex-col gap-3 rounded-[1.5rem] bg-white/10 p-3 backdrop-blur-xl dark:bg-gray-100 sm:gap-4 sm:rounded-[2.5rem] sm:p-4 md:flex-row">
                             <div className="flex-1 relative">
                                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input

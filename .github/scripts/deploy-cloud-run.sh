@@ -9,9 +9,15 @@ set -Eeuo pipefail
 
 SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
 CANDIDATE_TAG="c$(printf '%s' "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" | sha256sum | cut -c1-9)"
+CANARY_PERCENT="${CANARY_PERCENT:-100}"
 TRAFFIC_SHIFTED=0
 PREVIOUS_REVISION=""
 CANDIDATE_TAG_CREATED=0
+
+if [[ ! "$CANARY_PERCENT" =~ ^[0-9]+$ ]] || (( CANARY_PERCENT < 1 || CANARY_PERCENT > 100 )); then
+  echo "CANARY_PERCENT must be an integer from 1 through 100." >&2
+  exit 1
+fi
 
 rollback() {
   local exit_code="${1:-$?}"
@@ -150,6 +156,46 @@ if [[ "$DEPLOYED_IMAGE" != "$IMMUTABLE_IMAGE" ]]; then
   exit 1
 fi
 
+SERVICE_URL="$(jq -r '.status.url // empty' <<<"$SERVICE_JSON")"
+if [[ -z "$SERVICE_URL" ]]; then
+  echo "Cloud Run did not return a service URL for ${SERVICE_TARGET}." >&2
+  exit 1
+fi
+
+{
+  echo "candidate_revision=${CANDIDATE_REVISION}"
+  echo "candidate_tag=${CANDIDATE_TAG}"
+  echo "service_url=${SERVICE_URL}"
+  echo "immutable_image=${IMMUTABLE_IMAGE}"
+} >> "$GITHUB_OUTPUT"
+
+if (( CANARY_PERCENT < 100 )); then
+  TRAFFIC_SHIFTED=1
+  gcloud run services update-traffic "$SERVICE_TARGET" \
+    --to-tags="${CANDIDATE_TAG}=${CANARY_PERCENT}" \
+    --region="$REGION" \
+    --project="$PROJECT_ID"
+
+  SERVICE_JSON="$(gcloud run services describe "$SERVICE_TARGET" \
+    --region="$REGION" \
+    --project="$PROJECT_ID" \
+    --format=json)"
+  CANDIDATE_TRAFFIC="$(jq -r --arg revision "$CANDIDATE_REVISION" '
+    [.status.traffic[]? | select(.revisionName == $revision) | .percent][0] // 0
+  ' <<<"$SERVICE_JSON")"
+  PREVIOUS_TRAFFIC="$(jq -r --arg revision "$PREVIOUS_REVISION" '
+    [.status.traffic[]? | select(.revisionName == $revision) | .percent][0] // 0
+  ' <<<"$SERVICE_JSON")"
+  if [[ "$CANDIDATE_TRAFFIC" != "$CANARY_PERCENT" || "$PREVIOUS_TRAFFIC" != "$((100 - CANARY_PERCENT))" ]]; then
+    echo "Cloud Run did not establish the requested ${CANARY_PERCENT}% canary split." >&2
+    exit 1
+  fi
+
+  trap - EXIT INT TERM
+  echo "Canary ${CANDIDATE_REVISION} is serving ${CANARY_PERCENT}% with tag ${CANDIDATE_TAG}; rollback target is ${PREVIOUS_REVISION}."
+  exit 0
+fi
+
 gcloud run services update-traffic "$SERVICE_TARGET" \
   --to-revisions="${CANDIDATE_REVISION}=100" \
   --region="$REGION" \
@@ -199,12 +245,6 @@ gcloud run services update-traffic "$SERVICE_TARGET" \
   --region="$REGION" \
   --project="$PROJECT_ID"
 CANDIDATE_TAG_CREATED=0
-
-{
-  echo "candidate_revision=${CANDIDATE_REVISION}"
-  echo "service_url=${SERVICE_URL}"
-  echo "immutable_image=${IMMUTABLE_IMAGE}"
-} >> "$GITHUB_OUTPUT"
 
 trap - EXIT INT TERM
 echo "Promoted ${CANDIDATE_REVISION} with image ${IMMUTABLE_IMAGE}; rollback target is ${PREVIOUS_REVISION}."

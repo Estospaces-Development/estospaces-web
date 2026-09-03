@@ -1,7 +1,7 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -42,13 +42,14 @@ import {
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
-import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase, type CreateFastTrackRequest } from '@/services/fastTrackService';
+import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
 import { createOffer } from '@/services/salesService';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
+import FastTrackRequestConfirmationModal from '@/components/fast-track/FastTrackRequestConfirmationModal';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import {
     buildFastTrackDocumentItems,
@@ -71,18 +72,32 @@ import {
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages, getPropertyVideos } from '@/lib/propertyImages';
+import { getPropertyGalleryDisplayState } from '@/lib/propertyGalleryState';
 import {
     MAX_SALE_OFFER_NOTES_LENGTH,
     buildSaleOfferPayload,
     isSaleOfferListingType,
 } from '@/lib/saleOfferEntry';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    resetPropertyDetailScroll,
+    shouldResetPropertyDetailScroll,
+} from '@/lib/propertyDetailScroll';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
 import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
+import {
+    buildPropertyFastTrackStartRequest,
+    mapFastTrackPropertyType,
+} from '@/lib/propertyFastTrackRequest';
+
+export {
+    buildPropertyFastTrackStartRequest,
+    mapFastTrackPropertyType,
+} from '@/lib/propertyFastTrackRequest';
 import { isPropertyInMarket } from '@/lib/propertyMarket';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -142,19 +157,6 @@ export const getPropertyBrokerRequestQuery = (params: URLSearchParams) => {
     return '';
 };
 
-export const mapFastTrackPropertyType = (listingType?: string) => {
-    if (listingType === 'sale') {
-        return 'buy';
-    }
-    if (listingType === 'lease') {
-        return 'lease';
-    }
-    if (listingType === 'rent') {
-        return 'rent';
-    }
-    return null;
-};
-
 export type PropertyFastTrackLookupStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type PropertyFastTrackCtaState = 'checking' | 'start' | 'continue' | 'retry';
 
@@ -184,45 +186,6 @@ export const resolvePropertyFastTrackCtaState = ({
     }
 
     return hasActiveJourney ? 'continue' : 'start';
-};
-
-export const buildPropertyFastTrackStartRequest = ({
-    property,
-    lead,
-    brokerRequestQuery,
-    clientId,
-    clientName,
-}: {
-    property: Property;
-    lead: Lead | null;
-    brokerRequestQuery: string;
-    clientId: string;
-    clientName: string;
-}): CreateFastTrackRequest | null => {
-    const fastTrackPropertyType = mapFastTrackPropertyType(property.listing_type);
-    if (!fastTrackPropertyType) {
-        return null;
-    }
-
-    const brokerRequestId = brokerRequestQuery || lead?.broker_request_id || undefined;
-    const startsFromBrokerRequest = Boolean(brokerRequestId);
-    const managerId = lead?.matched_broker_id || lead?.broker_id || property.manager_id || undefined;
-
-    return {
-        property_id: property.id,
-        broker_request_id: brokerRequestId,
-        lead_id: startsFromBrokerRequest ? undefined : lead?.id,
-        manager_id: managerId,
-        client_id: clientId,
-        client_name: clientName,
-        property_title: property.title,
-        property_type: fastTrackPropertyType,
-        property_country: property.country || undefined,
-        listing_type: ['rent', 'sale', 'lease'].includes(property.listing_type || '')
-            ? property.listing_type as 'rent' | 'sale' | 'lease'
-            : undefined,
-        started_from: startsFromBrokerRequest ? 'broker_request_selection' : 'direct_property',
-    };
 };
 
 type PropertyFastTrackDashboardCase = Pick<FastTrackCase, 'caseId' | 'finalStatus' | 'stage'> | null | undefined;
@@ -979,6 +942,7 @@ const UserPropertyDetail = () => {
     const [isImmersiveZoomActive, setIsImmersiveZoomActive] = useState(false);
     const [immersiveZoomPoint, setImmersiveZoomPoint] = useState(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
     const [isFastTrackModalOpen, setIsFastTrackModalOpen] = useState(false);
+    const [isFastTrackRequestConfirmationOpen, setIsFastTrackRequestConfirmationOpen] = useState(false);
     const [isFastTrackPanelLoading, setIsFastTrackPanelLoading] = useState(false);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
     const [activeFastTrackCase, setActiveFastTrackCase] = useState<FastTrackCase | null>(null);
@@ -990,6 +954,22 @@ const UserPropertyDetail = () => {
     const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
     const [uploadingFastTrackDocumentType, setUploadingFastTrackDocumentType] = useState<'identity' | 'address' | null>(null);
     const [liveWorkspaceLoaded, setLiveWorkspaceLoaded] = useState(false);
+
+    React.useLayoutEffect(() => {
+        if (!shouldResetPropertyDetailScroll(location.hash)) {
+            return;
+        }
+
+        return resetPropertyDetailScroll(window);
+    }, [id, location.hash]);
+
+    useEffect(() => {
+        if (loading || !shouldResetPropertyDetailScroll(location.hash)) {
+            return;
+        }
+
+        return resetPropertyDetailScroll(window);
+    }, [id, loading, location.hash]);
 
     const fastTrackRequestStorageKey = useMemo(() => (
         user?.id && property?.id
@@ -1190,12 +1170,12 @@ const UserPropertyDetail = () => {
         };
     }, [id]);
 
-    const images = useMemo(() => {
-        const resolvedImages = getPropertyImages(property);
-        return resolvedImages.length > 0 ? resolvedImages : [PROPERTY_PLACEHOLDER_IMAGE];
-    }, [property]);
-    const realImages = useMemo(() => getPropertyImages(property), [property]);
-    const realImageCount = realImages.length;
+    const images = useMemo(() => getPropertyImages(property), [property]);
+    const realImageCount = images.length;
+    const galleryDisplayState = useMemo(
+        () => getPropertyGalleryDisplayState(realImageCount, selectedImageIndex),
+        [realImageCount, selectedImageIndex],
+    );
     const propertyVideos = useMemo(() => getPropertyVideos(property), [property]);
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
@@ -1447,6 +1427,9 @@ const UserPropertyDetail = () => {
         setSelectedImageIndex((previous) => (previous === images.length - 1 ? 0 : previous + 1));
     }, [images.length]);
     const openGallery = (index = selectedImageIndex, trigger?: HTMLElement | null) => {
+        if (!galleryDisplayState.hasImages) {
+            return;
+        }
         immersiveGalleryTriggerRef.current = trigger || (document.activeElement as HTMLElement | null);
         setSelectedImageIndex(index);
         setIsGalleryOpen(true);
@@ -1575,6 +1558,9 @@ const UserPropertyDetail = () => {
 
     useEffect(() => {
         setSelectedImageIndex(0);
+        if (images.length === 0) {
+            setIsGalleryOpen(false);
+        }
     }, [images.length]);
 
     useEffect(() => {
@@ -2069,6 +2055,26 @@ const UserPropertyDetail = () => {
         }
     };
 
+    const handleFastTrackEntryAction = (trigger: HTMLButtonElement) => {
+        fastTrackTriggerRef.current = trigger;
+        if (
+            fastTrackCtaState === 'start'
+            && user
+            && property
+            && mapFastTrackPropertyType(property.listing_type)
+        ) {
+            setIsFastTrackRequestConfirmationOpen(true);
+            return;
+        }
+
+        void handleStartFastTrack();
+    };
+
+    const confirmFastTrackRequest = () => {
+        setIsFastTrackRequestConfirmationOpen(false);
+        void handleStartFastTrack();
+    };
+
     const handleOpenConversation = async () => {
         if (!property || !ensureAuthenticated()) {
             return;
@@ -2355,12 +2361,7 @@ const UserPropertyDetail = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-600">
-                <BrandLoader className="w-12 h-12 mb-4" />
-                <p className="text-gray-500 font-medium">Loading property details...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading property details..." />;
     }
 
     if (error || !property) {
@@ -2383,17 +2384,17 @@ const UserPropertyDetail = () => {
     }
 
     return (
-        <div className="relative mx-auto max-w-[1480px] px-4 py-8 pb-20">
+        <div className="relative mx-auto max-w-[1480px] px-3 py-3 pb-24 sm:px-4 sm:py-8 sm:pb-20">
             <p role="status" aria-live="polite" className="sr-only">
                 {savedPropertyStatusMessage}
             </p>
             <div className="pointer-events-none absolute inset-x-10 top-12 -z-10 h-64 rounded-[3rem] bg-orange-50/90 blur-3xl dark:bg-orange-950/20" />
             <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-3 flex min-h-11 items-center justify-between sm:mb-8">
                 <button
                     type="button"
                     onClick={handleBackNavigation}
-                    className="flex items-center gap-2 text-gray-600 transition-colors group hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300"
+                    className="group flex min-h-11 items-center gap-1.5 rounded-full px-1 text-sm font-medium text-gray-600 transition-colors hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300 sm:gap-2 sm:text-base"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                     <span>{backLabel}</span>
@@ -2405,7 +2406,7 @@ const UserPropertyDetail = () => {
                     aria-pressed={isSaved}
                     aria-label={isSaved ? `Remove ${property.title} from saved properties` : `Save ${property.title}`}
                     title={isSaved ? `Remove ${property.title} from saved properties` : `Save ${property.title}`}
-                    className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                    className={`group flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 ${
                         isSaved
                             ? 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:text-orange-800 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:border-orange-800 dark:hover:text-orange-200'
                             : 'border-stone-200 bg-white text-gray-700 hover:border-orange-300 hover:text-orange-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-400'
@@ -2422,26 +2423,37 @@ const UserPropertyDetail = () => {
 
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.36fr)_minmax(420px,0.92fr)] xl:items-start">
                 <div className="min-w-0 space-y-8">
-                    <div className="overflow-hidden rounded-[2.4rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-900">
+                    <div data-mobile-property-hero className="overflow-hidden rounded-[1.35rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_24px_64px_-40px_rgba(15,23,42,0.32)] dark:border-zinc-800 dark:bg-zinc-900 sm:rounded-[2.4rem] sm:shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)]">
                         <div className="relative">
-                            <button
-                                type="button"
-                                onClick={(event) => openGallery(undefined, event.currentTarget)}
-                                className="relative block aspect-[4/3] w-full cursor-zoom-in overflow-hidden bg-gray-100 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:bg-zinc-800 md:aspect-[16/9]"
-                                aria-label={`Open image gallery for ${property.title}`}
-                            >
-                                <img
-                                    src={coverImage}
-                                    alt={property.title}
-                                    className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
-                                    onError={(event) => {
-                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                    }}
-                                />
-                                <div className="pointer-events-none absolute inset-0 bg-black/10" />
-                            </button>
-                            <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">
-                                <span className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] shadow-lg ${
+                            {galleryDisplayState.hasImages ? (
+                                <button
+                                    type="button"
+                                    onClick={(event) => openGallery(undefined, event.currentTarget)}
+                                    className="relative block aspect-[16/10] w-full cursor-zoom-in overflow-hidden bg-gray-100 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:bg-zinc-800 sm:aspect-[4/3] md:aspect-[16/9]"
+                                    aria-label={`Open image gallery for ${property.title}`}
+                                >
+                                    <img
+                                        src={coverImage}
+                                        alt={property.title}
+                                        className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
+                                        onError={(event) => {
+                                            event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                        }}
+                                    />
+                                    <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                                </button>
+                            ) : (
+                                <div className="relative block aspect-[16/10] w-full cursor-default overflow-hidden bg-gray-100 dark:bg-zinc-800 sm:aspect-[4/3] md:aspect-[16/9]">
+                                    <img
+                                        src={coverImage}
+                                        alt={`Property media unavailable for ${property.title}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                    <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                                </div>
+                            )}
+                            <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2 sm:left-5 sm:top-5">
+                                <span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] shadow-lg sm:px-4 sm:text-xs sm:tracking-[0.18em] ${
                                     property.listing_type === 'rent'
                                         ? 'bg-sky-700 text-white'
                                         : 'bg-emerald-700 text-white'
@@ -2449,26 +2461,28 @@ const UserPropertyDetail = () => {
                                     {listingLabel}
                                 </span>
                                 {property.is_verified && (
-                                    <span className="rounded-full border border-white/80 bg-white/88 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gray-900 shadow-sm backdrop-blur">
+                                    <span className="hidden rounded-full border border-white/80 bg-white/88 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gray-900 shadow-sm backdrop-blur sm:inline-flex">
                                         Verified listing
                                     </span>
                                 )}
                             </div>
-                            <div className="absolute right-5 top-5 flex items-center gap-2">
-                                <div className="pointer-events-none rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg backdrop-blur">
-                                    {selectedImageIndex + 1} / {images.length}
+                            <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-5 sm:top-5">
+                                <div className="pointer-events-none rounded-full border border-white/75 bg-white/88 px-3 py-2 text-xs font-semibold text-gray-900 shadow-lg backdrop-blur sm:px-4 sm:text-sm">
+                                    {galleryDisplayState.positionLabel}
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        openGallery(undefined, event.currentTarget);
-                                    }}
-                                    className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white"
-                                >
-                                    <ImageIcon size={15} className="text-orange-500" />
-                                    <span>Open gallery</span>
-                                </button>
+                                {galleryDisplayState.hasImages && (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            openGallery(undefined, event.currentTarget);
+                                        }}
+                                        className="hidden min-h-11 items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white sm:inline-flex"
+                                    >
+                                        <ImageIcon size={15} className="text-orange-500" />
+                                        <span>Open gallery</span>
+                                    </button>
+                                )}
                             </div>
                             {images.length > 1 && (
                                 <>
@@ -2478,7 +2492,7 @@ const UserPropertyDetail = () => {
                                             event.stopPropagation();
                                             showPreviousImage();
                                         }}
-                                        className="absolute left-5 top-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-white/88 p-3 text-gray-900 shadow-lg transition hover:bg-white"
+                                        className="absolute left-2 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-white/88 text-gray-900 shadow-lg transition hover:bg-white sm:left-5 sm:flex"
                                         aria-label="Show previous property image"
                                     >
                                         <ChevronLeft size={18} />
@@ -2489,34 +2503,70 @@ const UserPropertyDetail = () => {
                                             event.stopPropagation();
                                             showNextImage();
                                         }}
-                                        className="absolute right-5 top-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-white/88 p-3 text-gray-900 shadow-lg transition hover:bg-white"
+                                        className="absolute right-2 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-white/88 text-gray-900 shadow-lg transition hover:bg-white sm:right-5 sm:flex"
                                         aria-label="Show next property image"
                                     >
                                         <ChevronRight size={18} />
                                     </button>
                                 </>
                             )}
-                            <div className="pointer-events-none absolute bottom-5 left-5 rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-medium text-gray-900 shadow-lg backdrop-blur">
-                                Tap the image for the full-screen gallery
-                            </div>
+                            {galleryDisplayState.hasImages && (
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        openGallery(undefined, event.currentTarget);
+                                    }}
+                                    className="absolute bottom-3 right-3 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-white/80 bg-white/94 px-3 py-2 text-xs font-semibold text-gray-900 shadow-lg backdrop-blur transition hover:bg-white sm:hidden"
+                                    aria-label={`Open full-screen gallery for ${property.title}`}
+                                >
+                                    <ImageIcon size={16} className="text-orange-500" />
+                                    Gallery
+                                </button>
+                            )}
                         </div>
-                        <div className="border-t border-stone-200/80 bg-white px-6 py-6 dark:border-zinc-800 dark:bg-zinc-900">
+                        <div className="border-t border-stone-200/80 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-6">
                             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
                                 <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400">Property gallery</p>
-                                    <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-gray-900 md:text-[2.45rem] dark:text-white">
+                                    <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400 sm:block">Property gallery</p>
+                                    <h1 className="break-words text-[1.35rem] font-semibold leading-[1.12] tracking-tight text-gray-900 sm:mt-3 sm:text-3xl md:text-[2.45rem] dark:text-white">
                                         {property.title}
                                     </h1>
-                                    <div className="mt-3 flex items-start gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                        <MapPin size={16} className="mt-0.5 shrink-0 text-orange-500" />
+                                    <div className="mt-2.5 flex items-start gap-1.5 text-[13px] leading-5 text-gray-500 dark:text-gray-400 sm:mt-3 sm:gap-2 sm:text-sm">
+                                        <MapPin size={15} className="mt-0.5 shrink-0 text-orange-500 sm:size-4" />
                                         <span>{propertyAddress || locationLabel}</span>
                                     </div>
-                                    <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
+                                    <div data-mobile-property-summary className="mt-3.5 rounded-[1.15rem] border border-stone-200/80 bg-[#faf7f2] p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:hidden">
+                                        <div className="flex items-end justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Guide price</p>
+                                                <p className="mt-1 whitespace-nowrap text-[1.45rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+                                                    {priceLabel}
+                                                    {property.listing_type === 'rent' && typeof property.price === 'number' && (
+                                                        <span className="ml-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">/month</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <span className="shrink-0 rounded-full bg-white px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 shadow-sm dark:bg-zinc-900 dark:text-gray-300">
+                                                {images.length} {images.length === 1 ? 'photo' : 'photos'}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(event) => handleFastTrackEntryAction(event.currentTarget)}
+                                            disabled={isFastTrackCtaDisabled}
+                                            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-orange-600/15 transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {isFastTrackCtaBusy ? <ActionSpinner size={15} className="" /> : <Upload size={15} />}
+                                            <span>{isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackSidebarActionLabel}</span>
+                                        </button>
+                                    </div>
+                                    <p className="mt-3 line-clamp-3 max-w-2xl text-[13px] leading-5 text-gray-500 dark:text-gray-400 sm:mt-4 sm:line-clamp-none sm:text-sm sm:leading-7">
                                         {propertyHeroSummary}
                                     </p>
 
                                     {images.length > 1 ? (
-                                        <div className="mt-6">
+                                        <div className="mt-6 hidden sm:block">
                                             <div className="flex items-center justify-between gap-3">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Switch photos directly</p>
                                                 <button
@@ -2560,13 +2610,13 @@ const UserPropertyDetail = () => {
                                     ) : (
                                         <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200">
                                             <ImageIcon size={15} className="text-orange-500" />
-                                            <span>{realImageCount === 1 ? '1 curated photo available' : `${realImageCount} curated photos available`}</span>
+                                            <span>{realImageCount === 0 ? 'No property photos available' : '1 curated photo available'}</span>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="rounded-[1.8rem] border border-stone-200/80 bg-[#faf7f2] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                    <div className="hidden rounded-[1.8rem] border border-stone-200/80 bg-[#faf7f2] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:block">
                                         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400">Guide price</p>
                                         <p className="mt-3 text-[2rem] font-semibold tracking-tight text-gray-900 dark:text-white">
                                             {priceLabel}
@@ -2575,19 +2625,20 @@ const UserPropertyDetail = () => {
                                             )}
                                         </p>
                                         <div className="mt-4 flex flex-wrap gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={(event) => openGallery(selectedImageIndex, event.currentTarget)}
-                                                className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
-                                            >
-                                                <ImageIcon size={16} />
-                                                <span>Open full-screen gallery</span>
-                                            </button>
+                                            {galleryDisplayState.hasImages && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => openGallery(selectedImageIndex, event.currentTarget)}
+                                                    className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+                                                >
+                                                    <ImageIcon size={16} />
+                                                    <span>Open full-screen gallery</span>
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={(event) => {
-                                                    fastTrackTriggerRef.current = event.currentTarget;
-                                                    void handleStartFastTrack();
+                                                    handleFastTrackEntryAction(event.currentTarget);
                                                 }}
                                                 disabled={isFastTrackCtaDisabled}
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
@@ -2967,8 +3018,7 @@ const UserPropertyDetail = () => {
                                             type="button"
                                             onClick={(event) => {
                                                 if (isResponseAction) {
-                                                    fastTrackTriggerRef.current = event.currentTarget;
-                                                    void handleStartFastTrack();
+                                                    handleFastTrackEntryAction(event.currentTarget);
                                                     return;
                                                 }
                                                 if (isTourAction) {
@@ -2996,8 +3046,7 @@ const UserPropertyDetail = () => {
                                 ref={fastTrackTriggerRef}
                                 type="button"
                                 onClick={(event) => {
-                                    fastTrackTriggerRef.current = event.currentTarget;
-                                    void handleStartFastTrack();
+                                    handleFastTrackEntryAction(event.currentTarget);
                                 }}
                                 disabled={isFastTrackCtaDisabled}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
@@ -3282,9 +3331,18 @@ const UserPropertyDetail = () => {
                 onOpenMessages={handleOpenConversation}
             />
 
-            {isGalleryOpen && (
+            <FastTrackRequestConfirmationModal
+                open={isFastTrackRequestConfirmationOpen}
+                propertyTitle={property.title}
+                propertyLocation={propertyAddress || locationLabel}
+                isSubmitting={false}
+                onClose={() => setIsFastTrackRequestConfirmationOpen(false)}
+                onConfirm={confirmFastTrackRequest}
+            />
+
+            {isGalleryOpen && galleryDisplayState.hasImages && (
                 <div
-                    className="fixed inset-0 z-[140] overflow-y-auto bg-[rgba(8,15,30,0.92)] px-3 py-3 backdrop-blur-md sm:px-5 sm:py-5"
+                    className="fixed inset-0 z-[140] overflow-hidden bg-[#05070b] p-0 sm:overflow-y-auto sm:bg-[rgba(8,15,30,0.92)] sm:px-5 sm:py-5 sm:backdrop-blur-md"
                     onClick={closeGallery}
                 >
                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -3303,20 +3361,20 @@ const UserPropertyDetail = () => {
                         role="dialog"
                         aria-modal="true"
                         aria-label={getImmersiveGalleryDialogLabel(property.title)}
-                        className="relative mx-auto flex min-h-full max-w-[1500px] flex-col"
+                        className="relative mx-auto flex h-[100dvh] min-h-0 w-full min-w-0 max-w-[1500px] flex-col overflow-hidden sm:h-auto sm:min-h-full sm:overflow-x-hidden"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-start justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 px-5 py-4 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                        <div className="flex min-h-[60px] shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-[#0b0f18]/96 px-3 py-2.5 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl sm:items-start sm:gap-4 sm:rounded-[1.75rem] sm:border sm:bg-white/6 sm:px-5 sm:py-4">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Full-screen gallery</p>
-                                <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[2rem]">{property.title}</h2>
-                                <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
+                                <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55 sm:block">Full-screen gallery</p>
+                                <h2 className="truncate text-[15px] font-medium tracking-tight sm:mt-2 sm:text-[2rem] sm:font-semibold">{property.title}</h2>
+                                <div className="mt-2 hidden items-center gap-2 text-sm text-white/70 sm:flex">
                                     <MapPin size={15} className="text-orange-400" />
                                     <span className="truncate">{propertyAddress || locationLabel}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/85">
+                            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                                <div className="whitespace-nowrap rounded-full border border-white/12 bg-white/8 px-2.5 py-1.5 text-[11px] font-medium text-white/80 sm:px-4 sm:py-2 sm:text-sm">
                                     {selectedImageIndex + 1} / {images.length}
                                 </div>
                                 <button
@@ -3331,28 +3389,28 @@ const UserPropertyDetail = () => {
                             </div>
                         </div>
 
-                        <div className="mt-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,1.18fr)_320px]">
+                        <div className="grid min-h-0 w-full min-w-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-0 sm:mt-4 sm:gap-4 lg:grid-cols-[minmax(0,1.18fr)_320px] lg:grid-rows-1">
                             <div
                                 data-testid="immersive-gallery-stage"
-                                className="relative min-h-[58vh] overflow-hidden rounded-[2.2rem] border border-white/10 bg-black/25 shadow-[0_32px_80px_-38px_rgba(15,23,42,0.88)]"
+                                className="relative min-h-0 min-w-0 overflow-hidden bg-[#05070b] shadow-[0_32px_80px_-38px_rgba(15,23,42,0.88)] sm:aspect-video sm:rounded-[2.2rem] sm:border sm:border-white/10 sm:bg-black/25 lg:aspect-auto lg:min-h-[58vh]"
                             >
                                 <img
                                     src={coverImage}
                                     alt=""
                                     aria-hidden="true"
-                                    className="absolute inset-0 h-full w-full scale-105 object-cover opacity-28 blur-2xl"
+                                    className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-3xl sm:scale-105 sm:opacity-28 sm:blur-2xl"
                                     onError={(event) => {
                                         event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                     }}
                                 />
-                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_30%),linear-gradient(180deg,rgba(9,14,27,0.08),rgba(9,14,27,0.48)_45%,rgba(9,14,27,0.8)_100%)]" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/45 sm:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_30%),linear-gradient(180deg,rgba(9,14,27,0.08),rgba(9,14,27,0.48)_45%,rgba(9,14,27,0.8)_100%)]" />
 
                                 {images.length > 1 && (
                                     <>
                                         <button
                                             type="button"
                                             onClick={showPreviousImage}
-                                            className="absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/22 p-3 text-white shadow-lg backdrop-blur transition hover:bg-black/34"
+                                            className="absolute left-2 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-lg backdrop-blur transition hover:bg-black/60 sm:left-4"
                                             aria-label="Show previous property image"
                                         >
                                             <ChevronLeft size={18} />
@@ -3360,7 +3418,7 @@ const UserPropertyDetail = () => {
                                         <button
                                             type="button"
                                             onClick={showNextImage}
-                                            className="absolute right-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/22 p-3 text-white shadow-lg backdrop-blur transition hover:bg-black/34"
+                                            className="absolute right-2 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-lg backdrop-blur transition hover:bg-black/60 sm:right-4"
                                             aria-label="Show next property image"
                                         >
                                             <ChevronRight size={18} />
@@ -3370,13 +3428,13 @@ const UserPropertyDetail = () => {
 
                                 <div
                                     data-testid="immersive-gallery-zoom-surface"
-                                    className={`relative z-10 flex h-full items-center justify-center overflow-hidden px-4 py-6 sm:px-8 sm:py-10 ${
-                                        isImmersiveZoomActive ? 'cursor-zoom-out' : 'cursor-zoom-in'
+                                    className={`relative z-10 flex h-full items-center justify-center overflow-hidden p-0 sm:px-8 sm:py-10 ${
+                                        isImmersiveZoomActive ? 'lg:cursor-zoom-out' : 'lg:cursor-zoom-in'
                                     }`}
                                     onMouseMove={handleImmersiveGalleryMouseMove}
                                     onMouseLeave={handleImmersiveGalleryMouseLeave}
                                 >
-                                    <div className="pointer-events-none absolute left-5 top-5 z-20 rounded-full border border-white/15 bg-black/24 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82 shadow-lg backdrop-blur-md">
+                                    <div className="pointer-events-none absolute left-5 top-5 z-20 hidden rounded-full border border-white/15 bg-black/24 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82 shadow-lg backdrop-blur-md lg:block">
                                         {isImmersiveZoomActive ? 'Move to inspect details' : 'Hover to zoom'}
                                     </div>
                                     <img
@@ -3384,7 +3442,7 @@ const UserPropertyDetail = () => {
                                         src={coverImage}
                                         alt={`${property.title} full view ${selectedImageIndex + 1}`}
                                         data-testid="immersive-gallery-image"
-                                        className="max-h-[74vh] w-auto max-w-full rounded-[1.7rem] object-contain shadow-[0_30px_80px_-34px_rgba(0,0,0,0.88)] transition-transform duration-200 ease-out will-change-transform"
+                                        className="h-full w-full object-contain shadow-[0_30px_80px_-34px_rgba(0,0,0,0.88)] transition-transform duration-200 ease-out will-change-transform sm:h-auto sm:max-h-[74vh] sm:w-auto sm:max-w-full sm:rounded-[1.7rem]"
                                         style={{
                                             transform: `scale(${isImmersiveZoomActive ? 2.35 : 1})`,
                                             transformOrigin: formatImmersiveGalleryTransformOrigin(immersiveZoomPoint),
@@ -3395,14 +3453,14 @@ const UserPropertyDetail = () => {
                                     />
                                 </div>
 
-                                <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5">
+                                <div className="absolute inset-x-0 bottom-0 z-20 p-2.5 sm:p-5">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                                        <div className="max-w-lg rounded-[1.5rem] border border-white/10 bg-black/24 px-4 py-3 text-white shadow-lg backdrop-blur-md">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">
+                                        <div className="max-w-lg rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-white shadow-lg backdrop-blur-md sm:rounded-[1.5rem] sm:px-4 sm:py-3">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/72 sm:text-[11px] sm:tracking-[0.22em] sm:text-white/55">
                                                 {images.length > 1 ? `Photo ${selectedImageIndex + 1} of ${images.length}` : 'Featured property view'}
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="hidden flex-wrap gap-2 sm:flex">
                                             <span className="rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/88 backdrop-blur">
                                                 {listingLabel}
                                             </span>
@@ -3421,9 +3479,9 @@ const UserPropertyDetail = () => {
 
                             <div
                                 data-testid="immersive-gallery-sidebar"
-                                className="flex flex-col gap-4"
+                                className="min-w-0 border-t border-white/10 bg-[#0b0f18] px-3 py-3 lg:flex lg:flex-col lg:gap-4 lg:border-0 lg:bg-transparent lg:p-0"
                             >
-                                <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-5 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                                <div className="hidden rounded-[1.8rem] border border-white/10 bg-white/6 p-5 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl lg:block">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">Viewing mode</p>
                                     <h3 className="mt-3 text-xl font-semibold tracking-tight">Designed to keep the photo in focus</h3>
                                     <p className="mt-3 text-sm leading-6 text-white/72">
@@ -3450,19 +3508,19 @@ const UserPropertyDetail = () => {
                                 </div>
 
                                 {images.length > 1 && (
-                                    <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-4 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
-                                        <div className="flex items-center justify-between gap-3">
+                                    <div data-mobile-gallery-dock className="min-w-0 lg:rounded-[1.8rem] lg:border lg:border-white/10 lg:bg-white/6 lg:p-4 lg:shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] lg:backdrop-blur-xl">
+                                        <div className="hidden items-center justify-between gap-3 lg:flex">
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">Photo rail</p>
                                             <span className="text-xs font-medium text-white/55">Switch instantly</span>
                                         </div>
-                                        <div className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
+                                        <div className="flex max-w-full justify-center gap-2 overflow-x-auto px-0.5 py-0.5 lg:mt-4 lg:flex-col lg:justify-start lg:gap-3 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
                                             {images.map((image, index) => (
                                                     <button
                                                         key={`${image}-${index}-fullscreen`}
                                                         type="button"
                                                         aria-pressed={index === selectedImageIndex}
                                                         onClick={() => setSelectedImageIndex(index)}
-                                                        className={`group relative h-24 w-28 shrink-0 overflow-hidden rounded-[1.25rem] border transition lg:h-28 lg:w-full ${
+                                                        className={`group relative h-14 w-16 shrink-0 overflow-hidden rounded-xl border transition lg:h-28 lg:w-full lg:rounded-[1.25rem] ${
                                                         index === selectedImageIndex
                                                             ? 'border-orange-400 ring-2 ring-orange-300/45'
                                                             : 'border-white/10 hover:border-white/30'
@@ -3477,7 +3535,7 @@ const UserPropertyDetail = () => {
                                                             event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                                         }}
                                                     />
-                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-left text-[11px] font-semibold text-white">
+                                                    <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-left text-[11px] font-semibold text-white lg:block">
                                                         Photo {index + 1}
                                                     </div>
                                                 </button>

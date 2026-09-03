@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -149,8 +149,9 @@ export default function AdminReviewsPage() {
                 <button
                     type="button"
                     onClick={handleRefresh}
+                    disabled={isRefreshing}
                     aria-label="Refresh review moderation queue"
-                    className="rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                    className="self-start rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:self-auto"
                 >
                     {isRefreshing ? <ActionSpinner size="sm" label="Refreshing reviews" /> : <RefreshCw size={20} />}
                 </button>
@@ -203,9 +204,7 @@ export default function AdminReviewsPage() {
             </div>
 
             {isLoading ? (
-                <div className="flex justify-center py-20">
-                    <BrandLoader className="h-10 w-10 text-orange-500" />
-                </div>
+                <BrandLoadingScreen variant="section" label="Loading reviews..." />
             ) : displayedItems.length === 0 ? (
                 <div className="rounded-3xl bg-white p-16 text-center shadow-sm dark:bg-gray-800">
                     <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gray-50 dark:bg-gray-900">

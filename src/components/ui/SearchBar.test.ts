@@ -10,7 +10,7 @@ const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/s
 const userDashboardSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
 const discoverSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 
-test('global and page search inputs keep independent draft state', () => {
+test('compact and page search variants keep independent draft state', () => {
     const routeFilters = { keyword: 'chennai' };
 
     assert.equal(shouldHydrateSearchBarFromUrl('compact'), false);
@@ -18,7 +18,6 @@ test('global and page search inputs keep independent draft state', () => {
     assert.equal(shouldHydrateSearchBarFromUrl('hero', routeFilters), false);
     assert.equal(shouldClearSearchBarAfterNavigation('compact'), true);
     assert.equal(shouldClearSearchBarAfterNavigation('full'), false);
-    assert.match(source, /aria-label="Search properties from the global header"/);
     assert.match(source, /autoComplete="off"/);
     assert.match(source, /shouldClearSearchBarAfterNavigation\(variant\)[\s\S]*setFilters\(defaultFilters\)/);
 });
@@ -53,11 +52,28 @@ test('public search property type dropdown uses cleaned downward-opening options
 test('discover property type dropdown uses the shared global filter options', () => {
     assert.match(discoverSource, /import \{ buildPropertyTypeOptions \} from '@\/lib\/propertyTypeOptions';/);
     assert.match(discoverSource, /const \[globalFilterOptions, setGlobalFilterOptions\] = useState<FilterOptions \| null>\(null\);/);
-    assert.match(discoverSource, /const options = await searchService\.getFilters\(\);/);
+    assert.match(discoverSource, /const options = await searchService\.getFilters\(geoMarket\);/);
     assert.match(discoverSource, /globalFilterOptions\?\.property_types\?\.length[\s\S]*\? globalFilterOptions\.property_types[\s\S]*: filterOptions\?\.property_types/);
     assert.match(discoverSource, /buildPropertyTypeOptions\(propertyTypes\)\.map/);
     assert.match(discoverSource, /discoverPropertyTypeOptions\.map\(\(option\) =>/);
     assert.doesNotMatch(discoverSource, /\(filterOptions\?\.property_types \|\| \[\]\)\.map/);
+});
+
+test('market-specific filter requests clear old options and ignore stale responses', () => {
+    assert.match(source, /let cancelled = false;[\s\S]*setFilterOptions\(null\);[\s\S]*getFilters\(searchMarket\)[\s\S]*if \(!cancelled\) setFilterOptions\(opts\);[\s\S]*cancelled = true;/);
+    assert.match(publicSearchSource, /let cancelled = false;[\s\S]*setFilterOptions\(null\);[\s\S]*getFilters\(activeMarket\)[\s\S]*if \(!cancelled\) setFilterOptions\(opts\);[\s\S]*cancelled = true;/);
+    assert.match(discoverSource, /let isMounted = true;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*getFilters\(geoMarket\)[\s\S]*if \(isMounted\)[\s\S]*setGlobalFilterOptions\(options\);[\s\S]*isMounted = false;/);
+});
+
+test('market-specific autocomplete ignores stale responses after the market changes', () => {
+    assert.match(source, /let cancelled = false;[\s\S]*setLocationSuggestions\(\[\]\);[\s\S]*autocomplete\(filters\.location, searchMarket\)[\s\S]*if \(!cancelled\)[\s\S]*setLocationSuggestions\(selectLocationSuggestions\(suggestions\)\)[\s\S]*cancelled = true;[\s\S]*clearTimeout\(timer\)/);
+    assert.match(publicSearchSource, /let isMounted = true;[\s\S]*setLocationSuggestions\(\[\]\);[\s\S]*autocomplete\(query, activeMarket\)[\s\S]*if \(!isMounted\)[\s\S]*isMounted = false;/);
+});
+
+test('Discover clears previous-market options and invalidates stale property requests', () => {
+    assert.match(discoverSource, /fetchRequestIdRef\.current \+= 1;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*setFilterOptions\(null\);[\s\S]*setAllSectionProperties\(\[\]\);/);
+    assert.match(discoverSource, /const requestId = \+\+fetchRequestIdRef\.current;[\s\S]*getPropertySections\(geoMarket\);[\s\S]*requestId !== fetchRequestIdRef\.current/);
+    assert.match(discoverSource, /return \(\) => \{[\s\S]*fetchRequestIdRef\.current \+= 1;[\s\S]*clearTimeout\(timer\);/);
 });
 
 test('location suggestions keep long dashboard results contained', () => {
@@ -88,7 +104,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(userDashboardSource, /locationContextCode=\{brokerRequestLocationContext \|\| activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
-    assert.match(userDashboardSource, /<BrokerRequestWidget onLocationContextChange=\{handleBrokerRequestLocationContextChange\} \/>/);
+    assert.match(userDashboardSource, /<BrokerRequestWidget[\s\S]*onLocationContextChange=\{handleBrokerRequestLocationContextChange\}[\s\S]*preferredRequestId=\{activeJourney\?\.brokerRequestId \|\| \([\s\S]*activeBrokerRequest && shouldAutoResumeBrokerRequest\(activeBrokerRequest\)[\s\S]*\? activeBrokerRequest\.id[\s\S]*: null[\s\S]*\)\}[\s\S]*\/>/);
 });
 
 test('free-text property titles do not select a country market', () => {
@@ -120,14 +136,11 @@ test('dashboard search rejects invalid keyword characters before searching or na
     assert.match(source, /onSearch\) onSearch\(submittedFilters\);/);
 });
 
-test('user dashboard search keeps submitted filters in dashboard URL params', () => {
+test('user dashboard search hands submitted filters to the canonical Discover page', () => {
     assert.match(userDashboardSource, /const dashboardSearchParamKeys = \[[\s\S]*'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
     assert.match(userDashboardSource, /const nextDashboardType = nextFilters\.listingType === 'rent'[\s\S]*selectedPropertyType;/);
-    assert.match(userDashboardSource, /setSearchParams\(\(previous\) => \{/);
-    assert.match(userDashboardSource, /dashboardSearchParamKeys\.forEach\(\(key\) => next\.delete\(key\)\);/);
-    assert.match(userDashboardSource, /buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\)\.forEach\(\(value, key\) => \{/);
-    assert.match(userDashboardSource, /next\.set\(key, value\);/);
-    assert.match(userDashboardSource, /\}, \{ replace: true \}\);/);
+    assert.match(userDashboardSource, /const params = buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\);/);
+    assert.match(userDashboardSource, /navigate\(`\/user\/dashboard\/discover\$\{queryString \? `\?\$\{queryString\}` : ''\}`\);/);
 });
 
 test('user dashboard clear search removes stale dashboard URL filters', () => {

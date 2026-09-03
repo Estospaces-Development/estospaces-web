@@ -1,4 +1,4 @@
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import React, { useEffect, useState } from 'react';
 import { Video } from 'lucide-react';
 import { useParams } from 'react-router-dom';
@@ -39,14 +39,7 @@ export default function PublicVirtualTourPage() {
     }, [id]);
 
     if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-950 text-white">
-                <div className="flex items-center gap-3 rounded-full bg-white/10 px-5 py-4 text-sm font-black">
-                    <BrandLoader className="h-5 w-5 text-orange-400" />
-                    Loading Estospaces 360 tour...
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen label="Loading Estospaces 360 tour..." />;
     }
 
     if (error || !tour) {

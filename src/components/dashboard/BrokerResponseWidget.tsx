@@ -1,11 +1,11 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Info, BellRing, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Info, BellRing, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
     formatWorkspaceReference,
@@ -172,6 +172,7 @@ const BrokerResponseWidget: React.FC = () => {
     const [matchedWorkspaceSearch, setMatchedWorkspaceSearch] = useState('');
     const [matchedWorkspacePage, setMatchedWorkspacePage] = useState(1);
     const [liveResponseOptionsOpen, setLiveResponseOptionsOpen] = useState(false);
+    const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const fetchRequests = useCallback(async (silent: boolean = false) => {
@@ -608,11 +609,55 @@ const BrokerResponseWidget: React.FC = () => {
     return (
         <div
             data-testid="broker-response-widget"
-            className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 ring-2 ring-blue-500/10"
+            className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm ring-1 ring-blue-500/10 dark:border-gray-800 dark:bg-black sm:rounded-lg sm:p-6 sm:ring-2"
         >
             <div role="status" aria-live="polite" className="sr-only">
                 {[shareStatusMessage, availabilityStatusMessage].filter(Boolean).join(' ')}
             </div>
+            <div className="sm:hidden" data-manager-mobile-live-response>
+                <div className="flex items-start gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                        <BellRing className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <h2 className="text-base font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">Live response</h2>
+                            <span className="shrink-0 rounded-full bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                                {pendingCount} waiting
+                            </span>
+                        </div>
+                        <p className="mt-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">{availabilityLabel}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-gray-500 dark:text-gray-400">{availabilityHint}</p>
+                    </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                        type="button"
+                        onClick={() => void toggleAvailability()}
+                        disabled={availabilityLoading}
+                        className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold ${
+                            availabilityBlockedReason
+                                ? 'bg-amber-500 text-white'
+                                : availableForFastResponse
+                                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                                    : 'brand-orange-action'
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                        {availabilityLoading ? <ActionSpinner className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                        {availabilityBlockedReason ? 'Verify' : availableForFastResponse ? 'Pause queue' : 'Go live'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileQueueOpen((open) => !open)}
+                        aria-expanded={mobileQueueOpen}
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                    >
+                        {mobileQueueOpen ? 'Hide queue' : 'View queue'}
+                        <ChevronDown className={`h-4 w-4 transition-transform ${mobileQueueOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+            </div>
+            <div className={mobileQueueOpen ? 'mt-4 block sm:mt-0 sm:block' : 'hidden sm:block'} data-manager-live-response-details>
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg animate-pulse">
@@ -757,7 +802,7 @@ const BrokerResponseWidget: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {loading ? (
                     <div className="col-span-full flex justify-center py-8 text-gray-500 dark:text-gray-400">
-                        <BrandLoader size="md" label="Loading requests" showLabel />
+                        <BrandLoadingScreen variant="panel" label="Loading requests..." />
                     </div>
                 ) : visibleRequests.length > 0 ? (
                     visibleRequests.map((request, requestIndex) => (
@@ -1094,6 +1139,7 @@ const BrokerResponseWidget: React.FC = () => {
                     View All Requests
                     <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                 </button>
+            </div>
             </div>
         </div>
     );

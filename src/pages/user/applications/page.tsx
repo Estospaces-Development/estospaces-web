@@ -942,25 +942,25 @@ export default function ApplicationsPage() {
                 </div>
             </Modal>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
                 {/* Back Button */}
                 <button
                     onClick={() => navigate('/user/dashboard')}
-                    className="mb-6 flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-orange-500 transition-colors group w-fit"
+                    className="mb-6 hidden w-fit items-center gap-2 text-gray-500 transition-colors hover:text-orange-500 dark:text-gray-400 sm:flex"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                     <span className="text-sm font-medium">Back to Dashboard</span>
                 </button>
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="mb-4 flex items-start justify-between gap-3 sm:mb-8 md:items-center">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Applications</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Track and manage your property applications in one place.</p>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">Applications</h1>
+                        <p className="mt-1 hidden text-gray-500 dark:text-gray-400 sm:block">Track and manage your property applications in one place.</p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center p-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm">
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                        <div className="hidden items-center rounded-xl border bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex">
                             <button
                                 type="button"
                                 aria-label="Switch to grid view"
@@ -986,7 +986,8 @@ export default function ApplicationsPage() {
                             className="flex items-center gap-2 px-5 py-3 bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gray-200 dark:shadow-none"
                         >
                             <Plus size={18} />
-                            <span>New Application</span>
+                            <span className="hidden sm:inline">New Application</span>
+                            <span className="sm:hidden">New</span>
                         </button>
                     </div>
                 </div>
@@ -994,48 +995,48 @@ export default function ApplicationsPage() {
                 <UserActivitySubnav />
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" data-mobile-application-summary>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all hover:shadow-md min-[360px]:p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800">
+                        <div className="flex min-w-0 items-center gap-2 min-[360px]:gap-3 sm:gap-4">
+                            <div className="shrink-0 rounded-xl bg-blue-50 p-2 sm:p-3 dark:bg-blue-900/20">
                                 <FileText className="text-blue-600 dark:text-blue-400" size={20} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalApplications}</p>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Apps</p>
+                                <p className="mobile-summary-label text-[11px] font-medium leading-tight sm:text-xs text-gray-500 dark:text-gray-400">Total Apps</p>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all hover:shadow-md min-[360px]:p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800">
+                        <div className="flex min-w-0 items-center gap-2 min-[360px]:gap-3 sm:gap-4">
+                            <div className="shrink-0 rounded-xl bg-yellow-50 p-2 sm:p-3 dark:bg-yellow-900/20">
                                 <Clock className="text-yellow-600 dark:text-yellow-400" size={20} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingCount}</p>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Pending</p>
+                                <p className="mobile-summary-label text-[11px] font-medium leading-tight sm:text-xs text-gray-500 dark:text-gray-400">Pending</p>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all hover:shadow-md min-[360px]:p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800">
+                        <div className="flex min-w-0 items-center gap-2 min-[360px]:gap-3 sm:gap-4">
+                            <div className="shrink-0 rounded-xl bg-green-50 p-2 sm:p-3 dark:bg-green-900/20">
                                 <CheckCircle className="text-green-600 dark:text-green-400" size={20} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{approvedCount}</p>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Approved</p>
+                                <p className="mobile-summary-label text-[11px] font-medium leading-tight sm:text-xs text-gray-500 dark:text-gray-400">Approved</p>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all hover:shadow-md min-[360px]:p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800">
+                        <div className="flex min-w-0 items-center gap-2 min-[360px]:gap-3 sm:gap-4">
+                            <div className="shrink-0 rounded-xl bg-orange-50 p-2 sm:p-3 dark:bg-orange-900/20">
                                 <Bell className="text-orange-600 dark:text-orange-400" size={20} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{actionRequiredCount}</p>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Action Required</p>
+                                <p className="mobile-summary-label text-[11px] font-medium leading-tight sm:text-xs text-gray-500 dark:text-gray-400">Action Required</p>
                             </div>
                         </div>
                     </div>

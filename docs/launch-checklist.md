@@ -6,9 +6,57 @@ Estimated remaining active work: 3–5 hours after approvals and QA credentials 
 
 Legend:
 
-- **You** — requires an owner decision, protected credential entry, or production approval.
-- **Agent** — can be executed safely in code or through read-only verification.
-- **Together** — the agent prepares and verifies; you approve the production-changing action.
+- 🧑 **You** — requires an owner decision, protected credential entry, or production approval.
+- 🤖 **Agent** — can be executed safely in code or through read-only verification.
+- 🤝 **Together** — the agent prepares and verifies; you approve the production-changing action.
+
+## Final dev release audit — 1 September 2026
+
+- [x] 🤖 **Agent — 5 minutes, completed:** Deploy frontend commit `87e91f9` to the dev Cloud Run service through the reviewed `develop` CI/CD path.
+
+  The candidate image built successfully, deployed as a verified revision, and passed the workflow health check. The automatic rollback step was not needed.
+
+  **You'll know it worked when:** the dev deployment run is green and the live application serves the corrected Discover and Reviews behavior.
+
+- [x] 🤖 **Agent — 5 minutes, completed:** Run frontend build, type, lint, unit, Fast Track, dependency, source-security, and rollback gates.
+
+  Results: production build passed; TypeScript and ESLint passed; 471/471 frontend unit tests passed; 56/56 focused Fast Track tests passed; production dependency audit found 0 vulnerabilities; CodeQL, Trivy, Gitleaks, dependency review, and rollback tests passed.
+
+  **You'll know it worked when:** every listed gate is green with no suppressed failure.
+
+- [x] 🤖 **Agent — 45 minutes, completed:** Manually verify the deployed application at the minimum supported mobile viewport of 283×642.
+
+  User, manager, and admin navigation, property discovery, property details, maps, Reviews pagination, Fast Track confirmation, cross-role Fast Track stages, admin navigation, and responsive overflow were checked in the live dev environment. Discover now resets a stale page when switching sale/rent, removes cleared query parameters, and restores search state after returning from a property. User Reviews now show 8 records per page and reset correctly after filtering.
+
+  **You'll know it worked when:** the live routes have no horizontal overflow, the corrected controls produce the expected URL and result counts, and Fast Track reaches the completed Handover stage without enabling historical mutations.
+
+- [x] 🤖 **Agent — 20 minutes, completed:** Run the 283×642 screenshot audit and the full 1,000-scenario dev catalog.
+
+  Results: 68/68 responsive routes passed. The 1,000-scenario catalog passed 1,000/1,000: 100 Public/Auth, 300 User, 300 Manager, 200 Admin, and 100 Cross-Role/System scenarios.
+
+  **You'll know it worked when:** both saved JSON reports show zero failed routes or scenarios.
+
+- [x] 🤖 **Agent — 15 minutes, completed:** Run functional platform proof across health endpoints, public Chromium/Firefox routes, role routing, messages, support, and Fast Track.
+
+  Functional results passed: 40/40 role-route smoke checks, 24/24 public browser checks, 8/8 host-routing checks, 4/4 messaging checks, 10/10 support lifecycle steps, and the complete Fast Track workspace matrix. The aggregate report is 106/108 because of the two latency checks below, not a functional failure.
+
+  **You'll know it worked when:** the functional artifacts report no page errors, console errors, network errors, or failed lifecycle steps.
+
+- [ ] 🤝 **Together — 30–90 minutes:** Resolve or explicitly accept the remaining latency gate before production promotion.
+
+  The dev login route measured p95 1.091 seconds and core `/health` measured p95 1.123 seconds in the launch proof, above the 1.000-second target. Follow-up samples varied from about 0.6 to 1.23 seconds, which points to variable time-to-first-byte and Cloud Run/network latency rather than a frontend rendering failure. Inspect Cloud Run minimum instances, CPU allocation, region-to-user distance, and server timing before changing the application threshold. Do not weaken the 1-second gate merely to make the report green.
+
+  > Profile the dev web and core Cloud Run revisions, separate server processing time from DNS/TLS/network time, propose the smallest safe performance change, and rerun `npm run test:platform:dev`. Do not apply Terraform or change production without explicit approval.
+
+  **You'll know it worked when:** a fresh full-platform proof passes 108/108, or the product owner formally accepts a revised latency objective with measured regional evidence.
+
+- [ ] 🤖 **Agent — 20 minutes:** Remove or reconcile stale historical property references recorded by the Fast Track proof.
+
+  Completed Fast Track workflows remain usable and the proof had zero page, console, or network errors, but several historical case records reference catalog property IDs that no longer exist. This is non-blocking dev-data hygiene; do not delete customer or production records as part of cleanup.
+
+  > Audit the missing dev property IDs in `output/playwright/fast-track-workspace-dev-full-proof.json`, classify each as an expired QA fixture or a broken live reference, and prepare a non-destructive reconciliation plan.
+
+  **You'll know it worked when:** current cases resolve their property records and expired QA references are documented or safely archived without data loss.
 
 ## Phase 0 — Current blockers
 

@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -320,14 +320,7 @@ export default function AdminPropertyDetailPage() {
     };
 
     if (loading) {
-        return (
-            <div className="flex min-h-[420px] items-center justify-center rounded-[2rem] border bg-white p-10 dark:border-gray-700 dark:bg-gray-800">
-                <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-                    <BrandLoader className="h-6 w-6" />
-                    <span className="font-bold">Loading property registry entry...</span>
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading property registry entry..." />;
     }
 
     if (!property) {

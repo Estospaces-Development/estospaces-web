@@ -3,6 +3,8 @@ import test from 'node:test';
 
 import {
   dedupeBrokerRequestsForTimeline,
+  getBrokerRequestBudgetDisplayLabel,
+  getBrokerRequestRequestedLabel,
   getBrokerRequestDisplayTitle,
   isUserVisibleBrokerRequest,
 } from './brokerRequestTimeline';
@@ -53,4 +55,18 @@ test('timeline collapses parallel duplicates but preserves a later separate jour
   ]);
 
   assert.deepEqual(records.map((record) => record.id).sort(), ['different', 'later-journey', 'newer']);
+});
+
+test('timeline gives separate requests a precise submitted time instead of a shared update label', () => {
+  assert.match(
+    getBrokerRequestRequestedLabel(request({ created_at: '2026-08-26T08:00:05Z' })),
+    /^Requested \d{1,2} [A-Z][a-z]{2}, \d{2}:\d{2}:\d{2}$/,
+  );
+  assert.equal(getBrokerRequestRequestedLabel(request({ created_at: 'invalid' })), 'Requested date unavailable');
+});
+
+test('timeline does not present invalid legacy purchase budgets as valid values', () => {
+  assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'buy', budget: '500' })), 'Budget needs updating');
+  assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'rent', budget: '2,650 pcm' })), 'Budget 2,650 pcm');
+  assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'buy', budget: '' })), 'Budget unavailable');
 });

@@ -209,9 +209,9 @@ test('admin fast-track masthead wraps long completed case copy inside the panel'
   );
 
   assert.match(markup, /data-fast-track-masthead/);
-  assert.match(markup, /min-w-0 max-w-full break-words text-\[24px\]/);
+  assert.match(markup, /min-w-0 max-w-full break-words text-\[18px\][^\"]*sm:text-\[24px\]/);
   assert.match(markup, /max-w-full break-words text-sm text-gray-600/);
   assert.match(markup, /data-fast-track-masthead-info-card="Focus"/);
-  assert.match(markup, /flex min-w-0 max-w-full flex-wrap items-center/);
+  assert.match(markup, /flex min-w-0 max-w-full flex-col[^\"]*sm:flex-row sm:flex-wrap sm:items-center/);
   assert.match(markup, /min-w-0 max-w-full break-words text-sm font-semibold/);
 });

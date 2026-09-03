@@ -124,19 +124,19 @@ test('user compact search submits Enter through the same search path as the butt
   assert.match(searchBar, /onKeyDown=\{handleCompactKeywordKeyDown\}/);
 });
 
-test('responsive user header keeps search and profile controls within the viewport budget', () => {
+test('responsive user header uses one compact in-app search launcher', () => {
   const userHeader = readSource('src/components/layout/UserHeader.tsx');
-  const searchBar = readSource('src/components/ui/SearchBar.tsx');
+  const appSearchDialog = readSource('src/components/layout/UserAppSearchDialog.tsx');
 
-  assert.match(userHeader, /className="grid min-h-16 grid-cols-\[minmax\(0,1fr\)_auto\][^"]*px-3[^"]*sm:flex[^"]*sm:px-4[^"]*lg:px-6"/);
-  assert.match(userHeader, /className="order-3 col-span-2 min-w-0[^"]*sm:col-span-1[^"]*sm:flex-1[^"]*md:max-w-none"/);
-  assert.match(userHeader, /className="flex shrink-0 items-center gap-1 sm:gap-2" aria-label="Account actions"/);
+  assert.match(userHeader, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+  assert.match(userHeader, /aria-label="Search Estospaces pages and activities"/);
+  assert.match(userHeader, /aria-haspopup="dialog"/);
+  assert.match(userHeader, /<UserAppSearchDialog isOpen=\{appSearchOpen\}/);
+  assert.doesNotMatch(userHeader, /<SearchBar/);
   assert.match(userHeader, /className="flex h-11 min-w-11 items-center justify-center/);
-  assert.match(userHeader, /className=\{`hidden text-white transition-transform dark:text-gray-200 sm:block/);
-  assert.match(searchBar, /className=\{`flex min-w-0 items-center gap-2 \$\{className\}`\}/);
-  assert.match(searchBar, /className="relative min-w-0 flex-1"/);
-  assert.match(searchBar, /className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary px-0/);
-  assert.match(searchBar, /<span className="sr-only sm:hidden">Search properties<\/span>/);
+  assert.match(appSearchDialog, /title="Search Estospaces"/);
+  assert.match(appSearchDialog, /autoFocus/);
+  assert.match(appSearchDialog, /placeholder="Search pages, activity, or homes"/);
 });
 
 test('communication surfaces keep small status text at readable contrast', () => {
@@ -198,7 +198,7 @@ test('community surfaces avoid low-contrast active and helper text tokens', () =
 
   assert.match(communityPage, /bg-indigo-800 hover:bg-indigo-900/);
   assert.match(filterBar, /bg-indigo-800 text-white/);
-  assert.match(stats, /text-sm font-medium text-gray-800 dark:text-gray-300/);
+  assert.match(stats, /text-\[11px\] font-semibold[^\n]+text-gray-700 dark:text-gray-300[^\n]+sm:text-sm sm:font-medium/);
   assert.match(postCard, /text-indigo-900/);
   assert.match(postCard, /text-gray-900 dark:text-gray-200/);
   assert.match(createPostModal, /bg-indigo-800 hover:bg-indigo-900/);

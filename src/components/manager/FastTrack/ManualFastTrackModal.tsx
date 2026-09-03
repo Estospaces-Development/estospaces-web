@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Search, Zap } from 'lucide-react';
@@ -319,8 +319,7 @@ export default function ManualFastTrackModal({
 
                 {loading ? (
                     <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-                        <BrandLoader className="h-8 w-8 text-orange-500" />
-                        <p className="text-sm font-medium">Loading manager leads...</p>
+                        <BrandLoadingScreen variant="panel" label="Loading eligible users and properties..." />
                     </div>
                 ) : error ? (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">

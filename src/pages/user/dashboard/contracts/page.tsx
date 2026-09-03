@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -49,6 +49,7 @@ import {
 } from "@/lib/contractsWorkspaceLoad";
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import PaginationBar from "@/components/ui/PaginationBar";
+import { shouldShowScopedListSearch } from "@/lib/userAppSearch";
 import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
@@ -440,12 +441,7 @@ export default function ContractsPage() {
   ]);
 
   if (isInitialLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <h1 className="sr-only">My Properties</h1>
-        <BrandLoader className="w-10 h-10 text-orange-500" />
-      </div>
-    );
+    return <BrandLoadingScreen variant="section" label="Loading your properties and contracts..." />;
   }
 
   const shouldShowCombinedEmptyState =
@@ -477,10 +473,11 @@ export default function ContractsPage() {
           </p>
           {isRefreshing && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
-              <BrandLoader size={12} className="" />
+              <ActionSpinner size={14} aria-hidden />
               Refreshing workspace
             </div>
           )}
+          {shouldShowScopedListSearch(portfolioItems.length + contracts.length, searchQuery) && (
           <div className="relative mt-6 max-w-md">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -495,6 +492,7 @@ export default function ContractsPage() {
               className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm"
             />
           </div>
+          )}
         </div>
 
         <UserActivitySubnav />
@@ -546,7 +544,7 @@ export default function ContractsPage() {
               </div>
             ) : (
               <>
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
+            <div className="rounded-[2.5rem] bg-white p-5 shadow-xl dark:bg-gray-800 sm:p-8 md:p-10">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
@@ -594,10 +592,10 @@ export default function ContractsPage() {
                       type="button"
                       aria-label={`Open property workspace for ${item.propertyTitle}`}
                       onClick={() => navigate(item.targetPath)}
-                      className="group text-left rounded-[2rem] border border-gray-100 bg-gray-50 p-5 transition-all hover:border-orange-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-900/50"
+                      className="group min-w-0 rounded-[2rem] border border-gray-100 bg-gray-50 p-4 text-left transition-all hover:border-orange-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-900/50 min-[380px]:p-5"
                     >
-                      <div className="flex gap-4">
-                        <div className="h-24 w-24 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                      <div className="flex min-w-0 flex-col gap-4 min-[380px]:flex-row">
+                        <div className="h-40 w-full flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 min-[380px]:h-24 min-[380px]:w-24">
                           {item.propertyImage ? (
                             <img
                               src={item.propertyImage}
@@ -661,11 +659,11 @@ export default function ContractsPage() {
                             {item.statusSummary}
                           </p>
 
-                          <div className="mt-4 flex items-center justify-between">
+                          <div className="mt-4 flex min-w-0 flex-col items-start gap-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                             <span className="text-xs font-black uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
                               {item.statusLabel}
                             </span>
-                            <span className="text-sm font-bold text-orange-600 dark:text-orange-300">
+                            <span className="max-w-full text-left text-sm font-bold text-orange-600 dark:text-orange-300">
                               {item.actionLabel}
                             </span>
                           </div>
@@ -803,12 +801,12 @@ export default function ContractsPage() {
                               : "border-transparent hover:border-orange-500/20"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                        <div className="flex min-w-0 flex-col items-start gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
+                          <div className="flex min-w-0 items-center gap-3 min-[360px]:gap-4">
                             <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-orange-500">
                               <FileText size={24} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h4 className="font-bold text-gray-900 dark:text-white">
                                 {(contract.contract_type || "Contract")
                                   .charAt(0)
@@ -830,14 +828,14 @@ export default function ContractsPage() {
                             </div>
                           </div>
                           <div
-                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyles(contract.status || "")}`}
+                            className={`max-w-full rounded-full border px-3 py-1 text-left text-[10px] font-black uppercase leading-4 tracking-widest min-[360px]:shrink-0 ${getStatusStyles(contract.status || "")}`}
                           >
                             {getStatusLabel(contract.status || "")}
                           </div>
                         </div>
 
                         {/* Signatures */}
-                        <div className="mt-4 flex items-center gap-6 text-xs">
+                        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs min-[360px]:gap-x-6">
                           <span
                             className={`flex items-center gap-1 ${contract.user_signed_at ? "text-green-600" : "text-gray-400"}`}
                           >

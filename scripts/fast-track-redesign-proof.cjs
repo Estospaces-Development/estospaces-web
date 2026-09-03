@@ -204,7 +204,7 @@ async function listFastTrackCases(token) {
 
 function pickCase(cases, finalStatus) {
   const matching = cases.filter((caseItem) => caseItem.finalStatus === finalStatus);
-  const sorted = [...(matching.length > 0 ? matching : cases)].sort((left, right) => {
+  const sorted = [...matching].sort((left, right) => {
     const leftTime = left.submittedAt ? new Date(left.submittedAt).getTime() : 0;
     const rightTime = right.submittedAt ? new Date(right.submittedAt).getTime() : 0;
     return rightTime - leftTime;
@@ -353,6 +353,9 @@ async function run() {
     networkErrors: [],
     transportWarnings: [],
     unavailablePropertyUrls: [],
+    functionalOk: false,
+    diagnosticsOk: false,
+    dataIntegrityOk: false,
     overallOk: false,
   };
 
@@ -375,14 +378,18 @@ async function run() {
 
     const userActiveCase = pickCase(userCases, "active");
     const userCompletedCase = pickCase(userCases, "completed");
-    const managerActiveCase = pickCase(managerCases, "active");
+    const managerWorkspaceCase =
+      pickCase(managerCases, "active") || pickCase(managerCases, "completed");
     const adminActiveCase = pickCase(adminCases, "active");
 
-    if (!userActiveCase || !managerActiveCase || !adminActiveCase || !userCompletedCase) {
+    if (!userActiveCase || !managerWorkspaceCase || !adminActiveCase) {
       result.userDesktop = { skipped: true, reason: "no cases available" };
       result.managerDesktop = { skipped: true, reason: "no cases available" };
       result.adminDesktop = { skipped: true, reason: "no cases available" };
       result.userTablet = { skipped: true, reason: "no cases available" };
+      result.functionalOk = true;
+      result.diagnosticsOk = true;
+      result.dataIntegrityOk = true;
       result.overallOk = true;
       fs.writeFileSync(OUTPUT_PATH, JSON.stringify(result, null, 2));
       console.log("Fast Track: no cases available, skipping proof");
@@ -505,9 +512,18 @@ async function run() {
     );
     const managerPage = await managerContext.newPage();
     attachDiagnostics(managerPage, result);
-    const managerPageReady = await gotoFastTrackWorkspace(managerPage, BASE_URL, "manager", managerActiveCase.caseId);
+    const managerPageReady = await gotoFastTrackWorkspace(
+      managerPage,
+      BASE_URL,
+      "manager",
+      managerWorkspaceCase.caseId,
+    );
     if (!managerPageReady) {
-      result.managerDesktop = { caseId: managerActiveCase.caseId, skipped: true, reason: "no cases available" };
+      result.managerDesktop = {
+        caseId: managerWorkspaceCase.caseId,
+        skipped: true,
+        reason: "no cases available",
+      };
     } else {
       const managerRailWidth = await getRailWidth(managerPage);
     const managerMastheadWidthBeforeCollapse = await getElementWidth(
@@ -539,7 +555,8 @@ async function run() {
     await saveScreenshot(managerPage, managerDesktopScreenshot);
 
     result.managerDesktop = {
-      caseId: managerActiveCase.caseId,
+      caseId: managerWorkspaceCase.caseId,
+      finalStatus: managerWorkspaceCase.finalStatus,
       railWidth: managerRailWidth,
       mastheadWidthBeforeCollapse: managerMastheadWidthBeforeCollapse,
       mastheadWidthAfterCollapse: managerMastheadWidthAfterCollapse,
@@ -604,10 +621,9 @@ async function run() {
       "[data-fast-track-case-rail]",
     );
     await tabletPage.getByRole("button", { name: /^Close case rail$/ }).click({ timeout: 10000 });
-    await openFastTrackUserDetails(tabletPage);
-    const tabletUtilityDockVisible = await hasVisibleLocator(
+    const tabletDetailsActionVisible = await hasVisibleLocator(
       tabletPage,
-      "[data-fast-track-utility-dock]",
+      'button:has-text("See details")',
     );
 
     const userTabletScreenshot = path.join(
@@ -619,67 +635,73 @@ async function run() {
     result.userTablet = {
       railDrawerOpened: tabletRailDrawerOpened,
       mastheadVisible: await hasVisibleLocator(tabletPage, "[data-fast-track-masthead]"),
-      utilityDockVisible: tabletUtilityDockVisible,
+      detailsActionVisible: tabletDetailsActionVisible,
       screenshot: userTabletScreenshot,
     };
-    await closeFastTrackUserDetails(tabletPage);
 
     }
     await tabletContext.close();
 
-    const dashboardContext = await newAuthedContext(
-      browser,
-      userSession,
-      "light",
-      { width: 1440, height: 960 },
-    );
-    const dashboardPage = await dashboardContext.newPage();
-    attachDiagnostics(dashboardPage, result);
+    if (userCompletedCase) {
+      const dashboardContext = await newAuthedContext(
+        browser,
+        userSession,
+        "light",
+        { width: 1440, height: 960 },
+      );
+      const dashboardPage = await dashboardContext.newPage();
+      attachDiagnostics(dashboardPage, result);
 
-    await gotoWithRetry(
-      dashboardPage,
-      `${BASE_URL}/user/dashboard?celebrate=1&fastTrackCase=${userCompletedCase.caseId}`,
-      { waitUntil: "domcontentloaded", timeout: 30000 },
-    );
-    await dashboardPage.locator('[data-fast-track-celebration-overlay="true"]').waitFor({
-      timeout: 30000,
-    });
-    await dashboardPage.waitForFunction(
-      () => !window.location.search.includes("celebrate=1"),
-      null,
-      { timeout: 30000 },
-    );
+      await gotoWithRetry(
+        dashboardPage,
+        `${BASE_URL}/user/dashboard?celebrate=1&fastTrackCase=${userCompletedCase.caseId}`,
+        { waitUntil: "domcontentloaded", timeout: 30000 },
+      );
+      await dashboardPage.locator('[data-fast-track-celebration-overlay="true"]').waitFor({
+        timeout: 30000,
+      });
+      await dashboardPage.waitForFunction(
+        () => !window.location.search.includes("celebrate=1"),
+        null,
+        { timeout: 30000 },
+      );
 
-    const celebrationScreenshot = path.join(
-      screenshotDir,
-      path.basename(OUTPUT_PATH, ".json") + "-dashboard-celebration.png",
-    );
-    await saveScreenshot(dashboardPage, celebrationScreenshot);
+      const celebrationScreenshot = path.join(
+        screenshotDir,
+        path.basename(OUTPUT_PATH, ".json") + "-dashboard-celebration.png",
+      );
+      await saveScreenshot(dashboardPage, celebrationScreenshot);
 
-    const revisitPage = await dashboardContext.newPage();
-    attachDiagnostics(revisitPage, result);
-    await gotoWithRetry(revisitPage, `${BASE_URL}/user/dashboard`, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
-    await revisitPage.locator("#greeting-section").waitFor({ timeout: 30000 });
-    await revisitPage.waitForTimeout(2500);
+      const revisitPage = await dashboardContext.newPage();
+      attachDiagnostics(revisitPage, result);
+      await gotoWithRetry(revisitPage, `${BASE_URL}/user/dashboard`, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+      await revisitPage.locator("#greeting-section").waitFor({ timeout: 30000 });
+      await revisitPage.waitForTimeout(2500);
 
-    const plainDashboardCelebrationVisible = await hasVisibleLocator(
-      revisitPage,
-      '[data-fast-track-celebration-overlay="true"]',
-    );
+      const plainDashboardCelebrationVisible = await hasVisibleLocator(
+        revisitPage,
+        '[data-fast-track-celebration-overlay="true"]',
+      );
 
-    result.dashboardCelebration = {
-      caseId: userCompletedCase.caseId,
-      celebrateRouteOverlayVisible: true,
-      celebrateQueryCleared:
-        !(new URL(dashboardPage.url())).searchParams.has("celebrate"),
-      plainDashboardCelebrationVisible,
-      screenshot: celebrationScreenshot,
-    };
+      result.dashboardCelebration = {
+        caseId: userCompletedCase.caseId,
+        celebrateRouteOverlayVisible: true,
+        celebrateQueryCleared:
+          !(new URL(dashboardPage.url())).searchParams.has("celebrate"),
+        plainDashboardCelebrationVisible,
+        screenshot: celebrationScreenshot,
+      };
 
-    await dashboardContext.close();
+      await dashboardContext.close();
+    } else {
+      result.dashboardCelebration = {
+        skipped: true,
+        reason: "no completed case available",
+      };
+    }
 
     await Promise.all([
       resetWorkspacePreferences(userSession.token, "user"),
@@ -687,7 +709,7 @@ async function run() {
       resetWorkspacePreferences(adminSession.token, "admin"),
     ]);
 
-    result.overallOk =
+    result.functionalOk =
       typeof result.userDesktop.railWidth === "number" &&
       result.userDesktop.railWidth <= 360 &&
       result.userDesktop.contentExpandedOnCollapse === true &&
@@ -702,13 +724,18 @@ async function run() {
       result.adminDesktop.loaded === true &&
       result.userTablet.railDrawerOpened === true &&
       result.userTablet.mastheadVisible === true &&
-      result.userTablet.utilityDockVisible === true &&
-      result.dashboardCelebration.celebrateRouteOverlayVisible === true &&
-      result.dashboardCelebration.celebrateQueryCleared === true &&
-      result.dashboardCelebration.plainDashboardCelebrationVisible === false &&
+      result.userTablet.detailsActionVisible === true &&
+      (result.dashboardCelebration.skipped === true ||
+        (result.dashboardCelebration.celebrateRouteOverlayVisible === true &&
+          result.dashboardCelebration.celebrateQueryCleared === true &&
+          result.dashboardCelebration.plainDashboardCelebrationVisible === false));
+    result.diagnosticsOk =
       result.pageErrors.length === 0 &&
       result.consoleErrors.length === 0 &&
       result.networkErrors.length === 0;
+    result.dataIntegrityOk = result.unavailablePropertyUrls.length === 0;
+    result.overallOk =
+      result.functionalOk && result.diagnosticsOk && result.dataIntegrityOk;
   } catch (error) {
     result.error = String(error);
   } finally {

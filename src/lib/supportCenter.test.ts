@@ -185,7 +185,7 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 test('ticket creation refresh is silent so success is not followed by a contradictory load error', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
     assert.match(source, /await fetchTickets\(true\);[\s\S]*?toast\.success\('Support ticket created'\)/);
-    assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
 });
 
 test('support actions expose a visible pending state and avoid button-submit side effects', () => {
@@ -206,8 +206,17 @@ test('background support polling never surfaces repeated detail-load errors', ()
 
     assert.match(source, /const loadingTicketDetailsRef = useRef\(new Set<string>\(\)\)/);
     assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*return;/);
-    assert.match(source, /catch \(error: any\) \{\s*if \(!silent\) \{[\s\S]*?toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
-    assert.doesNotMatch(source, /catch \(error: any\) \{\s*if \(!silent\) \{[\s\S]*?\}\s*toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{[\s\S]*?toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
+    assert.doesNotMatch(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{[\s\S]*?\}\s*toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
+});
+
+test('support requests cannot restore a stale support deep link after route unmount', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /const supportCenterMountedRef = useRef\(false\)/);
+    assert.match(source, /return \(\) => \{\s*supportCenterMountedRef\.current = false;\s*detailRequestVersionRef\.current \+= 1;/);
+    assert.match(source, /await supportService\.getAllTickets[\s\S]*?if \(!supportCenterMountedRef\.current\) return;[\s\S]*?setSearchParams/);
+    assert.match(source, /await supportService\.getTicket\(ticketId\);\s*if \(!supportCenterMountedRef\.current \|\| requestVersion !== detailRequestVersionRef\.current\) return;/);
 });
 
 test('support category normalization maps UI-only labels to backend-safe values', () => {

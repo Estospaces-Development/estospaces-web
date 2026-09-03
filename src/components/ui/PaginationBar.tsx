@@ -93,7 +93,7 @@ export default function PaginationBar({
                     tabIndex={0}
                     className={[
                         'flex max-w-full min-w-0 items-center gap-2 overflow-x-auto rounded-2xl bg-gray-50/90 px-2 py-2 dark:bg-gray-800/80',
-                        'order-1 col-span-2 w-full sm:w-auto justify-start sm:order-none sm:col-span-1',
+                        'order-1 col-span-2 w-full sm:w-auto justify-start max-[360px]:hidden sm:order-none sm:col-span-1',
                         stacked ? 'sm:justify-center' : '',
                     ].join(' ')}
                 >
@@ -127,6 +127,10 @@ export default function PaginationBar({
                             </button>
                         );
                     })}
+                </div>
+
+                <div className="order-1 col-span-2 hidden min-h-10 w-full items-center justify-center rounded-2xl bg-gray-50/90 px-3 text-sm font-semibold text-gray-700 max-[360px]:inline-flex dark:bg-gray-800/80 dark:text-gray-200">
+                    Page {safeCurrentPage} / {totalPages}
                 </div>
 
                 <button

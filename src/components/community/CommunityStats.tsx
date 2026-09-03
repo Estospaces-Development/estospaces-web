@@ -22,21 +22,22 @@ const CommunityStats: React.FC<CommunityStatsProps> = ({
     ];
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-mobile-compact-summary-grid>
             {stats.map((stat, index) => {
                 const Icon = stat.icon;
                 return (
                     <div
+                        data-manager-mobile-metric
                         key={index}
-                        className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800 hover:shadow-md transition-all duration-300"
+                        className="min-w-0 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm transition-all duration-300 hover:shadow-md dark:border-zinc-800 dark:bg-black sm:p-6"
                     >
-                        <div className="flex items-center gap-4">
-                            <div className={`p-3 ${stat.bgColor} rounded-lg`}>
-                                <Icon className={`w-6 h-6 ${stat.iconColor}`} />
+                        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+                            <div className={`shrink-0 rounded-lg p-1.5 sm:rounded-xl sm:p-3 ${stat.bgColor}`}>
+                                <Icon className={`h-4 w-4 sm:h-6 sm:w-6 ${stat.iconColor}`} />
                             </div>
-                            <div>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-                                <p className="text-sm font-medium text-gray-800 dark:text-gray-300">{stat.label}</p>
+                            <div className="min-w-0">
+                                <p className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{stat.value}</p>
+                                <p className="text-[11px] font-semibold leading-4 text-gray-700 dark:text-gray-300 sm:text-sm sm:font-medium sm:leading-5">{stat.label}</p>
                             </div>
                         </div>
                     </div>

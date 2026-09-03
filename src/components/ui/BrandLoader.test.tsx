@@ -16,7 +16,7 @@ const collectSourceFiles = (directory: string): string[] => readdirSync(director
         return [path];
     });
 
-test('compact brand loader exposes an accessible loading state without a rotating circle', () => {
+test('compact brand loader exposes the same accessible ring-and-logo treatment as the global loader', () => {
     const markup = renderToStaticMarkup(
         <BrandLoader size="sm" className="animate-spin text-white" label="Saving changes" />,
     );
@@ -25,8 +25,11 @@ test('compact brand loader exposes an accessible loading state without a rotatin
     assert.match(markup, /aria-label="Saving changes"/);
     assert.match(markup, /aria-busy="true"/);
     assert.match(markup, /src="\/logo-icon\.png"/);
-    assert.match(markup, /brand-loader-glow/);
-    assert.match(markup, /--brand-loader-height:18px/);
+    assert.match(markup, /width="104" height="55"/);
+    assert.match(markup, /brand-loading-spinner-track/);
+    assert.match(markup, /brand-loading-spinner-ring/);
+    assert.match(markup, /brand-loading-logo/);
+    assert.match(markup, /--brand-loader-size:28px/);
     assert.doesNotMatch(markup, /animate-spin/);
     assert.doesNotMatch(markup, /<svg|<circle/);
 });
@@ -38,18 +41,27 @@ test('compact brand loader can display useful progress copy without duplicating 
 
     assert.match(markup, />Loading property details</);
     assert.match(markup, /brand-loader-label/);
-    assert.match(markup, /--brand-loader-height:36px/);
+    assert.match(markup, /--brand-loader-size:48px/);
 });
 
-test('legacy square spinner classes become a correctly proportioned compact wordmark', () => {
+test('legacy square spinner classes preserve their requested compact ring size', () => {
     const markup = renderToStaticMarkup(
         <BrandLoader className="h-3.5 w-3.5 text-white" label="Sending" />,
     );
 
-    assert.match(markup, /--brand-loader-height:14px/);
-    assert.match(markup, /--brand-loader-width:24px/);
+    assert.match(markup, /--brand-loader-size:14px/);
+    assert.match(markup, /brand-loading-spinner-ring/);
+    assert.doesNotMatch(markup, /brand-loading-logo/);
     assert.doesNotMatch(markup, /(?:class="[^"]*)\bh-3\.5\b|(?:class="[^"]*)\bw-3\.5\b/);
     assert.match(markup, /text-white/);
+});
+
+test('numeric compact loaders preserve layout without rendering an illegibly small logo', () => {
+    const markup = renderToStaticMarkup(<BrandLoader size={12} label="Loading contract" />);
+
+    assert.match(markup, /--brand-loader-size:12px/);
+    assert.match(markup, /brand-loading-spinner-ring/);
+    assert.doesNotMatch(markup, /brand-loading-logo/);
 });
 
 test('the logo asset is preloaded before the application renders a cold-start loader', () => {
@@ -129,6 +141,32 @@ test('buttons use neutral action spinners while page and section loading stays b
     assert.doesNotMatch(actionSpinnerSource, /logo-icon|<img/);
 });
 
+test('production content loading uses the shared screen contract instead of compact branded loaders', () => {
+    const files = collectSourceFiles(resolve(process.cwd(), 'src'))
+        .filter((file) => !file.endsWith('BrandLoader.tsx') && !file.endsWith('Spinner.tsx'));
+    const violations = files.flatMap((file) => {
+        const source = readFileSync(file, 'utf8');
+        return source.includes('<BrandLoader') ? [file] : [];
+    });
+
+    assert.deepEqual(
+        violations,
+        [],
+        `Content loading must use BrandLoadingScreen and micro-actions must use ActionSpinner:\n${violations.join('\n')}`,
+    );
+});
+
+test('Fast Track has one initial workspace loader and a non-blocking refresh indicator', () => {
+    const source = readFileSync(
+        resolve(process.cwd(), 'src/components/fast-track/FastTrackWorkspace.tsx'),
+        'utf8',
+    );
+
+    assert.match(source, /if \(loading && cases\.length === 0\) \{[\s\S]*BrandLoadingScreen/);
+    assert.match(source, /loading && cases\.length > 0/);
+    assert.doesNotMatch(source, /<BrandLoader/);
+});
+
 test('compact loader inherits the surrounding theme and foreground instead of forcing a one-off color', () => {
     const markup = renderToStaticMarkup(
         <div className="dark text-orange-100">
@@ -139,4 +177,12 @@ test('compact loader inherits the surrounding theme and foreground instead of fo
     assert.match(markup, /class="dark text-orange-100"/);
     assert.match(markup, /brand-loader-label/);
     assert.doesNotMatch(markup, /text-(?:black|zinc-950|white)"/);
+});
+
+test('compact and global loaders share the same theme-aware ring tokens', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
+
+    assert.match(styles, /\.brand-loading-surface,\s*\.brand-loader\s*\{[\s\S]*?--loading-ring-start:/);
+    assert.match(styles, /\.dark \.brand-loader/);
+    assert.match(styles, /\.brand-loader-indicator \.brand-loading-spinner-ring/);
 });

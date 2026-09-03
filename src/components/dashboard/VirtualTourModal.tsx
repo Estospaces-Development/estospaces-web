@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -157,7 +156,7 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
                 <div className="relative flex-1 bg-gray-100 dark:bg-black">
                     {loading ? (
                         <div className="flex h-full items-center justify-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                            <BrandLoader className="h-5 w-5 text-orange-500" />
+                            <ActionSpinner size={20} className="text-orange-500" aria-hidden />
                             Syncing virtual tour status...
                         </div>
                     ) : status === 'ready' && tourUrl ? (

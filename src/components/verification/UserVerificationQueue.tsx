@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -189,7 +189,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     const userCardKeyFor = createDuplicateSafeKeyResolver(`${scope}-verification-user`);
 
     return (
-        <div data-testid="user-verification-queue" className="space-y-10 animate-in fade-in duration-500">
+        <div data-testid="user-verification-queue" className="min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -198,14 +198,14 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         </span>
                         <span className="text-gray-400 text-xs font-bold">Verification Queue</span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                    <h1 className="text-3xl font-black leading-none tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                         {content.title}
                     </h1>
                     <p className="text-gray-500 mt-2">{content.description}</p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
+                <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:flex sm:w-auto sm:items-center sm:gap-4">
+                    <div className="group relative min-w-0">
                         <Search className={`absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors ${content.focusText}`} size={18} />
                         <input
                             type="text"
@@ -213,7 +213,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                             placeholder="Search users..."
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
-                            className={`pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 font-bold text-sm w-64 shadow-sm transition-all ${content.accentRing}`}
+                            className={`w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-base font-bold shadow-sm outline-none transition-all focus:ring-4 dark:border-gray-700 dark:bg-gray-800 sm:w-64 sm:text-sm ${content.accentRing}`}
                         />
                     </div>
                     <label className="sr-only" htmlFor={`${scope}-verification-sort`}>Sort verification queue</label>
@@ -231,31 +231,31 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         onClick={handleRefresh}
                         aria-label="Refresh verification queue"
                         title="Refresh verification queue"
-                        className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
+                        className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-[1.02] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 sm:w-auto"
                     >
                         {isRefreshing ? <ActionSpinner size="sm" label="Refreshing verification queue" /> : <RefreshCw size={20} />}
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6" data-mobile-compact-summary-grid>
                 {stats.map((stat) => (
                     <button
                         key={stat.id}
                         onClick={() => setActiveTab(stat.id as TabType)}
                         aria-pressed={activeTab === stat.id}
                         aria-label={`${stat.label}: ${stat.count} users`}
-                        className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
+                        className={`group relative min-w-0 overflow-hidden rounded-2xl border p-4 text-left transition-all sm:rounded-[2.5rem] sm:p-8 ${
                             activeTab === stat.id
                                 ? `bg-white dark:bg-gray-800 ${content.activeBorder} shadow-2xl scale-105 z-10`
                                 : 'bg-gray-50/50 dark:bg-gray-900/50 border-transparent hover:bg-white dark:hover:bg-gray-800 shadow-sm'
                         }`}
                     >
-                        <div className={`p-4 rounded-2xl ${stat.bg} ${stat.color} w-fit mb-6 transition-transform group-hover:scale-110`}>
-                            <stat.icon size={28} />
+                        <div className={`mb-3 w-fit rounded-xl p-2.5 transition-transform group-hover:scale-110 sm:mb-6 sm:rounded-2xl sm:p-4 ${stat.bg} ${stat.color}`}>
+                            <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
                         </div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
-                        <p className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</p>
+                        <p className="mb-2 truncate text-[10px] font-black uppercase leading-none tracking-[0.14em] text-gray-400 sm:tracking-[0.2em]">{stat.label}</p>
+                        <p className="text-2xl font-black text-gray-900 dark:text-white sm:text-3xl">{stat.count}</p>
                     </button>
                 ))}
             </div>
@@ -276,7 +276,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 <div className="p-4 sm:p-10">
                     {loading ? (
                         <div className="flex justify-center py-20">
-                            <BrandLoader className={`${content.accentText}`} size={40} />
+                            <BrandLoadingScreen variant="panel" label="Loading verification queue..." />
                         </div>
                     ) : filteredUsers.length > 0 ? (
                         <div className="grid grid-cols-1 gap-6">

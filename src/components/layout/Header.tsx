@@ -2,7 +2,7 @@
 
 import { Search, User, Shield, CheckCircle, AlertCircle, Menu, LogOut, Settings, BookOpen } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
@@ -17,8 +17,40 @@ interface HeaderProps {
     onMenuToggle?: () => void;
 }
 
+export const getManagerPageTitle = (pathname: string) => {
+    if (pathname === '/manager/dashboard') return 'Dashboard';
+    if (pathname.startsWith('/manager/fast-track')) return 'Fast Track';
+    if (pathname.startsWith('/manager/dashboard/properties/add')) return 'Add Property';
+    if (pathname.startsWith('/manager/dashboard/properties/edit')) return 'Edit Property';
+    if (pathname.startsWith('/manager/dashboard/properties')) return 'Properties';
+    if (pathname.startsWith('/manager/leads') || pathname.startsWith('/manager/clients')) return 'Leads & Clients';
+    if (pathname.startsWith('/manager/applications')) return 'Applications';
+    if (pathname.startsWith('/manager/contracts')) return 'Contracts';
+    if (pathname.startsWith('/manager/appointments')) return 'Appointments';
+    if (pathname.startsWith('/manager/messages')) return 'Messages';
+    if (pathname.startsWith('/manager/analytics')) return 'Analytics';
+    if (pathname.startsWith('/manager/verification') || pathname.startsWith('/manager/user-verifications')) return 'Verification';
+    if (pathname.startsWith('/manager/profile')) return 'Profile';
+    if (pathname.startsWith('/manager/docs')) return 'Docs';
+    if (pathname.startsWith('/manager/help')) return 'Help & Support';
+    if (pathname.startsWith('/manager/case-files')) return 'Case Files';
+    if (pathname.startsWith('/manager/notifications')) return 'Notifications';
+    if (pathname.startsWith('/manager/community')) return 'Community';
+    return 'Manager';
+};
+
+export const getManagerMobilePageTitle = (pathname: string) => {
+    const title = getManagerPageTitle(pathname);
+    if (title === 'Leads & Clients') return 'Leads';
+    if (title === 'Help & Support') return 'Support';
+    if (title === 'Add Property') return 'Add listing';
+    if (title === 'Edit Property') return 'Edit listing';
+    return title;
+};
+
 const Header = ({ onMenuToggle }: HeaderProps) => {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const { user, signOut, getDisplayName, getRole } = useAuth();
     const { notifications: _notifications, unreadCount: _unreadCount } = useNotifications();
     const {
@@ -130,11 +162,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     return (
-        <header className="workspace-chrome sticky top-0 z-40 h-16 border-b border-gray-100 bg-white transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex h-full items-center justify-between gap-2 px-2.5 sm:gap-3 sm:px-6 lg:px-8">
+        <header className="workspace-chrome sticky top-0 z-40 h-14 border-b border-gray-100 bg-white transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900 sm:h-16">
+            <div className="flex h-full items-center justify-between gap-1.5 px-2 sm:gap-3 sm:px-6 lg:px-8">
 
                 {/* Left: Mobile Menu & Search */}
-                <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 min-[340px]:gap-2.5 sm:gap-4">
                     <button
                         type="button"
                         onClick={onMenuToggle}
@@ -144,10 +176,15 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <Menu size={20} />
                     </button>
 
+                    <h1 className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight tracking-[-0.01em] text-gray-900 dark:text-white min-[340px]:text-base md:hidden">
+                        {getManagerMobilePageTitle(pathname)}
+                    </h1>
+
                     <form ref={searchRef} onSubmit={handleSearch} className="group relative hidden w-full max-w-md items-center md:flex">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
                         <input
                             type="text"
+                            role="combobox"
                             placeholder="Search properties, leads, or tasks..."
                             value={searchQuery}
                             onChange={(e) => {
@@ -198,8 +235,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                 {/* Right: Actions & Profile */}
                 <div className="flex shrink-0 items-center gap-0.5 sm:gap-2 lg:gap-4">
-                    {/* Theme Toggle */}
-                    {/* Theme Toggle */}
+                    <div className="sm:hidden"><ThemeSwitcher /></div>
                     <div className="hidden sm:block"><ThemeSwitcher /></div>
 
                     {/* Verification Badge (Desktop) */}
@@ -221,7 +257,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     </div>
 
                     {/* Profile Dropdown */}
-                    <div className="relative" ref={profileRef}>
+                    <div className="relative hidden min-[340px]:block" ref={profileRef}>
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                             className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-full p-1 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800"

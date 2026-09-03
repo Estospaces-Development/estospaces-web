@@ -42,18 +42,21 @@ const HorizontalNavigation = ({
     {
       icon: LayoutDashboard,
       label: "Dashboard",
+      mobileLabel: "Home",
       path: "/user/dashboard",
       exact: true,
     },
     {
       icon: Search,
       label: "Find",
+      mobileLabel: "Find",
       path: "/user/dashboard/discover",
-      activePaths: ["/user/dashboard/discover", "/user/search"],
+      activePaths: ["/user/dashboard/discover", "/user/dashboard/search", "/user/search"],
     },
     {
       icon: MessageSquare,
       label: "Messages",
+      mobileLabel: "Chat",
       path: "/user/dashboard/messages",
       showBadge: true,
       badgeCount: totalUnreadCount,
@@ -61,6 +64,7 @@ const HorizontalNavigation = ({
     {
       icon: FolderKanban,
       label: "My Activity",
+      mobileLabel: "Activity",
       path: "/user/dashboard/saved",
       activePaths: [
         "/user/dashboard/saved",
@@ -112,7 +116,7 @@ const HorizontalNavigation = ({
             const Icon = item.icon;
             const active = isActive(item);
             const commonClass = `
-              relative inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold
+              relative inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold
               transition-all duration-200 ease-out whitespace-nowrap focus:outline-none
               focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-1
               ${
@@ -189,7 +193,7 @@ const HorizontalNavigation = ({
             const content = (
               <>
                 <Icon size={16} className="flex-shrink-0" />
-                <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
+                <span className="max-w-full whitespace-nowrap text-[10px] min-[320px]:text-[11px]">{item.mobileLabel}</span>
                 {item.showBadge && (item.badgeCount || 0) > 0 && (
                   <UnreadCountBadge count={item.badgeCount || 0} mobile />
                 )}

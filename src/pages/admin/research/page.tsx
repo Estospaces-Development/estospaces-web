@@ -107,6 +107,7 @@ export default function AdminResearchPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [summary, setSummary] = useState(() => summarizeResearchWorkspace(null));
     const [sessions, setSessions] = useState<ResearchSession[]>([]);
@@ -140,12 +141,23 @@ export default function AdminResearchPage() {
                 if (current && nextSessions.some((session) => session.id === current)) return current;
                 return nextSessions[0]?.id || '';
             });
+            return true;
         } catch (error) {
             toast.error(getResearchWorkspaceErrorMessage(error));
+            return false;
         } finally {
             if (!silent) setLoading(false);
         }
     }, [activeTrack, toast]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        const refreshed = await loadResearch(true);
+        setIsRefreshing(false);
+        if (refreshed) {
+            toast.success('Research workspace refreshed.');
+        }
+    };
 
     useEffect(() => {
         void loadResearch();
@@ -368,11 +380,12 @@ export default function AdminResearchPage() {
                 <div className="flex flex-wrap gap-3">
                     <button
                         type="button"
-                        onClick={() => loadResearch(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:bg-orange-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-500/10"
+                        onClick={() => void handleRefresh()}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:bg-orange-50 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-500/10"
                     >
-                        <RefreshCw size={16} />
-                        Refresh
+                        {isRefreshing ? <ActionSpinner size="sm" label="Refreshing research" /> : <RefreshCw size={16} />}
+                        {isRefreshing ? 'Refreshing' : 'Refresh'}
                     </button>
                     <button
                         type="button"
@@ -385,19 +398,19 @@ export default function AdminResearchPage() {
                 </div>
             </header>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Research overview metrics">
+            <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" aria-label="Research overview metrics" data-mobile-compact-summary-grid>
                 {[
                     ['Sessions', summary.totalSessions, ClipboardList],
                     ['High severity friction', summary.highSeverityObservations, AlertTriangle],
                     ['Consent pending', summary.consentPendingReviews, ShieldCheck],
                     ['Reviewed sessions', summary.byStatus.reviewed, CheckCircle2],
                 ].map(([label, value, Icon]) => (
-                    <div key={label as string} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <div key={label as string} className="min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
                         <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-black uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">{label as string}</span>
+                            <span className="text-[10px] font-black uppercase leading-4 tracking-[0.14em] text-gray-500 dark:text-gray-400 sm:text-xs sm:tracking-[0.18em]">{label as string}</span>
                             {React.createElement(Icon as typeof ClipboardList, { size: 18, className: 'text-orange-500' })}
                         </div>
-                        <p className="mt-4 text-3xl font-black text-gray-950 dark:text-white">{value as number}</p>
+                        <p className="mt-3 text-2xl font-black text-gray-950 dark:text-white sm:mt-4 sm:text-3xl">{value as number}</p>
                     </div>
                 ))}
             </section>

@@ -1,5 +1,7 @@
 import { createPortal } from 'react-dom';
 
+import BrandLoadingIndicator from './BrandLoadingIndicator';
+
 interface BrandLoadingScreenProps {
     label?: string;
     description?: string;
@@ -37,19 +39,7 @@ export default function BrandLoadingScreen({
             aria-atomic="true"
             aria-busy="true"
         >
-            <div className={`brand-loading-spinner relative grid place-items-center ${spinnerClass}`} aria-hidden="true">
-                <span className="brand-loading-spinner-track absolute inset-0 rounded-full" />
-                <span className="brand-loading-spinner-ring absolute inset-0 rounded-full" />
-                <div className="brand-loading-logo relative z-10 grid size-[78%] place-items-center rounded-full">
-                    <img
-                        src="/logo-icon.png"
-                        alt=""
-                        width={104}
-                        height={55}
-                        className="h-auto w-[74%] object-contain"
-                    />
-                </div>
-            </div>
+            <BrandLoadingIndicator className={spinnerClass} />
             <span className="sr-only">{accessibleMessage}</span>
         </div>
     );

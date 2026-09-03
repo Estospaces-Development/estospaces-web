@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -215,14 +215,7 @@ export default function ManagerBillingPage() {
     const refundedPayments = payments.filter((payment) => payment.status === 'refunded').length;
 
     if (loading) {
-        return (
-            <div className="flex min-h-[420px] items-center justify-center">
-                <div className="flex items-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                    <BrandLoader className="h-6 w-6 text-orange-500" />
-                    Loading billing workspace...
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading billing workspace..." />;
     }
 
     return (

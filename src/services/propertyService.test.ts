@@ -4,12 +4,76 @@ import test from 'node:test';
 import { clearAuthToken, setAuthToken } from '@/lib/authToken';
 
 import {
+  getPropertyContextsByIds,
   getPropertyById,
   getProperties,
   invalidatePropertyDetailCache,
   invalidatePropertyListCache,
   recordPropertyView,
 } from './propertyService';
+
+test('property context reads batch referenced ids through the authenticated catalog', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  setAuthToken('signed-in-token');
+  globalThis.fetch = async (input) => {
+    requestedUrl = String(input);
+    return new Response(JSON.stringify({
+      success: true,
+      data: [{ id: 'property-1', title: 'Existing property' }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const result = await getPropertyContextsByIds(['property-1', 'missing-property', 'property-1']);
+    assert.equal(result.error, null);
+    assert.equal(result.data?.length, 1);
+    assert.match(requestedUrl, /\/api\/v1\/properties\/catalog\/context\?ids=property-1%2Cmissing-property$/);
+  } finally {
+    clearAuthToken();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('property context reads fall back to authenticated detail routes during core version skew', async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls: string[] = [];
+  setAuthToken('signed-in-token');
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    requestedUrls.push(url);
+    if (url.includes('/catalog/context?')) {
+      return new Response(JSON.stringify({ success: false, error: 'Cannot GET route' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const propertyId = url.split('/').pop();
+    if (propertyId === 'missing-property') {
+      return new Response(JSON.stringify({ success: false, error: 'Property not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify({
+      success: true,
+      data: { id: propertyId, title: 'Existing property' },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const result = await getPropertyContextsByIds(['property-1', 'missing-property']);
+    assert.equal(result.error, null);
+    assert.deepEqual(result.data?.map((property) => property.id), ['property-1']);
+    assert.equal(requestedUrls.length, 3);
+    assert.match(requestedUrls[0], /\/api\/v1\/properties\/catalog\/context\?/);
+    assert.match(requestedUrls[1], /\/api\/v1\/properties\/catalog\/property-1$/);
+    assert.match(requestedUrls[2], /\/api\/v1\/properties\/catalog\/missing-property$/);
+  } finally {
+    clearAuthToken();
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('property list reads share one request and ignore legacy route cache keys', async () => {
   const originalFetch = globalThis.fetch;

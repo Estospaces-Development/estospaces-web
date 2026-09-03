@@ -10,7 +10,7 @@ import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface LeadActionMapProps {
     leads: Lead[];
@@ -133,6 +133,9 @@ export default function LeadActionMap({
     const mapKey = useMemo(() => (
         leadsWithCoordinates.map((lead) => `${lead.id}:${getLeadMapCoordinates(lead)?.join(':')}`).join('|')
     ), [leadsWithCoordinates]);
+    const uniqueLocationCount = useMemo(() => new Set(
+        leadsWithCoordinates.map((lead) => getLeadMapCoordinates(lead)?.join(':')),
+    ).size, [leadsWithCoordinates]);
     const resolveAssignedBrokerId = (lead: Lead) => lead.broker_id || lead.matched_broker_id || null;
     const canRequestDocumentsForLead = (lead: Lead) => (
         canRequestDocuments ? canRequestDocuments(lead) : Boolean(lead.user_id)
@@ -149,13 +152,15 @@ export default function LeadActionMap({
     if (leadsWithCoordinates.length === 0) {
         return (
             <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lead map</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No verified lead locations</h3>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Property markers will appear here automatically when lead properties have coordinates.
+                    These properties do not have verified coordinates yet, so they are not placed at an approximate or incorrect location.
                 </p>
             </div>
         );
     }
+
+    const initialMapCenter = getLeadMapCoordinates(leadsWithCoordinates[0])!;
 
     return (
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
@@ -176,8 +181,12 @@ export default function LeadActionMap({
                     {isMounted ? (
                         <MapContainer
                             key={mapKey}
-                            center={[54.5, -3]}
+                            center={initialMapCenter}
                             zoom={6}
+                            minZoom={2}
+                            maxBounds={[[-85, -180], [85, 180]]}
+                            maxBoundsViscosity={1}
+                            worldCopyJump
                             style={{ height: '100%', width: '100%' }}
                             scrollWheelZoom
                             fadeAnimation={false}
@@ -188,6 +197,7 @@ export default function LeadActionMap({
                             <TileLayer
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                noWrap
                             />
                             {leadsWithCoordinates.map((lead) => {
                                 const coordinates = getLeadMapCoordinates(lead);
@@ -269,7 +279,7 @@ export default function LeadActionMap({
                         </MapContainer>
                     ) : (
                         <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-                            <BrandLoader size="md" label="Loading lead map" showLabel />
+                            <BrandLoadingScreen variant="panel" label="Loading lead map..." />
                         </div>
                     )}
 
@@ -278,7 +288,7 @@ export default function LeadActionMap({
                             {leadsWithCoordinates.length} lead{leadsWithCoordinates.length === 1 ? '' : 's'} on the map
                         </p>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Click any marker to keep the live lead tools in sync.
+                            Across {uniqueLocationCount} verified location{uniqueLocationCount === 1 ? '' : 's'}. Click a marker to keep the live lead tools in sync.
                         </p>
                     </div>
                 </div>

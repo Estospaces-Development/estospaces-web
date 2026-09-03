@@ -8,21 +8,25 @@ import {
     Grid,
     Map as MapIcon,
     ArrowLeft,
-    AlertCircle
+    AlertCircle,
+    ChevronDown,
+    SlidersHorizontal,
 } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
+import FastTrackRequestConfirmationModal from '@/components/fast-track/FastTrackRequestConfirmationModal';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
 import { toDiscoverNearbyMapProperties } from '@/lib/discoverMap';
 import {
-    getCountryAwarePropertyGroups,
     getPriceBoundAdjustmentMessage,
     getSearchFilterValidationMessage,
     getPropertySearchSortOptions,
@@ -35,7 +39,6 @@ import {
 import {
     formatLaunchCurrencyForCountry,
     getLaunchLocationCodeLabel,
-    getLaunchLocationCodePlaceholder,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     isValidLaunchLocationCode,
@@ -45,11 +48,13 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import {
+    buildDiscoverPath,
     buildDiscoverSearchParams,
     consumeDiscoverReturnHistoryState,
     isDiscoverReturnHistoryState,
     markDiscoverReturnHistoryState,
     readDiscoverViewMode,
+    resolveDiscoverPage,
     selectDiscoverSearchSource,
 } from '@/lib/discoverSearchState';
 import {
@@ -57,6 +62,16 @@ import {
     readPropertySearchReturnState,
     savePropertySearchReturnState,
 } from '@/lib/propertySearchReturnCache';
+import {
+    getFastTrackRequestPendingKey,
+    readFastTrackRequestPending,
+    writeFastTrackRequestPending,
+} from '@/lib/fastTrackRequestPending';
+import {
+    requestDirectPropertyFastTrack,
+    type FastTrackRequestStatus,
+} from '@/lib/propertyFastTrackRequest';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const ITEMS_PER_PAGE = 12;
 const DISCOVER_PATH = '/user/dashboard/discover';
@@ -299,7 +314,9 @@ function DiscoverContent() {
         initialSearchParamsRef.current = new URLSearchParams(selection.search);
     }
     const initialSearchParams = initialSearchParamsRef.current;
-    const { user } = useAuth();
+    const { user, getDisplayName } = useAuth();
+    const toast = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const { activeTab, setActiveTab } = usePropertyFilter();
 
     // Local state
@@ -322,9 +339,23 @@ function DiscoverContent() {
     const [sortBy, setSortBy] = useState(() =>
         normalizePropertySearchSort(initialSearchParams.get('sort') || initialSearchParams.get('sortBy') || mapDashboardFilterToSearchSort(initialSearchParams.get('filter') || '')),
     );
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => Boolean(
+        readSearchUrlFilters(initialSearchParams).location
+        || readSearchUrlFilters(initialSearchParams).propertyType
+        || readSearchUrlFilters(initialSearchParams).minPrice
+        || readSearchUrlFilters(initialSearchParams).maxPrice
+        || readSearchUrlFilters(initialSearchParams).bedrooms
+        || readSearchUrlFilters(initialSearchParams).baths
+        || initialSearchParams.get('sort')
+        || initialSearchParams.get('sortBy')
+        || initialSearchParams.get('filter'),
+    ));
     const [filterInputMessage, setFilterInputMessage] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>(() => readDiscoverViewMode(initialSearchParams));
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(initialSearchParams.get('page')));
+    const [fastTrackStatusByProperty, setFastTrackStatusByProperty] = useState<Record<string, FastTrackRequestStatus>>({});
+    const [fastTrackConfirmationProperty, setFastTrackConfirmationProperty] = useState<SearchResult | null>(null);
+    const fastTrackRequestsInFlightRef = useRef(new Set<string>());
 
     useEffect(() => {
         if (isDiscoverReturnEntryRef.current) {
@@ -345,15 +376,24 @@ function DiscoverContent() {
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [globalFilterOptions, setGlobalFilterOptions] = useState<FilterOptions | null>(null);
+    const fetchRequestIdRef = useRef(0);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
     const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationQuery);
-    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationQuery);
     const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode: geoMarket,
     });
+    const activeAdvancedFilterCount = [
+        locationQuery,
+        propertyType !== 'all' ? propertyType : '',
+        priceRange.min,
+        priceRange.max,
+        beds,
+        baths,
+        sortBy !== 'relevance' ? sortBy : '',
+    ].filter(Boolean).length;
     const discoverPropertyTypeOptions = useMemo(() => {
         const propertyTypes =
             globalFilterOptions?.property_types?.length
@@ -379,10 +419,16 @@ function DiscoverContent() {
 
     useEffect(() => {
         let isMounted = true;
+        fetchRequestIdRef.current += 1;
+        setGlobalFilterOptions(null);
+        setFilterOptions(null);
+        setAllSectionProperties([]);
+        setProperties([]);
+        setTotal(0);
 
         const loadGlobalFilters = async () => {
-            const options = await searchService.getFilters();
-            if (isMounted && options) {
+            const options = await searchService.getFilters(geoMarket);
+            if (isMounted) {
                 setGlobalFilterOptions(options);
             }
         };
@@ -391,7 +437,7 @@ function DiscoverContent() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [geoMarket]);
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
@@ -416,10 +462,14 @@ function DiscoverContent() {
     }, [searchParamSnapshot]);
 
     const fetchData = useCallback(async () => {
+        const requestId = ++fetchRequestIdRef.current;
         setLoading(true);
         setError(null);
         try {
             const result = await searchService.getPropertySections(geoMarket);
+            if (requestId !== fetchRequestIdRef.current) {
+                return;
+            }
 
             if (!result.success) {
                 setProperties([]);
@@ -450,29 +500,42 @@ function DiscoverContent() {
                 sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
                 dashboardFilter,
             );
-            const pageStart = (currentPage - 1) * ITEMS_PER_PAGE;
+            const resolvedPage = resolveDiscoverPage(currentPage, sorted.length, ITEMS_PER_PAGE);
+            const pageStart = (resolvedPage - 1) * ITEMS_PER_PAGE;
 
             setAllSectionProperties(sectionProperties);
             setFilterOptions(buildFilterOptionsFromProperties(sectionProperties));
             setProperties(sorted.slice(pageStart, pageStart + ITEMS_PER_PAGE));
             setTotal(sorted.length);
+            if (resolvedPage !== currentPage) {
+                setCurrentPage(resolvedPage);
+            }
         } catch {
+            if (requestId !== fetchRequestIdRef.current) {
+                return;
+            }
             setProperties([]);
             setAllSectionProperties([]);
             setTotal(0);
             setFilterOptions(null);
             setError('An unexpected error occurred while processing property sections.');
         } finally {
-            setLoading(false);
+            if (requestId === fetchRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [activeTab, baths, beds, currentPage, dashboardFilter, geoMarket, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {
+        fetchRequestIdRef.current += 1;
         const timer = setTimeout(() => {
-            fetchData();
+            void fetchData();
         }, 300);
-        return () => clearTimeout(timer);
+        return () => {
+            fetchRequestIdRef.current += 1;
+            clearTimeout(timer);
+        };
     }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, fetchData]);
 
     // Autocomplete location suggestions
@@ -493,10 +556,6 @@ function DiscoverContent() {
 
     // The backend now handles all filtering and pagination natively.
     const filteredProperties = properties;
-    const countryGroups = useMemo(
-        () => getCountryAwarePropertyGroups(filteredProperties),
-        [filteredProperties],
-    );
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
@@ -523,6 +582,13 @@ function DiscoverContent() {
         : error
             ? error
             : `${paginatedProperties.length} of ${total} discovery properties shown in ${viewMode} view sorted by ${sortBy} from property sections.`;
+
+    useEffect(() => {
+        const nextPath = buildDiscoverPath(DISCOVER_PATH, discoverReturnSearch);
+        if (`${window.location.pathname}${window.location.search}` !== nextPath) {
+            navigate(nextPath, { replace: true });
+        }
+    }, [discoverReturnSearch, navigate]);
 
     useEffect(() => {
         const cachedSearch = cachedDiscoverSearchRef.current;
@@ -573,18 +639,110 @@ function DiscoverContent() {
         });
     }, [cacheDiscoverSearchReturn, discoverReturnPath, navigate]);
 
-    const openFastTrackFromDiscover = useCallback((property: { id: string }) => {
-        cacheDiscoverSearchReturn();
-        navigate(`/user/properties/${property.id}?fast-track=1`, {
-            state: {
-                backTo: discoverReturnPath,
-                backLabel: 'Back to Discover',
-                backState: markDiscoverReturnHistoryState(null),
-            },
-        });
-    }, [cacheDiscoverSearchReturn, discoverReturnPath, navigate]);
+    const getFastTrackRequestStatus = useCallback((propertyID: string): FastTrackRequestStatus => {
+        const currentStatus = fastTrackStatusByProperty[propertyID];
+        if (currentStatus) {
+            return currentStatus;
+        }
+        if (!user?.id || typeof window === 'undefined') {
+            return 'idle';
+        }
+
+        const pendingKey = getFastTrackRequestPendingKey(user.id, propertyID);
+        return readFastTrackRequestPending(window.localStorage, pendingKey) ? 'requested' : 'idle';
+    }, [fastTrackStatusByProperty, user?.id]);
+
+    const submitFastTrackRequestFromDiscover = useCallback(async (propertyReference: { id: string }) => {
+        const property = filteredProperties.find((item) => item.id === propertyReference.id);
+        if (!property || !user?.id) {
+            toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
+            return false;
+        }
+
+        const pendingKey = getFastTrackRequestPendingKey(user.id, property.id);
+        if (
+            fastTrackRequestsInFlightRef.current.has(property.id)
+            || readFastTrackRequestPending(window.localStorage, pendingKey)
+        ) {
+            setFastTrackStatusByProperty((current) => ({
+                ...current,
+                [property.id]: 'requested',
+            }));
+            toast.info('Your Fast Track request is already waiting for manager approval.');
+            return true;
+        }
+
+        fastTrackRequestsInFlightRef.current.add(property.id);
+        setFastTrackStatusByProperty((current) => ({
+            ...current,
+            [property.id]: 'requesting',
+        }));
+
+        try {
+            const result = await requestDirectPropertyFastTrack({
+                property,
+                clientId: user.id,
+                clientName: getDisplayName(),
+            });
+            writeFastTrackRequestPending(window.localStorage, pendingKey, result.requestedAt);
+            setFastTrackStatusByProperty((current) => ({
+                ...current,
+                [property.id]: 'requested',
+            }));
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                ],
+                reason: 'User requested Fast Track from property discovery',
+                ids: {
+                    leadId: result.leadId,
+                    propertyId: property.id,
+                },
+            });
+            toast.success('Fast Track requested. The property manager has been notified.');
+            return true;
+        } catch (requestError) {
+            setFastTrackStatusByProperty((current) => ({
+                ...current,
+                [property.id]: 'idle',
+            }));
+            toast.error(
+                requestError instanceof Error
+                    ? requestError.message
+                    : 'Unable to request Fast Track right now.',
+            );
+            return false;
+        } finally {
+            fastTrackRequestsInFlightRef.current.delete(property.id);
+        }
+    }, [filteredProperties, getDisplayName, publishWorkspaceSync, toast, user?.id]);
+
+    const requestFastTrackFromDiscover = useCallback((propertyReference: { id: string }) => {
+        const property = filteredProperties.find((item) => item.id === propertyReference.id);
+        if (!property || !user?.id) {
+            toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
+            return;
+        }
+
+        setFastTrackConfirmationProperty(property);
+    }, [filteredProperties, toast, user?.id]);
+
+    const confirmFastTrackFromDiscover = useCallback(async () => {
+        if (!fastTrackConfirmationProperty) {
+            return;
+        }
+
+        const submitted = await submitFastTrackRequestFromDiscover(fastTrackConfirmationProperty);
+        if (submitted) {
+            setFastTrackConfirmationProperty(null);
+        }
+    }, [fastTrackConfirmationProperty, submitFastTrackRequestFromDiscover]);
 
     const handleClearFilters = () => {
+        clearPropertySearchReturnState(window.sessionStorage, DISCOVER_PATH);
         setSearchQuery('');
         setLocationQuery('');
         setStatusFilter('');
@@ -595,7 +753,9 @@ function DiscoverContent() {
         setDashboardFilter('');
         setSortBy('relevance');
         setFilterInputMessage('');
+        setActiveTab('all');
         setCurrentPage(1);
+        navigate(DISCOVER_PATH, { replace: true });
     };
 
     return (
@@ -620,16 +780,16 @@ function DiscoverContent() {
                 </button>
 
                 {/* Header */}
-                <header className="mb-6 overflow-hidden rounded-[2rem] border border-orange-100 bg-gradient-to-br from-white via-white to-orange-50/80 p-6 shadow-[0_18px_55px_-42px_rgba(154,52,18,0.55)] dark:border-orange-900/30 dark:from-gray-900 dark:via-gray-900 dark:to-orange-950/30 sm:p-8">
-                    <div className="flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+                <header className="mb-4 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-white via-white to-orange-50/80 p-4 shadow-[0_18px_55px_-42px_rgba(154,52,18,0.55)] dark:border-orange-900/30 dark:from-gray-900 dark:via-gray-900 dark:to-orange-950/30 sm:mb-6 sm:rounded-[2rem] sm:p-8">
+                    <div className="flex flex-col gap-4 sm:gap-7 xl:flex-row xl:items-end xl:justify-between">
                         <div className="max-w-2xl">
                             <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700 dark:text-orange-300">
                                 Homes on Estospaces
                             </p>
-                            <h1 className="mt-3 max-w-xl font-display text-3xl font-bold tracking-[-0.04em] text-gray-950 dark:text-white sm:text-4xl">
+                            <h1 className="mt-2 max-w-xl font-display text-[1.625rem] font-bold leading-tight tracking-[-0.04em] text-gray-950 dark:text-white sm:mt-3 sm:text-4xl">
                                 Find a home that fits your next move
                             </h1>
-                            <p className="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300 sm:mt-3 sm:text-base sm:leading-7">
                                 {statusFilter === 'sold'
                                     ? 'Review homes that have already completed their journey.'
                                     : activeTab === 'buy'
@@ -640,8 +800,8 @@ function DiscoverContent() {
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <div role="group" aria-label="Listing type" className="flex min-h-12 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3">
+                            <div role="group" aria-label="Listing type" className="grid min-h-11 grid-cols-3 gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex sm:min-h-12 sm:rounded-2xl">
                                 {([
                                     ['all', 'All homes'],
                                     ['buy', 'For sale'],
@@ -650,9 +810,12 @@ function DiscoverContent() {
                                     <button
                                         key={value}
                                         type="button"
-                                        onClick={() => setActiveTab(value)}
+                                        onClick={() => {
+                                            setActiveTab(value);
+                                            setCurrentPage(1);
+                                        }}
                                         aria-pressed={activeTab === value}
-                                        className={`min-h-10 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${activeTab === value
+                                        className={`min-h-10 rounded-lg px-2 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${activeTab === value
                                             ? 'bg-orange-600 text-white shadow-sm'
                                             : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                                             }`}
@@ -662,12 +825,12 @@ function DiscoverContent() {
                                 ))}
                             </div>
 
-                            <div role="group" aria-label="Results view" className="flex min-h-12 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            <div role="group" aria-label="Results view" className="grid min-h-11 grid-cols-2 gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex sm:min-h-12 sm:rounded-2xl">
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('grid')}
                                     aria-pressed={viewMode === 'grid'}
-                                    className={`flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'grid'
+                                    className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${viewMode === 'grid'
                                         ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-950'
                                         : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                                         }`}
@@ -679,7 +842,7 @@ function DiscoverContent() {
                                     type="button"
                                     onClick={() => setViewMode('map')}
                                     aria-pressed={viewMode === 'map'}
-                                    className={`flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'map'
+                                    className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 sm:rounded-xl sm:px-4 sm:text-sm ${viewMode === 'map'
                                         ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-950'
                                         : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                                         }`}
@@ -692,23 +855,20 @@ function DiscoverContent() {
                     </div>
                 </header>
 
-                {/* Search and Filters */}
-                <section aria-labelledby="discover-filters-heading" className="mb-6 rounded-[1.75rem] border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-                    <div className="mb-5">
-                        <h2 id="discover-filters-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-gray-950 dark:text-white">
-                            Narrow your search
-                        </h2>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Use only the details that matter to you.</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
-                        <div className="lg:col-span-2">
-                            <label className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">Property or area</label>
+                {/* Canonical property search */}
+                <section aria-label="Property search" className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:mb-6 sm:rounded-[1.75rem] sm:p-6">
+                    <div className="flex flex-col gap-3 sm:gap-5 lg:flex-row lg:items-end">
+                        <div className="min-w-0 flex-1">
+                            <label htmlFor="discover-property-search" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                Find a home
+                            </label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
+                                    id="discover-property-search"
                                     aria-label="Search properties"
                                     type="text"
-                                    placeholder={`${locationCodeLabel}, street, or property name (${locationCodePlaceholder})`}
+                                    placeholder={`City, ${locationCodeLabel.toLowerCase()}, or property`}
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(normalizeSearchQueryInput(e.target.value));
@@ -719,7 +879,7 @@ function DiscoverContent() {
                                         if (locationSuggestions.length > 0) setShowSuggestions(true);
                                     }}
                                     onBlur={() => setShowSuggestions(false)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
+                                    className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-gray-900 outline-none transition focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-orange-500 dark:focus:bg-gray-900 dark:focus:ring-orange-500/10"
                                 />
                                 {showSuggestions && locationSuggestions.length > 0 && (
                                     <div
@@ -756,6 +916,32 @@ function DiscoverContent() {
                             </div>
                         </div>
 
+                        <button
+                            type="button"
+                            aria-controls="discover-advanced-filters"
+                            aria-expanded={showAdvancedFilters}
+                            onClick={() => setShowAdvancedFilters((visible) => !visible)}
+                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-orange-700 dark:hover:bg-orange-950/30 lg:w-auto"
+                        >
+                            <SlidersHorizontal size={18} aria-hidden="true" />
+                            <span>Filters{activeAdvancedFilterCount > 0 ? ` (${activeAdvancedFilterCount})` : ''}</span>
+                            <ChevronDown
+                                size={17}
+                                aria-hidden="true"
+                                className={`transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
+                            />
+                        </button>
+                    </div>
+
+                    {showAdvancedFilters && (
+                    <div id="discover-advanced-filters" aria-labelledby="discover-filters-heading" className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800">
+                        <div className="mb-5">
+                            <h2 id="discover-filters-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-gray-950 dark:text-white">
+                                Narrow your search
+                            </h2>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Add only the details that matter to your decision.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <label htmlFor="discover-location" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">City or location code</label>
                             <div className="relative">
@@ -890,13 +1076,16 @@ function DiscoverContent() {
 
                         <div className="flex items-end lg:col-span-2">
                             <button
+                                type="button"
                                 onClick={handleClearFilters}
-                                className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 text-sm font-medium h-12 px-6"
+                                className="h-12 rounded-xl px-4 text-sm font-semibold text-orange-700 transition hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-orange-300 dark:hover:bg-orange-950/30"
                             >
-                                Clear All Filters
+                                Clear filters
                             </button>
                         </div>
+                        </div>
                     </div>
+                    )}
                 </section>
 
                 {filterValidationMessage && (
@@ -922,18 +1111,6 @@ function DiscoverContent() {
                         </p>
                     </div>
 
-                    {countryGroups.length > 0 && (
-                        <div className="flex flex-wrap gap-2" aria-label="Countries represented in these results">
-                            {countryGroups.map((group) => (
-                                <span
-                                    key={group.key}
-                                    className="inline-flex min-h-9 items-center rounded-full border border-orange-200 bg-orange-50 px-3 text-sm font-semibold text-orange-800 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-200"
-                                >
-                                    {group.label} · {group.count} shown
-                                </span>
-                            ))}
-                        </div>
-                    )}
                 </section>
 
                 {/* Content */}
@@ -943,7 +1120,8 @@ function DiscoverContent() {
                             properties={toDiscoverNearbyMapProperties(filteredProperties)}
                             onPropertyClick={openPropertyFromDiscover}
                             onOpenWorkspace={openPropertyFromDiscover}
-                            onStartFastTrack={openFastTrackFromDiscover}
+                            onStartFastTrack={requestFastTrackFromDiscover}
+                            getFastTrackRequestStatus={getFastTrackRequestStatus}
                         />
                     </div>
                 ) : (
@@ -980,7 +1158,8 @@ function DiscoverContent() {
                                         key={property.id}
                                         property={property}
                                         onViewDetails={openPropertyFromDiscover}
-                                        onStartFastTrack={openFastTrackFromDiscover}
+                                        onStartFastTrack={requestFastTrackFromDiscover}
+                                        fastTrackStatus={getFastTrackRequestStatus(property.id)}
                                         showSaveAction
                                         appearance="discovery"
                                     />
@@ -1021,6 +1200,21 @@ function DiscoverContent() {
                     </>
                 )}
             </div>
+            <FastTrackRequestConfirmationModal
+                open={Boolean(fastTrackConfirmationProperty)}
+                propertyTitle={fastTrackConfirmationProperty?.title || 'Selected property'}
+                propertyLocation={fastTrackConfirmationProperty
+                    ? formatLaunchPropertyLocation(
+                        fastTrackConfirmationProperty.location
+                        || [fastTrackConfirmationProperty.city, fastTrackConfirmationProperty.postcode].filter(Boolean).join(', '),
+                    )
+                    : undefined}
+                isSubmitting={fastTrackConfirmationProperty
+                    ? getFastTrackRequestStatus(fastTrackConfirmationProperty.id) === 'requesting'
+                    : false}
+                onClose={() => setFastTrackConfirmationProperty(null)}
+                onConfirm={confirmFastTrackFromDiscover}
+            />
         </div>
     );
 }
@@ -1028,9 +1222,7 @@ function DiscoverContent() {
 export default function DiscoverPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <BrandLoader size="xl" label="Loading properties" />
-            </div>
+            <BrandLoadingScreen variant="section" label="Loading properties..." />
         }>
             <DiscoverContent />
         </Suspense>

@@ -284,14 +284,14 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    <h1 data-manager-mobile-page-title className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                         Applications
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">
                         Track and manage your property applications
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div data-manager-mobile-actions className="flex items-center gap-3">
                     <button
                         type="button"
                         onClick={handleExportApplicationsCsv}
@@ -313,7 +313,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map((stat) => (
-                    <div key={stat.label} className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div data-manager-mobile-metric key={stat.label} className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                         <div className="flex justify-between items-start mb-3">
                             <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
                                 <stat.icon size={20} />

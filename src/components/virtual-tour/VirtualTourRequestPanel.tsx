@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -167,12 +167,7 @@ export default function VirtualTourRequestPanel({
 
     if (loading) {
         return (
-            <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
-                <div className="flex items-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                    <BrandLoader className="h-5 w-5 text-orange-500" />
-                    Loading virtual tour workflow...
-                </div>
-            </div>
+            <BrandLoadingScreen variant="panel" label="Loading virtual tour workflow..." />
         );
     }
 

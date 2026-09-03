@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -200,12 +200,7 @@ export default function AdminDashboard() {
     });
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 lg:p-10">
-                <BrandLoader size={48} className="text-orange-500 mb-4" />
-                <p className="text-gray-500 font-medium">Initializing Command Center...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Initializing Command Center..." />;
     }
 
     // Map values from backend
@@ -247,7 +242,7 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">
+        <div className="min-h-screen space-y-6 p-3 animate-in fade-in duration-500 sm:space-y-8 sm:p-6 lg:p-10">
 
             {/* Header */}
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -273,22 +268,22 @@ export default function AdminDashboard() {
             )}
 
             {/* Core Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
 
                 {/* SLA Compliance */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Clock size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400">
-                                <Zap size={24} />
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 sm:rounded-xl sm:p-3">
+                                <Zap className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">SLA Compliance</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">SLA Compliance</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.slaCompliance.toFixed(1)}%</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.slaCompliance.toFixed(1)}%</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Responses under 10 mins</p>
 
@@ -303,57 +298,57 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Avg Response Time */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Zap size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
-                                <Clock size={24} />
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 sm:rounded-xl sm:p-3">
+                                <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">Avg Response</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Avg Response</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.avgResponseTime}</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.avgResponseTime}</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Global broker average</p>
                     </div>
                 </div>
 
                 {/* Pending Verifications */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Shield size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl text-orange-600 dark:text-orange-400">
-                                <Shield size={24} />
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-orange-50 p-2 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 sm:rounded-xl sm:p-3">
+                                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">Pending Verifications</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Pending Verifications</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingVerifications}</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.pendingVerifications}</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Awaiting admin review</p>
                     </div>
                 </div>
 
                 {/* Active Transactions */}
-                <div className="bg-gradient-to-br from-orange-600 to-red-600 p-6 rounded-2xl shadow-lg shadow-orange-500/20 text-white relative overflow-hidden group hover:shadow-xl transition-all">
+                <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-600 to-red-600 p-4 text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl sm:p-6">
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:scale-110 transition-transform">
                         <Activity size={100} />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-white/10 rounded-xl text-white backdrop-blur-sm">
-                                <Activity size={24} />
+                        <div className="mb-3 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center sm:mb-4 sm:gap-3">
+                            <div className="rounded-lg bg-white/10 p-2 text-white backdrop-blur-sm sm:rounded-xl sm:p-3">
+                                <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold text-orange-100 uppercase tracking-widest">Live Deals</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-orange-100 sm:text-xs sm:tracking-widest">Live Deals</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-white">{stats.activeTransactions}</span>
+                            <span className="text-2xl font-bold text-white sm:text-3xl">{stats.activeTransactions}</span>
                         </div>
                         <p className="text-xs text-orange-100 font-medium mt-2">Active fast-track flows</p>
                         <button
@@ -372,25 +367,25 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2 space-y-8">
 
                     {/* Quick Actions Rail */}
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+                        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white sm:mb-6">
                             <Zap className="text-orange-500" size={20} /> Quick Actions
                         </h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <button
                                 onClick={() => navigate('/admin/verifications')}
-                                className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/30 transition-all text-left flex items-center justify-between"
+                                className="group flex items-center justify-between gap-3 rounded-xl border border-transparent bg-gray-50 p-3 text-left transition-all hover:border-orange-100 hover:bg-orange-50 dark:bg-gray-800 dark:hover:border-orange-900/30 dark:hover:bg-orange-900/10 sm:p-4"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
+                                <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                                    <div className="rounded-lg bg-white p-2.5 text-orange-500 shadow-sm transition-transform group-hover:scale-110 dark:bg-gray-700 sm:p-3">
                                         <Shield size={24} />
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Verifications</h3>
+                                    <div className="min-w-0">
+                                        <h3 className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-orange-700 dark:text-white dark:group-hover:text-orange-400 sm:text-base">Verifications</h3>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">{data?.pending_verifications || 0} Pending Reviews</p>
                                     </div>
                                 </div>
-                                <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
+                                <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-orange-500 opacity-0 shadow-sm transition-all group-hover:opacity-100 dark:bg-gray-700 sm:flex">
                                     <ArrowRight size={16} />
                                 </div>
                             </button>
@@ -471,7 +466,7 @@ export default function AdminDashboard() {
 
                     {/* Banner */}
                     <div className="rounded-2xl bg-gray-900 dark:bg-black p-8 text-white relative overflow-hidden border border-white/10 dark:border-gray-800">
-                        <div className="absolute right-0 top-0 w-64 h-64 bg-orange-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
+                        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-orange-600 opacity-20 blur-[80px]" aria-hidden="true"></div>
                         <div className="relative z-10 flex items-start justify-between">
                             <div>
                                 <h2 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h2>
@@ -583,12 +578,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {notificationsLoading && recentNotifications.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
-                                <BrandLoader size={20} className="mx-auto mb-3 text-orange-500" />
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                    Loading recent notifications...
-                                </p>
-                            </div>
+                            <BrandLoadingScreen variant="panel" label="Loading recent notifications..." />
                         ) : recentNotifications.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
                                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500">

@@ -24,8 +24,8 @@ import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
-import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
+import type { FastTrackRequestStatus } from '@/lib/propertyFastTrackRequest';
 import {
     formatLaunchCurrencyForCountry,
     formatLaunchPropertyLocation,
@@ -37,6 +37,7 @@ interface PropertyCardProps {
     property: any;
     onViewDetails?: (property: any) => void;
     onStartFastTrack?: (property: any) => void;
+    fastTrackStatus?: FastTrackRequestStatus;
     onRemoveFromSaved?: (event: React.MouseEvent<HTMLButtonElement>) => void;
     onClick?: () => void;
     showStatusBadge?: boolean;
@@ -48,6 +49,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     property,
     onViewDetails,
     onStartFastTrack,
+    fastTrackStatus = 'idle',
     onRemoveFromSaved,
     onClick,
     showStatusBadge = false,
@@ -118,7 +120,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     };
 
     const images = getPropertyImages(property);
-    const displayImages = images.length > 0 ? images : [PROPERTY_PLACEHOLDER_IMAGE];
+    const displayImages = images;
     const hasMultipleImages = images.length > 1;
 
     const nextImage = (e: React.MouseEvent) => {
@@ -215,13 +217,28 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         <button
             type="button"
             onClick={handleStartFastTrack}
+            disabled={fastTrackStatus !== 'idle'}
             className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold leading-tight transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${isDiscoveryCard
-                ? 'border border-orange-200 bg-orange-50 text-orange-800 hover:border-orange-300 hover:bg-orange-100 active:bg-orange-200 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-200 dark:hover:bg-orange-950/70'
+                ? 'border border-orange-200 bg-orange-50 text-orange-800 hover:border-orange-300 hover:bg-orange-100 active:bg-orange-200 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-100 disabled:text-stone-600 dark:border-orange-800/60 dark:bg-orange-950/40 dark:text-orange-200 dark:hover:bg-orange-950/70 dark:disabled:border-zinc-700 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-300'
                 : 'bg-orange-500 text-white shadow-sm hover:bg-orange-600 hover:shadow-md active:bg-orange-700'
                 }`}
         >
-            <Clock size={16} className="shrink-0" />
-            <span>{isDiscoveryCard ? 'Request Fast Track' : 'Request 24-Hour Fast Track'}</span>
+            {fastTrackStatus === 'requesting' ? (
+                <ActionSpinner size={16} className="shrink-0" />
+            ) : fastTrackStatus === 'requested' ? (
+                <CheckCircle size={16} className="shrink-0" />
+            ) : (
+                <Clock size={16} className="shrink-0" />
+            )}
+            <span>
+                {fastTrackStatus === 'requesting'
+                    ? 'Requesting Fast Track...'
+                    : fastTrackStatus === 'requested'
+                        ? 'Fast Track requested'
+                        : isDiscoveryCard
+                            ? 'Request Fast Track'
+                            : 'Request 24-Hour Fast Track'}
+            </span>
         </button>
     ) : null;
 
@@ -250,7 +267,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 <div className={`relative flex-shrink-0 overflow-hidden bg-gray-100 dark:bg-gray-800 ${isDiscoveryCard ? 'h-52 sm:h-56' : 'h-56'}`}>
                     <>
                         <PropertyMediaImage
-                            src={displayImages[currentImageIndex] || PROPERTY_PLACEHOLDER_IMAGE}
+                            src={displayImages[currentImageIndex]}
                             alt={displayTitle}
                             className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

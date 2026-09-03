@@ -34,7 +34,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.target_environment == 'dev') ||
       (github.event_name == 'workflow_dispatch' && inputs.target_environment == 'prod' && inputs.confirm_production && github.ref_name == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target_environment == 'prod' && 'production' || 'dev' }}
     env:
       SERVICE_NAME: estospaces-web
@@ -44,25 +44,40 @@ jobs:
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        timeout-minutes: 3
+
+      - name: Set up Node for production verification
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 5
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
 
       - name: Authenticate to GCP
+        timeout-minutes: 5
         uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Configure Docker
+        timeout-minutes: 3
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build and Push
+      - name: Build immutable candidate
+        id: build
+        timeout-minutes: 15
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          BUILD_MARKER="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           NGINX_CONF="nginx.prod.conf"
           if [ "${TARGET_ENV}" = "dev" ]; then
             NGINX_CONF="nginx.gcp-dev.conf"
           fi
           docker build \
             --build-arg NGINX_CONF="$NGINX_CONF" \
+            --build-arg BUILD_REVISION="${BUILD_MARKER}" \
             --build-arg VITE_CORE_SERVICE_URL=${{ vars.CORE_SERVICE_URL }} \
             --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.BOOKING_SERVICE_URL }} \
             --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.PAYMENT_SERVICE_URL }} \
@@ -71,37 +86,183 @@ jobs:
             --build-arg VITE_MEDIA_SERVICE_URL=${{ vars.MEDIA_SERVICE_URL }} \
             --build-arg VITE_MESSAGING_SERVICE_URL=${{ vars.MESSAGING_SERVICE_URL }} \
             -t "$IMAGE" .
-          docker push "$IMAGE"
+          echo "image_tag=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "build_marker=${BUILD_MARKER}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact production image before registry or traffic mutation
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 15
+        env:
+          IMAGE: ${{ steps.build.outputs.image_tag }}
+        run: |
+          set -Eeuo pipefail
+          cleanup() {
+            docker rm -f estospaces-prod-smoke-tls estospaces-prod-smoke-app >/dev/null 2>&1 || true
+            if [ -f "${RUNNER_TEMP}/hosts.before-smoke" ]; then
+              sudo cp "${RUNNER_TEMP}/hosts.before-smoke" /etc/hosts
+            fi
+          }
+          trap cleanup EXIT
+
+          npm ci
+          npx playwright install --with-deps chromium firefox
+
+          docker run --detach --name estospaces-prod-smoke-app \
+            --publish 127.0.0.1:8088:3000 "$IMAGE"
+
+          sudo cp /etc/hosts "${RUNNER_TEMP}/hosts.before-smoke"
+          printf '127.0.0.1 app.estospaces.com admin.estospaces.com\n' | sudo tee -a /etc/hosts >/dev/null
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -keyout "${RUNNER_TEMP}/smoke.key" \
+            -out "${RUNNER_TEMP}/smoke.crt" \
+            -subj '/CN=app.estospaces.com' \
+            -addext 'basicConstraints=critical,CA:TRUE' \
+            -addext 'keyUsage=critical,keyCertSign,digitalSignature,keyEncipherment' \
+            -addext 'subjectAltName=DNS:app.estospaces.com,DNS:admin.estospaces.com'
+          cat >"${RUNNER_TEMP}/smoke-nginx.conf" <<'NGINX'
+          server {
+            listen 8443 ssl;
+            server_name app.estospaces.com admin.estospaces.com;
+            ssl_certificate /smoke/smoke.crt;
+            ssl_certificate_key /smoke/smoke.key;
+            location / {
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_pass http://127.0.0.1:8088;
+            }
+          }
+          NGINX
+          docker run --detach --name estospaces-prod-smoke-tls \
+            --network host \
+            --volume "${RUNNER_TEMP}/smoke-nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            --volume "${RUNNER_TEMP}/smoke.crt:/smoke/smoke.crt:ro" \
+            --volume "${RUNNER_TEMP}/smoke.key:/smoke/smoke.key:ro" \
+            nginx:alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error --insecure \
+              --noproxy '*' https://app.estospaces.com:8443/health >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "30" ]]; then
+              echo 'Exact-image verification endpoint did not become ready.' >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          export NO_PROXY='app.estospaces.com,admin.estospaces.com,127.0.0.1,localhost'
+          export NODE_EXTRA_CA_CERTS="${RUNNER_TEMP}/smoke.crt"
+          export E2E_PROD_BASE_URL='https://app.estospaces.com:8443'
+          export E2E_PROD_APP_BASE_URL='https://app.estospaces.com:8443'
+          export E2E_PROD_ADMIN_BASE_URL='https://admin.estospaces.com:8443'
+          export E2E_EXPECTED_BUILD_REVISION="${{ steps.build.outputs.build_marker }}"
+          node scripts/app-release-smoke.cjs --target=prod
+
+      - name: Push verified immutable candidate
+        timeout-minutes: 10
+        run: docker push "${{ steps.build.outputs.image_tag }}"
 
       - name: Deploy verified candidate to Cloud Run
         id: deploy
         shell: bash
+        timeout-minutes: 10
         run: |
-          export IMAGE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          export IMAGE_TAG="${{ steps.build.outputs.image_tag }}"
+          if [ "${TARGET_ENV}" = "prod" ]; then
+            export CANARY_PERCENT=5
+          fi
           bash ".github/scripts/deploy-cloud-run.sh"
 
-      - name: Health check
+      - name: Development health check
+        if: ${{ env.TARGET_ENV == 'dev' }}
+        timeout-minutes: 3
         run: |
-          SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
-          if [ "${TARGET_ENV}" = "prod" ]; then
-            HEALTH_URLS=(
-              "https://app.estospaces.com/health"
-              "https://admin.estospaces.com/health"
-            )
-          else
-            SERVICE_URL="${{ steps.deploy.outputs.service_url }}"
-            HEALTH_URLS=("${SERVICE_URL}/health")
-          fi
+          SERVICE_URL="${{ steps.deploy.outputs.service_url }}"
+          HEALTH_URLS=("${SERVICE_URL}/health")
           for HEALTH_URL in "${HEALTH_URLS[@]}"; do
             RESPONSE="$(curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "${HEALTH_URL}")"
             echo "${RESPONSE}" | grep -q '"status":"ok"'
             echo "${RESPONSE}" | grep -q '"service":"estospaces-web"'
           done
 
-      - name: Roll back after post-deploy failure
-        if: ${{ failure() && steps.deploy.outputs.previous_revision != '' }}
+      - name: Verify production canary through the public load balancer
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 5
+        env:
+          SERVICE_TARGET: estospaces-web-prod
+          CANDIDATE_REVISION: ${{ steps.deploy.outputs.candidate_revision }}
+          EXPECTED_BUILD_REVISION: ${{ steps.build.outputs.build_marker }}
+          PROBE_PHASE: initial
+        run: bash .github/scripts/verify-cloud-run-canary.sh
+
+      - name: Observe production canary for five minutes
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 6
+        run: sleep 300
+
+      - name: Reverify production canary after observation
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 5
+        env:
+          SERVICE_TARGET: estospaces-web-prod
+          CANDIDATE_REVISION: ${{ steps.deploy.outputs.candidate_revision }}
+          EXPECTED_BUILD_REVISION: ${{ steps.build.outputs.build_marker }}
+          PROBE_PHASE: after-observation
+        run: bash .github/scripts/verify-cloud-run-canary.sh
+
+      - name: Promote verified production candidate to 100 percent
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 5
+        env:
+          CANDIDATE_REVISION: ${{ steps.deploy.outputs.candidate_revision }}
+          IMMUTABLE_IMAGE: ${{ steps.deploy.outputs.immutable_image }}
         run: |
+          set -Eeuo pipefail
+          gcloud run services update-traffic estospaces-web-prod \
+            --to-revisions="${CANDIDATE_REVISION}=100" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}"
+          SERVICE_JSON="$(gcloud run services describe estospaces-web-prod \
+            --region="${REGION}" --project="${PROJECT_ID}" --format=json)"
+          ACTIVE_REVISION="$(jq -r '[.status.traffic[]? | select(.percent == 100) | .revisionName][0] // empty' <<<"${SERVICE_JSON}")"
+          DEPLOYED_IMAGE="$(gcloud run revisions describe "${CANDIDATE_REVISION}" \
+            --region="${REGION}" --project="${PROJECT_ID}" \
+            --format='value(spec.containers[0].image)')"
+          [[ "${ACTIVE_REVISION}" == "${CANDIDATE_REVISION}" ]]
+          [[ "${DEPLOYED_IMAGE}" == "${IMMUTABLE_IMAGE}" ]]
+
+      - name: Run full external production release smoke
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 10
+        env:
+          E2E_EXPECTED_BUILD_REVISION: ${{ steps.build.outputs.build_marker }}
+        run: node scripts/app-release-smoke.cjs --target=prod
+
+      - name: Remove temporary production candidate tag
+        if: ${{ env.TARGET_ENV == 'prod' }}
+        timeout-minutes: 5
+        run: |
+          gcloud run services update-traffic estospaces-web-prod \
+            --remove-tags="${{ steps.deploy.outputs.candidate_tag }}" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}"
+
+      - name: Roll back after post-deploy failure
+        if: ${{ always() && (failure() || cancelled()) && steps.deploy.outputs.previous_revision != '' }}
+        timeout-minutes: 10
+        run: |
+          set +e
+          rollback_exit=0
           gcloud run services update-traffic "${SERVICE_NAME}-${TARGET_ENV}" \
             --to-revisions="${{ steps.deploy.outputs.previous_revision }}=100" \
             --region="${REGION}" \
             --project="${PROJECT_ID}"
+          rollback_exit=$?
+          if [ -n "${{ steps.deploy.outputs.candidate_tag }}" ]; then
+            gcloud run services update-traffic "${SERVICE_NAME}-${TARGET_ENV}" \
+              --remove-tags="${{ steps.deploy.outputs.candidate_tag }}" \
+              --region="${REGION}" \
+              --project="${PROJECT_ID}" || rollback_exit=1
+          fi
+          exit "${rollback_exit}"

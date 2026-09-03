@@ -13,6 +13,7 @@ import L, {
     type DivIcon,
     type Icon,
     type LatLngExpression,
+    type LatLngBoundsExpression,
     type LeafletEvent,
     type LeafletEventHandlerFnMap,
     type Map as LeafletMap,
@@ -32,7 +33,11 @@ interface MapContainerProps {
     dragging?: boolean;
     fadeAnimation?: boolean;
     markerZoomAnimation?: boolean;
+    maxBounds?: LatLngBoundsExpression;
+    maxBoundsViscosity?: number;
+    minZoom?: number;
     scrollWheelZoom?: boolean;
+    worldCopyJump?: boolean;
     zoomAnimation?: boolean;
     zoomControl?: boolean;
 }
@@ -46,7 +51,11 @@ export function MapContainer({
     dragging = true,
     fadeAnimation = true,
     markerZoomAnimation = true,
+    maxBounds,
+    maxBoundsViscosity,
+    minZoom,
     scrollWheelZoom = true,
+    worldCopyJump = false,
     zoomAnimation = true,
     zoomControl = true,
 }: MapContainerProps) {
@@ -58,7 +67,11 @@ export function MapContainer({
         dragging,
         fadeAnimation,
         markerZoomAnimation,
+        maxBounds,
+        maxBoundsViscosity,
+        minZoom,
         scrollWheelZoom,
+        worldCopyJump,
         zoomAnimation,
         zoomControl,
     });

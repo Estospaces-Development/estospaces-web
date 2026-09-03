@@ -25,7 +25,9 @@ import PaginationBar from '@/components/ui/PaginationBar';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import {
     dedupeBrokerRequestsForTimeline,
+    getBrokerRequestBudgetDisplayLabel,
     getBrokerRequestDisplayTitle,
+    getBrokerRequestRequestedLabel,
     isUserVisibleBrokerRequest,
 } from '@/lib/brokerRequestTimeline';
 
@@ -80,6 +82,7 @@ interface ApplicationItem {
     stats?: { views: number; inquiries: number; saved: number };
     primaryActionPath?: string;
     primaryActionLabel?: string;
+    requestedLabel?: string;
 }
 
 // --- Constants & Config ---
@@ -173,7 +176,7 @@ const buildJourneyKey = (payload: {
 };
 
 const TIMELINE_PAGE_SIZE = 4;
-type TimelineTab = 'applications' | 'viewings' | 'contracts' | 'listings';
+type TimelineTab = 'applications' | 'requests' | 'viewings' | 'contracts' | 'listings';
 type TimelineSort = 'updated_desc' | 'updated_asc' | 'price_desc' | 'price_asc' | 'progress_desc';
 
 const toPropertyImages = (value: unknown) => getPropertyImages({ image_urls: value });
@@ -233,12 +236,12 @@ const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
 const TimelineSkeleton = () => (
     <div className="animate-pulse space-y-4">
         {[1, 2].map((i) => (
-            <div key={i} className="px-6 py-5 border-b border-gray-100 dark:border-gray-800">
-                <div className="flex items-start gap-5">
-                    <div className="w-20 h-20 rounded-xl bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
-                    <div className="flex-1 space-y-3">
-                        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded" />
-                        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div key={i} className="border-b border-gray-100 px-4 py-5 dark:border-gray-800 sm:px-6">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-5">
+                    <div className="h-16 w-16 flex-shrink-0 rounded-xl bg-gray-200 dark:bg-gray-700 sm:h-20 sm:w-20" />
+                    <div className="min-w-0 flex-1 space-y-3">
+                        <div className="h-6 w-full max-w-48 rounded bg-gray-200 dark:bg-gray-700" />
+                        <div className="h-4 w-full max-w-32 rounded bg-gray-200 dark:bg-gray-700" />
                     </div>
                 </div>
             </div>
@@ -253,7 +256,7 @@ import { getContracts, getViewings } from '../../services/bookingsService';
 import { getSaleProgressions } from '../../services/salesService';
 import { getUserProperties } from '../../services/userPropertiesService';
 import { getUserBrokerRequests } from '../../services/leadsService';
-import { getPropertyById } from '../../services/propertyService';
+import { getPropertyContextsByIds } from '../../services/propertyService';
 
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
@@ -262,11 +265,13 @@ const ApplicationTimelineWidget = () => {
     const [showTimeline, setShowTimeline] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(true);
     const [applications, setApplications] = useState<ApplicationItem[]>([]);
+    const [brokerRequests, setBrokerRequests] = useState<ApplicationItem[]>([]);
     const [viewingItems, setViewingItems] = useState<ApplicationItem[]>([]);
     const [contractItems, setContractItems] = useState<ApplicationItem[]>([]);
     const [listings, setListings] = useState<ApplicationItem[]>([]);
     const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
     const [applicationsPage, setApplicationsPage] = useState(1);
+    const [brokerRequestsPage, setBrokerRequestsPage] = useState(1);
     const [viewingsPage, setViewingsPage] = useState(1);
     const [contractsPage, setContractsPage] = useState(1);
     const [listingsPage, setListingsPage] = useState(1);
@@ -341,13 +346,24 @@ const ApplicationTimelineWidget = () => {
                     ...(saleProgressionsRes.data || []).map((progression) => progression.property_id),
                 ].filter(Boolean))).filter((propertyId) => !hasTimelinePropertyDetails(propertyContextById.get(propertyId)));
 
-                await Promise.all(propertyIdsNeedingHydration.map(async (propertyId) => {
-                    const { data: property, error } = await getPropertyById(propertyId);
-                    if (!property && error) {
+                const hydratedPropertyIds = new Set<string>();
+                for (let index = 0; index < propertyIdsNeedingHydration.length; index += 100) {
+                    const propertyIdBatch = propertyIdsNeedingHydration.slice(index, index + 100);
+                    const { data: properties } = await getPropertyContextsByIds(propertyIdBatch, {
+                        suppressErrorToast: true,
+                    });
+
+                    (properties || []).forEach((property) => {
+                        hydratedPropertyIds.add(property.id);
+                        setPropertyContext(property.id, buildPropertyContextFromProperty(property), true);
+                    });
+                }
+
+                propertyIdsNeedingHydration.forEach((propertyId) => {
+                    if (!hydratedPropertyIds.has(propertyId)) {
                         unavailablePropertyIds.add(propertyId);
                     }
-                    setPropertyContext(propertyId, buildPropertyContextFromProperty(property), true);
-                }));
+                });
 
                 const saleProgressionKeys = new Set(
                     (saleProgressionsRes.data || []).map((progression) =>
@@ -482,6 +498,7 @@ const ApplicationTimelineWidget = () => {
                             lastUpdated: getStableActivityTimestamp(request.updated_at, request.created_at),
                             nextAction: summary.nextAction,
                             estimatedCompletion: 'Property agent search is live',
+                            requestedLabel: getBrokerRequestRequestedLabel(request),
                             property: {
                                 id: request.selected_property_id || request.selected_property?.id || request.id,
                                 title: getBrokerRequestDisplayTitle(request),
@@ -489,7 +506,7 @@ const ApplicationTimelineWidget = () => {
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
                                 country: request.selected_property?.country,
                                 currency: (request.selected_property as any)?.currency || (request.selected_property as any)?.currency_code,
-                                priceLabel: request.budget ? `Budget ${request.budget}` : 'Property agent request',
+                                priceLabel: getBrokerRequestBudgetDisplayLabel(request),
                                 image_urls: toPropertyImages(request.selected_property?.image_urls),
                             },
                             broker: request.matched_broker ? {
@@ -688,10 +705,13 @@ const ApplicationTimelineWidget = () => {
                 });
 
                 setApplications(
-                    [...mappedBrokerRequests, ...mappedSaleProgressions, ...mappedApps].sort(
+                    [...mappedSaleProgressions, ...mappedApps].sort(
                         (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
                     ),
                 );
+                setBrokerRequests(mappedBrokerRequests.sort(
+                    (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
+                ));
                 setViewingItems(mappedViewings.sort(
                     (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
                 ));
@@ -765,12 +785,16 @@ const ApplicationTimelineWidget = () => {
 
     useEffect(() => {
         const applicationsTotalPages = Math.max(1, Math.ceil(applications.length / TIMELINE_PAGE_SIZE));
+        const brokerRequestsTotalPages = Math.max(1, Math.ceil(brokerRequests.length / TIMELINE_PAGE_SIZE));
         const viewingsTotalPages = Math.max(1, Math.ceil(viewingItems.length / TIMELINE_PAGE_SIZE));
         const contractsTotalPages = Math.max(1, Math.ceil(contractItems.length / TIMELINE_PAGE_SIZE));
         const listingsTotalPages = Math.max(1, Math.ceil(listings.length / TIMELINE_PAGE_SIZE));
 
         if (applicationsPage > applicationsTotalPages) {
             setApplicationsPage(applicationsTotalPages);
+        }
+        if (brokerRequestsPage > brokerRequestsTotalPages) {
+            setBrokerRequestsPage(brokerRequestsTotalPages);
         }
         if (viewingsPage > viewingsTotalPages) {
             setViewingsPage(viewingsTotalPages);
@@ -785,6 +809,8 @@ const ApplicationTimelineWidget = () => {
     }, [
         applications.length,
         applicationsPage,
+        brokerRequests.length,
+        brokerRequestsPage,
         contractItems.length,
         contractsPage,
         listings.length,
@@ -795,22 +821,26 @@ const ApplicationTimelineWidget = () => {
 
     const sourceItems = activeTab === 'applications'
         ? applications
-        : activeTab === 'viewings'
-            ? viewingItems
-            : activeTab === 'contracts'
-                ? contractItems
-                : listings;
+        : activeTab === 'requests'
+            ? brokerRequests
+            : activeTab === 'viewings'
+                ? viewingItems
+                : activeTab === 'contracts'
+                    ? contractItems
+                    : listings;
     const dataToShow = useMemo(
         () => filterTimelineItems(sourceItems, timelineFilter, timelineSort),
         [sourceItems, timelineFilter, timelineSort],
     );
     const activePage = activeTab === 'applications'
         ? applicationsPage
-        : activeTab === 'viewings'
-            ? viewingsPage
-            : activeTab === 'contracts'
-                ? contractsPage
-                : listingsPage;
+        : activeTab === 'requests'
+            ? brokerRequestsPage
+            : activeTab === 'viewings'
+                ? viewingsPage
+                : activeTab === 'contracts'
+                    ? contractsPage
+                    : listingsPage;
     const totalPages = Math.max(1, Math.ceil(dataToShow.length / TIMELINE_PAGE_SIZE));
     const currentPageItems = dataToShow.slice(
         (activePage - 1) * TIMELINE_PAGE_SIZE,
@@ -820,6 +850,8 @@ const ApplicationTimelineWidget = () => {
     useEffect(() => {
         if (activeTab === 'applications') {
             setApplicationsPage(1);
+        } else if (activeTab === 'requests') {
+            setBrokerRequestsPage(1);
         } else if (activeTab === 'viewings') {
             setViewingsPage(1);
         } else if (activeTab === 'contracts') {
@@ -841,6 +873,10 @@ const ApplicationTimelineWidget = () => {
             setApplicationsPage(page);
             return;
         }
+        if (activeTab === 'requests') {
+            setBrokerRequestsPage(page);
+            return;
+        }
         if (activeTab === 'viewings') {
             setViewingsPage(page);
             return;
@@ -855,6 +891,7 @@ const ApplicationTimelineWidget = () => {
 
     const timelineTabs: Array<{ id: TimelineTab; label: string; count: number; itemLabel: string }> = [
         { id: 'applications', label: 'Applications', count: applications.length, itemLabel: 'applications' },
+        { id: 'requests', label: 'Agent requests', count: brokerRequests.length, itemLabel: 'agent requests' },
         { id: 'viewings', label: 'Viewings', count: viewingItems.length, itemLabel: 'viewings' },
         { id: 'contracts', label: 'Contracts', count: contractItems.length, itemLabel: 'contracts' },
         { id: 'listings', label: 'My homes', count: listings.length, itemLabel: 'listings' },
@@ -882,27 +919,27 @@ const ApplicationTimelineWidget = () => {
     return (
         <div id="realtime-tracking-widget" className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-8 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-orange-50/50 to-transparent dark:from-orange-900/10">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
-                            <Activity size={28} className="text-orange-600 dark:text-orange-400" />
+            <div className="border-b border-gray-100 bg-gradient-to-r from-orange-50/50 to-transparent px-3 py-4 dark:border-gray-800 dark:from-orange-900/10 sm:px-8 sm:py-8">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 sm:flex sm:items-center sm:gap-4">
+                        <div className="shrink-0 rounded-xl bg-orange-100 p-2.5 dark:bg-orange-900/30 sm:p-4">
+                            <Activity size={24} className="text-orange-600 dark:text-orange-400 sm:h-7 sm:w-7" />
                         </div>
-                        <div>
-                            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-base font-semibold leading-tight text-gray-900 dark:text-white sm:text-2xl sm:font-bold lg:text-3xl">
                                 Your journey progress
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm font-semibold rounded-full">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                    Live
-                                </span>
                             </h2>
-                            <p className="text-base text-gray-600 dark:text-gray-300 mt-1">
+                            <p className="mt-1 text-xs leading-snug text-gray-600 dark:text-gray-300 sm:text-base">
                                 Follow each property step in one place.
                             </p>
                         </div>
+                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-green-100 px-2 py-1 text-[10px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm sm:font-semibold">
+                            <span className="h-2 w-2 rounded-full bg-green-500 motion-safe:animate-pulse" />
+                            Live
+                        </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 rounded-xl bg-gray-100 p-1.5 dark:bg-gray-800" role="tablist" aria-label="Portfolio journey groups">
+                    <div className="-mx-1 flex snap-x gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1.5 [scrollbar-width:none] dark:bg-gray-800 [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible" role="tablist" aria-label="Portfolio journey groups">
                         {timelineTabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -910,7 +947,7 @@ const ApplicationTimelineWidget = () => {
                                 role="tab"
                                 aria-selected={activeTab === tab.id}
                                 onClick={() => handleTabChange(tab.id)}
-                                className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${activeTab === tab.id ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                                className={`min-h-11 shrink-0 snap-start whitespace-nowrap rounded-lg px-2.5 py-2.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 sm:px-4 sm:text-sm sm:font-semibold ${activeTab === tab.id ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
                             >
                                 {tab.label} ({tab.count})
                             </button>
@@ -922,7 +959,12 @@ const ApplicationTimelineWidget = () => {
                     {statusSummary}
                 </p>
 
-                <div className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                <details className="group mt-3 sm:mt-6">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden">
+                        <span className="inline-flex items-center gap-2"><SlidersHorizontal size={16} /> Filter and sort</span>
+                        <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                    </summary>
+                    <div className="hidden gap-3 pt-3 group-open:grid sm:grid sm:pt-0 md:grid-cols-[minmax(0,1fr)_220px]">
                     <div>
                         <label htmlFor="portfolio-journey-filter" className="sr-only">Filter portfolio journeys</label>
                         <div className="relative">
@@ -956,7 +998,8 @@ const ApplicationTimelineWidget = () => {
                             </select>
                         </div>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
 
             {/* Content */}
@@ -977,48 +1020,53 @@ const ApplicationTimelineWidget = () => {
                     <>
                         {currentPageItems.map((item) => (
                             <div key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                                <div className="px-6 py-5 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-                                    <div className="flex items-start gap-5">
+                                <div className="cursor-pointer px-2.5 py-3.5 sm:px-6 sm:py-5" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                                    <div className="relative grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2.5 sm:flex sm:gap-5">
                                         <div className="relative flex-shrink-0">
                                             {item.property.image_urls[0] && !failedImages[item.id] ? (
                                                 <img
                                                     src={item.property.image_urls[0]}
                                                     alt={getTimelineCardTitle(item)}
-                                                    className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700"
+                                                    className="h-11 w-11 rounded-lg bg-gray-100 object-cover dark:bg-gray-700 sm:h-20 sm:w-20 sm:rounded-xl sm:shadow-sm"
                                                     onError={() => {
                                                         setFailedImages((previous) => ({ ...previous, [item.id]: true }));
                                                     }}
                                                 />
                                             ) : (
-                                                <div className="w-20 h-20 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                                    <FileText size={24} />
+                                                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 sm:h-20 sm:w-20 sm:rounded-xl sm:shadow-sm">
+                                                    <FileText size={20} className="sm:h-6 sm:w-6" />
                                                 </div>
                                             )}
-                                            <span className={`absolute -bottom-1 -left-1 px-2 py-0.5 text-[10px] font-bold rounded-md uppercase shadow-sm ${item.type === 'buy' ? 'bg-blue-700' : item.type === 'rent' ? 'bg-purple-700' : 'bg-green-700'} text-white`}>
+                                            <span className={`absolute -bottom-1 -left-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase shadow-sm sm:px-2 sm:text-[10px] sm:font-bold ${item.type === 'buy' ? 'bg-blue-700' : item.type === 'rent' ? 'bg-purple-700' : 'bg-green-700'} text-white`}>
                                                 {item.type}
                                             </span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{getTimelineCardTitle(item)}</h3>
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
+                                            <div className="mb-1.5 flex flex-col gap-1 pr-6 sm:mb-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pr-0">
+                                                <div className="min-w-0">
+                                                    <h3 className="line-clamp-2 break-words text-[13px] font-medium leading-[1.3] text-gray-900 dark:text-white sm:text-lg sm:font-semibold">
+                                                        <span className="sm:hidden">{item.source === 'broker_request' ? 'Agent request' : getTimelineCardTitle(item)}</span>
+                                                        <span className="hidden sm:inline">{getTimelineCardTitle(item)}</span>
+                                                    </h3>
+                                                    <p className="mt-0.5 flex min-w-0 items-start gap-1.5 text-xs leading-4 text-gray-500 dark:text-gray-400 sm:text-sm sm:leading-normal"><MapPin size={13} className="mt-0.5 shrink-0 sm:h-3.5 sm:w-3.5" /><span className="line-clamp-2 break-words">{item.property.city || 'Location unavailable'}</span></p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-xl text-gray-900 dark:text-white">
+                                                <div className="min-w-0 sm:text-right">
+                                                    <p className="break-words text-[13px] font-medium text-gray-900 dark:text-white sm:text-xl sm:font-bold">
                                                         {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
-                                                    <p className="text-xs text-gray-400 mt-1">{formatLastUpdatedLabel(item.lastUpdated)}</p>
+                                                    <p className="mt-0.5 text-[11px] text-gray-400 sm:mt-1 sm:text-xs">
+                                                        {item.requestedLabel || formatLastUpdatedLabel(item.lastUpdated)}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4 mt-3">
+                                            <div className="mt-2 flex items-center gap-3 sm:mt-3 sm:gap-4">
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
+                                                    <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
                                                             {item.progress >= 75 ? <CheckCircle2 size={14} /> : <Clock size={14} />}
                                                         </div>
-                                                        <span className="font-semibold text-gray-900 dark:text-white">{item.currentStage}</span>
-                                                        <span className="text-sm text-gray-400">Step {item.currentStageNumber} of {item.totalStages}</span>
+                                                        <span className="min-w-0 truncate text-xs font-medium text-gray-900 dark:text-white sm:text-base sm:font-semibold">{item.currentStage}</span>
+                                                        <span className="shrink-0 text-[11px] text-gray-400 sm:text-sm">{item.currentStageNumber}/{item.totalStages}</span>
                                                     </div>
                                                     <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                                         <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500" style={{ width: `${item.progress}%` }} />
@@ -1026,12 +1074,12 @@ const ApplicationTimelineWidget = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <ChevronDown size={20} className={`text-gray-400 transition-transform duration-200 ${expandedId === item.id ? 'rotate-180' : ''}`} />
+                                        <ChevronDown size={20} className={`absolute right-0 top-0 text-gray-400 transition-transform duration-200 sm:static ${expandedId === item.id ? 'rotate-180' : ''}`} />
                                     </div>
                                 </div>
 
                                 {expandedId === item.id && (
-                                    <div className="px-6 pb-6 animate-fadeIn">
+                                    <div className="animate-fadeIn px-4 pb-5 sm:px-6 sm:pb-6">
                                         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 mb-5">
                                             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-orange-500" /> Complete Journey Progress</h3>
                                             <div className="relative space-y-4">
@@ -1064,7 +1112,7 @@ const ApplicationTimelineWidget = () => {
                                             </div>
                                         )}
 
-                                        <div className="flex gap-3">
+                                        <div className="flex flex-col gap-3 sm:flex-row">
                                             <button
                                                 onClick={() => navigate(item.primaryActionPath || `/user/properties/${item.property.id}`)}
                                                 className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
@@ -1080,7 +1128,7 @@ const ApplicationTimelineWidget = () => {
                             </div>
                         ))}
 
-                        <div className="bg-gradient-to-r from-orange-50/50 via-white to-orange-50/50 px-6 py-5 dark:from-orange-950/10 dark:via-gray-900 dark:to-orange-950/10">
+                            <div className="bg-gradient-to-r from-orange-50/50 via-white to-orange-50/50 px-3 py-3 dark:from-orange-950/10 dark:via-gray-900 dark:to-orange-950/10 sm:px-6 sm:py-5">
                             <PaginationBar
                                 currentPage={activePage}
                                 totalPages={totalPages}

@@ -9,6 +9,7 @@ import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import RoleMobileNavigation from './RoleMobileNavigation';
 
 interface AdminLayoutClientProps {
     children: React.ReactNode;
@@ -84,11 +85,15 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
 
                     <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
                         <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                        <main className="role-workspace-content flex-1 overflow-x-hidden p-3 sm:p-6 lg:p-8">
+                        <main
+                            className="role-workspace-content mobile-app-content flex-1 overflow-x-hidden p-3 pb-24 sm:p-6 sm:pb-24 lg:p-8"
+                            data-mobile-scroll-root
+                        >
                             <div className="mx-auto w-full max-w-[1600px] min-w-0">
                                 {children}
                             </div>
                         </main>
+                        <RoleMobileNavigation role="admin" onOpenMore={() => setSidebarOpen(true)} />
                     </div>
                 </div>
             </NotificationsProvider>

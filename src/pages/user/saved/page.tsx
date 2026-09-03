@@ -1,6 +1,6 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -31,9 +31,11 @@ import { filterAndSortSavedProperties, type SavedPropertySortOption } from '@/li
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { paginateItems } from '@/lib/pagination';
+import { shouldShowScopedListSearch } from '@/lib/userAppSearch';
 import {
-    buildSavedSearchPageParams,
-    getSavedSearchTargetPage,
+  buildSavedSearchPageParams,
+  buildSavedSearchRerunParams,
+  getSavedSearchTargetPage,
 } from '@/lib/savedSearchPagination';
 
 const SAVED_PROPERTIES_PAGE_SIZE = 12;
@@ -251,10 +253,12 @@ function PropertiesTab({
     const statusMessage = loading
         ? 'Loading saved properties.'
         : `Showing ${propertyPagination.items.length} of ${visibleProperties.length} matching saved properties sorted by ${sortLabel}.`;
+    const showPropertyFilter = shouldShowScopedListSearch(properties.length, filterText);
 
     return (
         <>
-            <div className="mb-5 grid gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_220px]">
+            <div className={`mb-5 grid gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${showPropertyFilter ? 'sm:grid-cols-[minmax(0,1fr)_220px]' : 'sm:grid-cols-[220px] sm:justify-end'}`}>
+                {showPropertyFilter && (
                 <label className="relative block">
                     <span className="sr-only">Filter saved properties</span>
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -267,6 +271,7 @@ function PropertiesTab({
                         className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:bg-white focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:bg-zinc-900 dark:focus-visible:ring-offset-zinc-900"
                     />
                 </label>
+                )}
                 <label className="relative block">
                     <span className="sr-only">Sort saved properties</span>
                     <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -450,26 +455,12 @@ function SavedSearchesTab() {
     };
 
     const handleReRun = (search: SavedSearch) => {
-        const params = new URLSearchParams();
-        if (search.query) params.append('q', search.query);
-        if (search.location) params.append('location', search.location);
-        if (search.min_price !== undefined && search.min_price !== null) params.append('minPrice', search.min_price.toString());
-        if (search.max_price !== undefined && search.max_price !== null) params.append('maxPrice', search.max_price.toString());
-        if (search.property_type) params.append('propertyType', search.property_type);
-        if (search.listing_type) params.append('type', search.listing_type);
-        if (search.bedrooms !== undefined && search.bedrooms !== null) params.append('beds', search.bedrooms.toString());
-        if (search.bathrooms !== undefined && search.bathrooms !== null) params.append('baths', search.bathrooms.toString());
-        
+        const params = buildSavedSearchRerunParams(search);
         navigate(`/user/search?${params.toString()}`);
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20">
-                <BrandLoader className="w-10 h-10 text-indigo-600 mb-4" />
-                <span className="text-gray-500 font-medium">Loading saved searches...</span>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading saved searches..." />;
     }
 
     if (error) {

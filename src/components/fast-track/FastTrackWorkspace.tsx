@@ -1,7 +1,7 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -468,21 +468,21 @@ const SectionShell = ({
     icon?: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <section className="min-w-0 max-w-full overflow-hidden rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:rounded-[26px] sm:p-5" data-mobile-fast-track-section>
         <div className="flex items-start gap-2.5">
             {Icon ? (
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300 sm:h-10 sm:w-10 sm:rounded-2xl">
                     <Icon size={16} />
                 </span>
             ) : null}
             <div className="min-w-0 flex flex-col gap-1">
-                <h3 className="break-words text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
+                <h3 className="break-words text-[18px] font-semibold leading-6 tracking-[-0.02em] text-gray-900 dark:text-white sm:text-[20px]">{title}</h3>
                 {description ? (
-                    <p className="break-words text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
+                    <p className="break-words text-xs leading-5 text-gray-500 dark:text-gray-400 sm:text-[13px]">{description}</p>
                 ) : null}
             </div>
         </div>
-        <div className="mt-4">{children}</div>
+        <div className="mt-3 sm:mt-4">{children}</div>
     </section>
 );
 
@@ -518,7 +518,7 @@ const ActionButton = ({
             disabled={disabled || busy}
             aria-label={ariaLabel}
             title={title}
-            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-950 ${toneClass} ${className}`.trim()}
+            className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-950 min-[360px]:w-auto sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm ${toneClass} ${className}`.trim()}
         >
             {busy ? <ActionSpinner size={16} className="" /> : null}
             {children}
@@ -1459,7 +1459,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
 
             setManagerReview(result.data);
-            setManagerReviewExpanded(!result.data);
+            setManagerReviewExpanded(false);
             setManagerReviewRating(result.data?.rating || 0);
             setManagerReviewComment(result.data?.comment || '');
             setManagerReviewLoading(false);
@@ -2575,10 +2575,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label={role === 'user' ? 'Journey messages' : 'Case chat transcript'}>
                     {threadLoading ? (
-                        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                            <BrandLoader className="h-4 w-4" />
-                            {role === 'user' ? 'Loading your messages' : 'Loading case messages'}
-                        </div>
+                        <BrandLoadingScreen
+                            variant="panel"
+                            label={role === 'user' ? 'Loading your messages...' : 'Loading case messages...'}
+                        />
                     ) : threadMessages.length === 0 ? (
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                             {role === 'user' ? 'No messages yet. Keep your updates here.' : 'No case messages yet. Keep every update here instead of leaving the workspace.'}
@@ -3185,14 +3185,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
                     description="Check your viewing plan here or ask for one change."
                 >
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                    <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40 sm:rounded-2xl sm:p-4">
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {selectedCase.viewing.scheduledAt
                                     ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
                                     : 'No slot has been set yet'}
                             </p>
-                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            <p className="mt-1.5 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:mt-2 sm:text-sm">
                                 {selectedCase.viewing.note || 'The manager will set or update the viewing here.'}
                             </p>
                         </div>
@@ -3200,11 +3200,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             value={requestChangeNote}
                             onChange={(event) => setRequestChangeNote(event.target.value)}
                             placeholder="Need another slot? Write one short note."
-                            className="h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                            className="h-24 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 sm:h-28 sm:rounded-2xl sm:px-4 sm:py-3"
                         />
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                    <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40 sm:mt-4 sm:rounded-2xl sm:p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Latest response</p>
                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                             {selectedCase.viewing.requestedChange
@@ -3213,12 +3213,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     ? 'Viewing confirmed'
                                     : 'No response sent yet'}
                         </p>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="mt-1.5 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:mt-2 sm:text-sm">
                             {selectedCase.viewing.requestedChange || 'If you need a different slot, send one short note here and it will stay on this page.'}
                         </p>
                     </div>
 
-                    <div className="mt-5 flex flex-wrap gap-3">
+                    <div className="mt-3 flex flex-wrap gap-2.5 sm:mt-5 sm:gap-3">
                         <ActionButton
                             onClick={() => void runAction('confirm_viewing', {}, 'Viewing confirmed.')}
                             busy={activeAction === 'confirm_viewing'}
@@ -3790,9 +3790,40 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        if (managerReviewLoading) {
+            return null;
+        }
+
         const isApproved = managerReview?.approval_status === 'approved';
-        const showForm = !isApproved && (managerReviewExpanded || !managerReview);
+        const showForm = !isApproved && managerReviewExpanded;
         const managerReviewSubmitDisabled = managerReviewRating < 1 || managerReviewRating > 5;
+
+        if (!managerReview && !showForm) {
+            return (
+                <section
+                    ref={managerReviewSectionRef}
+                    className="rounded-2xl border border-orange-100 bg-white p-3.5 shadow-sm dark:border-orange-900/40 dark:bg-gray-950 sm:p-4"
+                    data-mobile-fast-track-review-prompt
+                >
+                    <div className="flex items-start gap-2.5">
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                            <Star size={16} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                Rate your manager
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">
+                                Optional feedback will not interrupt your current Fast Track step.
+                            </p>
+                        </div>
+                    </div>
+                    <ActionButton tone="secondary" onClick={openManagerReviewForm} className="mt-3">
+                        Share feedback when you are ready
+                    </ActionButton>
+                </section>
+            );
+        }
 
         return (
             <div ref={managerReviewSectionRef}>
@@ -3803,12 +3834,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         : 'You can leave feedback now or after the journey is complete.'}
                     icon={Star}
                 >
-                    {managerReviewLoading ? (
-                        <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
-                            <BrandLoader size={16} className="" />
-                            Loading your feedback...
-                        </div>
-                    ) : isApproved ? (
+                    {isApproved ? (
                         <div className="rounded-3xl border border-green-200 bg-green-50/80 p-5 dark:border-green-900/40 dark:bg-green-950/20">
                             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700 dark:text-green-300">
                                 Feedback received
@@ -4085,8 +4111,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             : 'No fast-track cases match the current filters.'
                         : `${filteredCases.length} ${role === 'user' ? 'journeys' : 'cases'} available.`;
 
+    if (loading && cases.length === 0) {
+        return (
+            <BrandLoadingScreen
+                variant="section"
+                label={role === 'user' ? 'Loading your fast-track journeys...' : 'Loading fast-track cases...'}
+            />
+        );
+    }
+
     return (
-        <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden pb-16">
+        <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden pb-16 sm:space-y-6" data-mobile-focused-workflow data-mobile-fast-track-page>
             <p role="status" aria-live="polite" className="sr-only" data-fast-track-workspace-status>
                 {workspaceStatusMessage}
             </p>
@@ -4166,9 +4201,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            {loading ? (
+            {loading && cases.length > 0 ? (
                 <div role="status" className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4 text-sm font-medium text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
-                    <BrandLoader className="h-4 w-4" />
+                    <ActionSpinner size={16} aria-hidden />
                     {role === 'user' ? 'Loading your fast-track journeys...' : 'Loading fast-track cases...'}
                 </div>
             ) : null}
@@ -4244,7 +4279,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                <div className="min-w-0 max-w-full space-y-6">
+                <div className="min-w-0 max-w-full space-y-3 sm:space-y-6">
                     {selectedCase ? (
                         <>
                             {showAdminOverrideBanner ? (
@@ -4303,7 +4338,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     ? 'grid-cols-1'
                                     : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
                             )}>
-                                <div ref={contentRef} className="min-w-0 max-w-full space-y-6">
+                                <div ref={contentRef} className="min-w-0 max-w-full space-y-3 sm:space-y-6" data-mobile-current-task>
                                     {isFastTrackStageReadOnly(selectedCase, role) ? (
                                         <div
                                             role="status"
@@ -4329,13 +4364,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     <button
                                         type="button"
                                         onClick={() => setUserDetailsModalOpen(true)}
-                                        className="inline-flex items-center gap-2 rounded-[28px] border border-gray-100 bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-gray-200 dark:border-gray-800 dark:bg-gray-950 dark:text-white dark:hover:border-gray-700"
+                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2.5 text-[13px] font-semibold text-gray-900 shadow-sm transition hover:border-gray-200 dark:border-gray-800 dark:bg-gray-950 dark:text-white dark:hover:border-gray-700 sm:w-auto sm:justify-start sm:rounded-[28px] sm:py-3 sm:text-sm"
                                     >
                                         <span>See details</span>
                                         <ExternalLink size={14} />
                                     </button>
                                 ) : (
-                                    <div className="min-w-0 max-w-full space-y-6">
+                                    <div className="min-w-0 max-w-full space-y-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setUserDetailsModalOpen(true)}
+                                            className="inline-flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 dark:border-gray-800 dark:bg-gray-950 dark:text-white dark:hover:border-orange-800 dark:hover:bg-orange-950/20 sm:hidden"
+                                        >
+                                            <span>Open case tools</span>
+                                            <ExternalLink size={16} />
+                                        </button>
+                                        <div className="hidden sm:block">
                                         <FastTrackUtilityDock
                                             role={role}
                                             density={workspacePreferences.secondaryDensity}
@@ -4344,19 +4388,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             onActiveModuleChange={setActiveUtilityModule}
                                             renderModule={renderUtilityModule}
                                         />
+                                        </div>
                                     </div>
                                 )}
                                 {userDetailsModalOpen ? renderFastTrackPortal(
                                     <div
-                                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                                        className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
                                         onClick={() => setUserDetailsModalOpen(false)}
                                     >
                                         <div
-                                            className="mx-4 w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-[28px] border border-gray-100 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-950"
+                                            className="w-full max-w-2xl max-h-[88dvh] overflow-y-auto rounded-t-3xl border border-gray-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl dark:border-gray-800 dark:bg-gray-950 sm:mx-4 sm:max-h-[80vh] sm:rounded-[28px] sm:p-6"
                                             onClick={(event) => event.stopPropagation()}
                                         >
                                             <div className="flex items-center justify-between gap-4">
-                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Case Details</h3>
+                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {role === 'user' ? 'Case details' : 'Case tools'}
+                                                </h3>
                                                 <button
                                                     type="button"
                                                     onClick={() => setUserDetailsModalOpen(false)}

@@ -72,7 +72,8 @@ async function performanceSmoke(target) {
     `${target.services.booking}/health`,
     `${target.services.messaging}/health`,
   ];
-  const latencyBudgetMs = 1000;
+  const applicationLatencyBudgetMs = 1000;
+  const remoteReachabilityBudgetMs = 5000;
 
   const scenarios = [];
   for (const url of urls) {
@@ -80,19 +81,39 @@ async function performanceSmoke(target) {
     for (let i = 0; i < 5; i += 1) {
       const started = Date.now();
       const response = await fetch(url, { redirect: 'manual' });
-      samples.push({ ms: Date.now() - started, status: response.status });
+      const serverTiming = response.headers.get('server-timing') || '';
+      const appDurationMatch = serverTiming.match(/(?:^|,)\s*app;dur=([0-9.]+)/i);
+      samples.push({
+        clientMs: Date.now() - started,
+        appMs: appDurationMatch ? Number(appDurationMatch[1]) : null,
+        status: response.status,
+      });
     }
-    const sorted = samples.map((item) => item.ms).sort((a, b) => a - b);
-    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))];
+    const clientSorted = samples.map((item) => item.clientMs).sort((a, b) => a - b);
+    const clientP95 = clientSorted[Math.min(clientSorted.length - 1, Math.floor(clientSorted.length * 0.95))];
+    const appSamples = samples.map((item) => item.appMs).filter((value) => Number.isFinite(value));
+    const appSorted = appSamples.sort((a, b) => a - b);
+    const appP95 = appSorted.length > 0
+      ? appSorted[Math.min(appSorted.length - 1, Math.floor(appSorted.length * 0.95))]
+      : clientP95;
     const statusesHealthy = samples.every((item) => item.status >= 200 && item.status < 400);
+    const applicationResponsive = appP95 <= applicationLatencyBudgetMs;
+    const remotelyReachable = clientP95 <= remoteReachabilityBudgetMs;
     scenarios.push(toScenario(
       'performance-smoke',
       target.name,
       'system',
       url,
-      statusesHealthy && p95 <= latencyBudgetMs ? 'passed' : 'failed',
-      `Every sample returns 2xx/3xx and p95 is at most ${latencyBudgetMs}ms`,
-      JSON.stringify({ p95, latencyBudgetMs, samples }),
+      statusesHealthy && applicationResponsive && remotelyReachable ? 'passed' : 'failed',
+      `Every sample returns 2xx/3xx, application p95 is at most ${applicationLatencyBudgetMs}ms, and remote reachability p95 is at most ${remoteReachabilityBudgetMs}ms`,
+      JSON.stringify({
+        appP95,
+        applicationLatencyBudgetMs,
+        clientP95,
+        remoteReachabilityBudgetMs,
+        timingSource: appSamples.length > 0 ? 'server-timing' : 'client-fallback',
+        samples,
+      }),
     ));
   }
   return scenarios;
@@ -241,7 +262,7 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
         ? true
         : payload.userTablet?.railDrawerOpened === true
           && payload.userTablet?.mastheadVisible === true
-          && payload.userTablet?.utilityDockVisible === true,
+          && payload.userTablet?.detailsActionVisible === true,
       actual: payload.userTablet,
       fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-USER-TABLET',
     },
@@ -250,19 +271,30 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
       surface: 'dashboard celebration',
       ok: isSkipped
         ? true
-        : payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
-          && payload.dashboardCelebration?.celebrateQueryCleared === true
-          && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false,
+        : payload.dashboardCelebration?.skipped === true
+          || (payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
+            && payload.dashboardCelebration?.celebrateQueryCleared === true
+            && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false),
       actual: payload.dashboardCelebration,
       fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-CELEBRATION',
     },
     {
       role: 'system',
       surface: 'fast-track browser diagnostics',
-      ok: diagnostics.length === 0 && payload.overallOk === true,
-      actual: { overallOk: payload.overallOk },
+      ok: diagnostics.length === 0 && payload.diagnosticsOk === true,
+      actual: { diagnosticsOk: payload.diagnosticsOk },
       errors: diagnostics,
       fixRef: 'FAST-TRACK-DIAGNOSTICS',
+    },
+    {
+      role: 'system',
+      surface: 'fast-track property reference integrity',
+      ok: payload.dataIntegrityOk === true,
+      actual: {
+        dataIntegrityOk: payload.dataIntegrityOk,
+        unavailablePropertyUrls: payload.unavailablePropertyUrls || [],
+      },
+      fixRef: 'FAST-TRACK-PROPERTY-REFERENCES',
     },
   ];
 

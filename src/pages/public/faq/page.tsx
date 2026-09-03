@@ -65,7 +65,7 @@ export default function FAQPage() {
                     <button
                         type="button"
                         onClick={handleBack}
-                        className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
+                        className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-gray-600 transition-colors hover:bg-orange-50 hover:text-orange-500"
                     >
                         <ArrowLeft size={20} />
                         <span className="text-sm font-medium">Back</span>
@@ -108,7 +108,7 @@ export default function FAQPage() {
                             type="button"
                             aria-pressed={activeCategory === cat.id}
                             onClick={() => setActiveCategory(cat.id)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${activeCategory === cat.id
+                            className={`flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${activeCategory === cat.id
                                     ? 'bg-orange-500 text-white shadow-sm'
                                     : 'bg-white text-gray-600 border border-gray-100 hover:border-orange-300'
                                 }`}

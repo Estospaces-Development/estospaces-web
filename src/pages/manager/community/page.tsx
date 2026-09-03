@@ -8,7 +8,7 @@ import CommunityFilterBar, { SortOption } from '../../../components/community/Co
 import CommunityPostCard from '../../../components/community/CommunityPostCard';
 import CreatePostModal from '../../../components/community/CreatePostModal';
 import CommentsModal from '../../../components/community/CommentsModal';
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import {
     addComment,
     AuthorRole,
@@ -218,9 +218,7 @@ const BrokersCommunity = () => {
 
                 <div className="space-y-4">
                     {loading ? (
-                        <div className="flex items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-20 text-gray-600 dark:border-gray-700 dark:bg-black dark:text-gray-300">
-                            <BrandLoader size="md" label="Loading community posts" showLabel />
-                        </div>
+                        <BrandLoadingScreen variant="section" label="Loading community posts..." />
                     ) : filteredAndSortedPosts.length === 0 ? (
                         <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center px-6">
                             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">

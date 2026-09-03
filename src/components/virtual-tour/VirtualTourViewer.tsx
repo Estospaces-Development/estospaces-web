@@ -9,7 +9,7 @@ import VirtualTourControls from './VirtualTourControls';
 import VirtualTourHotspots from './VirtualTourHotspots';
 import VirtualTourViewer3D from './VirtualTourViewer3D';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface VirtualTourViewerProps {
     tour: VirtualTour;
@@ -191,10 +191,7 @@ const VirtualTourViewer: React.FC<VirtualTourViewerProps> = ({
                     <div className={`w-full h-full flex items-center justify-center cursor-grab ${isDragging ? 'cursor-grabbing' : ''}`}>
                         {loading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black">
-                                <div className="text-white text-center">
-                                    <BrandLoader size="xl" className="mx-auto mb-4" label="Loading virtual tour" />
-                                    <p className="text-lg">Loading 360° View...</p>
-                                </div>
+                                <BrandLoadingScreen variant="panel" label="Loading virtual tour..." />
                             </div>
                         )}
                         <div

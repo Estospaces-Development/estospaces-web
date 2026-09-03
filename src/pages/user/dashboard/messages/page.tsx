@@ -1,12 +1,11 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowLeft, MessageSquare, PlusCircle, RefreshCw, UserRound } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -19,10 +18,13 @@ import { getApplications } from '@/services/applicationsService';
 import { getUserLeads } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
 import {
-
+    buildConversationListUrl,
+    createConversationRefreshFailedIssue,
+    createUnavailableConversationThreadIssue,
     resolveConversationQuerySelection,
     type ConversationThreadIssue,
 } from '@/lib/messagesInbox';
+import { rememberAuthorizedConversation } from '@/lib/conversationVisibility';
 
 type ManagerRecommendation = {
     managerId: string;
@@ -70,12 +72,15 @@ function formatLeadAddress(lead: NonNullable<Awaited<ReturnType<typeof getUserLe
 }
 
 function MessagesContent() {
+    const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
     const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
     const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
+    const requestedConversationIdRef = useRef<string | null>(null);
+    const threadIssueRef = useRef<HTMLDivElement | null>(null);
     const {
         conversations: _conversations,
         allConversations,
@@ -97,6 +102,7 @@ function MessagesContent() {
     const requestedConversationId = searchParams.get('conversation');
     const newConversationWith = searchParams.get('newConversationWith');
     const normalizedRequestedConversationId = requestedConversationId?.trim() || null;
+    requestedConversationIdRef.current = normalizedRequestedConversationId;
 
     useEffect(() => {
         if (!newConversationWith) {
@@ -202,11 +208,37 @@ function MessagesContent() {
         }
 
         if (queryResolution.status === 'refresh' && queryResolution.conversationId) {
-            attemptedConversationRefreshesRef.current.add(queryResolution.conversationId);
-            conversationRefreshesInFlightRef.current.add(queryResolution.conversationId);
+            const conversationId = queryResolution.conversationId;
+            conversationRefreshesInFlightRef.current.add(conversationId);
             void refreshConversations()
+                .then((result) => {
+                    if (requestedConversationIdRef.current !== conversationId) {
+                        return;
+                    }
+                    if (result.outcome === 'superseded') {
+                        return;
+                    }
+                    if (!result.success) {
+                        setSelectedConversationId(null);
+                        setRouteConversationIssue(createConversationRefreshFailedIssue(conversationId));
+                        setMobileView('thread');
+                        navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+                        return;
+                    }
+                    attemptedConversationRefreshesRef.current.add(conversationId);
+                    if (result.conversationIds.includes(conversationId)) {
+                        setRouteConversationIssue(null);
+                        setSelectedConversationId(conversationId);
+                        setMobileView('thread');
+                        return;
+                    }
+                    setSelectedConversationId(null);
+                    setRouteConversationIssue(createUnavailableConversationThreadIssue(conversationId));
+                    setMobileView('thread');
+                    navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+                })
                 .finally(() => {
-                    conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId!);
+                    conversationRefreshesInFlightRef.current.delete(conversationId);
                 });
             return;
         }
@@ -223,10 +255,18 @@ function MessagesContent() {
             return;
         }
 
+        if (queryResolution.status === 'unavailable' && queryResolution.conversationId) {
+            setSelectedConversationId(null);
+            setRouteConversationIssue(createUnavailableConversationThreadIssue(queryResolution.conversationId));
+            setMobileView('thread');
+            navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+        }
+
     }, [
         allConversations,
-        clearConversationThreadIssue,
         hasLoadedConversations,
+        location.pathname,
+        location.search,
         navigate,
         normalizedRequestedConversationId,
         refreshConversations,
@@ -288,6 +328,7 @@ function MessagesContent() {
                 recipientPhone: managerRecommendation.managerPhone || '',
                 recipientAgency: managerRecommendation.managerAgency || '',
             });
+            rememberAuthorizedConversation(user.id, conversation);
             await refreshConversations();
             setSelectedConversationId(conversation.id);
             navigate('/user/dashboard/messages?conversation=' + conversation.id);
@@ -300,23 +341,52 @@ function MessagesContent() {
 
     const handleRetryUnavailableThread = async () => {
         const conversationId = (conversationThreadIssue ?? routeConversationIssue)?.conversationId;
+        if (!conversationId) {
+            return;
+        }
+        const result = await refreshConversations();
+        if (!result.success) {
+            return;
+        }
+        if (result.conversationIds.includes(conversationId)) {
+            clearConversationThreadIssue();
+            setRouteConversationIssue(null);
+            setSelectedConversationId(conversationId);
+            setMobileView('thread');
+            return;
+        }
+        clearConversationThreadIssue();
+        setRouteConversationIssue(createUnavailableConversationThreadIssue(conversationId));
+        setSelectedConversationId(null);
+        setMobileView('thread');
+    };
+
+    const handleBackToConversations = () => {
         clearConversationThreadIssue();
         setRouteConversationIssue(null);
-        await refreshConversations();
-        if (conversationId) {
-            setSelectedConversationId(conversationId);
-        }
+        setSelectedConversationId(null);
+        setMobileView('list');
+        navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
     };
 
     const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
     const activeThreadIssue = !selectedConversationId
         ? conversationThreadIssue ?? routeConversationIssue
         : null;
+    const isMobileThreadOpen = mobileView === 'thread' && Boolean(selectedConversationId);
+
+    useEffect(() => {
+        if (!activeThreadIssue) {
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => threadIssueRef.current?.focus());
+        return () => window.cancelAnimationFrame(frame);
+    }, [activeThreadIssue]);
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
+        <div className={`${isMobileThreadOpen ? 'min-h-0 pb-0' : 'min-h-screen pb-12'} bg-gray-50 dark:bg-gray-900 md:min-h-screen md:pb-12`}>
+            <div className={`${isMobileThreadOpen ? 'h-[calc(100dvh-8.75rem)] px-2 py-2' : 'px-3 py-4'} mx-auto w-full max-w-7xl sm:px-6 sm:py-6 lg:px-8 lg:py-8`}>
+                <div className={`${isMobileThreadOpen ? 'hidden lg:block' : ''} mb-5 sm:mb-8`}>
                     <button
                         onClick={() => navigate('/user/dashboard')}
                         className="mb-4 flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors group"
@@ -360,7 +430,7 @@ function MessagesContent() {
                     </div>
                 )}
 
-                <div className="grid min-h-[640px] grid-cols-1 gap-6 lg:grid-cols-12 lg:h-[700px]">
+                <div className={`${isMobileThreadOpen ? 'h-full min-h-0' : 'min-h-[36rem]'} grid grid-cols-1 gap-3 sm:gap-6 lg:h-[700px] lg:min-h-[640px] lg:grid-cols-12`}>
                     {/* Conversation list panel — hidden on mobile when viewing a thread */}
                     <div className={`${mobileView === 'thread' ? 'hidden lg:block' : ''} min-w-0 overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-gray-800 lg:col-span-4`}>
                         {isLoading ? (
@@ -378,12 +448,12 @@ function MessagesContent() {
 
                     {/* Thread panel — shown on mobile when a conversation is selected, always shown on desktop */}
                     {selectedConversationId ? (
-                        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} min-w-0 flex-col overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-gray-800 lg:col-span-8`}>
+                        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800 sm:rounded-3xl lg:col-span-8`}>
                             {/* Mobile back button */}
                             <button
                                 type="button"
                                 onClick={() => setMobileView('list')}
-                                className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors border-b border-gray-100 dark:border-gray-700 lg:hidden"
+                                className="flex min-h-11 flex-shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:text-orange-500 dark:border-gray-700 lg:hidden"
                             >
                                 <ArrowLeft size={16} />
                                 Back
@@ -399,7 +469,7 @@ function MessagesContent() {
                             <ConversationThreadSkeleton />
                         </div>
                     ) : mobileView === 'thread' && activeThreadIssue ? (
-                        <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30">
+                        <div ref={threadIssueRef} role="alert" aria-live="assertive" tabIndex={-1} className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-8 text-center bg-gray-50/30 dark:bg-gray-900/30 focus:outline-none">
                             <div className="mb-6 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 w-20 h-20 rounded-full flex items-center justify-center">
                                 <AlertCircle size={34} />
                             </div>
@@ -410,6 +480,14 @@ function MessagesContent() {
                                 {activeThreadIssue.message}
                             </p>
                             <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleBackToConversations}
+                                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold hover:border-orange-400 hover:text-orange-500 transition-colors lg:hidden"
+                                >
+                                    <ArrowLeft size={18} />
+                                    Back to conversations
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => void handleRetryUnavailableThread()}
@@ -468,7 +546,7 @@ function MessagesContent() {
                                 </div>
                             ) : recommendationLoading ? (
                                 <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
-                                    <BrandLoader size={16} className="" />
+                                    <ActionSpinner size={16} aria-hidden />
                                     Checking assigned manager
                                 </div>
                             ) : null}

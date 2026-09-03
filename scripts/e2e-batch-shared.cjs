@@ -2,6 +2,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
+const authenticationWallPattern = /sign in to estospaces|enter your email and password to continue|don't have an account\?|forgot password/i;
+const authenticationRoutePattern = /^\/(?:login|auth)(?:\/|$)/i;
+const analyticsConsentStorage = Object.freeze({
+  key: 'estospaces_cookie_consent',
+  value: 'rejected',
+});
 const DEV_WEB_BASE_URL = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
 
 function requireEnv(name) {
@@ -10,6 +16,38 @@ function requireEnv(name) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
+}
+
+function isAuthenticationWallVisible(bodyText = '') {
+  return authenticationWallPattern.test(String(bodyText));
+}
+
+function assessSignedOutDestination(currentPath = '', bodyText = '', isPublicRoute = false) {
+  const normalizedPath = String(currentPath);
+  return {
+    allowed: Boolean(
+      isPublicRoute
+      || authenticationRoutePattern.test(normalizedPath)
+    ),
+    authenticationWallVisible: isAuthenticationWallVisible(bodyText),
+  };
+}
+
+function resolveRenderTimeoutMs(env = process.env) {
+  const configured = Number(env.E2E_RENDER_TIMEOUT_MS || 30000);
+  return Number.isFinite(configured) && configured > 0 ? configured : 30000;
+}
+
+function isStartupRoutePending(currentPath, expectedPath) {
+  return Boolean(expectedPath && expectedPath !== '/' && currentPath === '/');
+}
+
+function resolveBatchExitCode({ failed = 0, blocked = 0 } = {}) {
+  return Number(failed) > 0 || Number(blocked) > 0 ? 1 : 0;
+}
+
+function keepExistingArtifactPath(filePath, existsSync = fs.existsSync) {
+  return filePath && existsSync(filePath) ? filePath : null;
 }
 
 function readFrontendUrlFromEnvFile(filename) {
@@ -479,6 +517,8 @@ function getScenarioSupport(scenario) {
 }
 
 module.exports = {
+  assessSignedOutDestination,
+  analyticsConsentStorage,
   authStates,
   buildSelectionLabel,
   crashPattern,
@@ -499,8 +539,13 @@ module.exports = {
   getTestListPath,
   getWorkspaceRoot,
   getWrongRoleName,
+  isAuthenticationWallVisible,
   isServiceRequest,
+  isStartupRoutePending,
+  keepExistingArtifactPath,
   networkStates,
+  resolveRenderTimeoutMs,
+  resolveBatchExitCode,
   roleDefinitions,
   summarizeCatalog,
   viewports,

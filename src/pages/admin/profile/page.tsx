@@ -1,11 +1,12 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Mail, Phone, MapPin, Camera, Save, CheckCircle, Hash, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getProfile as getAuthenticatedProfile } from '@/services/authService';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
 import { uploadMediaFile } from '@/services/mediaService';
@@ -31,6 +32,15 @@ export default function AdminProfilePage() {
     const [_isUploadingAvatar, _setIsUploadingAvatar] = useState(false);
     const [_isRemovingAvatar, _setIsRemovingAvatar] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const initialFormDataRef = useRef({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        address: '',
+        postcode: '',
+        bio: '',
+    });
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -50,36 +60,23 @@ export default function AdminProfilePage() {
         setIsInitialLoading(true);
         setProfileLoadError(null);
         try {
-            const { data } = await userService.getProfile();
-            const profileData = data || user;
+            const { data: refreshedProfile } = await getAuthenticatedProfile();
+            const profileData = { ...user, ...(refreshedProfile || {}) };
             const nameParts = (profileData.name || '').split(' ');
-            setFormData({
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
+            const nextFormData = {
+                firstName: profileData.first_name || nameParts[0] || '',
+                lastName: profileData.last_name || nameParts.slice(1).join(' ') || '',
                 email: profileData.email || '',
                 phone: profileData.phone || '',
                 address: profileData.address || '',
                 postcode: profileData.postcode || '',
-                bio: profileData.user_metadata?.bio || '',
-            });
+                bio: profileData.bio || profileData.user_metadata?.bio || '',
+            };
+            initialFormDataRef.current = nextFormData;
+            setFormData(nextFormData);
             const existingAvatar = profileData.avatar_url || profileData.avatar || user.avatar_url || user.avatar || null;
             const resolvedAvatar = resolveMediaUrl(existingAvatar);
             setAvatarPreview(resolvedAvatar);
-        } catch {
-            // fallback to auth context data
-            const nameParts = (user.name || '').split(' ');
-            setFormData({
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
-                email: user.email || '',
-                phone: user.phone || '',
-                address: user.address || '',
-                postcode: user.postcode || '',
-                bio: user.user_metadata?.bio || '',
-            });
-            const existingAvatar = user.avatar_url || user.avatar || null;
-            setAvatarPreview(resolveMediaUrl(existingAvatar));
-            setProfileLoadError('Could not load profile details — showing cached data.');
         } finally {
             setIsInitialLoading(false);
         }
@@ -119,17 +116,19 @@ export default function AdminProfilePage() {
 
         setIsLoading(true);
 
-        const payload: Record<string, unknown> = {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone,
-            address: formData.address,
-            postcode: formData.postcode,
-            metadata: {
+        const initialFormData = initialFormDataRef.current;
+        const payload: Record<string, unknown> = {};
+        if (formData.firstName !== initialFormData.firstName) payload.first_name = formData.firstName;
+        if (formData.lastName !== initialFormData.lastName) payload.last_name = formData.lastName;
+        if (formData.phone !== initialFormData.phone) payload.phone = formData.phone;
+        if (formData.address !== initialFormData.address) payload.address = formData.address;
+        if (formData.postcode !== initialFormData.postcode) payload.postcode = formData.postcode;
+        if (formData.bio !== initialFormData.bio) {
+            payload.metadata = {
                 bio: formData.bio,
-                profile_type: 'admin'
-            }
-        };
+                profile_type: 'admin',
+            };
+        }
 
         if (selectedAvatarFile && user?.id) {
             try {
@@ -188,11 +187,7 @@ export default function AdminProfilePage() {
     };
 
     if (isInitialLoading) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <BrandLoader className="w-10 h-10 text-orange-500" />
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading admin profile..." />;
     }
 
     if (profileLoadError) {

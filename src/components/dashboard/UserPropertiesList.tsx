@@ -1,12 +1,13 @@
 'use client';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
-import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { AlertCircle, Filter, Map, Square } from 'lucide-react';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -57,6 +58,10 @@ const UserPropertiesList = () => {
     // Modal state
     const [viewStreetFor, setViewStreetFor] = useState<Property | null>(null);
     const [viewTourFor, setViewTourFor] = useState<Property | null>(null);
+    const viewStreetCoordinates = useMemo(
+        () => getVerifiedPropertyMapCoordinates(viewStreetFor),
+        [viewStreetFor],
+    );
 
     // Query parameters
     const [status, setStatus] = useState<string | null>(null);
@@ -123,8 +128,7 @@ const UserPropertiesList = () => {
     if (loading && !properties.length) {
         return (
             <div className="flex items-center justify-center p-8">
-                <BrandLoader className="text-orange-500" size={32} />
-                <span className="ml-3 text-gray-600 dark:text-gray-400">Loading properties...</span>
+                <BrandLoadingScreen variant="panel" label="Loading your properties..." />
             </div>
         );
     }
@@ -260,13 +264,15 @@ const UserPropertiesList = () => {
 
                                             {/* Action Buttons */}
                                             <div className="flex items-center gap-3 mt-4">
-                                                <button
-                                                    onClick={() => setViewStreetFor(property)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                                                >
-                                                    <Map size={14} />
-                                                    Street View
-                                                </button>
+                                                {getVerifiedPropertyMapCoordinates(property) ? (
+                                                    <button
+                                                        onClick={() => setViewStreetFor(property)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                                                    >
+                                                        <Map size={14} />
+                                                        Street View
+                                                    </button>
+                                                ) : null}
                                                 {VIRTUAL_TOUR_ENABLED && (
                                                 <button
                                                     onClick={() => setViewTourFor(property)}
@@ -301,11 +307,11 @@ const UserPropertiesList = () => {
 
             {/* Modals */}
             <Suspense fallback={null}>
-                {viewStreetFor && (
+                {viewStreetFor && viewStreetCoordinates && (
                     <StreetViewModal
                         location={{
-                            lat: viewStreetFor.latitude || 51.5074,
-                            lng: viewStreetFor.longitude || -0.1278
+                            lat: viewStreetCoordinates.latitude,
+                            lng: viewStreetCoordinates.longitude,
                         }}
                         onClose={() => setViewStreetFor(null)}
                     />

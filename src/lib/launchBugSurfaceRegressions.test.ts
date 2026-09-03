@@ -54,3 +54,19 @@ test('application data stays idle on pages without an application consumer', () 
   assert.match(source, /if \(consumerCount === 0\) \{/);
   assert.match(source, /enabled: Boolean\(user\) && consumerCount > 0/);
 });
+
+test('discover clear filters clears cached and URL-backed filter state', () => {
+  const source = readSource('src/pages/user/dashboard/discover/page.tsx');
+  const handler = source.match(/const handleClearFilters = \(\) => \{([\s\S]*?)\n    \};/)?.[1] || '';
+
+  assert.match(handler, /clearPropertySearchReturnState\(window\.sessionStorage, DISCOVER_PATH\)/);
+  assert.match(handler, /setActiveTab\('all'\)/);
+  assert.match(handler, /navigate\(DISCOVER_PATH, \{ replace: true \}\)/);
+});
+
+test('viewing prices infer the launch country from the property address when metadata is absent', () => {
+  const source = readSource('src/pages/user/dashboard/viewings/page.tsx');
+  assert.match(source, /propertyLocationCode: viewing\.property_postcode/);
+  assert.match(source, /String\(viewing\.property_address \|\| ''\)\.split\(','\)\.at\(-1\)\?\.trim\(\)/);
+  assert.match(source, /locationCode: viewing\.propertyLocationCode/);
+});

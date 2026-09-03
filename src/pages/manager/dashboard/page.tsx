@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
@@ -484,8 +483,12 @@ function DashboardContent() {
   const fastTrackQueueKeyFor = createDuplicateSafeKeyResolver('manager-fast-track-queue');
   const propertyCardKeyFor = createDuplicateSafeKeyResolver('manager-dashboard-property');
 
+  if (managerVerificationLoading) {
+    return <BrandLoadingScreen variant="section" label="Loading your dashboard..." />;
+  }
+
   return (
-    <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
+    <div className="relative min-h-screen space-y-3.5 pb-20 font-outfit sm:space-y-6" data-manager-mobile-dashboard>
       <WelcomeBanner
         analytics={analytics}
         loading={!analytics && isLoading}
@@ -494,15 +497,8 @@ function DashboardContent() {
         actionPath={canLoadOperationalDashboard ? undefined : '/manager/verification'}
       />
 
-      {managerVerificationLoading && (
-        <div className="flex items-center justify-center py-12">
-          <BrandLoader size={28} className="text-orange-500 mr-3" />
-          <span className="text-sm text-gray-500 dark:text-gray-400">Loading your dashboard…</span>
-        </div>
-      )}
-
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
         <StatCard
           title="Live Fast Track"
           value={stats.liveFastTrack}
@@ -550,7 +546,7 @@ function DashboardContent() {
 
       {/* Main Content Area */}
       {activeTab === 'overview' && (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-4 animate-in fade-in duration-500 sm:space-y-8">
           {!canLoadOperationalDashboard ? (
             <div
               data-testid="manager-dashboard-readiness-gate"
@@ -583,36 +579,50 @@ function DashboardContent() {
               {/* Broker Response Widget (USP) */}
               <BrokerResponseWidget />
 
-              <RoleDocsPreviewCard
-                title="Manager workflow guide"
-                subtitle="Open the exact docs sections for live response, fast-track, applications, appointments, contracts, and support recovery."
-                hrefBase="/manager/docs"
-                docsDocument={managerDocs.document}
-              />
+              <div className="hidden sm:block">
+                <RoleDocsPreviewCard
+                  title="Manager workflow guide"
+                  subtitle="Open the exact docs sections for live response, fast-track, applications, appointments, contracts, and support recovery."
+                  hrefBase="/manager/docs"
+                  docsDocument={managerDocs.document}
+                />
+              </div>
 
-              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8" id="section-reservations">
+              <div
+                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-black sm:rounded-3xl sm:p-8"
+                id="section-reservations"
+              >
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 rounded-xl">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="shrink-0 rounded-xl bg-emerald-500/10 p-2">
                   <CalendarCheck className="w-5 h-5 text-emerald-600" />
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white font-outfit">Reservation approvals</h2>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="min-w-0">
+                  <h2 className="font-outfit text-lg font-bold leading-6 text-gray-900 dark:text-white sm:text-xl">Reservation approvals</h2>
+                  <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:hidden">
+                    Review and confirm pending stays from your listings.
+                  </p>
+                  <p className="mt-1 hidden text-sm text-gray-500 dark:text-gray-400 sm:block">
                     Pending booking reservations from your properties are ready to confirm here.
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 sm:min-w-[360px]">
+              <div
+                data-mobile-reservation-summary
+                className="grid w-full grid-cols-2 gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 sm:min-w-[360px] sm:grid-cols-4 sm:text-center lg:w-auto"
+              >
                 {[
                   { label: 'Pending', value: reservationSummary.pending },
                   { label: 'Approved', value: reservationSummary.confirmed },
                   { label: 'Completed', value: reservationSummary.completed },
                   { label: 'Cancelled', value: reservationSummary.cancelled },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-2xl bg-gray-50 px-3 py-2 dark:bg-gray-900">
-                    <p>{item.label}</p>
-                    <p className="mt-1 text-lg font-bold text-gray-900 dark:text-white">{item.value}</p>
+                  <div
+                    key={item.label}
+                    className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-900 sm:block sm:rounded-2xl sm:py-2"
+                  >
+                    <p className="whitespace-nowrap">{item.label}</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white sm:mt-1 sm:text-lg">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -628,19 +638,30 @@ function DashboardContent() {
               {pendingReservations.length > 0 ? pendingReservations.map((booking, bookingIndex) => (
                 <div
                   key={reservationKeyFor(booking.id, bookingIndex)}
-                  className="flex flex-col gap-4 rounded-2xl border border-gray-100 px-5 py-4 dark:border-gray-800 lg:flex-row lg:items-center lg:justify-between"
+                  className="flex min-w-0 flex-col gap-4 rounded-2xl border border-gray-100 p-4 dark:border-gray-800 sm:px-5 sm:py-4 lg:flex-row lg:items-center lg:justify-between"
                 >
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">Booking {booking.id.slice(0, 8)}</p>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      Property {booking.property_id.slice(0, 8)} - {new Date(booking.check_in_date).toLocaleDateString()} to {new Date(booking.check_out_date).toLocaleDateString()}
-                    </p>
+                  <div className="min-w-0">
+                    <div className="sm:hidden">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">Reservation {booking.id.slice(0, 8)}</p>
+                      <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                        {new Date(booking.check_in_date).toLocaleDateString()} – {new Date(booking.check_out_date).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs leading-5 text-gray-400 dark:text-gray-500">
+                        Property {booking.property_id.slice(0, 8)}
+                      </p>
+                    </div>
+                    <div className="hidden sm:block">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">Booking {booking.id.slice(0, 8)}</p>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Property {booking.property_id.slice(0, 8)} - {new Date(booking.check_in_date).toLocaleDateString()} to {new Date(booking.check_out_date).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => void handleConfirmReservation(booking)}
                     disabled={confirmingBookingID === booking.id}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                   >
                     {confirmingBookingID === booking.id ? <ActionSpinner className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     Confirm Reservation

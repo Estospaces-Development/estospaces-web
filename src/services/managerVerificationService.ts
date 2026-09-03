@@ -121,6 +121,7 @@ export interface ManagerVerificationDetails {
 }
 
 const PLACEHOLDER_MANAGER_COMPANY_NAMES = new Set([
+    'estospaces',
     'pending broker profile',
     'pending company profile',
     'pending profile',
@@ -150,7 +151,9 @@ export const getManagerDocumentTypeName = (type: ManagerDocumentType): string =>
 };
 
 export const isPlaceholderManagerCompanyName = (value?: string): boolean => {
-    return PLACEHOLDER_MANAGER_COMPANY_NAMES.has(String(value || '').trim().toLowerCase());
+    const normalizedValue = String(value || '').trim().toLowerCase();
+    return PLACEHOLDER_MANAGER_COMPANY_NAMES.has(normalizedValue)
+        || /^estospaces\s*-\s*\d+$/.test(normalizedValue);
 };
 
 const hasText = (value?: string | null): boolean => String(value || '').trim().length > 0;

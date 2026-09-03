@@ -25,6 +25,14 @@ test("nearby properties map uses profile location and each property's currency",
 
 test('compact dashboard map selects only real nearby coordinates and reset re-applies bounds', () => {
   assert.match(source, /compact\s*\?\s*selectDashboardNearbyProperties\(properties, userLocation\)/);
-  assert.match(source, /properties\.filter\(hasValidMapCoordinates\)/);
+  assert.match(source, /properties\.filter\(hasVerifiedPropertyMapCoordinates\)/);
   assert.match(source, /\[fitSignal, map, properties, userLocation\]/);
+  assert.match(source, /worldCopyJump/);
+  assert.equal((source.match(/noWrap/g) || []).length, 2);
+});
+
+test('standard dashboard map uses the reviewed keyless tile provider contract', () => {
+  assert.match(source, /STANDARD_MAP_TILE_LAYER\.attribution/);
+  assert.match(source, /STANDARD_MAP_TILE_LAYER\.url/);
+  assert.doesNotMatch(source, /basemaps\.cartocdn\.com/);
 });

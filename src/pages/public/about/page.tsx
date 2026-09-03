@@ -22,7 +22,7 @@ export default function AboutPage() {
         <div className="page-shell relative py-20 sm:py-24">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-orange-200">About Estospaces</p>
-            <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
+            <h1 className="mt-4 text-3xl font-bold leading-tight sm:text-5xl">
               A property platform built for live journeys, not static listings.
             </h1>
             <p className="mt-5 text-base leading-7 text-white/78 sm:text-lg">

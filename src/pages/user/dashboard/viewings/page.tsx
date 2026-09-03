@@ -1,7 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -22,6 +22,7 @@ import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionP
 import ViewingResponseCountdown from '@/components/viewings/ViewingResponseCountdown';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import PaginationBar from '@/components/ui/PaginationBar';
+import { shouldShowScopedListSearch } from '@/lib/userAppSearch';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import { findLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
@@ -109,6 +110,9 @@ export default function ViewingsPage() {
                 propertyImage: viewing.property_image || PROPERTY_PLACEHOLDER_IMAGE,
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
+                propertyLocationCode: viewing.property_postcode
+                    || viewing.postcode
+                    || String(viewing.property_address || '').split(',').at(-1)?.trim(),
                 propertyPrice: viewing.property_price || 0,
                 propertyCountry: viewing.property_country || viewing.country,
                 propertyCurrency: viewing.property_currency || viewing.currency,
@@ -255,6 +259,7 @@ export default function ViewingsPage() {
     const formatViewingPrice = (viewing: any) => formatLaunchCurrencyForCountry(viewing.propertyPrice, {
         countryCode: viewing.propertyCountry,
         countryName: viewing.propertyCountry,
+        locationCode: viewing.propertyLocationCode,
         currencyCode: viewing.propertyCurrency,
     });
     const companionFastTrackCase = useMemo(() => (
@@ -424,6 +429,7 @@ export default function ViewingsPage() {
                 {/* Filters */}
                 <div className="mb-8 rounded-[1.75rem] border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        {shouldShowScopedListSearch(viewings.length, searchQuery) && (
                         <div className="relative w-full max-w-md">
                             <Search
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -438,6 +444,7 @@ export default function ViewingsPage() {
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-700 outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900"
                             />
                         </div>
+                        )}
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                             Showing {filteredViewings.length} of {viewings.length} appointments
                         </p>
@@ -461,10 +468,7 @@ export default function ViewingsPage() {
 
                 {/* Content */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">
-                        <BrandLoader size={48} className="text-orange-500 mb-4" />
-                        <p className="text-gray-600 dark:text-gray-400 font-medium tracking-wide">Fetching your appointments...</p>
-                    </div>
+                    <BrandLoadingScreen variant="section" label="Loading your appointments..." />
                 ) : loadError ? (
                     <div className="rounded-3xl border border-red-200 bg-white p-10 text-center shadow-sm dark:border-red-900/40 dark:bg-gray-800">
                         <div className="mx-auto mb-6 inline-flex items-center justify-center rounded-full bg-red-50 p-5 dark:bg-red-900/20">

@@ -5,7 +5,7 @@ import { BookOpen, CircleHelp, LifeBuoy, RefreshCw, Ticket } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { SupportPriorityBadge, SupportStatusBadge } from '@/components/support/SupportBadges';
@@ -168,6 +168,16 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const fetchingRef = useRef(false);
     const loadingTicketDetailsRef = useRef(new Set<string>());
     const detailRequestVersionRef = useRef(0);
+    const supportCenterMountedRef = useRef(false);
+
+    useEffect(() => {
+        supportCenterMountedRef.current = true;
+
+        return () => {
+            supportCenterMountedRef.current = false;
+            detailRequestVersionRef.current += 1;
+        };
+    }, []);
     const adminQueueTabs = useMemo(() => ADMIN_QUEUE_TABS.map((tab) => {
         const tabFilters: SupportFilterState = {
             search: filters.search,
@@ -208,6 +218,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
             const data = isAdmin
                 ? await supportService.getAllTickets({ limit: 100 })
                 : await supportService.getTickets({ limit: 100 });
+            if (!supportCenterMountedRef.current) return;
+
             setAllTickets(data);
             const visibleTickets = data.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
             setTickets(visibleTickets);
@@ -240,12 +252,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 }, { replace: true });
             }
         } catch (error: any) {
-            if (!silent) {
+            if (!silent && supportCenterMountedRef.current) {
                 toast.error(error.message || 'Failed to load support tickets');
             }
         } finally {
             fetchingRef.current = false;
-            if (!silent) setLoading(false);
+            if (!silent && supportCenterMountedRef.current) setLoading(false);
         }
     }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
 
@@ -259,13 +271,15 @@ export function SupportCenter({ role }: SupportCenterProps) {
         if (!silent) setDetailLoading(true);
         try {
             const detail = await supportService.getTicket(ticketId);
+            if (!supportCenterMountedRef.current || requestVersion !== detailRequestVersionRef.current) return;
+
             const transcript = await supportService.getTranscript(detail.conversation_id);
-            if (requestVersion === detailRequestVersionRef.current) {
+            if (supportCenterMountedRef.current && requestVersion === detailRequestVersionRef.current) {
                 setSelectedTicket(detail);
                 setMessages(transcript);
             }
         } catch (error: any) {
-            if (!silent) {
+            if (!silent && supportCenterMountedRef.current) {
                 setSelectedTicket(null);
                 setMessages([]);
                 setResumingTicketId((current) => current === ticketId ? null : current);
@@ -273,14 +287,18 @@ export function SupportCenter({ role }: SupportCenterProps) {
             }
         } finally {
             loadingTicketDetailsRef.current.delete(ticketId);
-            if (!silent) setDetailLoading(false);
+            if (!silent && supportCenterMountedRef.current) setDetailLoading(false);
         }
     }, [toast]);
 
     useEffect(() => {
         void fetchTickets();
         if (isAdmin) {
-            void supportService.getSupportAgents().then(setAdminUsers).catch(() => undefined);
+            void supportService.getSupportAgents().then((agents) => {
+                if (supportCenterMountedRef.current) {
+                    setAdminUsers(agents);
+                }
+            }).catch(() => undefined);
         }
     }, [fetchTickets, isAdmin]);
 
@@ -525,8 +543,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const adminAssigneeUserKeyFor = createDuplicateSafeKeyResolver('support-assignee-admin-user');
 
     return (
-        <div className="space-y-6">
-            <section className="rounded-[2.25rem] border border-orange-100 bg-white/95 p-8 shadow-[0_24px_70px_-40px_rgba(255,115,0,0.35)] dark:border-orange-500/15 dark:bg-gray-900/85">
+        <div className="min-w-0 max-w-full space-y-6">
+            <section className="min-w-0 rounded-[2.25rem] border border-orange-100 bg-white/95 p-5 shadow-[0_24px_70px_-40px_rgba(255,115,0,0.35)] dark:border-orange-500/15 dark:bg-gray-900/85 sm:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="max-w-4xl">
                         <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">{ROLE_COPY[role].title}</span>
@@ -609,19 +627,19 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 </div>
             )}
 
-            <div className="grid gap-6 xl:grid-cols-[360px,minmax(0,1fr)]">
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between rounded-[2rem] border border-orange-100 bg-white/90 px-5 py-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80">
+            <div className="grid min-w-0 gap-6 xl:grid-cols-[360px,minmax(0,1fr)]">
+                <div className="min-w-0 space-y-4">
+                    <div className="flex min-w-0 flex-col gap-3 rounded-[2rem] border border-orange-100 bg-white/90 px-5 py-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                         <div>
                             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{isAdmin ? 'Support queue' : 'My tickets'}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{tickets.length} visible right now</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             {!isAdmin && <button type="button" onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900">New ticket</button>}
                             <button type="button" onClick={() => void fetchTickets()} disabled={loading} aria-busy={loading || undefined} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900" aria-label="Refresh support tickets">{loading ? <ActionSpinner size="sm" label="Refreshing support tickets" /> : <RefreshCw className="h-4 w-4" />}</button>
                         </div>
                     </div>
-                    {loading && tickets.length === 0 ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><BrandLoader className="h-6 w-6 text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
+                    {loading && tickets.length === 0 ? <BrandLoadingScreen variant="section" label="Loading support tickets..." /> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
                         const ticket = tickets.find((item) => item.id === ticketId);
                         const next = new URLSearchParams({ ticket: ticketId });
                         if (ticket?.conversation_id) {
@@ -632,13 +650,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
                     {loading && tickets.length > 0 && (
                         <div className="flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-sm text-gray-600 dark:border-orange-500/15 dark:bg-gray-900/60 dark:text-gray-300" aria-live="polite">
-                            <BrandLoader className="h-4 w-4 text-orange-500" />
+                            <ActionSpinner size={16} className="text-orange-500" aria-hidden />
                             <span>Refreshing tickets…</span>
                         </div>
                     )}
                 </div>
 
-                <div className="space-y-5">
+                <div className="min-w-0 space-y-5">
                     {!isAdmin && !selectedTicket && (
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                             <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 className="text-2xl font-black text-gray-950 dark:text-white">Open a support ticket</h2></div>
@@ -669,7 +687,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                 {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
-                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <BrandLoader className="h-5 w-5 text-orange-500" />}</div>
+                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <ActionSpinner size={20} className="text-orange-500" label="Loading transcript" />}</div>
                                 <SupportTranscript
                                     messages={messages}
                                     currentUserId={user?.id}

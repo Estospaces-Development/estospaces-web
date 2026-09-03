@@ -10,6 +10,7 @@ import {
     markAsRead,
     openSupportAttachment,
     sendMessage,
+    subscribeToDirectConversationUpserts,
     updateTicket,
     upsertDirectConversation,
 } from '@/services/messagesService';
@@ -79,6 +80,40 @@ test('handled messaging read failures suppress generic api toasts', async () => 
         assert.equal(emittedToasts.length, 0);
     } finally {
         unregisterToastHandler();
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('successful direct-conversation upserts notify the active messaging context', async () => {
+    const originalFetch = globalThis.fetch;
+    const conversation = {
+        id: 'conversation-new',
+        type: 'direct' as const,
+        metadata: {},
+        created_at: '2026-08-30T10:00:00Z',
+        updated_at: '2026-08-30T10:00:00Z',
+    };
+    const observedConversationIds: string[] = [];
+    const observedAuthTokenVersions: number[] = [];
+    const unsubscribe = subscribeToDirectConversationUpserts(({ conversation: upsertedConversation, authTokenVersion }) => {
+        observedConversationIds.push(upsertedConversation.id);
+        observedAuthTokenVersions.push(authTokenVersion);
+    });
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+        success: true,
+        data: conversation,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+
+    try {
+        const result = await upsertDirectConversation('manager-1');
+        assert.equal(result.id, conversation.id);
+        assert.deepEqual(observedConversationIds, [conversation.id]);
+        assert.equal(Number.isInteger(observedAuthTokenVersions[0]), true);
+        unsubscribe();
+        await upsertDirectConversation('manager-1');
+        assert.deepEqual(observedConversationIds, [conversation.id]);
+    } finally {
+        unsubscribe();
         globalThis.fetch = originalFetch;
     }
 });

@@ -97,7 +97,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
     };
 
     return (
-        <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+        <div className="flex-shrink-0 border-t bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-800 sm:p-4">
             <input
                 ref={fileInputRef}
                 type="file"
@@ -109,13 +109,13 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                 onChange={handleSelectFiles}
             />
             {pendingFiles.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto sm:mb-3 sm:gap-2">
                     {pendingFiles.map((file) => {
                         const isImage = file.type.startsWith('image/');
                         return (
                             <div
                                 key={`${file.name}-${file.size}-${file.lastModified}`}
-                                className="inline-flex max-w-full items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
                             >
                                 {isImage ? <ImageIcon size={16} /> : <FileText size={16} />}
                                 <span className="max-w-[180px] truncate">{file.name}</span>
@@ -132,29 +132,31 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                     })}
                 </div>
             )}
-            <form onSubmit={handleSend} className="flex items-center gap-2">
+            <form onSubmit={handleSend} className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-2">
                 <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSending || pendingFiles.length >= MAX_ATTACHMENTS}
-                    className="p-2 text-gray-400 hover:text-orange-500 transition-colors"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-orange-500/10 dark:hover:text-orange-300"
                     aria-label="Attach files"
                 >
                     <Paperclip size={20} />
                 </button>
 
-                <div className="flex-1 relative">
+                <div className="relative min-w-0">
                     <input
                         type="text"
-                        placeholder="Type your message..."
+                        placeholder="Message..."
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        className="w-full pl-4 pr-10 py-2.5 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all text-sm text-gray-900 dark:text-white"
+                        aria-label="Message"
+                        aria-describedby="message-attachment-help message-composer-error"
+                        className="h-11 w-full min-w-0 rounded-xl border bg-gray-50 pl-3 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                     />
                     <button
                         type="button"
                         onClick={() => setIsEmojiPickerOpen((current) => !current)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500"
+                        className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-orange-50 hover:text-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-orange-500/10"
                         aria-label="Open emoji picker"
                     >
                         <Smile size={18} />
@@ -169,15 +171,15 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                 <button
                     type="submit"
                     disabled={isSending || (!message.trim() && pendingFiles.length === 0)}
-                    className="p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm transition-all hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none active:scale-95"
                     aria-label="Send message"
                 >
                     {isSending ? <ActionSpinner size={20} className="" /> : <Send size={20} />}
                 </button>
             </form>
-            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
-                <span>{pendingFiles.length > 0 ? `${pendingFiles.length}/${MAX_ATTACHMENTS} files attached` : 'Images, PDFs, Word docs, spreadsheets, text files, and videos can be sent here.'}</span>
-                {composerError ? <span className="text-red-500">{composerError}</span> : null}
+            <div className={`${pendingFiles.length > 0 || composerError ? 'mt-2 flex' : 'sr-only'} items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400`}>
+                <span id="message-attachment-help">{pendingFiles.length > 0 ? `${pendingFiles.length}/${MAX_ATTACHMENTS} files attached` : 'Attach images, documents, spreadsheets, text files, or videos.'}</span>
+                {composerError ? <span id="message-composer-error" role="alert" className="text-red-500">{composerError}</span> : <span id="message-composer-error" />}
             </div>
         </div>
     );

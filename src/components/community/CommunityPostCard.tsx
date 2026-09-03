@@ -50,19 +50,19 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     const needsReadMore = post.content.length > 200;
 
     return (
-        <div className={`bg-white dark:bg-black rounded-xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800 hover:shadow-md transition-all duration-300 ${post.isPinned ? 'ring-2 ring-indigo-500/30' : ''}`}>
+        <div className={`min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-300 hover:shadow-md dark:border-zinc-800 dark:bg-black sm:p-5 ${post.isPinned ? 'ring-2 ring-indigo-500/30' : ''}`}>
             {/* Header */}
-            <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
+            <div className="mb-3 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
                     <Avatar
                         userId={post.authorId}
                         name={post.authorName}
                         size="md"
                     />
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-gray-900 dark:text-white">{post.authorName}</h4>
-                            <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${getRoleBadgeColors(post.authorRole)}`}>
+                    <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <h4 className="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{post.authorName}</h4>
+                            <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${getRoleBadgeColors(post.authorRole)}`}>
                                 {post.authorRole.charAt(0).toUpperCase() + post.authorRole.slice(1)}
                             </span>
                         </div>
@@ -72,8 +72,8 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase ${getTagColors(post.tag)}`}>
+                <div className="flex min-w-0 items-center gap-2 self-end sm:self-auto">
+                    <span className={`max-w-full truncate rounded-lg px-3 py-1 text-xs font-semibold uppercase ${getTagColors(post.tag)}`}>
                         {post.tag}
                     </span>
                     {post.isPinned && <Pin className="w-4 h-4 text-indigo-600 fill-indigo-600" />}
@@ -84,7 +84,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                 onClick={() => setShowActions(!showActions)}
                                 aria-label={`Open moderation actions for ${post.title || post.authorName}`}
                                 aria-expanded={showActions}
-                                className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
                             >
                                 <MoreVertical className="w-4 h-4 text-gray-800 dark:text-gray-300" />
                             </button>
@@ -125,12 +125,12 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-4 pt-3 border-t border-gray-100 dark:border-zinc-800">
+            <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 dark:border-zinc-800">
                 <button
                     onClick={handleLike}
                     aria-label={post.isLiked ? `Unlike ${post.title || 'community post'}` : `Like ${post.title || 'community post'}`}
                     aria-pressed={post.isLiked}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${post.isLiked
+                    className={`flex min-h-11 items-center gap-2 rounded-lg px-3 py-1.5 transition-all duration-200 ${post.isLiked
                         ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                         : 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700'
                         }`}
@@ -142,7 +142,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                 <button
                     onClick={() => onCommentClick(post)}
                     aria-label={`Open comments for ${post.title || 'community post'}`}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 rounded-lg text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-gray-900 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700"
                 >
                     <MessageCircle className="w-4 h-4" />
                     <span className="text-sm font-medium">{post.commentsCount}</span>

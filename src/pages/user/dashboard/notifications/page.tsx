@@ -15,8 +15,6 @@ import {
     Trash2,
     CheckCheck,
     Clock,
-    Search,
-    X,
     ArrowLeft,
     Settings,
     Zap
@@ -48,13 +46,10 @@ export default function NotificationsPage() {
 
     const [filter, setFilter] = useState<FilterType>('all');
     const [category, setCategory] = useState<CategoryType>('all');
-    const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
     const [visibleLimit, setVisibleLimit] = useState(NOTIFICATION_PAGE_SIZE);
 
     const filteredNotifications = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-
         return notifications.filter((notification) => {
             if (filter === 'unread' && notification.is_read) return false;
             if (filter === 'read' && !notification.is_read) return false;
@@ -94,17 +89,9 @@ export default function NotificationsPage() {
                 if (!typeCategories[category].includes(notification.type)) return false;
             }
 
-            if (query) {
-                const displayCopy = getLaunchSafeNotificationCopy(notification);
-                return (
-                    displayCopy.title.toLowerCase().includes(query) ||
-                    displayCopy.message.toLowerCase().includes(query)
-                );
-            }
-
             return true;
         });
-    }, [notifications, filter, category, searchQuery]);
+    }, [notifications, filter, category]);
     const visibleNotifications = useMemo(
         () => filteredNotifications.slice(0, visibleLimit),
         [filteredNotifications, visibleLimit],
@@ -280,18 +267,18 @@ export default function NotificationsPage() {
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
             {/* Header Area */}
             <div className="bg-white dark:bg-gray-800">
-                <div className="max-w-4xl mx-auto px-4 lg:px-6 py-8">
+                <div className="max-w-4xl mx-auto px-4 py-5 sm:py-8 lg:px-6">
                     <button
                         onClick={() => navigate('/user/dashboard')}
-                        className="mb-6 flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors group"
+                        className="mb-6 hidden items-center gap-2 text-gray-500 transition-colors group hover:text-orange-500 sm:flex"
                     >
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         <span>Back to Dashboard</span>
                     </button>
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center md:gap-6">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                            <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                                 <Bell className="text-orange-500" />
                                 Notifications
                             </h1>
@@ -300,11 +287,11 @@ export default function NotificationsPage() {
                             </p>
                         </div>
 
-                        <div className="flex gap-4">
+                        <div className="flex gap-2 sm:gap-4">
                             {visibleUnreadCount > 0 && (
                                 <button
                                     onClick={markAllAsRead}
-                                    className="flex items-center gap-2 px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors"
+                                    className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-orange-100 px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 sm:flex-none"
                                 >
                                     <CheckCheck size={18} />
                                     Mark all as read
@@ -314,61 +301,33 @@ export default function NotificationsPage() {
                                 type="button"
                                 aria-label="Notification settings"
                                 onClick={() => navigate('/user/dashboard/settings')}
-                                className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 transition-colors"
+                                className="grid min-h-11 min-w-11 place-items-center rounded-xl bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400"
                             >
                                 <Settings size={20} />
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                        <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-xl">
+                    <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-6">
+                        <div className="rounded-xl bg-orange-50 p-3 dark:bg-orange-900/10 sm:p-4">
                             <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">Unread</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleUnreadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleUnreadCount}</p>
                         </div>
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl">
+                        <div className="rounded-xl bg-blue-50 p-3 dark:bg-blue-900/10 sm:p-4">
                             <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleTotalCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleTotalCount}</p>
                         </div>
-                        <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl">
+                        <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-900/10 sm:p-4">
                             <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Read</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleReadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleReadCount}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="max-w-4xl mx-auto px-4 lg:px-6 mt-8">
-                {/* Filters & Search */}
-                <div className="flex flex-col md:flex-row gap-4 mb-8">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            type="text"
-                            aria-label="Search user notifications"
-                            placeholder="Search notifications..."
-                            className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all text-gray-900 dark:text-white"
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setVisibleLimit(NOTIFICATION_PAGE_SIZE);
-                            }}
-                        />
-                        {searchQuery && (
-                            <button
-                                type="button"
-                                aria-label="Clear notification search"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    setVisibleLimit(NOTIFICATION_PAGE_SIZE);
-                                }}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                    </div>
-
+                {/* Focused notification filters */}
+                <div className="mb-8 grid gap-4 sm:grid-cols-2">
                     <select
                         aria-label="Notification category"
                         className="px-4 py-2.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl outline-none font-medium text-sm text-gray-900 dark:text-white"
@@ -441,49 +400,49 @@ export default function NotificationsPage() {
                                     <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-2">{group}</h2>
                                     <div className="space-y-3">
                                         {items.map(notification => {
-                                            const targetPath = getUserNotificationTargetPath(notification);
                                             const displayCopy = getLaunchSafeNotificationCopy(notification);
                                             return (
                                                 <div
                                                     key={notification.id}
-                                                    className="group relative flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-2xl transition-all hover:shadow-xl hover:-translate-y-0.5"
+                                                    className="group relative flex items-start gap-3 rounded-2xl bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-xl dark:bg-gray-800 sm:items-center sm:gap-4"
                                                 >
                                                     <input
                                                         type="checkbox"
                                                         aria-label={`Select notification: ${displayCopy.title}`}
                                                         checked={selectedNotifications.includes(notification.id)}
                                                         onChange={() => handleSelectNotification(notification.id)}
-                                                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 outline-none"
+                                                        className="mt-3 h-4 w-4 shrink-0 rounded border-gray-300 text-orange-500 outline-none dark:border-gray-600 sm:mt-0"
                                                     />
 
-                                                    <button
-                                                        type="button"
-                                                        aria-label={`Open notification: ${displayCopy.title}`}
-                                                        className={`p-3 rounded-xl flex-shrink-0 ${getNotificationSurfaceClass(notification)}`}
-                                                        onClick={() => handleNotificationClick(notification)}
-                                                    >
-                                                        {getNotificationIcon(notification)}
-                                                    </button>
+                                                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                        <button
+                                                            type="button"
+                                                            aria-label={`Open notification: ${displayCopy.title}`}
+                                                            className={`shrink-0 rounded-xl p-2.5 ${getNotificationSurfaceClass(notification)} sm:p-3`}
+                                                            onClick={() => handleNotificationClick(notification)}
+                                                        >
+                                                            {getNotificationIcon(notification)}
+                                                        </button>
 
-                                                    <button
-                                                        type="button"
-                                                        aria-label={`Open notification: ${displayCopy.title}`}
-                                                        className="flex-1 min-w-0 text-left"
-                                                        onClick={() => handleNotificationClick(notification)}
-                                                    >
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <h3 className={`font-bold text-gray-900 dark:text-white truncate ${!notification.is_read ? 'pr-6' : ''}`}>
-                                                                {displayCopy.title}
-                                                            </h3>
-                                                            <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
-                                                        </div>
-                                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{displayCopy.message}</p>
-                                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                                                            <Clock size={14} />
-                                                            <span>{formatTime(notification.created_at)}</span>
-                                                        </div>
-                                                        <p className="mt-1 text-xs text-gray-400">Opens {targetPath}</p>
-                                                    </button>
+                                                        <button
+                                                            type="button"
+                                                            aria-label={`Open notification: ${displayCopy.title}`}
+                                                            className="min-w-0 flex-1 pb-8 text-left sm:pb-0"
+                                                            onClick={() => handleNotificationClick(notification)}
+                                                        >
+                                                            <div className="flex min-w-0 items-center justify-between gap-4">
+                                                                <h3 className={`truncate font-bold text-gray-900 dark:text-white ${!notification.is_read ? 'pr-6' : ''}`}>
+                                                                    {displayCopy.title}
+                                                                </h3>
+                                                                <span className="hidden whitespace-nowrap text-xs text-gray-400 sm:inline">{formatTime(notification.created_at)}</span>
+                                                            </div>
+                                                            <p className="mt-0.5 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{displayCopy.message}</p>
+                                                            <div className="mt-2 flex items-center gap-2 pr-11 text-xs text-gray-400 sm:pr-0">
+                                                                <Clock size={14} />
+                                                                <span>{formatTime(notification.created_at)}</span>
+                                                            </div>
+                                                        </button>
+                                                    </div>
 
                                                     {!notification.is_read && (
                                                         <div aria-hidden="true" className="absolute top-4 right-4 w-2 h-2 bg-orange-500 rounded-full shadow-sm shadow-orange-500/50" />
@@ -496,10 +455,10 @@ export default function NotificationsPage() {
                                                             e.stopPropagation();
                                                             deleteNotification(notification.id);
                                                         }}
-                                                        className="inline-flex items-center gap-1 rounded-lg p-2 text-xs font-semibold text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                                                        className="absolute bottom-2 right-2 inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl p-2 text-xs font-semibold text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 sm:static sm:min-h-0 sm:min-w-0"
                                                     >
                                                         <Trash2 size={18} />
-                                                        Delete
+                                                        <span className="hidden sm:inline">Delete</span>
                                                     </button>
                                                 </div>
                                             );
@@ -531,7 +490,6 @@ export default function NotificationsPage() {
                             onClick={() => {
                                 setFilter('all');
                                 setCategory('all');
-                                setSearchQuery('');
                                 setVisibleLimit(NOTIFICATION_PAGE_SIZE);
                             }}
                             className="mt-8 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl active:scale-95 transition-transform"

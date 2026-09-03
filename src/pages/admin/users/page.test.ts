@@ -135,13 +135,14 @@ test('admin users page title matches the admin navigation label', () => {
   assert.equal(getAdminUsersPageSubtitle(), 'Global Registry');
 });
 
-test('admin users registry table stays contained on mobile', async () => {
+test('admin users registry uses mobile cards while keeping contained desktop tables', async () => {
   const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
 
   assert.equal(getAdminUsersRegistryTableScrollLabel(), 'Scrollable user registry table');
   assert.match(source, /aria-label=\{getAdminUsersRegistryTableScrollLabel\(\)\}/);
   assert.match(source, /aria-label="Scrollable lead reassignment table"/);
-  assert.match(source, /className="relative max-w-full overflow-x-auto overflow-y-hidden \[contain:paint\]"/);
+  assert.match(source, /data-mobile-table="cards"/);
+  assert.match(source, /className="relative hidden max-w-full overflow-x-auto overflow-y-hidden \[contain:paint\] md:block"/);
   assert.match(source, /className="w-full min-w-\[980px\] text-left"/);
   assert.match(source, /className="min-w-0 bg-white dark:bg-gray-800 rounded-\[2rem\]/);
 });

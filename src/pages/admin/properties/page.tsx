@@ -1,6 +1,7 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,7 +24,6 @@ import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
-import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import {
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
@@ -496,7 +496,7 @@ function PropertyManagementContent() {
                     </div>
                 </div>
             ) : null}
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                     <div className="mb-2 flex items-center gap-3">
                         <span className="rounded-full bg-blue-700 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-700/20">Inventory Hub</span>
@@ -511,7 +511,7 @@ function PropertyManagementContent() {
                         Review every manager listing here. Pending submissions can be approved, rejected, or suspended without leaving the registry.
                     </p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
                     <div className="group relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-blue-500" size={18} />
                         <input
@@ -520,13 +520,13 @@ function PropertyManagementContent() {
                             placeholder="Search registry..."
                             value={searchQuery}
                             onChange={(event) => handleSearchChange(event.target.value)}
-                            className="w-64 rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800"
+                        className="w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64"
                         />
                     </div>
                     <button
                         type="button"
                         onClick={() => showWarningToast('Property creation stays in manager workspaces. Admin can review submissions here, but new listings need to be created from a manager account.')}
-                        className="flex items-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-105 active:scale-95 dark:bg-white dark:text-gray-900"
+                        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-105 active:scale-95 dark:bg-white dark:text-gray-900 sm:w-auto"
                     >
                         <Plus size={18} /> Add Property
                     </button>
@@ -537,7 +537,12 @@ function PropertyManagementContent() {
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex flex-1 flex-wrap gap-4">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Type</span>
+                            <span
+                                aria-label="Registry filter group Type"
+                                className="inline-flex self-start rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                            >
+                                Type
+                            </span>
                             {ADMIN_PROPERTY_TYPE_FILTERS.map((type) => (
                                 <button
                                     key={type.value}
@@ -555,7 +560,12 @@ function PropertyManagementContent() {
                             ))}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</span>
+                            <span
+                                aria-label="Registry filter group Status"
+                                className="inline-flex self-start rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                            >
+                                Status
+                            </span>
                             {ADMIN_PROPERTY_STATUS_FILTERS.map((status) => (
                                 <button
                                     key={status.value}
@@ -606,12 +616,7 @@ function PropertyManagementContent() {
             </div>
 
             {loading && properties.length === 0 ? (
-                <div className="flex min-h-[280px] items-center justify-center rounded-[3rem] border bg-white p-20 dark:border-gray-700 dark:bg-gray-800">
-                    <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-                        <BrandLoader className="h-6 w-6" />
-                        <span className="font-bold">Loading full property registry...</span>
-                    </div>
-                </div>
+                <BrandLoadingScreen variant="section" label="Loading full property registry..." />
             ) : pageProperties.length > 0 ? (
                 <>
                     <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3">
@@ -648,7 +653,7 @@ function PropertyManagementContent() {
                                     <div className="absolute right-6 top-6">
                                         {isBusy ? (
                                             <span className="inline-flex items-center gap-2 rounded-xl bg-gray-900/90 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-lg">
-                                                <BrandLoader className="h-3.5 w-3.5" />
+                                                <ActionSpinner size={14} aria-hidden />
                                                 Updating
                                             </span>
                                         ) : null}
@@ -656,15 +661,15 @@ function PropertyManagementContent() {
                                 </div>
 
                                 <div className="p-8">
-                                    <div className="mb-4 flex items-start justify-between gap-4">
-                                        <div>
+                                    <div className="mb-4 flex min-w-0 flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:justify-between min-[360px]:gap-4">
+                                        <div className="min-w-0">
                                             <h2 className="mb-1 text-xl font-black tracking-tight text-gray-900 dark:text-white">{property.title}</h2>
                                             <p className="flex items-center gap-1 text-xs font-bold text-gray-400">
                                                 <MapPin size={12} className="text-blue-500" />
                                                 {property.city || property.location?.city || 'Location unavailable'}
                                             </p>
                                         </div>
-                                        <span className="text-xl font-black text-blue-500">
+                                        <span className="max-w-full text-lg font-black leading-tight text-blue-500 min-[360px]:shrink-0 min-[360px]:text-xl">
                                             {(() => {
                                                 const propertyRecord = property as any;
                                                 return typeof property.price?.amount === 'number'

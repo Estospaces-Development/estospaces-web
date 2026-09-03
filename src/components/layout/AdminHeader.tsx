@@ -141,7 +141,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                 onClick={() => navigate('/admin/dashboard')}
                                 aria-label="Back to admin dashboard"
                                 title="Back to dashboard"
-                                className="hidden h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 text-sm font-bold text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-orange-900 dark:hover:bg-orange-900/20 dark:hover:text-orange-300 sm:inline-flex"
+                                className="hidden h-11 min-w-11 shrink-0 items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 text-sm font-bold text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-orange-900 dark:hover:bg-orange-900/20 dark:hover:text-orange-300 sm:inline-flex"
                             >
                                 <ArrowLeft size={16} />
                                 <span className="hidden xl:inline">Dashboard</span>
@@ -164,7 +164,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                         </button>
                         <button
                             onClick={() => setSearchOpen(true)}
-                            className="hidden md:flex items-center gap-2 pl-3 pr-4 py-2 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 rounded-lg hover:border-orange-300 dark:hover:border-orange-700 transition-all w-64 text-sm"
+                            className="hidden min-h-11 items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 py-2 pl-3 pr-4 text-sm text-gray-500 transition-all hover:border-orange-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-orange-700 md:flex md:w-64"
                             aria-label="Open admin command palette"
                         >
                             <Search size={16} />

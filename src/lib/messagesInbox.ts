@@ -32,12 +32,18 @@ export interface ConversationQueryResolutionInput {
 }
 
 export interface ConversationQueryResolution {
-    status: 'ignore' | 'wait' | 'refresh' | 'select';
+    status: 'ignore' | 'wait' | 'refresh' | 'select' | 'unavailable';
     conversationId: string | null;
 }
 
+export const resolveHasLoadedConversations = (wasLoaded: boolean, loadSucceeded: boolean) => (
+    wasLoaded || loadSucceeded
+);
+
 const UNAVAILABLE_THREAD_TITLE = 'This enquiry thread is unavailable';
 const UNAVAILABLE_THREAD_MESSAGE = 'Open another enquiry or try another conversation.';
+const REFRESH_FAILED_THREAD_TITLE = 'We could not refresh this enquiry';
+const REFRESH_FAILED_THREAD_MESSAGE = 'Check your connection, then retry or return to your conversations.';
 
 function normalizeConversationId(value: string | null | undefined) {
     const trimmedValue = value?.trim();
@@ -88,7 +94,7 @@ export function resolveConversationQuerySelection({
     }
 
     return {
-        status: 'select',
+        status: 'unavailable',
         conversationId,
     };
 }
@@ -116,5 +122,13 @@ export function createUnavailableConversationThreadIssue(conversationId: string)
         conversationId,
         title: UNAVAILABLE_THREAD_TITLE,
         message: UNAVAILABLE_THREAD_MESSAGE,
+    };
+}
+
+export function createConversationRefreshFailedIssue(conversationId: string): ConversationThreadIssue {
+    return {
+        conversationId,
+        title: REFRESH_FAILED_THREAD_TITLE,
+        message: REFRESH_FAILED_THREAD_MESSAGE,
     };
 }

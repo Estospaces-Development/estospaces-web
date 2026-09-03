@@ -17,6 +17,8 @@ import {
   useMapEvents,
 } from "@/lib/leafletReact";
 import "leaflet/dist/leaflet.css";
+import { getSupportedLaunchCountry } from '@/lib/launchLocale';
+import { areCoordinatesInsideLaunchMarket } from '@/lib/mapCoordinates';
 
 interface PropertyLocationPickerProps {
   latitude: number | null;
@@ -80,7 +82,11 @@ export default function PropertyLocationPicker({
   onUseCurrentLocation,
   onLocationChange,
 }: PropertyLocationPickerProps) {
-  const hasLocation = latitude !== null && longitude !== null;
+  const market = getSupportedLaunchCountry(countryCode);
+  const hasLocation = latitude !== null
+    && longitude !== null
+    && market !== null
+    && areCoordinatesInsideLaunchMarket(latitude, longitude, market);
   const fallbackCenter = useMemo<[number, number]>(
     () => (countryCode?.toUpperCase() === "GB" ? UK_CENTER : INDIA_CENTER),
     [countryCode],
@@ -153,12 +159,17 @@ export default function PropertyLocationPicker({
         <MapContainer
           center={position}
           zoom={hasLocation ? 16 : 5}
+          minZoom={2}
+          maxBounds={[[-85, -180], [85, 180]]}
+          maxBoundsViscosity={1}
+          worldCopyJump
           className="h-full w-full"
           scrollWheelZoom
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            noWrap
           />
           <MapClickHandler
             onLocationChange={onLocationChange}

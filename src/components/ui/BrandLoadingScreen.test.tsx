@@ -62,6 +62,8 @@ test('panel variant preserves nearby content while remaining branded and respons
 
 test('all loading surfaces use the same theme-aware circular spinner treatment', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
+    const compactSource = readFileSync(resolve(process.cwd(), 'src/components/ui/BrandLoader.tsx'), 'utf8');
+    const screenSource = readFileSync(resolve(process.cwd(), 'src/components/ui/BrandLoadingScreen.tsx'), 'utf8');
 
     assert.match(styles, /\.brand-loading-surface\s*\{[\s\S]*--loading-surface:/);
     assert.match(styles, /\.dark \.brand-loading-surface/);
@@ -69,6 +71,8 @@ test('all loading surfaces use the same theme-aware circular spinner treatment',
     assert.match(styles, /\.brand-loading-spinner-ring\s*\{[\s\S]*conic-gradient/);
     assert.match(styles, /\.brand-loading-logo\s*\{/);
     assert.match(styles, /\.brand-loading-surface\[data-loading-variant='screen'\]\s*\{[\s\S]*pointer-events: auto/);
+    assert.match(compactSource, /<BrandLoadingIndicator/);
+    assert.match(screenSource, /<BrandLoadingIndicator/);
 });
 
 test('screen loader escapes dashboard stacking contexts through a body portal', () => {
@@ -164,9 +168,8 @@ test('observational research uses the branded section loader for its initial dat
 test('brand loader motion has a reduced-motion fallback', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
 
-    assert.match(styles, /@keyframes estospaces-loader-breathe/);
-    assert.match(styles, /@keyframes estospaces-loader-glow/);
     assert.match(styles, /@keyframes estospaces-loader-orbit/);
     assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
     assert.match(styles, /\.brand-loading-spinner-ring/);
+    assert.doesNotMatch(styles, /estospaces-loader-breathe|estospaces-loader-glow/);
 });

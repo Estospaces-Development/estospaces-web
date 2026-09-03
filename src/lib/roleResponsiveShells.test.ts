@@ -15,9 +15,10 @@ const globals = readSource('src/globals.css');
 const searchPage = readSource('src/pages/user/search/page.tsx');
 const documentShell = readSource('index.html');
 
-test('user workspace uses a two-row mobile header and thumb-reachable navigation', () => {
-    assert.match(userHeader, /grid min-h-16 grid-cols-\[minmax\(0,1fr\)_auto\]/);
-    assert.match(userHeader, /order-3 col-span-2 min-w-0/);
+test('user workspace uses a compact mobile header and thumb-reachable navigation', () => {
+    assert.match(userHeader, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+    assert.match(userHeader, /aria-label="Search Estospaces pages and activities"/);
+    assert.match(userHeader, /aria-haspopup="dialog"/);
     assert.match(userNavigation, /fixed inset-x-0 bottom-0/);
     assert.match(userNavigation, /bottom-0 z-20/);
     assert.doesNotMatch(userNavigation, /bottom-0 z-40/);
@@ -26,7 +27,7 @@ test('user workspace uses a two-row mobile header and thumb-reachable navigation
     assert.match(userNavigation, /absolute right-1\.5 top-1/);
     assert.match(userNavigation, /UnreadCountBadge count=\{item\.badgeCount \|\| 0\} mobile/);
     assert.match(userLayout, /pb-24[\s\S]*md:pb-0/);
-    assert.match(messageFab, /bottom-24[\s\S]*md:bottom-6/);
+    assert.match(messageFab, /hidden[\s\S]*md:inline-flex/);
     assert.match(userHeader, /NotificationDropdown appearance="brand"/);
     assert.match(userHeader, /h-11 min-w-11/);
     assert.match(userHeader, /aria-label="Account actions"/);
@@ -40,7 +41,7 @@ test('every signed-in role renders inside the shared responsive workspace contra
     assert.match(managerLayout, /role-workspace-content/);
     assert.match(adminLayout, /role-workspace-content/);
     assert.match(globals, /\.role-workspace-content \{[\s\S]*width: 100%;[\s\S]*min-width: 0;[\s\S]*max-width: 100%;/);
-    assert.match(globals, /@media \(max-width: 639px\)[\s\S]*overflow-wrap: anywhere;[\s\S]*font-size: 16px;/);
+    assert.match(globals, /@media \(max-width: 639px\)[\s\S]*overflow-wrap: break-word;[\s\S]*word-break: normal;[\s\S]*font-size: 16px;/);
     assert.match(globals, /@media \(pointer: coarse\)[\s\S]*\.workspace-chrome[\s\S]*min-height: 44px;/);
     assert.match(documentShell, /content="width=device-width, initial-scale=1\.0"/);
     assert.doesNotMatch(documentShell, /viewport-fit=cover/);

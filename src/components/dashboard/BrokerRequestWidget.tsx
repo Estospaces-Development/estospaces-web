@@ -10,6 +10,7 @@ import {
     BadgeCheck,
     Building2,
     CheckCircle2,
+    ChevronDown,
     Clock,
     MapPin,
     MessageSquare,
@@ -31,6 +32,7 @@ import {
     LeadBrokerSummary,
 } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
+import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import {
     formatRequestTypeLabel,
     getDispatchWorkspaceSummary,
@@ -42,6 +44,15 @@ import {
     publishBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
+import {
+    beginBrokerRequestAction,
+    cancelBrokerRequestAction,
+    createBrokerRequestActionState,
+    finishBrokerRequestAction,
+    hasActiveBrokerRequestAction,
+    isBrokerRequestActionCurrent,
+} from '@/lib/brokerRequestAction';
+import { getBrokerRequestBudgetError, toBrokerRequestType, type BrokerRequestType } from '@/lib/brokerRequestBudget';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,6 +83,17 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
 
 const DISMISSED_REQUEST_KEY = 'estospaces_dismissed_broker_request_id';
+const NEW_REQUEST_MODE_KEY = 'estospaces_broker_new_request_mode';
+const getUserScopedRequestKey = (key: string, userId?: string | null) => (
+    userId ? `${key}:${userId}` : null
+);
+
+const getPublicAgencyName = (companyName?: string) => {
+    const normalizedName = String(companyName || '').trim();
+    return normalizedName && !isPlaceholderManagerCompanyName(normalizedName)
+        ? normalizedName
+        : '';
+};
 
 export const limitNearestAgenciesForDashboard = (brokers: LeadBrokerSummary[]) => (
     brokers.slice(0, USER_DASHBOARD_NEAREST_AGENCY_LIMIT)
@@ -258,14 +280,15 @@ const hasBrokerRequestDraft = ({
 
 interface BrokerRequestWidgetProps {
     onLocationContextChange?: (locationCode: string | null) => void;
+    preferredRequestId?: string | null;
 }
 
-const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetProps = {}) => {
+const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: BrokerRequestWidgetProps = {}) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
-    const [requestType, setRequestType] = useState('buy');
+    const [requestType, setRequestType] = useState<BrokerRequestType>('buy');
     const [details, setDetails] = useState('');
     const [location, setLocation] = useState('');
     const [locationPostcode, setLocationPostcode] = useState('');
@@ -273,6 +296,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const [fastTrackEnabled, setFastTrackEnabled] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [budgetError, setBudgetError] = useState<string | null>(null);
     const [postcodeError, setPostcodeError] = useState<string | null>(null);
     const [nearbyBrokers, setNearbyBrokers] = useState<LeadBrokerSummary[]>([]);
     const [isRankingLoading, setIsRankingLoading] = useState(false);
@@ -282,18 +306,24 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const [selectingPropertyId, setSelectingPropertyId] = useState<string | null>(null);
     const [rematching, setRematching] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
-    const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(() => {
-        try {
-            return localStorage.getItem(DISMISSED_REQUEST_KEY);
-        } catch {
-            return null;
-        }
-    });
+    const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(null);
+    const [suppressAutoResume, setSuppressAutoResume] = useState(false);
     const [sharedHomeSearch, setSharedHomeSearch] = useState('');
     const [sharedHomeSort, setSharedHomeSort] = useState<'rank' | 'price_desc' | 'price_asc' | 'title_asc'>('rank');
     const [selectionStatusMessage, setSelectionStatusMessage] = useState('');
     const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
     const draftStateRef = useRef(false);
+    const activeRequestLoadIdRef = useRef(0);
+    const createdRequestIdRef = useRef<string | null>(null);
+    const asyncActionStateRef = useRef(createBrokerRequestActionState());
+    const rematchActionRef = useRef(0);
+    const selectionActionRef = useRef(0);
+    const conversationActionRef = useRef(0);
+    const activeUserIdRef = useRef(user?.id);
+    activeUserIdRef.current = user?.id;
+    const activeRequestIdRef = useRef<string | null>(activeRequest?.id || null);
+    activeRequestIdRef.current = activeRequest?.id || null;
+    const explicitResetRequestIdRef = useRef<string | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
         ? searchParams.get('request')?.trim() || null
@@ -307,6 +337,69 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationPostcode);
     const geoMarketCurrencyCode = geoMarket === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;
     const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
+    const beginAsyncAction = useCallback((requestId: string | null) => {
+        const generation = beginBrokerRequestAction(asyncActionStateRef.current);
+        if (generation === null) {
+            return null;
+        }
+        activeRequestLoadIdRef.current += 1;
+        return {
+            generation,
+            requestId,
+            userId: activeUserIdRef.current,
+        };
+    }, []);
+    const isAsyncActionCurrent = useCallback((action: {
+        generation: number;
+        requestId: string | null;
+        userId?: string;
+    }) => (
+        isBrokerRequestActionCurrent(asyncActionStateRef.current, action.generation)
+        && activeUserIdRef.current === action.userId
+        && (!action.requestId || activeRequestIdRef.current === action.requestId)
+    ), []);
+    const finishAsyncAction = useCallback((action: {
+        generation: number;
+        userId?: string;
+    }) => {
+        if (!finishBrokerRequestAction(asyncActionStateRef.current, action.generation)) {
+            return false;
+        }
+        return activeUserIdRef.current === action.userId;
+    }, []);
+
+    useEffect(() => {
+        activeRequestLoadIdRef.current += 1;
+        cancelBrokerRequestAction(asyncActionStateRef.current);
+        rematchActionRef.current = 0;
+        selectionActionRef.current = 0;
+        conversationActionRef.current = 0;
+        setActiveRequest(null);
+        setRequestType('buy');
+        setDetails('');
+        setLocation('');
+        setLocationPostcode('');
+        setBudget('');
+        setFastTrackEnabled(true);
+        setLoading(false);
+        setRematching(false);
+        setSelectingPropertyId(null);
+        setOpeningConversation(false);
+        setError(null);
+        setBudgetError(null);
+        setPostcodeError(null);
+        setSelectionStatusMessage('');
+        publishBrokerRequestWorkspaceSelection(null);
+        const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
+        const newRequestModeKey = getUserScopedRequestKey(NEW_REQUEST_MODE_KEY, user?.id);
+        try {
+            setDismissedRequestId(dismissedKey ? localStorage.getItem(dismissedKey) : null);
+            setSuppressAutoResume(newRequestModeKey ? sessionStorage.getItem(newRequestModeKey) === 'true' : false);
+        } catch {
+            setDismissedRequestId(null);
+            setSuppressAutoResume(false);
+        }
+    }, [user?.id]);
 
     useEffect(() => {
         draftStateRef.current = hasBrokerRequestDraft({
@@ -350,16 +443,62 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
         setBudget('');
         setFastTrackEnabled(true);
         setError(null);
+        setBudgetError(null);
         setPostcodeError(null);
     }, []);
 
+    const clearNewRequestMode = useCallback(() => {
+        const newRequestModeKey = getUserScopedRequestKey(NEW_REQUEST_MODE_KEY, user?.id);
+        try {
+            if (newRequestModeKey) sessionStorage.removeItem(newRequestModeKey);
+        } catch {}
+        setSuppressAutoResume(false);
+    }, [user?.id]);
+
     const loadActiveRequest = useCallback(async () => {
-        if (requestedWorkspaceRequestId) {
-            const { data } = await getBrokerRequestById(requestedWorkspaceRequestId, { suppressErrorToast: true });
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+        const loadId = activeRequestLoadIdRef.current + 1;
+        activeRequestLoadIdRef.current = loadId;
+        let effectiveDismissedRequestId = dismissedRequestId;
+        let prefetchedRequests: Awaited<ReturnType<typeof getUserBrokerRequests>> | null = null;
+        const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
+        if (!effectiveDismissedRequestId && dismissedKey) {
+            try {
+                const legacyDismissedRequestId = localStorage.getItem(DISMISSED_REQUEST_KEY);
+                if (legacyDismissedRequestId) {
+                    prefetchedRequests = await getUserBrokerRequests({ suppressErrorToast: true });
+                    if (activeRequestLoadIdRef.current !== loadId) {
+                        return;
+                    }
+                    if ((prefetchedRequests.data || []).some((request) => request.id === legacyDismissedRequestId)) {
+                        localStorage.setItem(dismissedKey, legacyDismissedRequestId);
+                        localStorage.removeItem(DISMISSED_REQUEST_KEY);
+                        effectiveDismissedRequestId = legacyDismissedRequestId;
+                        setDismissedRequestId(legacyDismissedRequestId);
+                    }
+                }
+            } catch {}
+        }
+        const exactRequestId = requestedWorkspaceRequestId
+            ? requestedWorkspaceRequestId === explicitResetRequestIdRef.current
+                ? null
+                : requestedWorkspaceRequestId
+            : createdRequestIdRef.current
+                || (suppressAutoResume || preferredRequestId === effectiveDismissedRequestId
+                    ? null
+                    : preferredRequestId);
+        if (exactRequestId) {
+            const { data } = await getBrokerRequestById(exactRequestId, { suppressErrorToast: true });
+            if (activeRequestLoadIdRef.current !== loadId) {
+                return;
+            }
             if (data) {
+                clearNewRequestMode();
                 setActiveRequest(data);
                 publishBrokerRequestWorkspaceSelection(data.id);
-                setRequestType(data.request_type || 'buy');
+                setRequestType(toBrokerRequestType(data.request_type));
                 setLocationPostcode(data.location_postcode || '');
                 setLocation(data.location || '');
                 setBudget(data.budget || '');
@@ -369,14 +508,27 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             }
         }
 
-        const { data, error } = await getUserBrokerRequests({ suppressErrorToast: true });
+        if (suppressAutoResume && !requestedWorkspaceRequestId) {
+            setActiveRequest(null);
+            publishBrokerRequestWorkspaceSelection(null);
+            if (!draftStateRef.current) {
+                resetWorkspaceForm();
+            }
+            return;
+        }
+
+        const { data, error } = prefetchedRequests
+            || await getUserBrokerRequests({ suppressErrorToast: true });
+        if (activeRequestLoadIdRef.current !== loadId) {
+            return;
+        }
         if (error) {
             return;
         }
 
         const userMarket = user?.country === 'India' || user?.country_code === 'IN' || user?.countryCode === 'IN' ? 'IN' : 'GB';
         const filteredRequests = (data || []).filter((req) => {
-            if (dismissedRequestId && req.id === dismissedRequestId) {
+            if (effectiveDismissedRequestId && req.id === effectiveDismissedRequestId) {
                 return false;
             }
             const reqMarket = getLaunchCountryFromLocationCode(req.location_postcode);
@@ -404,16 +556,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setActiveRequest(latestRequest);
         publishBrokerRequestWorkspaceSelection(latestRequest.id);
-        setRequestType(latestRequest.request_type || 'buy');
+        setRequestType(toBrokerRequestType(latestRequest.request_type));
         setLocationPostcode(latestRequest.location_postcode || '');
         setLocation(latestRequest.location || '');
         setBudget(latestRequest.budget || '');
         setDetails(latestRequest.details || '');
         setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
-    }, [requestedWorkspaceRequestId, resetWorkspaceForm, user, dismissedRequestId]);
+    }, [clearNewRequestMode, dismissedRequestId, preferredRequestId, requestedWorkspaceRequestId, resetWorkspaceForm, suppressAutoResume, user]);
+
+    useEffect(() => {
+        if (!requestedWorkspaceRequestId) {
+            explicitResetRequestIdRef.current = null;
+        }
+    }, [requestedWorkspaceRequestId]);
 
     useEffect(() => {
         void loadActiveRequest();
+        return () => {
+            activeRequestLoadIdRef.current += 1;
+        };
     }, [loadActiveRequest]);
 
     useEffect(() => {
@@ -473,12 +634,19 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     }, [fastTrackEnabled, geoMarket, locationPostcode]);
 
     const refreshActiveRequest = useCallback(async () => {
-        if (!activeRequest?.id) {
+        if (!activeRequest?.id || hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
             return;
         }
 
-        const { data } = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
-        if (data) {
+        const requestId = activeRequest.id;
+        const loadGeneration = activeRequestLoadIdRef.current + 1;
+        activeRequestLoadIdRef.current = loadGeneration;
+        const { data } = await getBrokerRequestById(requestId, { suppressErrorToast: true });
+        if (
+            data
+            && data.id === requestId
+            && activeRequestLoadIdRef.current === loadGeneration
+        ) {
             setActiveRequest(data);
             publishBrokerRequestWorkspaceSelection(data.id);
         }
@@ -490,12 +658,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             WORKSPACE_SYNC_TAGS.FAST_TRACK,
             WORKSPACE_SYNC_TAGS.MESSAGES,
         ],
-        refresh: () => activeRequest?.id ? refreshActiveRequest() : loadActiveRequest(),
+        refresh: () => hasActiveBrokerRequestAction(asyncActionStateRef.current)
+            ? Promise.resolve()
+            : activeRequest?.id
+                ? refreshActiveRequest()
+                : loadActiveRequest(),
         enabled: Boolean(activeRequest?.id || requestedWorkspaceRequestId),
     });
 
     const handleRematch = async () => {
-        if (!activeRequest?.id) {
+        if (!activeRequest?.id || hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
             return;
         }
 
@@ -508,9 +680,18 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setRematching(true);
         setError(null);
+        const action = beginAsyncAction(activeRequest.id);
+        if (!action) {
+            setRematching(false);
+            return;
+        }
+        rematchActionRef.current = action.generation;
 
         try {
             const { data, error: rematchError } = await rematchBrokerRequest(activeRequest.id);
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             if (rematchError || !data) {
                 throw new Error(rematchError || 'Unable to find another property agent right now.');
             }
@@ -532,15 +713,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             });
             toast.success(brokerCopy.rematchSuccess);
         } catch (actionError: any) {
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             const message = actionError?.message || 'Unable to find another property agent right now.';
             setError(message);
             toast.error(message);
         } finally {
-            setRematching(false);
+            if (finishAsyncAction(action) && rematchActionRef.current === action.generation) {
+                rematchActionRef.current = 0;
+                setRematching(false);
+            }
         }
     };
 
     const handleSelectProperty = async (propertyId: string) => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
         if (!activeRequest?.id || !user?.id) {
             setSelectionStatusMessage('Please sign in again before selecting a property.');
             toast.error('Please sign in again before selecting a property.');
@@ -549,9 +740,19 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setSelectingPropertyId(propertyId);
         setError(null);
+        const requestId = activeRequest.id;
+        const action = beginAsyncAction(requestId);
+        if (!action) {
+            setSelectingPropertyId(null);
+            return;
+        }
+        selectionActionRef.current = action.generation;
 
         try {
-            const { data: selectedRequest, error: selectionError } = await selectBrokerRequestProperty(activeRequest.id, propertyId);
+            const { data: selectedRequest, error: selectionError } = await selectBrokerRequestProperty(requestId, propertyId);
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             if (selectionError || !selectedRequest) {
                 throw new Error(selectionError || 'Unable to save this home to your guided journey.');
             }
@@ -564,7 +765,10 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 throw new Error('The selected home could not be opened from this agent request.');
             }
 
-            const refreshedRequest = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
+            const refreshedRequest = await getBrokerRequestById(requestId, { suppressErrorToast: true });
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             const resolvedRequest = refreshedRequest.data || selectedRequest;
             setActiveRequest(resolvedRequest);
 
@@ -590,22 +794,38 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
             });
             navigate(`/user/properties/${propertyId}?${params.toString()}`);
         } catch (actionError: any) {
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             const message = actionError?.message || 'Unable to select this property right now.';
             setError(message);
             setSelectionStatusMessage(message);
             toast.error(message);
         } finally {
-            setSelectingPropertyId(null);
+            if (finishAsyncAction(action) && selectionActionRef.current === action.generation) {
+                selectionActionRef.current = 0;
+                setSelectingPropertyId(null);
+            }
         }
     };
 
     const handleOpenConversation = async () => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
         if (!activeRequest?.matched_broker_id || !user) {
             toast.error('The matched agent conversation is not ready yet.');
             return;
         }
 
         setOpeningConversation(true);
+        const action = beginAsyncAction(activeRequest.id);
+        if (!action) {
+            setOpeningConversation(false);
+            return;
+        }
+        conversationActionRef.current = action.generation;
         try {
             const propertyContext = selectedProperty
                 ? {
@@ -630,24 +850,43 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 recipientName: matchedBroker?.name || '',
                 recipientEmail: matchedBroker?.email || '',
                 recipientPhone: matchedBroker?.phone || '',
-                recipientAgency: matchedBroker?.company_name || '',
+                recipientAgency: getPublicAgencyName(matchedBroker?.company_name),
             });
+
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
 
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            if (isAsyncActionCurrent(action)) {
+                toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            }
         } finally {
-            setOpeningConversation(false);
+            if (finishAsyncAction(action) && conversationActionRef.current === action.generation) {
+                conversationActionRef.current = 0;
+                setOpeningConversation(false);
+            }
         }
     };
 
     const handleOpenBrokerConversation = async (broker: LeadBrokerSummary) => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
         if (!user) {
             toast.error('Sign in to message this agent.');
             return;
         }
 
         setOpeningConversation(true);
+        const action = beginAsyncAction(null);
+        if (!action) {
+            setOpeningConversation(false);
+            return;
+        }
+        conversationActionRef.current = action.generation;
         try {
             const conversation = await messagesService.upsertDirectConversation(broker.id, {
                 propertyTitle: `${formatRequestTypeLabel(requestType)} enquiry`,
@@ -659,23 +898,58 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 recipientName: broker.name,
                 recipientEmail: broker.email || '',
                 recipientPhone: broker.phone || '',
-                recipientAgency: broker.company_name || '',
+                recipientAgency: getPublicAgencyName(broker.company_name),
             });
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            if (isAsyncActionCurrent(action)) {
+                toast.error(actionError?.message || 'Unable to open the message thread right now.');
+            }
         } finally {
-            setOpeningConversation(false);
+            if (finishAsyncAction(action) && conversationActionRef.current === action.generation) {
+                conversationActionRef.current = 0;
+                setOpeningConversation(false);
+            }
         }
     };
 
     const handleStartAnotherRequest = useCallback(() => {
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+        const requestIdToDismiss = activeRequest?.id || requestedWorkspaceRequestId || preferredRequestId;
+        if (requestIdToDismiss) {
+            explicitResetRequestIdRef.current = requestIdToDismiss;
+            const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
+            try {
+                if (dismissedKey) localStorage.setItem(dismissedKey, requestIdToDismiss);
+            } catch {}
+            setDismissedRequestId(requestIdToDismiss);
+        }
+        const newRequestModeKey = getUserScopedRequestKey(NEW_REQUEST_MODE_KEY, user?.id);
+        try {
+            if (newRequestModeKey) sessionStorage.setItem(newRequestModeKey, 'true');
+        } catch {}
+        setSuppressAutoResume(true);
+        createdRequestIdRef.current = null;
+        activeRequestLoadIdRef.current += 1;
+        cancelBrokerRequestAction(asyncActionStateRef.current);
+        rematchActionRef.current = 0;
+        selectionActionRef.current = 0;
+        conversationActionRef.current = 0;
+        setLoading(false);
+        setRematching(false);
+        setSelectingPropertyId(null);
+        setOpeningConversation(false);
         setActiveRequest(null);
-        setError(null);
+        resetWorkspaceForm();
         setSelectionStatusMessage('');
         publishBrokerRequestWorkspaceSelection(null);
         navigate('/user/dashboard', { replace: true });
-    }, [navigate]);
+    }, [activeRequest?.id, navigate, preferredRequestId, requestedWorkspaceRequestId, resetWorkspaceForm, user?.id]);
 
     const handleLockedMatchAction = () => {
         if (!activeRequest?.id) {
@@ -703,6 +977,16 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
+            return;
+        }
+
+        const nextBudgetError = getBrokerRequestBudgetError(budget, requestType);
+        if (nextBudgetError) {
+            setBudgetError(nextBudgetError);
+            return;
+        }
+
         const trimmedPostcode = normalizePostcode(locationPostcode);
         if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
             setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
@@ -716,7 +1000,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
         setLoading(true);
         setError(null);
+        setBudgetError(null);
         setPostcodeError(null);
+        const action = beginAsyncAction(null);
+        if (!action) {
+            setLoading(false);
+            return;
+        }
 
         try {
             const { success, data, error: requestError } = await createBrokerRequest({
@@ -728,21 +1018,25 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 fastTrackEnabled,
             });
 
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
+
             if (!success) {
                 throw new Error(normalizeLaunchLocationCodeErrorMessage(requestError || 'Failed to submit request', formattedPostcode));
             }
 
             if (data) {
+                const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
                 try {
-                    localStorage.removeItem(DISMISSED_REQUEST_KEY);
+                    if (dismissedKey) localStorage.removeItem(dismissedKey);
                 } catch {}
                 setDismissedRequestId(null);
+                clearNewRequestMode();
 
-                const hydratedRequest = data.id
-                    ? await getBrokerRequestById(data.id, { suppressErrorToast: true })
-                    : { data: null };
-                const resolvedRequest = hydratedRequest.data || data;
+                const resolvedRequest = data;
 
+                createdRequestIdRef.current = resolvedRequest.id;
                 setActiveRequest(resolvedRequest);
                 publishBrokerRequestWorkspaceSelection(resolvedRequest.id);
                 publishWorkspaceSync({
@@ -762,9 +1056,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 navigate(buildBrokerRequestWorkspacePath(resolvedRequest.id), { replace: true });
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to submit request. Please try again.');
+            if (isAsyncActionCurrent(action)) {
+                setError(err.message || 'Failed to submit request. Please try again.');
+            }
         } finally {
-            setLoading(false);
+            if (finishAsyncAction(action)) {
+                setLoading(false);
+            }
         }
     };
 
@@ -892,39 +1190,45 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
     const nearbyBrokerKeyFor = createDuplicateSafeKeyResolver('broker-request-nearby-broker');
 
     return (
-        <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+        <div data-mobile-broker-request className="rounded-xl bg-white p-2.5 shadow-sm dark:bg-gray-800 sm:p-6">
             <div role="status" aria-live="polite" className="sr-only">
                 {selectionStatusMessage}
             </div>
-            <div className="mb-6 flex items-center gap-3">
-                <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
-                    <Send size={20} className="text-orange-600 dark:text-orange-400" />
+            <div className="mb-3 flex items-start gap-2 sm:mb-6 sm:items-center sm:gap-3">
+                <div className="shrink-0 rounded-lg bg-orange-100 p-1.5 dark:bg-orange-900/30 sm:p-2">
+                    <Send size={18} className="text-orange-600 dark:text-orange-400 sm:h-5 sm:w-5" />
                 </div>
-                <div>
-                    <h2 className="font-bold text-gray-900 dark:text-white">{brokerCopy.panelTitle}</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{brokerCopy.panelSubtitle}</p>
+                <div className="min-w-0">
+                    <h2 className="text-sm font-semibold leading-tight text-gray-900 dark:text-white sm:text-base sm:font-bold">{brokerCopy.panelTitle}</h2>
+                    <p className="mt-0.5 text-[11px] leading-[1.35] text-gray-500 dark:text-gray-400 sm:text-xs">
+                        <span className="sm:hidden">Find an agent and matching homes.</span>
+                        <span className="hidden sm:inline">{brokerCopy.panelSubtitle}</span>
+                    </p>
                 </div>
             </div>
 
             {activeRequest && (
                 <div
                     ref={workspaceContainerRef}
-                    className={`mb-6 rounded-2xl border p-4 transition-all duration-300 ${workspaceTone} ${
+                    className={`mb-4 rounded-xl border p-2.5 transition-all duration-300 sm:mb-6 sm:rounded-2xl sm:p-4 ${workspaceTone} ${
                         workspacePulse ? 'ring-2 ring-orange-300 shadow-lg shadow-orange-500/15' : ''
                     }`}
                 >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">{brokerCopy.activeRequestEyebrow}</p>
-                            <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <div className="grid gap-2 sm:flex sm:items-start sm:justify-between sm:gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-orange-500 dark:text-orange-300 sm:text-xs sm:font-semibold sm:tracking-[0.18em]">
+                                <span className="sm:hidden">Request</span>
+                                <span className="hidden sm:inline">{brokerCopy.activeRequestEyebrow}</span>
+                            </p>
+                            <h3 className="mt-1 text-sm font-medium leading-tight text-gray-900 dark:text-white sm:mt-2 sm:text-lg sm:font-semibold">
                                 {dispatchWorkspaceSummary.title}
                             </h3>
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:line-clamp-none sm:text-sm">
                                 {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
                             </p>
                         </div>
-                        <div className={`min-w-[168px] rounded-2xl border px-4 py-3 shadow-sm ${countdownTone.pill}`}>
-                            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        <div className={`w-fit max-w-full rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:shrink-0 sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
+                            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] sm:gap-2 sm:text-[11px] sm:font-semibold sm:tracking-[0.18em]">
                                 <span className="relative flex h-2.5 w-2.5">
                                     {requestIsActive && (
                                         <span className={`absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping ${countdownTone.dot}`} />
@@ -933,13 +1237,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 </span>
                                 {countdownTone.eyebrow}
                             </div>
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
                                 <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
-                                <span className="font-mono text-lg font-bold tracking-[0.18em]">
+                                <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
-                            <p className="mt-1 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                            <p className="mt-1 hidden text-[11px] font-medium text-gray-600 dark:text-gray-300 sm:block">
                                 {countdownTone.caption}
                             </p>
                         </div>
@@ -965,7 +1269,32 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     )}
 
                     {activeRequest && (
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <>
+                            <details className="group mt-3 rounded-xl border border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-zinc-950/60 md:hidden">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:text-sm sm:font-semibold">
+                                    <span>Request details</span>
+                                    <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                                </summary>
+                                <dl className="grid gap-3 border-t border-gray-100 px-3 py-3 text-sm dark:border-gray-800">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <dt className="text-gray-500 dark:text-gray-400">Search area</dt>
+                                        <dd className="min-w-0 max-w-[62%] break-words text-right font-semibold text-gray-900 dark:text-white">{submittedArea || 'Area shared in your request'}</dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <dt className="text-gray-500 dark:text-gray-400">Budget</dt>
+                                        <dd className="min-w-0 max-w-[62%] break-words text-right font-semibold text-gray-900 dark:text-white">{submittedBudget || 'Saved in your request'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-gray-500 dark:text-gray-400">Requirements</dt>
+                                        <dd className="mt-1 break-words font-medium text-gray-900 dark:text-white">{formatRequirementsPreview(submittedRequirements) || 'Attached to your request'}</dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <dt className="text-gray-500 dark:text-gray-400">Reference</dt>
+                                        <dd className="font-semibold text-gray-900 dark:text-white">{formatWorkspaceReference(activeRequest.id)}</dd>
+                                    </div>
+                                </dl>
+                            </details>
+                            <div className="mt-4 hidden gap-3 md:grid md:grid-cols-3">
                             <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Search area</p>
                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -984,27 +1313,28 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     {formatRequirementsPreview(submittedRequirements) || 'Your requirements stay attached to this request.'}
                                 </p>
                             </div>
-                        </div>
+                            </div>
+                        </>
                     )}
 
                     {requestIsMatched ? (
-                        <div className="mt-5 space-y-4">
-                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                                <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-zinc-950 dark:text-emerald-300">
+                        <div className="mt-3 space-y-3 sm:mt-5 sm:space-y-4">
+                            <div className="rounded-xl border-0 bg-transparent p-0 dark:bg-transparent sm:rounded-2xl sm:border sm:border-emerald-200 sm:bg-emerald-50/70 sm:p-5 sm:dark:border-emerald-900/40 sm:dark:bg-emerald-950/20">
+                                <div className="flex items-start justify-between gap-3 sm:flex-wrap sm:gap-4">
+                                    <div className="min-w-0 flex-1">
+                                        <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-zinc-950 dark:text-emerald-300 sm:inline-flex">
                                             <BadgeCheck size={12} />
                                             {brokerCopy.matchedBrokerLabel}
                                         </span>
-                                        <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
+                                        <p className="break-words text-base font-medium leading-tight text-gray-900 dark:text-white sm:mt-4 sm:text-2xl sm:font-semibold">
                                             {matchedBroker?.name || 'Your property agent is ready'}
                                         </p>
-                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
+                                        <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:mt-2 sm:line-clamp-none sm:text-sm">
+                                            {getPublicAgencyName(matchedBroker?.company_name) || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequestArea ? ` in ${activeRequestArea}` : ''}.
                                         </p>
                                     </div>
-                                    <details className="min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
+                                    <details className="hidden min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950 sm:block">
                                         <summary className="cursor-pointer list-none text-sm font-semibold text-gray-900 dark:text-white">
                                             {brokerCopy.detailsToggleLabel}
                                         </summary>
@@ -1021,7 +1351,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     </details>
                                 </div>
 
-                                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                                <div className="mt-5 hidden gap-3 sm:grid sm:grid-cols-2">
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             <MapPin size={15} className="text-orange-500" />
@@ -1037,7 +1367,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                             Agent profile
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {matchedBroker?.company_name || 'Independent agent'}
+                                            {getPublicAgencyName(matchedBroker?.company_name) || 'Independent agent'}
                                             {formatBrokerDistance(matchedBroker?.distance_miles) ? ` - ${formatBrokerDistance(matchedBroker?.distance_miles)} away` : ''}
                                         </p>
                                     </div>
@@ -1063,11 +1393,11 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                     </div>
                                 </div>
 
-                                <div className="mt-5 flex flex-wrap gap-3">
+                                <div className="mt-4 grid gap-2 sm:mt-5 sm:flex sm:flex-wrap sm:gap-3">
                                     {matchedBroker?.phone && (
                                         <a
                                             href={`tel:${matchedBroker.phone}`}
-                                            className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                                            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-700 sm:w-auto sm:px-4 sm:text-sm sm:font-semibold"
                                         >
                                             <Phone size={15} />
                                             Call agent
@@ -1077,7 +1407,7 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                         type="button"
                                         onClick={handleOpenConversation}
                                         disabled={openingConversation}
-                                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:w-auto sm:px-4 sm:text-sm sm:font-semibold"
                                     >
                                         {openingConversation ? <ActionSpinner size={15} className="" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
@@ -1085,16 +1415,53 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 </div>
                             </div>
 
-                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/40">
-                                <div className="flex items-center gap-2">
+                            <details
+                                open={Boolean(selectedProperty || availableSharedProperties.length > 0)}
+                                className="group rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40 sm:rounded-2xl sm:border-gray-100 sm:p-5"
+                            >
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:hidden">
+                                    <span className="min-w-0">
+                                        <span className="block text-[9px] font-medium uppercase tracking-[0.14em] text-orange-500">Next step</span>
+                                        <span className="mt-0.5 block truncate">
+                                            {selectedProperty
+                                                ? 'Continue with your selected home'
+                                                : availableSharedProperties.length > 0
+                                                    ? 'Review your home choices'
+                                                    : 'Waiting for home choices'}
+                                        </span>
+                                    </span>
+                                    <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                                </summary>
+                                <div className="hidden p-3 group-open:block sm:block sm:p-0">
+                                <div className="hidden items-center gap-2 sm:flex">
                                     <CheckCircle2 size={18} className="text-orange-500" />
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">What happens next</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Your property agent stays linked here until home choices are shared and you pick one.</p>
+                                        <p className="line-clamp-2 text-xs text-gray-500 dark:text-gray-400 sm:line-clamp-none">Your property agent stays linked here until home choices are shared and you pick one.</p>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                <details className="group mt-3 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-950/70 sm:hidden">
+                                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white">
+                                        <span>View {matchedExperienceSteps.length} next steps</span>
+                                        <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                                    </summary>
+                                    <ol className="grid gap-3 border-t border-gray-100 p-3 dark:border-gray-800">
+                                        {matchedExperienceSteps.map((step, index) => (
+                                            <li key={`${step.id}-mobile`} className="flex items-start gap-3">
+                                                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                                    {index + 1}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{step.title}</p>
+                                                    <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{step.description}</p>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </details>
+
+                                <div className="mt-4 hidden gap-3 sm:grid md:grid-cols-3">
                                     {matchedExperienceSteps.map((step, index) => (
                                         <div key={step.id} className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                             <div className="flex items-start gap-3">
@@ -1321,13 +1688,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                                 The shared home is no longer available. Ask your property agent to refresh the shortlist before starting a 24-hour journey.
                                             </div>
                                         ) : (
-                                            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100">
-                                                Your property agent is connected, but home choices are not ready yet. Once they arrive, you can compare them here and start your 24-hour journey.
+                                            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-3 py-3 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100 sm:px-4 sm:py-4">
+                                                <span className="sm:hidden">Your agent is preparing homes. They will appear here when ready.</span>
+                                                <span className="hidden sm:inline">Your property agent is connected, but home choices are not ready yet. Once they arrive, you can compare them here and start your 24-hour journey.</span>
                                             </div>
                                         )}
 
                                         {!selectedProperty && requestReplacementLocked ? (
-                                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                                            <div className="mt-4 hidden rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 sm:block">
                                                 Your property agent is locked for this request. Continue with this agent, review shared homes, or start another request without changing this match.
                                             </div>
                                         ) : !selectedProperty ? (
@@ -1347,12 +1715,14 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                                 <button
                                     type="button"
                                     onClick={handleStartAnotherRequest}
-                                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                    disabled={loading || rematching || Boolean(selectingPropertyId) || openingConversation}
+                                    className="mt-4 hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:inline-flex"
                                 >
                                     <Radio size={14} />
                                     {brokerCopy.restartRequestLabel}
                                 </button>
-                            </div>
+                                </div>
+                            </details>
                         </div>
                     ) : (
                         <>
@@ -1407,13 +1777,33 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                {activeRequest && (
+                    <button
+                        type="button"
+                        onClick={handleStartAnotherRequest}
+                        disabled={loading || rematching || Boolean(selectingPropertyId) || openingConversation}
+                        className="mb-1 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:hidden"
+                    >
+                        <span>Start a different request</span>
+                        <ArrowRight size={16} className="shrink-0" aria-hidden="true" />
+                    </button>
+                )}
+                <form
+                    onSubmit={handleSubmit}
+                    className={`space-y-4 ${activeRequest ? 'hidden sm:block' : 'block'}`}
+                >
                 <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700/50">
-                    {['buy', 'rent', 'sell'].map((type) => (
+                    {(['buy', 'rent', 'sell'] as BrokerRequestType[]).map((type) => (
                         <button
                             key={type}
                             type="button"
-                            onClick={() => setRequestType(type)}
+                            onClick={() => {
+                                setRequestType(type);
+                                setBudgetError(budget.trim()
+                                    ? getBrokerRequestBudgetError(budget, type)
+                                    : null);
+                            }}
                             className={`flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition-all ${
                                 requestType === type
                                     ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
@@ -1452,12 +1842,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
 
                 <div className="space-y-3">
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-location" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             Preferred Location
                         </label>
                         <div className="relative">
                             <MapPin size={14} className="absolute left-3 top-2.5 text-gray-400" />
                             <input
+                                id="broker-request-location"
                                 type="text"
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
@@ -1470,10 +1861,11 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     </div>
 
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-location-code" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             {locationCodeLabel}
                         </label>
                         <input
+                            id="broker-request-location-code"
                             type="text"
                             value={locationPostcode}
                             onChange={(e) => {
@@ -1488,30 +1880,43 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                             }}
                             placeholder={locationCodePlaceholder}
                             maxLength={8}
+                            aria-invalid={Boolean(postcodeError)}
+                            aria-describedby={postcodeError ? 'broker-request-location-code-error' : undefined}
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
                         />
                         {postcodeError && (
-                            <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
+                            <p id="broker-request-location-code-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
                         )}
                     </div>
 
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-budget" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             Budget / Price Range ({geoMarketCurrencyCode})
                         </label>
                         <div className="relative">
                             <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{geoMarketCurrencyCode}</span>
                             <input
+                                id="broker-request-budget"
                                 type="text"
                                 value={budget}
-                                onChange={(e) => setBudget(e.target.value)}
+                                onChange={(e) => {
+                                    setBudget(e.target.value);
+                                    if (budgetError) {
+                                        setBudgetError(null);
+                                    }
+                                }}
                                 placeholder="e.g. 500k - 600k"
                                 maxLength={255}
+                                aria-invalid={Boolean(budgetError)}
+                                aria-describedby={budgetError ? 'broker-request-budget-error' : undefined}
                                 className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-12 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                                 required
                             />
                         </div>
+                        {budgetError && (
+                            <p id="broker-request-budget-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{budgetError}</p>
+                        )}
                     </div>
 
                     <div>
@@ -1530,13 +1935,13 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-                    <div className="flex items-center justify-between gap-3">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50 sm:p-4">
+                    <div className="block sm:flex sm:items-center sm:justify-between sm:gap-3">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{brokerCopy.nearbyBrokersTitle}</p>
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{brokerCopy.nearbyBrokersSubtitle}</p>
+                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500 sm:text-xs sm:font-semibold sm:tracking-[0.2em]">{brokerCopy.nearbyBrokersTitle}</p>
+                            <p className="mt-1 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:text-sm">{brokerCopy.nearbyBrokersSubtitle}</p>
                         </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300">
+                        <div className="mt-2 hidden items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300 sm:mt-0 sm:inline-flex">
                             <Clock size={13} />
                             Quick help
                         </div>
@@ -1546,24 +1951,26 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                     ) : visibleNearbyBrokers.length > 0 ? (
                         <div className="mt-4 space-y-2">
                             {visibleNearbyBrokers.map((broker, index) => (
-                                <div key={nearbyBrokerKeyFor(broker.id, index)} className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <div key={nearbyBrokerKeyFor(broker.id, index)} className="grid min-w-0 gap-2 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex sm:items-start sm:justify-between sm:gap-3">
                                     <div className="min-w-0 flex-1">
-                                        <p className="break-words text-sm font-semibold text-gray-900 dark:text-white">
+                                        <p className="break-words text-xs font-medium text-gray-900 dark:text-white sm:text-sm sm:font-semibold">
                                             {index + 1}. {' '}
                                             <button
                                                 type="button"
                                                 onClick={() => handleOpenBrokerConversation(broker)}
-                                                className="text-left text-sm font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                disabled={openingConversation}
+                                                aria-label={`Message ${broker.name}`}
+                                                className="text-left text-xs font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 disabled:cursor-wait disabled:opacity-60 dark:text-blue-400 dark:hover:text-blue-300 sm:text-sm sm:font-semibold"
                                             >
                                                 {broker.name}
                                             </button>
                                         </p>
                                         <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
-                                            {broker.company_name || 'Independent agent'}
+                                            {getPublicAgencyName(broker.company_name) || 'Independent agent'}
                                             {formatBrokerDistance(broker.distance_miles) ? ` - ${formatBrokerDistance(broker.distance_miles)}` : ''}
                                         </p>
                                     </div>
-                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                    <span className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300 sm:shrink-0 sm:text-[11px] sm:font-semibold">
                                         <BadgeCheck size={12} />
                                         {broker.fast_track_eligible ? brokerCopy.nearbyBrokerAvailableLabel : brokerCopy.nearbyBrokerQueuedLabel}
                                     </span>
@@ -1609,7 +2016,8 @@ const BrokerRequestWidget = ({ onLocationContextChange }: BrokerRequestWidgetPro
                 <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
                     {brokerCopy.requestFormHelper}
                 </p>
-            </form>
+                </form>
+            </div>
         </div>
     );
 };

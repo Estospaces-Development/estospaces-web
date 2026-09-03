@@ -35,6 +35,15 @@ test('app host still blocks admin routes locally', () => {
     );
 });
 
+test('admin host preserves login routes instead of redirecting back to the protected admin shell', () => {
+    assert.equal(resolveHostedWorkspaceRedirect('admin', '/login'), null);
+    assert.equal(resolveHostedWorkspaceRedirect('admin', '/login/'), null);
+    assert.deepEqual(
+        resolveHostedWorkspaceRedirect('admin', '/privacy'),
+        { path: '/admin', role: 'admin' },
+    );
+});
+
 test('cloud run dev hosts stay on the same origin for admin links', () => {
     assert.equal(isSingleOriginHostedHost('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), true);
     assert.equal(resolveCurrentAppFromHostname('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), 'app');
@@ -149,15 +158,7 @@ test('localhost resolves as the app host so root boot skips the landing experien
     }
 });
 
-test('public home href sends app-hosted public pages to the marketing home', () => {
-    assert.equal(getPublicHomeHref('app.estospaces.com'), 'https://estospaces.com/');
-    assert.equal(getPublicHomeHref('admin.estospaces.com'), 'https://estospaces.com/');
-    assert.equal(isExternalHref(getPublicHomeHref('app.estospaces.com')), true);
-});
-
-test('public home href stays local for landing and single-origin QA hosts', () => {
-    assert.equal(getPublicHomeHref('estospaces.com'), '/home');
-    assert.equal(getPublicHomeHref('localhost'), '/home');
-    assert.equal(getPublicHomeHref('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/home');
-    assert.equal(isExternalHref(getPublicHomeHref('localhost')), false);
+test('public home href always sends the application to the official marketing website', () => {
+    assert.equal(getPublicHomeHref(), 'https://estospaces.com/');
+    assert.equal(isExternalHref(getPublicHomeHref()), true);
 });

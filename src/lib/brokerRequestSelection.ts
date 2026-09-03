@@ -47,9 +47,15 @@ export const sortBrokerRequestsByPriority = (
 const normalizeSubmissionToken = (value?: string | null) => normalizeValue(value).replace(/\s+/g, ' ');
 const normalizeCompactSubmissionToken = (value?: string | null) => normalizeSubmissionToken(value).replace(/\s+/g, '');
 
-const getRequestSubmissionMinute = (request: BrokerRequestRecord) => {
-    const timestamp = getRequestTimestamp(request);
-    return timestamp > 0 ? String(Math.floor(timestamp / 60000)) : '';
+const isClosedBrokerRequest = (request: BrokerRequestRecord) => {
+    const status = normalizeValue(request.status);
+    const dispatchStatus = normalizeValue(request.dispatch_status);
+    const handoffStatus = normalizeValue(request.handoff_status);
+    return CLOSED_AUTO_RESUME_STATUSES.has(status)
+        || CLOSED_AUTO_RESUME_STATUSES.has(dispatchStatus)
+        || CLOSED_AUTO_RESUME_STATUSES.has(handoffStatus)
+        || status === 'expired'
+        || dispatchStatus === 'expired';
 };
 
 const getRequestSubmissionSignature = (request: BrokerRequestRecord) => {
@@ -62,7 +68,6 @@ const getRequestSubmissionSignature = (request: BrokerRequestRecord) => {
         normalizeCompactSubmissionToken(request.location_postcode),
         normalizeSubmissionToken(request.budget),
         normalizeSubmissionToken(request.details),
-        getRequestSubmissionMinute(request),
     ];
 
     if (!requesterKey || requestDetails.every((item) => item === '')) {
@@ -70,6 +75,25 @@ const getRequestSubmissionSignature = (request: BrokerRequestRecord) => {
     }
 
     return [requesterKey, ...requestDetails].join('|');
+};
+
+const SUBMISSION_DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
+
+const submissionRequestsAreDuplicates = (
+    candidate: BrokerRequestRecord,
+    current: BrokerRequestRecord,
+) => {
+    if (isClosedBrokerRequest(candidate) !== isClosedBrokerRequest(current)) {
+        return false;
+    }
+
+    const candidateTimestamp = getRequestTimestamp(candidate);
+    const currentTimestamp = getRequestTimestamp(current);
+    if (candidateTimestamp === 0 || currentTimestamp === 0) {
+        return candidate.id === current.id;
+    }
+
+    return Math.abs(candidateTimestamp - currentTimestamp) <= SUBMISSION_DUPLICATE_WINDOW_MS;
 };
 
 const getSelectedPropertyWorkspaceSignature = (request: BrokerRequestRecord) => {
@@ -87,19 +111,6 @@ const getSelectedPropertyWorkspaceSignature = (request: BrokerRequestRecord) => 
     return `selected-property|${requesterKey}|${managerKey}|${propertyKey}`;
 };
 
-const SELECTED_PROPERTY_DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
-
-const isClosedBrokerRequest = (request: BrokerRequestRecord) => {
-    const status = normalizeValue(request.status);
-    const dispatchStatus = normalizeValue(request.dispatch_status);
-    const handoffStatus = normalizeValue(request.handoff_status);
-    return CLOSED_AUTO_RESUME_STATUSES.has(status)
-        || CLOSED_AUTO_RESUME_STATUSES.has(dispatchStatus)
-        || CLOSED_AUTO_RESUME_STATUSES.has(handoffStatus)
-        || status === 'expired'
-        || dispatchStatus === 'expired';
-};
-
 const selectedPropertyRequestsAreDuplicates = (
     candidate: BrokerRequestRecord,
     current: BrokerRequestRecord,
@@ -110,15 +121,17 @@ const selectedPropertyRequestsAreDuplicates = (
 
     const candidateCaseID = normalizeSubmissionToken(candidate.selected_fast_track_case_id);
     const currentCaseID = normalizeSubmissionToken(current.selected_fast_track_case_id);
-    if (candidateCaseID && currentCaseID && candidateCaseID !== currentCaseID) {
-        return false;
+    if (candidateCaseID && currentCaseID) {
+        return candidateCaseID === currentCaseID;
     }
 
-    return Math.abs(getRequestTimestamp(candidate) - getRequestTimestamp(current))
-        <= SELECTED_PROPERTY_DUPLICATE_WINDOW_MS;
+    return submissionRequestsAreDuplicates(candidate, current);
 };
 
 const getRequestProgressScore = (request: BrokerRequestRecord) => {
+    if (request.selected_fast_track_case_id) {
+        return 5;
+    }
     if (request.selected_property_id || request.selected_fast_track_case_id || request.selected_property) {
         return 4;
     }
@@ -151,20 +164,36 @@ export const dedupeBrokerRequestsBySubmissionSignature = (
     }
 
     const deduped: BrokerRequestRecord[] = [];
-    const indexBySignature = new Map<string, number>();
+    const submissionIndexesBySignature = new Map<string, number[]>();
+    const submissionAnchorByIndex = new Map<number, BrokerRequestRecord>();
     const selectedIndexesBySignature = new Map<string, number[]>();
+    const selectedAnchorByIndex = new Map<number, BrokerRequestRecord>();
 
-    for (const request of requests) {
+    const requestsBySubmissionTime = [...requests].sort(
+        (left, right) => getRequestTimestamp(left) - getRequestTimestamp(right),
+    );
+
+    for (const request of requestsBySubmissionTime) {
         const selectedSignature = getSelectedPropertyWorkspaceSignature(request);
         if (selectedSignature) {
             const matchingIndex = (selectedIndexesBySignature.get(selectedSignature) || [])
-                .find((index) => selectedPropertyRequestsAreDuplicates(request, deduped[index]));
+                .find((index) => {
+                    const current = deduped[index];
+                    const currentCaseID = normalizeSubmissionToken(current.selected_fast_track_case_id);
+                    const candidateCaseID = normalizeSubmissionToken(request.selected_fast_track_case_id);
+                    const comparisonRequest = currentCaseID && candidateCaseID
+                        ? current
+                        : selectedAnchorByIndex.get(index) || current;
+
+                    return selectedPropertyRequestsAreDuplicates(request, comparisonRequest);
+                });
             if (matchingIndex === undefined) {
                 const nextIndex = deduped.length;
                 selectedIndexesBySignature.set(selectedSignature, [
                     ...(selectedIndexesBySignature.get(selectedSignature) || []),
                     nextIndex,
                 ]);
+                selectedAnchorByIndex.set(nextIndex, request);
                 deduped.push(request);
             } else if (shouldReplaceDuplicateBrokerRequest(request, deduped[matchingIndex])) {
                 deduped[matchingIndex] = request;
@@ -178,9 +207,18 @@ export const dedupeBrokerRequestsBySubmissionSignature = (
             continue;
         }
 
-        const existingIndex = indexBySignature.get(signature);
+        const existingIndex = (submissionIndexesBySignature.get(signature) || [])
+            .find((index) => submissionRequestsAreDuplicates(
+                request,
+                submissionAnchorByIndex.get(index) || deduped[index],
+            ));
         if (existingIndex === undefined) {
-            indexBySignature.set(signature, deduped.length);
+            const nextIndex = deduped.length;
+            submissionIndexesBySignature.set(signature, [
+                ...(submissionIndexesBySignature.get(signature) || []),
+                nextIndex,
+            ]);
+            submissionAnchorByIndex.set(nextIndex, request);
             deduped.push(request);
             continue;
         }

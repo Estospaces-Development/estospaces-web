@@ -9,6 +9,7 @@ const ADMIN_DOMAIN = 'admin.estospaces.com';
 const LANDING_DOMAIN = 'estospaces.com';
 
 const ADMIN_AUTH_ROUTE_PATHS = new Set([
+    '/login',
     '/sessions/create',
     '/forgot-password',
     '/reset-password',
@@ -35,7 +36,9 @@ export const resolveHostedWorkspaceRedirect = (
     currentApp: HostedApp,
     pathname: string,
 ): { path: string; role: 'user' | 'admin' } | null => {
-    if (currentApp === 'admin' && ADMIN_AUTH_ROUTE_PATHS.has(pathname)) {
+    const normalizedPathname = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+
+    if (currentApp === 'admin' && ADMIN_AUTH_ROUTE_PATHS.has(normalizedPathname)) {
         return null;
     }
 
@@ -96,19 +99,7 @@ export const getHostConfig = () => {
 
 export const isExternalHref = (href: string) => /^https?:\/\//i.test(href);
 
-export const getPublicHomeHref = (hostname?: string) => {
-    const resolvedHostname = hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
-
-    if (!resolvedHostname || isLocalhostHost(resolvedHostname) || isSingleOriginHostedHost(resolvedHostname)) {
-        return '/home';
-    }
-
-    if (resolveCurrentAppFromHostname(resolvedHostname) === 'landing') {
-        return '/home';
-    }
-
-    return `https://${LANDING_DOMAIN}/`;
-};
+export const getPublicHomeHref = () => `https://${LANDING_DOMAIN}/`;
 
 export const useHost = () => {
     return getHostConfig();

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -50,11 +51,15 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
         }
     };
 
-    // Default coordinates if not provided
-    const location = {
-        lat: property.latitude || 51.5074,
-        lng: property.longitude || -0.1278
-    };
+    const verifiedCoordinates = getVerifiedPropertyMapCoordinates({
+        latitude: property.latitude,
+        longitude: property.longitude,
+        country: property.propertyCountry,
+        address: property.propertyAddress,
+    });
+    const location = verifiedCoordinates
+        ? { lat: verifiedCoordinates.latitude, lng: verifiedCoordinates.longitude }
+        : null;
 
     return (
         <>
@@ -100,13 +105,16 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
                                 <ExternalLink size={12} />
                             </button>
 
-                            <button
-                                onClick={() => setShowStreetView(true)}
-                                className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
-                                title="Street View"
-                            >
-                                <Map size={14} />
-                            </button>
+                            {location ? (
+                                <button
+                                    onClick={() => setShowStreetView(true)}
+                                    className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
+                                    title="Street View"
+                                    aria-label="Open Street View for this property"
+                                >
+                                    <Map size={14} />
+                                </button>
+                            ) : null}
 
                             {VIRTUAL_TOUR_ENABLED && (
                                 <button
@@ -123,7 +131,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
             </div>
 
             <Suspense fallback={null}>
-                {showStreetView && <StreetViewModal location={location} onClose={() => setShowStreetView(false)} />}
+                {showStreetView && location ? <StreetViewModal location={location} onClose={() => setShowStreetView(false)} /> : null}
                 {VIRTUAL_TOUR_ENABLED && showTour && <Tour360Modal tourUrl={property.tourUrl} onClose={() => setShowTour(false)} />}
             </Suspense>
         </>

@@ -7,17 +7,20 @@ import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEve
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
 import { formatMapPropertyPrice } from '@/lib/mapCurrency';
+import { STANDARD_MAP_TILE_LAYER } from '@/lib/mapTiles';
 import {
     calculateMapDistanceKm,
     getNearbyMapEmptyState,
     hasValidMapCoordinates,
+    hasVerifiedPropertyMapCoordinates,
     selectDashboardNearbyProperties,
 } from '@/lib/nearbyMap';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import type { FastTrackRequestStatus } from '@/lib/propertyFastTrackRequest';
 
 interface UserLocation {
     latitude: number;
@@ -50,6 +53,7 @@ interface NearbyPropertiesMapProps {
     onPropertyClick?: ((property: Property) => void) | null;
     onOpenWorkspace?: ((property: Property) => void) | null;
     onStartFastTrack?: ((property: Property) => void) | null;
+    getFastTrackRequestStatus?: ((propertyID: string) => FastTrackRequestStatus) | null;
     compact?: boolean;
 }
 
@@ -118,7 +122,7 @@ function MapAutoFit({
             }
 
             properties.forEach((property) => {
-                if (hasValidMapCoordinates(property)) {
+                if (hasVerifiedPropertyMapCoordinates(property)) {
                     points.push([property.latitude, property.longitude]);
                 }
             });
@@ -171,6 +175,7 @@ const NearbyPropertiesMap = ({
     onPropertyClick = null,
     onOpenWorkspace = null,
     onStartFastTrack = null,
+    getFastTrackRequestStatus = null,
     compact = false,
 }: NearbyPropertiesMapProps) => {
     const navigate = useNavigate();
@@ -193,7 +198,7 @@ const NearbyPropertiesMap = ({
     const visibleProperties = useMemo(() => (
         compact
             ? selectDashboardNearbyProperties(properties, userLocation)
-            : properties.filter(hasValidMapCoordinates)
+            : properties.filter(hasVerifiedPropertyMapCoordinates)
     ), [compact, properties, userLocation]);
 
     const propertiesWithDistance = useMemo(() => {
@@ -231,7 +236,7 @@ const NearbyPropertiesMap = ({
     ), [propertiesWithDistance]);
 
     const propertiesWithCoords = useMemo(() => (
-        sortedProperties.filter(hasValidMapCoordinates)
+        sortedProperties.filter(hasVerifiedPropertyMapCoordinates)
     ), [sortedProperties]);
 
     useEffect(() => {
@@ -260,6 +265,9 @@ const NearbyPropertiesMap = ({
         () => propertiesWithCoords.find((property) => property.id === selectedPropertyID) || null,
         [propertiesWithCoords, selectedPropertyID],
     );
+    const selectedFastTrackStatus = selectedProperty && getFastTrackRequestStatus
+        ? getFastTrackRequestStatus(selectedProperty.id)
+        : 'idle';
     const mapKey = useMemo(() => [
         userLocation?.latitude ?? 'none',
         userLocation?.longitude ?? 'none',
@@ -280,7 +288,7 @@ const NearbyPropertiesMap = ({
 
         for (const property of propertiesWithCoords) {
             if (
-                hasValidMapCoordinates(property)
+                hasVerifiedPropertyMapCoordinates(property)
             ) {
                 points.push([property.latitude, property.longitude]);
             }
@@ -383,7 +391,7 @@ const NearbyPropertiesMap = ({
     if (!isMounted) {
         return (
             <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                <BrandLoader size="md" label="Loading nearby map" showLabel />
+                <BrandLoadingScreen variant="panel" label="Loading nearby map..." />
             </div>
         );
     }
@@ -391,12 +399,17 @@ const NearbyPropertiesMap = ({
     return (
         <div
             className="relative isolate h-full w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-950"
+            data-nearby-map-compact={compact ? 'true' : 'false'}
             data-nearby-map-style={mapStyle}
         >
             <MapContainer
                 key={mapKey}
                 center={initialView.center}
                 zoom={initialView.zoom}
+                minZoom={2}
+                maxBounds={[[-85, -180], [85, 180]]}
+                maxBoundsViscosity={1}
+                worldCopyJump
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={false}
                 dragging={!compact}
@@ -407,8 +420,8 @@ const NearbyPropertiesMap = ({
                 <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} />
                 {mapStyle === 'standard' ? (
                     <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        attribution={STANDARD_MAP_TILE_LAYER.attribution}
+                        url={STANDARD_MAP_TILE_LAYER.url}
                         noWrap
                     />
                 ) : (
@@ -487,7 +500,7 @@ const NearbyPropertiesMap = ({
                 })}
             </MapContainer>
 
-            <div className="absolute left-4 top-4 z-[1000] flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3">
+            <div className={`absolute z-[1000] ${compact ? 'inset-x-2 top-2 sm:inset-x-auto sm:left-4 sm:top-4' : 'left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3'}`}>
                 <div className={`rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Nearby map</p>
                     <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -498,12 +511,12 @@ const NearbyPropertiesMap = ({
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                <div className={`${compact ? 'grid w-full grid-cols-3 gap-1 rounded-xl p-1.5 sm:flex sm:w-auto sm:gap-2 sm:rounded-2xl sm:p-2' : 'flex items-center gap-2 rounded-2xl p-2'} bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90`}>
                     <button
                         type="button"
                         data-nearby-map-standard
                         onClick={() => setMapStyle('standard')}
-                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                        className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
                             mapStyle === 'standard'
                                 ? 'bg-orange-500 text-white'
                                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
@@ -516,7 +529,7 @@ const NearbyPropertiesMap = ({
                         type="button"
                         data-nearby-map-satellite
                         onClick={() => setMapStyle('satellite')}
-                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                        className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
                             mapStyle === 'satellite'
                                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
                                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
@@ -534,7 +547,7 @@ const NearbyPropertiesMap = ({
                             setSelectedPropertyID(propertiesWithCoords[0]?.id || null);
                             setFitSignal((value) => value + 1);
                         }}
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+                        className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] font-medium text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold"
                     >
                         <LocateFixed size={14} />
                         {compact ? 'Reset' : 'Recenter'}
@@ -608,16 +621,21 @@ const NearbyPropertiesMap = ({
                             type="button"
                             data-nearby-open-fast-track
                             onClick={() => handleStartFastTrack(selectedProperty)}
-                            className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                            disabled={selectedFastTrackStatus !== 'idle'}
+                            className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-700 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-200"
                         >
-                            Request fast-track
+                            {selectedFastTrackStatus === 'requesting'
+                                ? 'Requesting...'
+                                : selectedFastTrackStatus === 'requested'
+                                    ? 'Fast Track requested'
+                                    : 'Request fast-track'}
                         </button>
                     </div>
                 </div>
             ) : null}
 
             {compact ? (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] hidden bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92 sm:block">
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/92 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/92">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Dashboard preview</p>

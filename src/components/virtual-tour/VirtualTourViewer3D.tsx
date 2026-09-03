@@ -7,7 +7,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { TourScene, Hotspot } from '@/services/virtualTourService';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 interface VirtualTourViewer3DProps {
     scene: TourScene;
@@ -235,10 +235,7 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
         <div ref={containerRef} className="w-full h-full relative" onClick={handleMouseClick}>
             {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                    <div className="text-white text-center">
-                        <BrandLoader size="xl" className="mx-auto mb-4" label="Loading virtual tour" />
-                        <p>Loading High-Quality Experience...</p>
-                    </div>
+                    <BrandLoadingScreen variant="panel" label="Loading virtual tour..." />
                 </div>
             )}
             {error && (

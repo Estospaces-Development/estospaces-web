@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import PieChart from '@/components/ui/PieChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
@@ -198,17 +198,7 @@ const Analytics = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
-                <div className="relative">
-                    <BrandLoader size="xl" label="Loading analytics" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <TrendingUp className="w-6 h-6 text-orange-500 animate-pulse" />
-                    </div>
-                </div>
-                <p className="text-gray-500 font-medium animate-pulse">Gathering insights...</p>
-            </div>
-        );
+        return <BrandLoadingScreen variant="section" label="Loading analytics..." />;
     }
 
     return (
@@ -219,32 +209,17 @@ const Analytics = () => {
                     <div className="mb-4">
                         <BackButton />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analytics Overview</h1>
+                    <h1 data-manager-mobile-page-title className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analytics Overview</h1>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Detailed performance metrics for your properties</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                        <button
-                            type="button"
-                            onClick={() => setTimeRange('6m')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        >
-                            6 Months
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setTimeRange('12m')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        >
-                            Yearly
-                        </button>
-                    </div>
+                <div data-manager-mobile-actions className="flex items-center gap-3">
                     <button
                         type="button"
                         aria-label="Export analytics CSV"
                         title="Export analytics CSV"
                         onClick={handleExportReport}
-                        className="p-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                        style={{ minHeight: 48, minWidth: 48 }}
+                        className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-gray-100 bg-white p-2.5 transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                     >
                         <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     </button>
@@ -252,6 +227,10 @@ const Analytics = () => {
             </div>
 
             {/* Analytics Metrics Cards */}
+            <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Current overview</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Live account totals; these are not changed by the trend period below.</p>
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { 
@@ -289,6 +268,7 @@ const Analytics = () => {
 
                     return (
                     <div
+                        data-manager-mobile-metric
                         key={i}
                         id={metric.anchorId}
                         tabIndex={metric.anchorId ? -1 : undefined}
@@ -311,7 +291,7 @@ const Analytics = () => {
             </div>
 
             {/* SLA & Response Performance */}
-            <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
+            <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-black sm:p-8">
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">SLA & Response Performance</h2>
@@ -399,14 +379,37 @@ const Analytics = () => {
 
             {/* Monthly Revenue Trend */}
             <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Revenue Analysis</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue trends and growth projections</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue trends for the selected period</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded-xl">
-                        <Calendar className="w-4 h-4" />
-                        <span>Last Updated: Today</span>
+                    <div className="flex flex-col gap-2 md:items-end">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Trend period</p>
+                        <div className="flex rounded-xl bg-gray-100 p-1 dark:bg-gray-800" aria-label="Revenue trend period">
+                            <button
+                                type="button"
+                                onClick={() => setTimeRange('6m')}
+                                aria-pressed={timeRange === '6m'}
+                                style={{ minHeight: 48 }}
+                                className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                            >
+                                6 Months
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTimeRange('12m')}
+                                aria-pressed={timeRange === '12m'}
+                                style={{ minHeight: 48 }}
+                                className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+                            >
+                                Yearly
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-400 dark:bg-gray-900">
+                            <Calendar className="h-4 w-4" />
+                            <span>Last updated today</span>
+                        </div>
                     </div>
                 </div>
 
@@ -452,16 +455,16 @@ const Analytics = () => {
 
                             {/* Custom Bar Chart for Revenue */}
                             <div className="relative pt-10 pb-2">
-                                <div className="flex items-end justify-between gap-4 h-64 border-b border-gray-100 dark:border-gray-800">
+                                <div className="flex h-64 min-w-0 items-end justify-between gap-1 border-b border-gray-100 dark:border-gray-800 sm:gap-4">
                                     {revenueData.map((item, index) => {
                                         const maxValue = Math.max(...revenueData.map(d => d.value), 100);
                                         const height = (item.value / maxValue) * 100;
                                         
                                         return (
-                                            <div key={index} className="flex-1 flex flex-col items-center group">
+                                            <div key={index} className="group flex min-w-0 flex-1 flex-col items-center">
                                                 <div className="w-full relative flex flex-col items-center justify-end h-full mb-4">
                                                     <div
-                                                        className="w-12 bg-orange-500 dark:bg-orange-600 rounded-t-xl transition-all duration-500 group-hover:opacity-80 group-hover:w-14 cursor-pointer relative shadow-lg shadow-orange-500/20"
+                                                        className="relative w-full max-w-12 cursor-pointer rounded-t-xl bg-orange-500 shadow-lg shadow-orange-500/20 transition-all duration-500 group-hover:opacity-80 dark:bg-orange-600 sm:group-hover:w-14"
                                                         style={{ height: `${height}%` }}
                                                     >
                                                         <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap z-20 shadow-xl scale-75 group-hover:scale-100">
@@ -469,7 +472,7 @@ const Analytics = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{item.month}</span>
+                                                <span className="truncate text-xs font-bold text-gray-700 dark:text-gray-300 sm:text-sm">{item.month}</span>
                                             </div>
                                         );
                                     })}

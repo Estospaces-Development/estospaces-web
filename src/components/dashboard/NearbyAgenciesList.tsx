@@ -1,12 +1,13 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
+import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Clock, BadgeCheck, Search, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
+import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import {
     BROKER_REQUEST_WORKSPACE_EVENT,
     readBrokerRequestWorkspaceSelection,
@@ -40,29 +41,35 @@ const formatBrokerDistance = (distanceMiles?: number) => {
 
     return `${(distanceMiles * 1.609344).toFixed(1)} km away`;
 };
+const getPublicBrokerCompanyName = (value?: string) => {
+    const companyName = String(value || '').trim();
+    return companyName && !isPlaceholderManagerCompanyName(companyName)
+        ? companyName
+        : 'Independent agent';
+};
 
 export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary; index: number }) => {
     const agentProfileLink = `/user/dashboard/messages?recipient=${encodeURIComponent(broker.id)}&name=${encodeURIComponent(broker.name)}`;
     return (
-    <div className="flex min-w-0 items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
-            <span className="text-sm font-bold">{index + 1}</span>
+    <div className="flex min-w-0 items-start gap-2.5 sm:gap-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300 sm:h-12 sm:w-12 sm:rounded-2xl">
+            <span className="text-xs font-medium sm:text-sm sm:font-bold">{index + 1}</span>
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
-            <div className="flex min-w-0 items-start justify-between gap-2">
+            <div className="grid min-w-0 gap-1 sm:flex sm:items-start sm:justify-between sm:gap-2">
                 <Link
                     to={agentProfileLink}
-                    className="min-w-0 max-w-full break-words text-sm font-semibold text-gray-900 transition-colors hover:text-orange-600 dark:text-white dark:hover:text-orange-400"
+                    className="min-w-0 max-w-full break-words text-xs font-medium text-gray-900 transition-colors hover:text-orange-600 dark:text-white dark:hover:text-orange-400 sm:text-sm sm:font-semibold"
                 >
                     {broker.name}
                 </Link>
-                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                <span className="inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300 sm:shrink-0 sm:px-2.5 sm:text-[10px] sm:font-semibold">
                     <BadgeCheck size={11} />
                     Available
                 </span>
             </div>
             <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
-                {broker.company_name || 'Independent agent'}
+                {getPublicBrokerCompanyName(broker.company_name)}
                 {broker.postcode ? ` - ${formatBrokerArea(broker.postcode)}` : ''}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -268,26 +275,24 @@ const NearbyAgenciesList = () => {
     }, [brokers, filterMode, sortMode]);
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6 gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                        <Building2 size={20} className="text-blue-600 dark:text-blue-400" />
+        <div data-mobile-nearby-agencies className="rounded-xl bg-white p-2.5 shadow-sm dark:bg-gray-800 sm:p-6">
+            <div className="mb-4 flex items-start gap-2 sm:mb-6 sm:items-center sm:gap-3">
+                    <div className="shrink-0 rounded-lg bg-blue-100 p-1.5 dark:bg-blue-900/30 sm:p-2">
+                        <Building2 size={18} className="text-blue-600 dark:text-blue-400 sm:h-5 sm:w-5" />
                     </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">Nearest property agents</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Ranked by who is nearest and ready to help</p>
+                    <div className="min-w-0">
+                        <h3 className="text-sm font-semibold leading-tight text-gray-900 dark:text-white sm:text-base sm:font-bold">Nearest property agents</h3>
+                        <p className="mt-0.5 text-[11px] leading-[1.35] text-gray-500 dark:text-gray-400 sm:text-xs">Nearest and ready to help.</p>
                     </div>
-                </div>
             </div>
 
             {activeRequest && (
-                <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm dark:border-blue-900/30 dark:bg-blue-950/20">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-200">Agent request</p>
-                    <p className="mt-1 font-semibold text-gray-900 dark:text-white">
+                <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-sm dark:border-blue-900/30 dark:bg-blue-950/20 sm:mb-4 sm:px-4 sm:py-3">
+                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-blue-700 dark:text-blue-200 sm:text-[11px] sm:font-semibold sm:tracking-[0.18em]">Agent request</p>
+                    <p className="mt-1 text-xs font-medium text-gray-900 dark:text-white sm:text-sm sm:font-semibold">
                         {activeRequest.matched_broker?.name || 'Searching nearby property agents'}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-[11px] leading-[1.4] text-gray-500 dark:text-gray-400 sm:text-xs">
                         {activeRequest.dispatch_status
                             ? activeRequest.dispatch_status.replace(/[_-]+/g, ' ')
                             : 'Agent search in progress'}
@@ -297,14 +302,14 @@ const NearbyAgenciesList = () => {
             )}
 
             {effectivePostcode && (
-                <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900/50 sm:mb-4 sm:px-4 sm:py-3">
+                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400 sm:text-[11px] sm:font-semibold sm:tracking-[0.18em]">
                         {isManualSearchActive ? `${locationCodeLabel} search` : 'Request area'}
                     </p>
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                        <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{effectivePostcode}</p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="mt-1.5 grid gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+                        <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-900 dark:text-white sm:text-sm sm:font-semibold">{effectivePostcode}</p>
+                            <p className="mt-1 text-[11px] leading-[1.4] text-gray-500 dark:text-gray-400 sm:text-xs">
                                 {isManualSearchActive
                                     ? `Showing property agents ranked nearest to this ${lowerLocationCodeLabel}.`
                                     : 'Showing property agents ranked for your active request.'}
@@ -354,7 +359,7 @@ const NearbyAgenciesList = () => {
 
             {loading ? (
                 <div className="flex justify-center py-8">
-                    <BrandLoader className="text-gray-400" size={24} />
+                    <BrandLoadingScreen variant="panel" label="Loading nearby agencies..." />
                 </div>
             ) : loadError ? (
                 <div className="text-center py-8 text-sm text-gray-500">

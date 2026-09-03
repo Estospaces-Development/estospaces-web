@@ -51,6 +51,7 @@ export function formatLaunchCurrencyForCountry(
   options: {
     countryCode?: string | null;
     countryName?: string | null;
+    locationCode?: string | null;
     currencyCode?: string | null;
     monthly?: boolean;
     showCode?: boolean;
@@ -60,7 +61,11 @@ export function formatLaunchCurrencyForCountry(
     return "";
   }
 
-  const country = getSupportedLaunchCountry(options.countryCode, options.countryName);
+  const country = getSupportedLaunchCountry(
+    options.countryCode,
+    options.countryName,
+    options.locationCode,
+  );
   const requestedCurrency = String(options.currencyCode || "").trim().toUpperCase();
   const currency = requestedCurrency || (country === UK_COUNTRY_CODE ? "GBP" : LAUNCH_CURRENCY_CODE);
   const locale = currency === "GBP" ? "en-GB" : LAUNCH_LOCALE;

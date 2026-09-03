@@ -299,6 +299,98 @@ test('dedupeBrokerRequestsBySubmissionSignature keeps separate users with the sa
     assert.deepEqual(deduped.map((request) => request.id), ['second-client-workspace', 'first-client-workspace']);
 });
 
+test('dedupeBrokerRequestsBySubmissionSignature preserves a later repeat request', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'older-request',
+            user_id: 'repeat-user',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'Need a Chennai rental quickly',
+            status: 'matched',
+            created_at: '2026-07-08T02:46:12.000Z',
+        }),
+        makeRequest({
+            id: 'new-request',
+            user_id: 'repeat-user',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'Need a Chennai rental quickly',
+            status: 'submitted',
+            created_at: '2026-07-09T02:46:12.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['new-request', 'older-request']);
+});
+
+test('submission dedupe does not chain requests beyond the ten-minute retry window', () => {
+    const common = {
+        user_id: 'chain-user',
+        request_type: 'rent',
+        location: 'Chennai',
+        location_postcode: '600001',
+        budget: '650000',
+        details: 'Need a Chennai rental quickly',
+    };
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({ ...common, id: 'minute-zero', created_at: '2026-07-08T02:00:00.000Z' }),
+        makeRequest({ ...common, id: 'minute-nine', created_at: '2026-07-08T02:09:00.000Z' }),
+        makeRequest({ ...common, id: 'minute-eighteen', created_at: '2026-07-08T02:18:00.000Z' }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['minute-eighteen', 'minute-nine']);
+});
+
+test('submission retry windows are stable when API records arrive out of order', () => {
+    const common = {
+        user_id: 'unordered-user',
+        request_type: 'rent',
+        location: 'Chennai',
+        location_postcode: '600001',
+        budget: '650000',
+        details: 'Need a Chennai rental quickly',
+    };
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({ ...common, id: 'minute-nine', created_at: '2026-07-08T02:09:00.000Z' }),
+        makeRequest({ ...common, id: 'minute-zero', created_at: '2026-07-08T02:00:00.000Z' }),
+        makeRequest({ ...common, id: 'minute-eighteen', created_at: '2026-07-08T02:18:00.000Z' }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['minute-eighteen', 'minute-nine']);
+});
+
+test('submission dedupe preserves a new request after matching history is closed', () => {
+    const common = {
+        user_id: 'user-resubmission',
+        request_type: 'rent',
+        location: 'Chennai',
+        location_postcode: '600001',
+        budget: '650000',
+        details: 'Need a Chennai rental quickly',
+    };
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            ...common,
+            id: 'closed-request',
+            status: 'closed',
+            created_at: '2026-07-08T02:00:00.000Z',
+        }),
+        makeRequest({
+            ...common,
+            id: 'new-request',
+            status: 'pending',
+            created_at: '2026-07-08T02:05:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['new-request', 'closed-request']);
+});
+
 test('dedupeBrokerRequestsBySubmissionSignature collapses parallel workspaces for the same client and selected property', () => {
     const deduped = dedupeBrokerRequestsBySubmissionSignature([
         makeRequest({
@@ -320,6 +412,54 @@ test('dedupeBrokerRequestsBySubmissionSignature collapses parallel workspaces fo
     ]);
 
     assert.deepEqual(deduped.map((request) => request.id), ['selected-four-minutes-later']);
+});
+
+test('selected-property dedupe preserves separate unfinished journeys outside the retry window', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'first-record',
+            user_id: 'user-parallel',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            created_at: '2026-08-20T18:00:00.000Z',
+        }),
+        makeRequest({
+            id: 'latest-record',
+            user_id: 'user-parallel',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            created_at: '2026-08-21T18:00:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['latest-record', 'first-record']);
+});
+
+test('selected-property dedupe does not chain retries beyond the original retry window', () => {
+    const common = {
+        user_id: 'user-chain',
+        matched_broker_id: 'manager-1',
+        selected_property_id: 'property-1',
+    };
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            ...common,
+            id: 'minute-zero',
+            created_at: '2026-08-21T18:00:00.000Z',
+        }),
+        makeRequest({
+            ...common,
+            id: 'minute-nine',
+            created_at: '2026-08-21T18:09:00.000Z',
+        }),
+        makeRequest({
+            ...common,
+            id: 'minute-eighteen',
+            created_at: '2026-08-21T18:18:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['minute-eighteen', 'minute-nine']);
 });
 
 test('selected-property dedupe preserves a later separate journey', () => {
@@ -365,6 +505,71 @@ test('selected-property dedupe preserves closed historical workspaces', () => {
     ]);
 
     assert.deepEqual(deduped.map((request) => request.id), ['new-active', 'closed-history']);
+});
+
+test('selected-property dedupe keeps the eventually consistent case-bearing record', () => {
+    const requests = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'selected-before-case',
+            user_id: 'user-1',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            handoff_status: 'property_selected',
+            created_at: '2026-03-25T09:20:00.000Z',
+            updated_at: '2026-03-25T09:20:00.000Z',
+        }),
+        makeRequest({
+            id: 'selected-with-case',
+            user_id: 'user-1',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            selected_fast_track_case_id: 'case-1',
+            handoff_status: 'property_selected',
+            created_at: '2026-03-25T09:20:01.000Z',
+            updated_at: '2026-03-25T09:20:01.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(requests.map((request) => request.id), ['selected-with-case']);
+});
+
+test('selected-property dedupe preserves different cases that follow the same pre-case row', () => {
+    const requests = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'selected-before-case',
+            user_id: 'user-1',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            handoff_status: 'property_selected',
+            created_at: '2026-03-25T09:20:00.000Z',
+            updated_at: '2026-03-25T09:20:00.000Z',
+        }),
+        makeRequest({
+            id: 'selected-with-case-a',
+            user_id: 'user-1',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            selected_fast_track_case_id: 'case-a',
+            handoff_status: 'property_selected',
+            created_at: '2026-03-25T09:20:01.000Z',
+            updated_at: '2026-03-25T09:20:01.000Z',
+        }),
+        makeRequest({
+            id: 'selected-with-case-b',
+            user_id: 'user-1',
+            matched_broker_id: 'manager-1',
+            selected_property_id: 'property-1',
+            selected_fast_track_case_id: 'case-b',
+            handoff_status: 'property_selected',
+            created_at: '2026-03-25T09:20:02.000Z',
+            updated_at: '2026-03-25T09:20:02.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(
+        requests.map((request) => request.id),
+        ['selected-with-case-b', 'selected-with-case-a'],
+    );
 });
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
     const sorted = sortBrokerRequestsByPriority([

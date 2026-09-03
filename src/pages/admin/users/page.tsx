@@ -1,6 +1,5 @@
 "use client";
 
-import BrandLoader from '@/components/ui/BrandLoader';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
@@ -508,19 +507,19 @@ function UserManagementContent() {
     };
 
     return (
-        <div className="min-w-0 space-y-10 animate-in fade-in duration-500">
+        <div className="min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center md:gap-6">
                 <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="px-3 py-1 bg-emerald-700 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-700/20">Relationship Hub</span>
-                        <span className="text-gray-400 text-xs font-bold">{getAdminUsersPageSubtitle()}</span>
+                    <div className="mb-2 hidden items-center gap-3 sm:flex">
+                        <span className="rounded-full bg-emerald-700 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-700/20">Relationship Hub</span>
+                        <span className="text-xs font-bold text-gray-400">{getAdminUsersPageSubtitle()}</span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                    <h1 className="text-2xl font-black leading-none tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                         {getAdminUsersPageTitle()}
                     </h1>
                 </div>
-                <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+                <div className="flex w-full gap-2 sm:w-auto sm:gap-4">
                     <div className="relative group w-full sm:w-auto">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
                         <input
@@ -530,12 +529,12 @@ function UserManagementContent() {
                             value={searchQuery}
                             onChange={(e) => handleUserSearchChange(e.target.value)}
                             maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
-                            className="w-full pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/10 font-bold text-sm shadow-sm transition-all sm:w-64"
+                            className="h-12 w-full rounded-xl border bg-white py-3 pl-11 pr-3 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64 sm:rounded-2xl sm:pl-12 sm:pr-6"
                         />
                     </div>
                     <button
                         onClick={() => navigate(getAdminAddUserPath())}
-                        className="flex w-full items-center justify-center gap-2 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl sm:w-auto"
+                        className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-xs font-black text-white shadow-sm transition-all hover:scale-[1.02] active:scale-95 dark:bg-white dark:text-gray-900 sm:w-auto sm:rounded-2xl sm:px-8 sm:uppercase sm:tracking-widest sm:shadow-xl"
                     >
                         <UserPlus size={18} /> Add User
                     </button>
@@ -543,15 +542,15 @@ function UserManagementContent() {
             </div>
 
             {/* Hero Stats */}
-            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6" data-mobile-compact-summary-grid>
                 {stats.map((stat) => (
-                    <div key={stat.label} className="min-w-0 bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-[2.5rem] border dark:border-gray-700 shadow-xl shadow-gray-200/40 dark:shadow-none flex items-center gap-4 sm:gap-6 group hover:translate-y-[-4px] transition-all">
-                        <div className={`p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 ${stat.color} group-hover:scale-110 transition-transform`}>
-                            <stat.icon size={28} />
+                    <div key={stat.label} className="group flex min-w-0 items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 dark:border-gray-700 dark:bg-gray-800 sm:gap-6 sm:rounded-[2.5rem] sm:p-8 sm:shadow-xl sm:shadow-gray-200/40 dark:sm:shadow-none">
+                        <div className={`rounded-xl bg-gray-50 p-2.5 transition-transform group-hover:scale-105 dark:bg-gray-900 sm:rounded-2xl sm:p-5 ${stat.color}`}>
+                            <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 border-b border-gray-100 dark:border-gray-700 pb-1 mb-2 uppercase tracking-widest leading-none">{stat.label}</p>
-                            <p className="text-2xl font-black text-gray-900 dark:text-white leading-none">{stat.value}</p>
+                            <p className="mb-1 text-xs font-bold leading-tight text-gray-500 dark:text-gray-300 sm:mb-2 sm:border-b sm:border-gray-100 sm:pb-1 sm:text-[10px] sm:font-black sm:uppercase sm:tracking-widest dark:sm:border-gray-700">{stat.label}</p>
+                            <p className="text-xl font-black leading-none text-gray-900 dark:text-white sm:text-2xl">{stat.value}</p>
                         </div>
                     </div>
                 ))}
@@ -640,7 +639,65 @@ function UserManagementContent() {
                     </div>
                 )}
 
-                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label="Scrollable lead reassignment table">
+                <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="Lead reassignment cards">
+                    {adminLeadLoading ? (
+                        <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
+                    ) : visibleReassignableLeads.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
+                            <p className="text-sm font-black text-gray-900 dark:text-white">No open leads ready for reassignment</p>
+                        </div>
+                    ) : visibleReassignableLeads.map((lead) => {
+                        const selectedBrokerId = leadBrokerSelections[lead.id] || '';
+                        const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
+                        const isBusy = reassigningLeadId === lead.id;
+                        const rowError = leadReassignErrors[lead.id];
+                        const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
+                        const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
+                        const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, adminBrokers.length, isBusy);
+                        const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
+
+                        return (
+                            <article key={`mobile-${lead.id}`} className="min-w-0 rounded-3xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                <div className="flex min-w-0 items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
+                                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">{lead.status || 'pending'}</p>
+                                    </div>
+                                    <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
+                                </div>
+                                <dl className="mt-4 rounded-2xl bg-white p-3 dark:bg-gray-950">
+                                    <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current broker</dt>
+                                    <dd className="mt-1 break-words text-sm font-bold text-gray-700 dark:text-gray-200">{currentBrokerName}</dd>
+                                </dl>
+                                <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-500">New broker</label>
+                                <select
+                                    id={`admin-mobile-lead-reassign-${lead.id}`}
+                                    aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
+                                    value={selectedBrokerId}
+                                    onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
+                                    className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                >
+                                    <option value="">Choose broker</option>
+                                    {adminBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{getAdminBrokerDisplayName(broker)}</option>)}
+                                </select>
+                                {rowError && <p role="alert" className="mt-2 break-words text-xs font-semibold text-red-600">{rowError}</p>}
+                                <button
+                                    type="button"
+                                    aria-label={actionLabel}
+                                    title={selectionError || undefined}
+                                    onClick={() => handleLeadReassign(lead)}
+                                    disabled={isActionDisabled}
+                                    className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
+                                >
+                                    {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
+                                    Reassign lead
+                                </button>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label="Scrollable lead reassignment table">
                     <table className="w-full min-w-[760px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
@@ -654,7 +711,7 @@ function UserManagementContent() {
                             {adminLeadLoading ? (
                                 <tr>
                                     <td colSpan={4} className="px-8 py-10 text-center text-sm font-bold text-gray-500">
-                                        <BrandLoader size="sm" label="Loading lead reassignment queue" showLabel />
+                                        <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
                                     </td>
                                 </tr>
                             ) : visibleReassignableLeads.length === 0 ? (
@@ -761,8 +818,8 @@ function UserManagementContent() {
                             </button>
                         ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2">
+                    <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                        <div className="flex w-full min-w-0 flex-col items-stretch gap-2 min-[360px]:flex-row min-[360px]:items-center sm:w-auto">
                             <label
                                 htmlFor="admin-user-sort"
                                 className="text-[10px] font-black uppercase tracking-widest text-gray-400"
@@ -774,7 +831,7 @@ function UserManagementContent() {
                             aria-label={getAdminUserSortControlLabel()}
                             value={sortBy}
                             onChange={(event) => setSortBy(event.target.value as AdminUsersSortOption)}
-                            className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 outline-none transition-all hover:text-gray-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                            className="min-h-11 w-full min-w-0 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 outline-none transition-all hover:text-gray-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 min-[360px]:flex-1 lg:w-auto"
                         >
                             <option value="newest">Newest first</option>
                             <option value="oldest">Oldest first</option>
@@ -785,7 +842,7 @@ function UserManagementContent() {
                         </div>
                         <button
                             onClick={handleExportCSV}
-                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white min-[360px]:w-auto sm:border-0 sm:px-0"
                         >
                             <Download size={16} /> Export CSV
                         </button>
@@ -801,7 +858,56 @@ function UserManagementContent() {
                     {statusMessage}
                 </p>
 
-                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
+                <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="User registry cards">
+                    {loading ? (
+                        <BrandLoadingScreen variant="panel" label="Loading user registry..." />
+                    ) : paginatedUsers.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
+                            <h3 className="text-base font-black text-gray-900 dark:text-white">{getAdminUserEmptyStateTitle()}</h3>
+                            <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{getAdminUserEmptyStateBody()}</p>
+                        </div>
+                    ) : paginatedUsers.map((user) => {
+                        const displayName = getAdminUserDisplayName(user);
+                        const statusId = `admin-mobile-user-status-${user.id}`;
+                        const actionBusy = actionUserId === user.id;
+
+                        return (
+                            <article key={`mobile-${user.id}`} className="min-w-0 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Avatar userId={user.id} src={user.avatar_url || user.avatar} name={displayName} size="md" shape="rounded" fallbackClassName="from-emerald-500 to-teal-600" />
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="truncate text-sm font-black text-gray-900 dark:text-white">{displayName}</h3>
+                                        <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{user.email}</p>
+                                    </div>
+                                    <span id={statusId} aria-label={`${displayName} is ${user.is_active ? 'active' : 'deactivated'}`} className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${user.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'}`}>
+                                        {user.is_active ? 'Active' : 'Off'}
+                                    </span>
+                                </div>
+                                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-3 dark:bg-gray-950">
+                                    <div>
+                                        <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Role</dt>
+                                        <dd className="mt-1 text-sm font-bold capitalize text-gray-800 dark:text-gray-200">{user.role}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Joined</dt>
+                                        <dd className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-200">{new Date(user.created_at).toLocaleDateString()}</dd>
+                                    </div>
+                                </dl>
+                                <div className="mt-4 grid grid-cols-2 gap-2">
+                                    <button type="button" aria-label={`Review ${displayName} (${user.email}) verification`} onClick={() => handleReviewVerification(user)} disabled={user.role === 'admin'} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wider text-gray-700 transition-all hover:text-emerald-600 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200">
+                                        <Eye size={16} /> Review
+                                    </button>
+                                    <button type="button" aria-label={buildAdminUserActionLabel(user, actionBusy)} aria-describedby={statusId} onClick={() => handleToggleUserState(user)} disabled={actionBusy} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-wider transition-all disabled:opacity-60 ${user.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
+                                        {actionBusy ? <ActionSpinner size={16} className="" /> : <Power size={16} />}
+                                        {user.is_active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
                     <table className="w-full min-w-[980px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
@@ -816,7 +922,7 @@ function UserManagementContent() {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-10 py-14 text-center text-sm font-bold text-gray-500">
-                                        <BrandLoader size="sm" label="Loading user registry" showLabel />
+                                        <BrandLoadingScreen variant="panel" label="Loading user registry..." />
                                     </td>
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (
