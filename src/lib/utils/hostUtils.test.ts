@@ -35,6 +35,15 @@ test('app host still blocks admin routes locally', () => {
     );
 });
 
+test('admin host preserves login routes instead of redirecting back to the protected admin shell', () => {
+    assert.equal(resolveHostedWorkspaceRedirect('admin', '/login'), null);
+    assert.equal(resolveHostedWorkspaceRedirect('admin', '/login/'), null);
+    assert.deepEqual(
+        resolveHostedWorkspaceRedirect('admin', '/privacy'),
+        { path: '/admin', role: 'admin' },
+    );
+});
+
 test('cloud run dev hosts stay on the same origin for admin links', () => {
     assert.equal(isSingleOriginHostedHost('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), true);
     assert.equal(resolveCurrentAppFromHostname('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), 'app');
