@@ -256,7 +256,7 @@ import { getContracts, getViewings } from '../../services/bookingsService';
 import { getSaleProgressions } from '../../services/salesService';
 import { getUserProperties } from '../../services/userPropertiesService';
 import { getUserBrokerRequests } from '../../services/leadsService';
-import { getPropertyById } from '../../services/propertyService';
+import { getPropertyContextsByIds } from '../../services/propertyService';
 
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
@@ -346,13 +346,24 @@ const ApplicationTimelineWidget = () => {
                     ...(saleProgressionsRes.data || []).map((progression) => progression.property_id),
                 ].filter(Boolean))).filter((propertyId) => !hasTimelinePropertyDetails(propertyContextById.get(propertyId)));
 
-                await Promise.all(propertyIdsNeedingHydration.map(async (propertyId) => {
-                    const { data: property, error } = await getPropertyById(propertyId);
-                    if (!property && error) {
+                const hydratedPropertyIds = new Set<string>();
+                for (let index = 0; index < propertyIdsNeedingHydration.length; index += 100) {
+                    const propertyIdBatch = propertyIdsNeedingHydration.slice(index, index + 100);
+                    const { data: properties } = await getPropertyContextsByIds(propertyIdBatch, {
+                        suppressErrorToast: true,
+                    });
+
+                    (properties || []).forEach((property) => {
+                        hydratedPropertyIds.add(property.id);
+                        setPropertyContext(property.id, buildPropertyContextFromProperty(property), true);
+                    });
+                }
+
+                propertyIdsNeedingHydration.forEach((propertyId) => {
+                    if (!hydratedPropertyIds.has(propertyId)) {
                         unavailablePropertyIds.add(propertyId);
                     }
-                    setPropertyContext(propertyId, buildPropertyContextFromProperty(property), true);
-                }));
+                });
 
                 const saleProgressionKeys = new Set(
                     (saleProgressionsRes.data || []).map((progression) =>
