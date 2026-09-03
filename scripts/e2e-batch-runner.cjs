@@ -11,6 +11,8 @@ if (fs.existsSync(envE2E)) {
   });
 }
 const {
+  assessSignedOutDestination,
+  analyticsConsentStorage,
   buildSelectionLabel,
   crashPattern,
   filterCatalog,
@@ -23,7 +25,12 @@ const {
   getScenarioSupport,
   getTarget,
   getWrongRoleName,
+  isAuthenticationWallVisible,
   isServiceRequest,
+  isStartupRoutePending,
+  keepExistingArtifactPath,
+  resolveRenderTimeoutMs,
+  resolveBatchExitCode,
   summarizeCatalog,
   writeJson,
 } = require('./e2e-batch-shared.cjs');
@@ -318,18 +325,15 @@ function shouldEnforceStaleSessionRecovery(scenario) {
 }
 
 async function waitForMeaningfulRender(page, scenario, expectedPath = scenario.expected_path || '') {
-  const deadline = Date.now() + 10000;
+  const deadline = Date.now() + resolveRenderTimeoutMs();
   while (Date.now() < deadline) {
     const currentPath = new URL(page.url()).pathname;
     const bodyText = await readBodyText(page);
     const trimmedBody = bodyText.trim();
     const hasMeaningfulBody = trimmedBody.length >= 20;
-    const authPageVisible = /sign in to estospaces|enter your email and password to continue|don't have an account\?|forgot password/i.test(bodyText);
+    const authPageVisible = isAuthenticationWallVisible(bodyText);
     const sessionRecoveryVisible = /session has expired|log in again|sign in/i.test(bodyText);
-    const waitingForStartupRedirect = scenario.auth_state === 'fresh_session'
-      && expectedPath
-      && expectedPath !== '/'
-      && currentPath === '/';
+    const waitingForStartupRedirect = isStartupRoutePending(currentPath, expectedPath);
     const currentPathIsPublic = isPublicUserPropertyDetailPath(currentPath);
     const waitingForWrongRoleRedirect = scenario.auth_state === 'wrong_role'
       && expectedPath
@@ -377,7 +381,7 @@ async function waitForMeaningfulRender(page, scenario, expectedPath = scenario.e
   }
 }
 
-const retriableScenarioErrorPattern = /net::ERR_NAME_NOT_RESOLVED|net::ERR_NETWORK_CHANGED|net::ERR_CONNECTION_RESET|net::ERR_ABORTED|Timeout 30000ms exceeded|Target page, context or browser has been closed|Network service crashed|browser\.newContext:|Page crashed/i;
+const retriableScenarioErrorPattern = /net::ERR_NAME_NOT_RESOLVED|net::ERR_NETWORK_CHANGED|net::ERR_CONNECTION_RESET|net::ERR_ABORTED|Timeout 30000ms exceeded|Scenario timeout after \d+ms|Target page, context or browser has been closed|Network service crashed|browser\.newContext:|Page crashed/i;
 
 function isRetriableScenarioError(error) {
   const message = typeof error === 'string' ? error : (error?.message || '');
@@ -494,8 +498,12 @@ function isIgnorableConsoleError(text) {
 
 async function screenshot(page, outputDir, scenarioId) {
   const filePath = path.join(outputDir, `${sanitizeName(scenarioId)}.png`);
-  await page.screenshot({ path: filePath, fullPage: true }).catch(() => {});
-  return filePath;
+  try {
+    await page.screenshot({ path: filePath, fullPage: true });
+    return keepExistingArtifactPath(filePath);
+  } catch {
+    return null;
+  }
 }
 
 function summarizeResults(results) {
@@ -1087,12 +1095,12 @@ async function assertGenericOutcome(page, scenario, expectedPath, monitor, inter
   }
 
   if (scenario.auth_state === 'signed_out') {
-    if (
-      !currentPath.startsWith('/login')
-      && !currentPath.startsWith('/auth')
-      && !isPublicUserPropertyDetailPath(currentPath)
-      && currentPath === expectedPath
-    ) {
+    const signedOutDestination = assessSignedOutDestination(
+      currentPath,
+      bodyText,
+      isPublicUserPropertyDetailPath(currentPath),
+    );
+    if (!signedOutDestination.allowed) {
       throw new Error(`Signed-out scenario still resolved to protected path ${currentPath}`);
     }
     return notes;
@@ -1281,6 +1289,9 @@ async function runScenario(browserManager, baseUrlOverride, target, scenario, ou
         ignoreHTTPSErrors: true,
         ...(authState.storageState ? { storageState: authState.storageState } : {}),
       });
+      await context.addInitScript(({ key, value }) => {
+        window.localStorage.setItem(key, value);
+      }, analyticsConsentStorage);
       page = await context.newPage();
       monitor = createPageMonitor(page);
 
@@ -1297,12 +1308,11 @@ async function runScenario(browserManager, baseUrlOverride, target, scenario, ou
       let execution = executionPromise;
       if (scenarioTimeoutMs > 0) {
         const remainingMs = remainingAttemptTimeoutMs();
-        execution = Promise.race([
+        execution = withTimeout(
           executionPromise,
-          new Promise((_, reject) => {
-            setTimeout(() => reject(new Error(`Scenario timeout after ${scenarioTimeoutMs}ms`)), remainingMs);
-          }),
-        ]);
+          remainingMs,
+          `Scenario timeout after ${scenarioTimeoutMs}ms`,
+        );
       }
 
       const resolvedExecution = await execution;
@@ -1342,7 +1352,11 @@ async function runScenario(browserManager, baseUrlOverride, target, scenario, ou
 
       if (page) {
         const screenshotPath = await screenshot(page, outputDir, scenario.scenario_id);
-        artifactPaths.push(screenshotPath);
+        if (screenshotPath) {
+          artifactPaths.push(screenshotPath);
+        } else {
+          attemptNotes.push('Failure screenshot unavailable');
+        }
       }
       return {
         catalog_index: scenario.catalog_index,
@@ -1466,7 +1480,9 @@ async function main() {
 
   if (remainingScenarios.length === 0) {
     finalSummaryPath = await progressTracker.complete();
-    console.log(JSON.stringify({ resultPath: finalSummaryPath, ...summarizeResults(results), workerCount: 0 }, null, 2));
+    const summary = summarizeResults(results);
+    console.log(JSON.stringify({ resultPath: finalSummaryPath, ...summary, workerCount: 0 }, null, 2));
+    process.exitCode = resolveBatchExitCode(summary);
     return;
   }
 
@@ -1528,7 +1544,9 @@ async function main() {
     await progressTracker.flush();
   }
 
-  console.log(JSON.stringify({ resultPath: finalSummaryPath, ...summarizeResults(results), workerCount }, null, 2));
+  const summary = summarizeResults(results);
+  console.log(JSON.stringify({ resultPath: finalSummaryPath, ...summary, workerCount }, null, 2));
+  process.exitCode = resolveBatchExitCode(summary);
 }
 
 main().catch((error) => {

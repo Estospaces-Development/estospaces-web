@@ -9,6 +9,7 @@ const ADMIN_DOMAIN = 'admin.estospaces.com';
 const LANDING_DOMAIN = 'estospaces.com';
 
 const ADMIN_AUTH_ROUTE_PATHS = new Set([
+    '/login',
     '/sessions/create',
     '/forgot-password',
     '/reset-password',
@@ -35,7 +36,9 @@ export const resolveHostedWorkspaceRedirect = (
     currentApp: HostedApp,
     pathname: string,
 ): { path: string; role: 'user' | 'admin' } | null => {
-    if (currentApp === 'admin' && ADMIN_AUTH_ROUTE_PATHS.has(pathname)) {
+    const normalizedPathname = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+
+    if (currentApp === 'admin' && ADMIN_AUTH_ROUTE_PATHS.has(normalizedPathname)) {
         return null;
     }
 

@@ -54,3 +54,65 @@ test('batch role credential access stays strict when a run needs auth', () => {
     assert.throws(() => role.password, /Missing required environment variable: E2E_USER_PASSWORD/);
   });
 });
+
+test('authentication wall detection accepts the production login screen rendered during a protected-route redirect', () => {
+  const { isAuthenticationWallVisible } = require(modulePath);
+
+  assert.equal(isAuthenticationWallVisible('Sign in to Estospaces\nEnter your email and password to continue'), true);
+  assert.equal(isAuthenticationWallVisible('Dashboard\nWelcome back\nYour applications'), false);
+});
+
+test('signed-out authorization stays fail-closed when login copy renders at a protected URL', () => {
+  const { assessSignedOutDestination } = require(modulePath);
+
+  assert.deepEqual(
+    assessSignedOutDestination('/manager/dashboard', 'Dashboard\nForgot password'),
+    { allowed: false, authenticationWallVisible: true },
+  );
+  assert.equal(assessSignedOutDestination('/login/', 'Sign in to Estospaces').allowed, true);
+  assert.equal(assessSignedOutDestination('/auth/recover', 'Reset password').allowed, true);
+  assert.equal(assessSignedOutDestination('/login-private', 'Sign in to Estospaces').allowed, false);
+  assert.equal(assessSignedOutDestination('/authorities', 'Sign in to Estospaces').allowed, false);
+  assert.equal(assessSignedOutDestination('/user/properties/property-1', 'Property details', true).allowed, true);
+});
+
+test('batch result status fails the command for failed or blocked scenarios', () => {
+  const { resolveBatchExitCode } = require(modulePath);
+
+  assert.equal(resolveBatchExitCode({ passed: 6, failed: 0, blocked: 0 }), 0);
+  assert.equal(resolveBatchExitCode({ passed: 5, failed: 1, blocked: 0 }), 1);
+  assert.equal(resolveBatchExitCode({ passed: 5, failed: 0, blocked: 1 }), 1);
+});
+
+test('batch contexts reject optional analytics without enabling tracking', () => {
+  const { analyticsConsentStorage } = require(modulePath);
+
+  assert.deepEqual(analyticsConsentStorage, {
+    key: 'estospaces_cookie_consent',
+    value: 'rejected',
+  });
+});
+
+test('batch evidence records only screenshot paths that actually exist', () => {
+  const { keepExistingArtifactPath } = require(modulePath);
+
+  assert.equal(keepExistingArtifactPath('proof.png', (value) => value === 'proof.png'), 'proof.png');
+  assert.equal(keepExistingArtifactPath('missing.png', () => false), null);
+  assert.equal(keepExistingArtifactPath('', () => true), null);
+});
+
+test('batch render timeout gives production redirects a thirty-second budget and accepts an explicit override', () => {
+  const { resolveRenderTimeoutMs } = require(modulePath);
+
+  assert.equal(resolveRenderTimeoutMs({}), 30000);
+  assert.equal(resolveRenderTimeoutMs({ E2E_RENDER_TIMEOUT_MS: '45000' }), 45000);
+  assert.equal(resolveRenderTimeoutMs({ E2E_RENDER_TIMEOUT_MS: 'invalid' }), 30000);
+});
+
+test('startup route waits for role routing regardless of auth state', () => {
+  const { isStartupRoutePending } = require(modulePath);
+
+  assert.equal(isStartupRoutePending('/', '/user/dashboard'), true);
+  assert.equal(isStartupRoutePending('/login', '/user/dashboard'), false);
+  assert.equal(isStartupRoutePending('/', '/'), false);
+});
