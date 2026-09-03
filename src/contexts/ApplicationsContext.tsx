@@ -13,7 +13,7 @@ import {
 } from '@/services/applicationsService';
 import { getViewings, type Viewing } from '@/services/bookingsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
-import { getPropertyById } from '@/services/propertyService';
+import { getPropertyById, getPropertyContextsByIds, type Property } from '@/services/propertyService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { buildApplicationPropertySnapshot, findRelatedViewing } from '@/lib/applicationWorkflow';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
@@ -34,7 +34,6 @@ import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import {
     getApplicationPropertyDisplayTitle,
     isApplicationWorkflowTitle,
-    isApplicationWorkflowStatusTitle,
     isInternalApplicationTitle,
 } from '@/lib/applicationDisplayTitle';
 import { applicationStatusMatches, normalizeApplicationStatus } from '@/lib/applicationStatus';
@@ -271,10 +270,48 @@ export const buildPropertyContextFromProperty = (
     };
 };
 
+type FetchPropertyContexts = (propertyIds: string[]) => Promise<{
+    data: Property[] | null;
+    error: string | null;
+}>;
+
+const fetchPropertyContexts: FetchPropertyContexts = (propertyIds) =>
+    getPropertyContextsByIds(propertyIds, { suppressErrorToast: true });
+
+export const hydratePropertyContextsByIds = async (
+    propertyIds: string[],
+    propertyContextById: Map<string, PropertyContext>,
+    fetchContexts: FetchPropertyContexts = fetchPropertyContexts,
+    refreshExisting = false,
+) => {
+    const pendingPropertyIds = Array.from(new Set(
+        propertyIds.filter((propertyId) =>
+            propertyId && (refreshExisting || !propertyContextById.has(propertyId)),
+        ),
+    ));
+    const batches = Array.from(
+        { length: Math.ceil(pendingPropertyIds.length / 100) },
+        (_, index) => pendingPropertyIds.slice(index * 100, (index + 1) * 100),
+    );
+    const results = await Promise.all(batches.map(fetchContexts));
+
+    results.forEach((result) => {
+        if (result.error || !result.data) {
+            return;
+        }
+        result.data.forEach((property) => {
+            const propertyContext = buildPropertyContextFromProperty(property);
+            if (propertyContext) {
+                propertyContextById.set(property.id, propertyContext);
+            }
+        });
+    });
+};
+
 export const hydrateMissingSaleProgressionPropertyContexts = async (
     saleProgressions: SaleProgression[],
     propertyContextById: Map<string, PropertyContext>,
-    fetchPropertyById = getPropertyById,
+    fetchContexts: FetchPropertyContexts = fetchPropertyContexts,
 ) => {
     const missingPropertyIds = Array.from(new Set(
         saleProgressions
@@ -282,32 +319,28 @@ export const hydrateMissingSaleProgressionPropertyContexts = async (
             .filter((propertyId) => propertyId && !propertyContextById.has(propertyId)),
     ));
 
-    await Promise.all(missingPropertyIds.map(async (propertyId) => {
-        const { data: property } = await fetchPropertyById(propertyId);
-        const propertyContext = buildPropertyContextFromProperty(property);
-        if (propertyContext) {
-            propertyContextById.set(propertyId, propertyContext);
-        }
-    }));
+    await hydratePropertyContextsByIds(
+        missingPropertyIds,
+        propertyContextById,
+        fetchContexts,
+    );
 };
 
 export const hydrateApplicationPropertyContexts = async (
     applications: Array<Pick<BackendApplication, 'property_id'>>,
     propertyContextById: Map<string, PropertyContext>,
-    fetchPropertyById: (propertyId: string) => ReturnType<typeof getPropertyById> = (propertyId) =>
-        getPropertyById(propertyId, { suppressErrorToast: true }),
+    fetchContexts: FetchPropertyContexts = fetchPropertyContexts,
 ) => {
     const propertyIds = Array.from(new Set(
         applications.map((application) => application.property_id).filter(Boolean),
     ));
 
-    await Promise.all(propertyIds.map(async (propertyId) => {
-        const { data: property } = await fetchPropertyById(propertyId);
-        const propertyContext = buildPropertyContextFromProperty(property);
-        if (propertyContext) {
-            propertyContextById.set(propertyId, propertyContext);
-        }
-    }));
+    await hydratePropertyContextsByIds(
+        propertyIds,
+        propertyContextById,
+        fetchContexts,
+        true,
+    );
 };
 
 const hasUsableApplicationAddress = (address: unknown) => {
@@ -354,13 +387,12 @@ export const applicationNeedsCurrentPropertyContext = (application: Pick<
 > & Partial<Pick<BackendApplication, 'status' | 'liveStage'>>) => {
     return !String(application.property_title || '').trim()
         || isInternalApplicationTitle(application.property_title)
-        || isApplicationWorkflowStatusTitle(application.property_title, application.status, application.liveStage)
+        || isApplicationWorkflowTitle(application.property_title)
         || !hasUsableApplicationAddress(application.property_address)
         || !String(application.property_image || '').trim()
         || !Number.isFinite(application.property_price)
         || Number(application.property_price) <= 0
         || !String(application.property_country || '').trim()
-        || !String(application.property_currency || '').trim()
         || !String(application.property_type || '').trim()
         || !String(application.agent_name || '').trim();
 };

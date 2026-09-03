@@ -72,7 +72,7 @@ test('sale progressions consume refreshed application property context', () => {
     );
 });
 
-test('application property refresh is limited to incomplete or internal QA snapshots', () => {
+test('application property refresh includes incomplete snapshots without treating currency as persisted metadata', () => {
     assert.equal(applicationNeedsCurrentPropertyContext({
         property_title: 'Canal View Apartment',
         property_address: '2 Canal Road, London',
@@ -89,6 +89,14 @@ test('application property refresh is limited to incomplete or internal QA snaps
         property_image: '',
         property_price: 0,
         agent_name: '',
+    }), true);
+    assert.equal(applicationNeedsCurrentPropertyContext({
+        property_title: 'Submitted',
+        property_address: 'Address unavailable',
+        property_image: '',
+        property_price: 0,
+        agent_name: '',
+        status: 'under_review',
     }), true);
 });
 
@@ -165,7 +173,7 @@ test('application mapping rejects a stale workflow title after the status advanc
     assert.equal(mapped.propertyTitle, 'Canal View Apartment');
 });
 
-test('legacy application snapshots without country or currency request current property context', () => {
+test('legacy application snapshots missing country request visible-catalog enrichment', () => {
     assert.equal(applicationNeedsCurrentPropertyContext({
         property_title: 'Complete legacy title',
         property_address: '1 Legacy Road, London',
@@ -184,7 +192,7 @@ test('application property hydration replaces stale snapshots with current prope
         [{ property_id: 'property-1' }] as any,
         propertyContextById,
         async () => ({
-            data: {
+            data: [{
                 id: 'property-1',
                 title: 'Canal View Apartment',
                 property_type: 'apartment',
@@ -199,7 +207,7 @@ test('application property hydration replaces stale snapshots with current prope
                 postcode: 'E14 5AB',
                 country: 'United Kingdom',
                 agent_name: 'Canal Estates',
-            },
+            }],
             error: null,
         }),
     );
@@ -305,9 +313,9 @@ test('buildPropertyContextFromProperty maps sale progression display fields from
     });
 });
 
-test('hydrateMissingSaleProgressionPropertyContexts fetches direct-offer sale properties', async () => {
+test('hydrateMissingSaleProgressionPropertyContexts batches direct-offer sale property contexts', async () => {
     const propertyContextById = new Map();
-    const fetchedPropertyIds: string[] = [];
+    const fetchedPropertyIds: string[][] = [];
 
     await hydrateMissingSaleProgressionPropertyContexts(
         [
@@ -323,11 +331,11 @@ test('hydrateMissingSaleProgressionPropertyContexts fetches direct-offer sale pr
             },
         ] as any,
         propertyContextById,
-        async (propertyId) => {
-            fetchedPropertyIds.push(propertyId);
+        async (propertyIds) => {
+            fetchedPropertyIds.push(propertyIds);
             return {
-                data: {
-                    id: propertyId,
+                data: [{
+                    id: 'property-1',
                     title: 'Direct offer sale home',
                     property_type: 'house',
                     listing_type: 'sale',
@@ -340,13 +348,13 @@ test('hydrateMissingSaleProgressionPropertyContexts fetches direct-offer sale pr
                     city: 'Bristol',
                     postcode: 'BS1 1AA',
                     country: 'United Kingdom',
-                },
+                }],
                 error: null,
             };
         },
     );
 
-    assert.deepEqual(fetchedPropertyIds, ['property-1']);
+    assert.deepEqual(fetchedPropertyIds, [['property-1']]);
     assert.deepEqual(propertyContextById.get('property-1'), {
         title: 'Direct offer sale home',
         address: '42 Market Street, Bristol, BS1 1AA, United Kingdom',

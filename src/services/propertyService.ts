@@ -362,6 +362,35 @@ export const getPropertyById = async (
   return { data: result.data, error: result.error };
 };
 
+export const getPropertyContextsByIds = async (
+  ids: string[],
+  options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
+): Promise<{ data: Property[] | null; error: string | null }> => {
+  const normalizedIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  if (normalizedIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  try {
+    const data = await apiFetch<Property[]>(
+      `${CORE_URL()}/api/v1/properties/catalog/context?ids=${encodeURIComponent(normalizedIds.join(","))}`,
+      { suppressErrorToast: options.suppressErrorToast ?? true },
+    );
+    return { data: data || [], error: null };
+  } catch (error: unknown) {
+    if (getErrorStatus(error) === 404) {
+      const fallbackResults = await Promise.all(
+        normalizedIds.map((id) => getPropertyById(id, { suppressErrorToast: true })),
+      );
+      return {
+        data: fallbackResults.flatMap((result) => result.data ? [result.data] : []),
+        error: null,
+      };
+    }
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
 /**
  * Record an intentional end-user property detail view.
  * Reading a property is deliberately side-effect free; callers should invoke
