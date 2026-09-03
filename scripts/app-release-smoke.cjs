@@ -68,7 +68,7 @@ async function runHttpChecks(target) {
 
 async function runHeaderChecks(target) {
   const response = await fetchText(target.baseUrl);
-  return requiredHeaders.map((header) => {
+  const results = requiredHeaders.map((header) => {
     const value = response.headers[header] || '';
     return result(
       `headers:${header}`,
@@ -77,6 +77,17 @@ async function runHeaderChecks(target) {
       'Header must be present on the app shell',
     );
   });
+  const expectedBuildRevision = process.env.E2E_EXPECTED_BUILD_REVISION || '';
+  if (expectedBuildRevision) {
+    const servedBuildRevision = response.headers['x-estospaces-build'] || '';
+    results.push(result(
+      'headers:x-estospaces-build',
+      servedBuildRevision === expectedBuildRevision,
+      servedBuildRevision,
+      `Expected exact build ${expectedBuildRevision}`,
+    ));
+  }
+  return results;
 }
 
 async function runUnauthenticatedApiChecks(target) {
