@@ -121,7 +121,7 @@ jobs:
             -addext 'subjectAltName=DNS:app.estospaces.com,DNS:admin.estospaces.com'
           cat >"${RUNNER_TEMP}/smoke-nginx.conf" <<'NGINX'
           server {
-            listen 443 ssl;
+            listen 127.0.0.1:443 ssl;
             server_name app.estospaces.com admin.estospaces.com;
             ssl_certificate /smoke/smoke.crt;
             ssl_certificate_key /smoke/smoke.key;

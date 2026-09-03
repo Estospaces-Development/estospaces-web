@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 workflow=".github/workflows/cd.yml"
 
-grep -Fq 'listen 443 ssl;' "$workflow"
+grep -Fq 'listen 127.0.0.1:443 ssl;' "$workflow"
 grep -Fq "https://app.estospaces.com/health" "$workflow"
 grep -Fq "E2E_PROD_BASE_URL='https://app.estospaces.com'" "$workflow"
 grep -Fq "E2E_PROD_APP_BASE_URL='https://app.estospaces.com'" "$workflow"
@@ -11,6 +11,11 @@ grep -Fq "E2E_PROD_ADMIN_BASE_URL='https://admin.estospaces.com'" "$workflow"
 
 if grep -Fq ':8443' "$workflow"; then
   echo 'Production exact-image smoke must use canonical HTTPS port 443.' >&2
+  exit 1
+fi
+
+if grep -Fq 'listen 443 ssl;' "$workflow"; then
+  echo 'Production exact-image TLS proxy must bind to loopback only.' >&2
   exit 1
 fi
 
