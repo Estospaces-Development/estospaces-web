@@ -4,6 +4,7 @@ const { chromium, firefox } = require('playwright');
 const {
   buildArtifactPath,
   resolveTarget,
+  shouldRecordConsoleError,
 } = require('./platform-proof-shared.cjs');
 
 const publicRoutes = [
@@ -124,7 +125,7 @@ async function runPublicBrowserPass(browserType, target, viewport, label) {
 
   page.on('pageerror', (error) => pageErrors.push(String(error)));
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+    if (shouldRecordConsoleError(msg.type(), msg.text())) {
       consoleErrors.push(msg.text());
     }
   });
@@ -147,6 +148,23 @@ async function runPublicBrowserPass(browserType, target, viewport, label) {
         'Expected public/auth route to render matching page content',
       ));
     }
+
+    await page.goto(`${target.adminBaseUrl}/login/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    const emailInput = page.locator('input[name="email"], input[type="email"]').first();
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const emailVisible = await emailInput.isVisible().catch(() => false);
+    const passwordVisible = await passwordInput.isVisible().catch(() => false);
+    results.push(result(
+      `browser:${label}:admin-login-form`,
+      emailVisible && passwordVisible,
+      JSON.stringify({
+        actualUrl: page.url(),
+        emailVisible,
+        passwordVisible,
+      }),
+      'Expected visible email and password inputs on the Admin host login route',
+    ));
   } finally {
     await context.close();
     await browser.close();
@@ -235,6 +253,7 @@ async function main() {
     ...await runUnauthenticatedApiChecks(target),
     ...await runPublicBrowserPass(chromium, target, { width: 1440, height: 960 }, 'chromium-desktop'),
     ...await runPublicBrowserPass(chromium, target, { width: 390, height: 844 }, 'chromium-mobile'),
+    ...await runPublicBrowserPass(chromium, target, { width: 283, height: 642 }, 'chromium-narrow'),
     ...await runPublicBrowserPass(firefox, target, { width: 1440, height: 960 }, 'firefox-desktop'),
     ...await runProtectedRedirectChecks(target),
     ...await runLatencySmoke(target),

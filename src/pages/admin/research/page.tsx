@@ -377,12 +377,16 @@ export default function AdminResearchPage() {
                         Run seeker journey shadowing, broker console shadowing, and consent-gated call/chat review without copying private transcripts into Core.
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div
+                    data-research-header-actions
+                    className="grid w-full grid-cols-2 gap-3 sm:w-auto lg:flex lg:shrink-0 lg:flex-nowrap"
+                >
                     <button
                         type="button"
                         onClick={() => void handleRefresh()}
                         disabled={isRefreshing}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:bg-orange-50 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-500/10"
+                        data-research-refresh
+                        className="inline-flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 px-3 py-3 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:bg-orange-50 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-500/10 sm:px-4 lg:min-w-[7.5rem]"
                     >
                         {isRefreshing ? <ActionSpinner size="sm" label="Refreshing research" /> : <RefreshCw size={16} />}
                         {isRefreshing ? 'Refreshing' : 'Refresh'}
@@ -390,7 +394,7 @@ export default function AdminResearchPage() {
                     <button
                         type="button"
                         onClick={() => openCreateModal()}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-700"
+                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-700"
                     >
                         <Plus size={16} />
                         New session

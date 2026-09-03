@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Clock3, Download, History, MessageSquare, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
+import { AlertTriangle, Clock3, Download, History, MessageSquare, Plus, RefreshCw, Search, ShieldCheck, UserRound } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
 import Modal from '@/components/ui/Modal';
@@ -848,12 +848,16 @@ export default function ManagerLeadsPage() {
 
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-black sm:rounded-3xl sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <input
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder="Search by user name, lead number, property, or email"
-                        className={`w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white lg:max-w-md ${managerLeadFocusClass}`}
-                    />
+                    <label className="relative block w-full lg:max-w-md">
+                        <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search by user name, lead number, property, or email"
+                            aria-label="Search leads"
+                            className={`w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white ${managerLeadFocusClass}`}
+                        />
+                    </label>
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                         <label className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
                             <span>Sort</span>
