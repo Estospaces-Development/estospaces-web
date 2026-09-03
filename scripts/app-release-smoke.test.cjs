@@ -10,3 +10,8 @@ test('release smoke probes the Cloud Run compatible login route', () => {
   assert.match(source, /adminBaseUrl\}\/login\//);
   assert.match(source, /\/\\\/login\\\/\?\$/);
 });
+
+test('release smoke verifies an exact build header only when requested', () => {
+  assert.match(source, /E2E_EXPECTED_BUILD_REVISION/);
+  assert.match(source, /servedBuildRevision === expectedBuildRevision/);
+});

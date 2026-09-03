@@ -17,3 +17,5 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Test failure, cancellation, and rollback paths
         run: bash .github/scripts/test-deploy-cloud-run.sh
+      - name: Test canary request correlation and error gates
+        run: bash .github/scripts/test-verify-cloud-run-canary.sh

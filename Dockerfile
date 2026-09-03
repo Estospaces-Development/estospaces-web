@@ -42,6 +42,7 @@ RUN mkdir -p /etc/nginx/snippets /var/cache/nginx /var/run /var/log/nginx
 RUN sed -i -E 's#pid[[:space:]]+[^;]+;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
 
 ARG NGINX_CONF=nginx.gcp-dev.conf
+ARG BUILD_REVISION=unknown
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -49,6 +50,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # SPA fallback — serve index.html for all routes
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
+
+RUN sed -i "s/__BUILD_REVISION__/${BUILD_REVISION}/g" /etc/nginx/snippets/security-headers.conf
 
 # Cache-bust: login-route-fix-v5-1784850
 RUN echo "login-route-fix-v5-1784850" > /etc/nginx/version.txt
