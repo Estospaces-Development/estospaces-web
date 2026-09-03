@@ -1828,19 +1828,25 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div
+            data-application-review-header
+            className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-start sm:justify-between"
+          >
             <button
               onClick={onClose}
-              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              className="flex shrink-0 self-start items-center gap-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
             >
               <ArrowLeft size={20} />
               <span className="font-medium">Back to Applications</span>
             </button>
 
-            <div className="flex flex-wrap items-center justify-end gap-3">
+            <div
+              data-application-review-actions
+              className="flex w-full min-w-0 flex-wrap items-center justify-start gap-3 sm:w-auto sm:justify-end"
+            >
               {showManagerDecisionControls && (
                 <>
-                  <div className="w-full min-w-[16rem] sm:w-64">
+                  <div className="w-full min-w-0 sm:w-64">
                     <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
                       Review note
                       <textarea
@@ -1866,14 +1872,14 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                   </div>
                   <form
                     onSubmit={handleManualStatusUpdate}
-                    className="flex flex-wrap items-center gap-2"
+                    className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto"
                   >
                     <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
                       Manual status update
                       <select
                         value={manualStatusDraft}
                         onChange={(event) => setManualStatusDraft(event.target.value as ApplicationStatus)}
-                        className="ml-0 mt-1 block rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition focus:border-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:ml-2 sm:mt-0 sm:inline-block"
+                        className="ml-0 mt-1 block max-w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition focus:border-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:ml-2 sm:mt-0 sm:inline-block"
                       >
                         <option value={APPLICATION_STATUS.SUBMITTED}>Submitted</option>
                         <option value={APPLICATION_STATUS.UNDER_REVIEW}>Under review</option>

@@ -50,17 +50,19 @@ export function SupportFilters({ filters, onChange, mode }: SupportFiltersProps)
 
     return (
         <div className="grid gap-3 rounded-[2rem] border border-orange-100 bg-white/90 p-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80 md:grid-cols-2 xl:grid-cols-4">
-            <label className="relative block xl:col-span-2">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                    value={filters.search}
-                    onChange={(event) => handleSearchChange(event.target.value)}
-                    placeholder={mode === 'admin' ? 'Search tickets, requesters, or modules' : 'Search your tickets'}
-                    aria-label={mode === 'admin' ? 'Search support queue tickets, requesters, or modules' : 'Search your support tickets'}
-                    aria-describedby={searchRejected ? searchErrorId : searchDescriptionId}
-                    aria-invalid={searchRejected || undefined}
-                    className="w-full rounded-2xl border border-transparent bg-gray-50 py-3 pl-10 pr-4 text-sm font-medium text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/20 dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40"
-                />
+            <label className="block xl:col-span-2">
+                <div data-support-search-control className="relative">
+                    <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                        value={filters.search}
+                        onChange={(event) => handleSearchChange(event.target.value)}
+                        placeholder={mode === 'admin' ? 'Search tickets, requesters, or modules' : 'Search your tickets'}
+                        aria-label={mode === 'admin' ? 'Search support queue tickets, requesters, or modules' : 'Search your support tickets'}
+                        aria-describedby={searchRejected ? searchErrorId : searchDescriptionId}
+                        aria-invalid={searchRejected || undefined}
+                        className="w-full rounded-2xl border border-transparent bg-gray-50 py-3 pl-10 pr-4 text-sm font-medium text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/20 dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40"
+                    />
+                </div>
                 {searchRejected ? (
                     <p id={searchErrorId} role="alert" className="mt-2 text-xs font-semibold text-red-600 dark:text-red-300">
                         Search is limited to {SUPPORT_SEARCH_MAX_LENGTH} characters.

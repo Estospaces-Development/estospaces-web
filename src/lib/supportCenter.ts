@@ -5,6 +5,13 @@ export const hasPrefilledSupportComposerContext = (searchParams: URLSearchParams
     ['category', 'subject', 'message', 'priority'].some((key) => Boolean(searchParams.get(key)?.trim()))
 );
 
+export const focusSupportTicketComposer = (target: HTMLElement | null): void => {
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.focus({ preventScroll: true });
+};
+
 const SUPPORT_CATEGORY_LABEL_TO_VALUE: Record<string, string> = {
     'general inquiry': 'general inquiry',
     'buying help': 'general inquiry',

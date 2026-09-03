@@ -235,7 +235,8 @@ export default function SettingsPage() {
                             onKeyDown={handleSaveKeyDown}
                             disabled={saving || !hasChanges}
                             aria-label="Save user preference changes"
-                            className="px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-all flex items-center gap-3"
+                            title={!hasChanges ? 'No settings changes to save' : undefined}
+                            className="flex items-center gap-3 rounded-2xl bg-orange-500 px-8 py-4 font-black text-white shadow-xl shadow-orange-500/25 transition-all hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-orange-400 disabled:shadow-none disabled:hover:bg-orange-400 disabled:active:scale-100"
                         >
                             {saving ? (
                                 <ActionSpinner size={24} className="" />

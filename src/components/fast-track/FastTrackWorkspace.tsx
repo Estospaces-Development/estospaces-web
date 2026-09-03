@@ -2403,14 +2403,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         return (
             <div className="space-y-4">
                 <div className="rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
+                    <div data-fast-track-document-summary className="grid min-w-0 gap-3 min-[420px]:flex min-[420px]:items-start min-[420px]:justify-between">
+                        <div className="min-w-0 flex-1">
                             <p className="text-base font-semibold text-gray-900 dark:text-white">{previewItem.label}</p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <p className="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">
                                 {previewDisplayItem.fileName || 'No file attached yet'}
                             </p>
                         </div>
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(previewDisplayItem.status)}`}>
+                        <span className={`w-fit max-w-full rounded-full border px-3 py-1 text-center text-xs font-semibold leading-5 break-words ${documentStatusTone(previewDisplayItem.status)}`}>
                             {formatDocumentStatus(previewDisplayItem.status)}
                         </span>
                     </div>
@@ -2670,14 +2670,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
 
                 <div className="rounded-[24px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="grid min-w-0 gap-3 min-[420px]:flex min-[420px]:items-start min-[420px]:justify-between">
                         <div className="min-w-0 flex-1">
                             <p className="text-base font-semibold text-gray-900 dark:text-white">{activeDocument.label}</p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <p className="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">
                                 {activeDocument.fileName || 'No file attached yet'}
                             </p>
                         </div>
-                        <span className={cn('max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(activeDocument.status))}>
+                        <span className={cn('w-fit max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(activeDocument.status))}>
                             {formatDocumentStatus(activeDocument.status)}
                         </span>
                     </div>
@@ -2976,7 +2976,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         }}
                                         className="w-full text-left"
                                     >
-                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="grid min-w-0 gap-3 min-[420px]:flex min-[420px]:items-start min-[420px]:justify-between">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{item.label}</p>
@@ -2990,7 +2990,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                     {item.fileName || 'No file attached yet'}
                                                 </p>
                                             </div>
-                                            <span className={cn('max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(item.status))}>
+                                            <span className={cn('w-fit max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(item.status))}>
                                                 {formatDocumentStatus(item.status)}
                                             </span>
                                         </div>
