@@ -40,6 +40,7 @@ import {
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import { getManagerLiveResponseBadge } from '@/lib/managerDashboardDisplay';
 import {
     isPortfolioPropertyEligibleForRequest,
     selectShareablePortfolioProperties,
@@ -591,6 +592,11 @@ const BrokerResponseWidget: React.FC = () => {
     };
 
     const pendingCount = requests.filter((request) => request.status === 'pending').length;
+    const mobileQueueBadge = getManagerLiveResponseBadge({
+        availableForFastResponse,
+        availabilityBlockedReason,
+        pendingCount,
+    });
     const availabilityLabel = availabilityBlockedReason
         ? 'Live dispatch unavailable'
         : availableForFastResponse
@@ -623,7 +629,7 @@ const BrokerResponseWidget: React.FC = () => {
                         <div className="flex items-center justify-between gap-2">
                             <h2 className="text-base font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">Live response</h2>
                             <span className="shrink-0 rounded-full bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700 dark:bg-red-900/20 dark:text-red-300">
-                                {pendingCount} waiting
+                                {mobileQueueBadge}
                             </span>
                         </div>
                         <p className="mt-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">{availabilityLabel}</p>

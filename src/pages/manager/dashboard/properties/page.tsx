@@ -684,8 +684,16 @@ function PropertiesContent() {
                     ))}
                 </div>
             ) : (
-                <div className="max-w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm [overscroll-behavior-inline:contain] [scrollbar-gutter:stable] touch-pan-x dark:border-gray-800 dark:bg-gray-900">
-                    <table className="min-w-[760px] w-full text-left">
+                <div className="space-y-2">
+                    <p className="px-1 text-xs font-medium text-gray-500 dark:text-gray-400 sm:hidden">
+                        Swipe sideways to see status and actions.
+                    </p>
+                    <div
+                        className="max-w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm [overscroll-behavior-inline:contain] [scrollbar-gutter:stable] touch-pan-x dark:border-gray-800 dark:bg-gray-900"
+                        tabIndex={0}
+                        aria-label="Scrollable property listings table"
+                    >
+                        <table className="min-w-[760px] w-full text-left">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Property</th>
@@ -768,7 +776,8 @@ function PropertiesContent() {
                                 );
                             })}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
                 </div>
             )}
 
