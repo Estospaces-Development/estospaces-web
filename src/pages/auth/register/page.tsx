@@ -887,7 +887,7 @@ export default function RegisterPage() {
                             <button
                                 type="button"
                                 onClick={openTermsModal}
-                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm hover:bg-orange-100 transition-colors ${authFocusClass}`}
+                                className={`inline-flex min-h-11 items-center gap-2 px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm hover:bg-orange-100 transition-colors ${authFocusClass}`}
                             >
                                 <FileText size={16} />
                                 {agreedToTerms ? 'Review Terms Again' : 'Read Terms & Conditions'}
