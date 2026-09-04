@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   getManagerLiveResponseBadge,
+  getManagerPropertyLocation,
   resolveManagerPropertySize,
 } from './managerDashboardDisplay';
 
@@ -35,5 +36,17 @@ test('live manager response badge reports the active waiting count', () => {
       pendingCount: 2,
     }),
     '2 waiting',
+  );
+});
+
+test('manager property cards compose raw API address fields', () => {
+  assert.equal(
+    getManagerPropertyLocation({
+      address_line_1: 'Jantar Mantar Road',
+      city: 'New Delhi',
+      postcode: '600005',
+      country: 'India',
+    }),
+    'Jantar Mantar Road, New Delhi, 600005, India',
   );
 });
