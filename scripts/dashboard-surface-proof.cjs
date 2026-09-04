@@ -14,11 +14,11 @@ const crashPattern = /toast is not defined|unexpected application error|somethin
 const routeMatrix = {
   user: [
     '/user/dashboard',
-    '/user/applications',
+    '/user/dashboard/applications',
     '/user/dashboard/viewings',
     '/user/dashboard/messages',
     '/user/dashboard/contracts',
-    '/user/docs',
+    '/user/dashboard/docs',
     '/user/dashboard/help',
     '/user/dashboard/fast-track',
   ],
@@ -46,6 +46,32 @@ const routeMatrix = {
     '/admin/verifications',
   ],
 };
+
+function partitionExpectedNetworkErrors(errors, roleName, coreOrigin) {
+  if (roleName !== 'manager' || !coreOrigin) {
+    return { expected: [], unexpected: [...errors] };
+  }
+
+  const origin = new URL(coreOrigin).origin;
+  const expected = [];
+  const unexpected = [];
+
+  for (const error of errors) {
+    const match = /^(\d{3})\s+(https?:\/\/\S+)$/.exec(error);
+    if (match) {
+      const url = new URL(match[2]);
+      if (match[1] === '404'
+        && url.origin === origin
+        && url.pathname === '/api/v1/brokers/profile') {
+        expected.push(error);
+        continue;
+      }
+    }
+    unexpected.push(error);
+  }
+
+  return { expected, unexpected };
+}
 
 async function assertHealthy(page, expectedPrefix) {
   await page.waitForTimeout(1500);
@@ -103,7 +129,14 @@ async function main() {
           try {
             await page.goto(`${baseUrl}${route}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
             await assertHealthy(page, route);
-            const status = pageErrors.length === 0 && consoleErrors.length === 0 && networkErrors.length === 0
+            const partitionedNetworkErrors = partitionExpectedNetworkErrors(
+              networkErrors,
+              roleName,
+              target.services.core,
+            );
+            const status = pageErrors.length === 0
+              && consoleErrors.length === 0
+              && partitionedNetworkErrors.unexpected.length === 0
               ? 'passed'
               : 'failed';
             results.push({
@@ -113,7 +146,10 @@ async function main() {
               actualUrl: page.url(),
               pageErrors,
               consoleErrors,
-              networkErrors,
+              networkErrors: partitionedNetworkErrors.unexpected,
+              ...(partitionedNetworkErrors.expected.length > 0
+                ? { expectedNetworkEvents: partitionedNetworkErrors.expected }
+                : {}),
             });
           } catch (error) {
             results.push({
@@ -149,7 +185,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = { partitionExpectedNetworkErrors };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

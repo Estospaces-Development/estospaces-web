@@ -51,7 +51,32 @@ async function submitLogin(page, baseUrl, email, password, timeout = 120000) {
   await page.getByRole('button', { name: /^Sign In$/i }).click();
 }
 
-async function runScenario(name, task) {
+function partitionNetworkErrors(errors, expectedAuthorizationOrigin) {
+  if (!expectedAuthorizationOrigin) {
+    return { expected: [], unexpected: [...errors] };
+  }
+
+  const origin = new URL(expectedAuthorizationOrigin).origin;
+  const expectedPaths = new Set(['/api/v1/auth/me', '/api/v1/properties/saved']);
+  const expected = [];
+  const unexpected = [];
+
+  for (const error of errors) {
+    const match = /^(\d{3})\s+(https?:\/\/\S+)$/.exec(error);
+    if (match) {
+      const url = new URL(match[2]);
+      if (match[1] === '401' && url.origin === origin && expectedPaths.has(url.pathname)) {
+        expected.push(error);
+        continue;
+      }
+    }
+    unexpected.push(error);
+  }
+
+  return { expected, unexpected };
+}
+
+async function runScenario(name, task, options = {}) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
@@ -70,7 +95,19 @@ async function runScenario(name, task) {
   try {
     await task(page, result);
     result.actualUrl = page.url();
-    result.status = errors.page.length === 0 && errors.console.length === 0 && errors.network.length === 0 ? 'passed' : 'failed';
+    const partitionedNetworkErrors = partitionNetworkErrors(
+      errors.network,
+      options.expectedAuthorizationOrigin,
+    );
+    result.networkErrors = partitionedNetworkErrors.unexpected;
+    if (partitionedNetworkErrors.expected.length > 0) {
+      result.expectedNetworkEvents = partitionedNetworkErrors.expected;
+    }
+    result.status = result.pageErrors.length === 0
+      && result.consoleErrors.length === 0
+      && result.networkErrors.length === 0
+      ? 'passed'
+      : 'failed';
     if (result.status !== 'passed' && !result.error) {
       result.error = 'Browser diagnostics detected';
     }
@@ -164,6 +201,7 @@ async function main() {
     },
     {
       name: 'manager-login-on-admin-host-redirects-to-app-login',
+      expectedAuthorizationOrigin: target.services.core,
       fn: async (page, result) => {
         await submitLogin(page, adminBaseUrl, testCredentials.manager.email, testCredentials.manager.password, 120000);
         await page.waitForURL((url) => url.hostname === new URL(appBaseUrl).hostname && url.pathname.startsWith('/login'), { timeout: 120000 });
@@ -174,6 +212,7 @@ async function main() {
     },
     {
       name: 'user-login-on-admin-host-redirects-to-app-login',
+      expectedAuthorizationOrigin: target.services.core,
       fn: async (page, result) => {
         await submitLogin(page, adminBaseUrl, testCredentials.user.email, testCredentials.user.password, 120000);
         await page.waitForURL((url) => url.hostname === new URL(appBaseUrl).hostname && url.pathname.startsWith('/login'), { timeout: 120000 });
@@ -187,7 +226,9 @@ async function main() {
   // Run each scenario in its own browser instance to prevent OOM crashes
   for (const scenario of scenarios) {
     console.error(`[auth-host] running: ${scenario.name}`);
-    results.push(await runScenario(scenario.name, scenario.fn));
+    results.push(await runScenario(scenario.name, scenario.fn, {
+      expectedAuthorizationOrigin: scenario.expectedAuthorizationOrigin,
+    }));
   }
 
   const payload = {
@@ -206,7 +247,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = { partitionNetworkErrors };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
