@@ -47,6 +47,12 @@ export interface ManagerPropertyMapLocation {
 
 const DEFAULT_MANAGER_MAP_CENTER: [number, number] = [20.5937, 78.9629];
 
+export const toggleManagerMapFilter = (activeFilters: string[], filterId: string): string[] => (
+  activeFilters.includes(filterId)
+    ? activeFilters.filter((activeFilter) => activeFilter !== filterId)
+    : [...activeFilters, filterId]
+);
+
 const buildAddress = (property: ManagerMapProperty) => [
   property.location?.addressLine1 || property.address_line_1,
   property.location?.city || property.city,

@@ -3,7 +3,26 @@ import test from 'node:test';
 import {
   getManagerPropertyMapCenter,
   resolveManagerPropertyMapLocation,
+  toggleManagerMapFilter,
 } from './managerPropertyMap';
+
+test('manager can hide and restore property markers without changing their stored locations', () => {
+  const properties = [{ id: 'listing-1', type: 'property' }, { id: 'listing-2', type: 'property' }];
+  const initial = ['property'];
+  const hidden = toggleManagerMapFilter(initial, 'property');
+  assert.equal(properties.filter((property) => hidden.includes(property.type)).length, 0);
+  assert.deepEqual(hidden, []);
+  const restored = toggleManagerMapFilter(hidden, 'property');
+  assert.deepEqual(restored, ['property']);
+  assert.equal(properties.filter((property) => restored.includes(property.type)).length, 2);
+  assert.deepEqual(initial, ['property']);
+  assert.equal(properties.length, 2);
+});
+
+test('toggling a map filter preserves other active filters', () => {
+  assert.deepEqual(toggleManagerMapFilter(['property', 'other'], 'property'), ['other']);
+  assert.deepEqual(toggleManagerMapFilter(['other'], 'property'), ['other', 'property']);
+});
 
 test('manager property map uses the persisted listing coordinates', () => {
   const location = resolveManagerPropertyMapLocation({

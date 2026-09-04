@@ -4,6 +4,7 @@ import { getUserProperties } from '@/services/userPropertiesService';
 import {
     getManagerPropertyMapCenter,
     resolveManagerPropertyMapLocation,
+    toggleManagerMapFilter,
     type ManagerPropertyMapLocation,
 } from '@/lib/managerPropertyMap';
 import { useMap, MapContainer, TileLayer, Marker, Popup } from '@/lib/leafletReact';
@@ -111,10 +112,8 @@ const SatelliteMap = () => {
         void loadMapProperties();
     }, [loadMapProperties]);
 
-    const activateFilter = (filterId: string) => {
-        setActiveFilters((previous) => (
-            previous.includes(filterId) ? previous : [...previous, filterId]
-        ));
+    const toggleFilter = (filterId: string) => {
+        setActiveFilters((previous) => toggleManagerMapFilter(previous, filterId));
     };
 
     const propertyLocations: Location[] = useMemo(() => (
@@ -175,7 +174,7 @@ const SatelliteMap = () => {
                             return (
                                 <button
                                     key={filter.id}
-                                    onClick={() => activateFilter(filter.id)}
+                                    onClick={() => toggleFilter(filter.id)}
                                     aria-pressed={isActive}
                                     data-manager-map-filter={filter.id}
                                     className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${isActive
@@ -211,7 +210,7 @@ const SatelliteMap = () => {
                         })}
                     </div>
 
-                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400" data-manager-map-location-summary>
+                    <p aria-live="polite" className="mt-3 text-xs text-gray-500 dark:text-gray-400" data-manager-map-location-summary>
                         Showing {filteredLocations.length} of {propertyLocations.length} property locations
                     </p>
             </ManagerMapFilterPanel>
@@ -226,13 +225,15 @@ const SatelliteMap = () => {
                 </button>
             )}
 
-            {(loadingProperties || propertyError || propertyLocations.length === 0) && (
+            {(loadingProperties || propertyError || filteredLocations.length === 0) && (
                 <div className="absolute bottom-4 left-4 right-4 z-[500] rounded-lg border border-gray-100 bg-white/95 px-4 py-3 text-sm text-gray-700 shadow-lg dark:border-gray-700 dark:bg-gray-800/95 dark:text-gray-200" data-manager-map-state>
                     {loadingProperties
                         ? <BrandLoadingScreen variant="panel" label="Loading property locations..." />
                         : propertyError
                             ? propertyError
-                            : 'No property locations with saved latitude and longitude are available yet. Add the exact coordinates to a property to show its marker here.'}
+                            : propertyLocations.length > 0
+                                ? 'Property markers are hidden. Turn on Properties in Filters to show them again.'
+                                : 'No property locations with saved latitude and longitude are available yet. Add the exact coordinates to a property to show its marker here.'}
                 </div>
             )}
 
