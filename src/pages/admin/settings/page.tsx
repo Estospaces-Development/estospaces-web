@@ -98,7 +98,8 @@ export default function AdminSettingsPage() {
                     onClick={handleSave}
                     disabled={isSaving || !canSaveSettings}
                     aria-disabled={isSaving || !canSaveSettings}
-                    className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!hasSettingsChanges ? 'No settings changes to save' : settingsErrors[0]}
+                    className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-orange-500 disabled:active:scale-100"
                 >
                     {isSaving ? <ActionSpinner size="sm" label="Saving settings" /> : <Save size={18} />}
                     {isSaving ? 'Saving...' : 'Save Changes'}

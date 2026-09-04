@@ -163,10 +163,10 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
             </div>
 
             <div className="p-4">
-                <div className="flex justify-between items-start mb-2 gap-2">
-                    <h2 className="min-w-0 flex-1 break-words text-lg font-bold leading-tight text-gray-900 dark:text-white">{title}</h2>
+                <div className="mb-2 flex flex-col items-start gap-1.5 min-[360px]:flex-row min-[360px]:justify-between min-[360px]:gap-2">
+                    <h2 className="line-clamp-2 min-w-0 break-words text-base font-bold leading-tight text-gray-900 dark:text-white min-[360px]:line-clamp-none min-[360px]:flex-1 min-[360px]:text-lg">{title}</h2>
                     {formattedPrice && (
-                        <p className="font-display font-bold text-lg text-orange-600 dark:text-orange-500 whitespace-nowrap">
+                        <p className="self-start whitespace-nowrap font-display text-base font-bold text-orange-600 dark:text-orange-500 min-[360px]:shrink-0 min-[360px]:text-lg">
                             {formattedPrice}
                         </p>
                     )}

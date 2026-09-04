@@ -44,6 +44,8 @@ export default function PropertyDetailPage() {
     const { user: _user } = useAuth();
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+    const [duplicating, setDuplicating] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [_showImageModal, setShowImageModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
@@ -98,12 +100,22 @@ export default function PropertyDetailPage() {
         }
     };
 
-    const handleDuplicate = async () => {
-        if (id) {
-            const duplicate = await duplicateProperty(id);
-            if (duplicate) {
-                appToast.success(`Draft copy created. You are now editing ${duplicate.title}.`);
-                navigate(`/manager/dashboard/properties/edit/${duplicate.id}`);
+    const handleDuplicate = () => {
+        setShowDuplicateConfirm(true);
+    };
+
+    const confirmDuplicate = async () => {
+        if (id && !duplicating) {
+            setDuplicating(true);
+            try {
+                const duplicate = await duplicateProperty(id);
+                if (duplicate) {
+                    appToast.success(`Draft copy created. You are now editing ${duplicate.title}.`);
+                    navigate(`/manager/dashboard/properties/edit/${duplicate.id}`);
+                }
+            } finally {
+                setDuplicating(false);
+                setShowDuplicateConfirm(false);
             }
         }
     };
@@ -677,10 +689,11 @@ export default function PropertyDetailPage() {
                         </div>
                         {propertyMapState.externalUrl && (
                             <a
+                                data-location-header-action
                                 href={propertyMapState.externalUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
+                                className="hidden items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/30 sm:inline-flex"
                             >
                                 <span>Open in Maps</span>
                                 <ExternalLink size={15} />
@@ -696,7 +709,7 @@ export default function PropertyDetailPage() {
                                 className="group block"
                                 aria-label={`Open ${property.title} in Maps`}
                             >
-                                <div className="aspect-video relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                                <div className="relative min-h-[13rem] overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:aspect-video sm:min-h-0">
                                     <iframe
                                         src={propertyMapState.embedUrl}
                                         title={`Map preview for ${property.title}`}
@@ -704,7 +717,7 @@ export default function PropertyDetailPage() {
                                         allowFullScreen
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent transition-opacity group-hover:opacity-95" />
-                                    <div className="absolute left-4 top-4 rounded-lg bg-white/95 px-3 py-2 text-sm font-semibold text-blue-700 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 dark:text-blue-300">
+                                    <div data-location-map-action className="absolute hidden left-4 top-4 rounded-lg bg-white/95 px-3 py-2 text-sm font-semibold text-blue-700 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 dark:text-blue-300 sm:block">
                                         <span className="inline-flex items-center gap-2">
                                             <span>Open in Maps</span>
                                             <ExternalLink size={15} />
@@ -726,7 +739,7 @@ export default function PropertyDetailPage() {
                                 </div>
                             </a>
                         ) : (
-                            <div className="aspect-video rounded-xl border border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-white p-6 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900">
+                            <div className="min-h-[13rem] rounded-xl border border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-white p-6 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 sm:aspect-video sm:min-h-0">
                                 <div className="flex h-full flex-col items-center justify-center text-center">
                                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300">
                                         <MapPin size={24} />
@@ -775,6 +788,41 @@ export default function PropertyDetailPage() {
                         }
                     }}
                 />
+            )}
+
+            {showDuplicateConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="duplicate-property-title"
+                        aria-describedby="duplicate-property-description"
+                        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900"
+                    >
+                        <h3 id="duplicate-property-title" className="mb-3 text-xl font-bold text-gray-900 dark:text-white">Copy property?</h3>
+                        <p id="duplicate-property-description" className="mb-6 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                            Create a new draft listing from this property. You can review and edit it before publishing.
+                        </p>
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={() => setShowDuplicateConfirm(false)}
+                                disabled={duplicating}
+                                className="min-h-11 flex-1 rounded-lg border border-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void confirmDuplicate()}
+                                disabled={duplicating}
+                                className="min-h-11 flex-1 rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {duplicating ? 'Copying...' : 'Copy as draft'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Delete Confirmation Modal */}
