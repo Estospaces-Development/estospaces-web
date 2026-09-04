@@ -11,6 +11,8 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import ManagerMapFilterPanel from './ManagerMapFilterPanel';
+import { shouldOpenManagerMapFiltersByDefault } from '@/lib/managerDashboardPresentation';
 
 const createCustomIcon = (color: string, symbol: string) => {
     if (typeof window === 'undefined') return null;
@@ -79,7 +81,9 @@ function MapController({
 
 const SatelliteMap = () => {
     const [activeFilters, setActiveFilters] = useState<string[]>(['property']);
-    const [showFilters, setShowFilters] = useState(true);
+    const [showFilters, setShowFilters] = useState(() => (
+        typeof window !== 'undefined' && shouldOpenManagerMapFiltersByDefault(window.innerWidth)
+    ));
     const [isMounted, setIsMounted] = useState(false);
     const [mapProperties, setMapProperties] = useState<any[]>([]);
     const [loadingProperties, setLoadingProperties] = useState(true);
@@ -147,8 +151,7 @@ const SatelliteMap = () => {
             data-manager-map-property-count={propertyLocations.length}
             data-manager-map-marker-count={filteredLocations.length}
         >
-            {showFilters && (
-                <div className="absolute top-4 left-4 z-[500] bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 p-4 max-w-xs max-h-[80vh] overflow-y-auto">
+            <ManagerMapFilterPanel open={showFilters} onClose={() => setShowFilters(false)}>
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                             <Filter className="w-5 h-5 text-gray-700 dark:text-gray-300" />
@@ -211,8 +214,7 @@ const SatelliteMap = () => {
                     <p className="mt-3 text-xs text-gray-500 dark:text-gray-400" data-manager-map-location-summary>
                         Showing {filteredLocations.length} of {propertyLocations.length} property locations
                     </p>
-                </div>
-            )}
+            </ManagerMapFilterPanel>
 
             {!showFilters && (
                 <button

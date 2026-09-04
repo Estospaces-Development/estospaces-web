@@ -119,6 +119,30 @@ Users should only see and receive properties that are accurate, available, and s
 ### Example
 A manager updates a property's status after it is rented so it does not appear in a user's shortlist.
 
+## Reservation Approvals
+
+### What they are
+Reservation approvals are pending booking requests for a manager's properties. They appear on the dashboard so the manager can confirm a valid reservation before it progresses.
+
+### What each status means
+
+| Status | Meaning | Manager action |
+| --- | --- | --- |
+| Pending | The reservation is waiting for a decision | Verify the property, dates, and user, then confirm if valid |
+| Approved | The manager accepted the reservation | Continue the linked appointment and case workflow |
+| Completed | The reservation journey finished | Treat it as history unless follow-up is required |
+| Cancelled | The reservation will not continue | Confirm that the user and property state are consistent |
+
+### How to review an approval
+1. Open the pending reservation on the manager dashboard.
+2. Confirm the property and booking dates.
+3. Check that the request belongs to the expected user and journey.
+4. Select **Confirm Reservation** only when the details are correct.
+5. Verify the success message and the updated status before leaving the dashboard.
+
+### When to use support
+Use manager support if the property, dates, user, or case linkage is wrong, or if a confirmed reservation remains pending after refresh.
+
 ## Leads, Shortlists, And 10-Minute Response
 
 ### What leads are

@@ -50,6 +50,7 @@ import {
   clearManagerFastTrackRequestNavigation,
   getManagerFastTrackRequestSearch,
 } from '@/lib/managerFastTrackRequestNavigation';
+import { formatManagerDashboardCount } from '@/lib/managerDashboardPresentation';
 
 const MANAGER_PROPERTIES_PAGE_SIZE = 6;
 
@@ -397,20 +398,22 @@ function DashboardContent() {
     total + (property.views || 0)
   ), 0);
 
+  const totalViews = analytics?.total_views ?? (
+    analytics
+      ? livePropertyViewsFromAnalytics
+      : livePropertyViewsFallback
+  );
+
   const stats = {
-    liveFastTrack: String(fastTrackSummary.active),
+    liveFastTrack: formatManagerDashboardCount(fastTrackSummary.active),
     liveFastTrackChange: `Across all cases: ${[
         fastTrackSummary.completed > 0 && `${fastTrackSummary.completed} completed`,
         fastTrackSummary.cancelled > 0 && `${fastTrackSummary.cancelled} closed`,
         fastTrackSummary.closingSoon > 0 && `${fastTrackSummary.closingSoon} closing soon`,
     ].filter(Boolean).join(' · ') || 'no completed or closed cases'}`,
-    activeProperties: getManagerLiveListingCount(analytics, properties, livePropertyTotal).toString(),
+    activeProperties: formatManagerDashboardCount(getManagerLiveListingCount(analytics, properties, livePropertyTotal)),
     activeListingsChange: analytics?.property_growth || '0%',
-    totalViews: analytics?.total_views?.toString() || String(
-      analytics
-        ? livePropertyViewsFromAnalytics
-        : livePropertyViewsFallback,
-    ),
+    totalViews: formatManagerDashboardCount(totalViews),
     totalViewsChange: analytics?.views_growth || '0%',
     conversionRate: formatManagerAnalyticsPercentage(
       analytics?.conversion_rate ?? analytics?.leadAnalytics?.conversionRate ?? 0,
@@ -521,7 +524,7 @@ function DashboardContent() {
         />
         <StatCard
           title="Total Views"
-          value={stats.totalViews.toString()}
+          value={stats.totalViews}
           change={stats.totalViewsChange}
           icon={Eye}
           iconColor="bg-purple-500"

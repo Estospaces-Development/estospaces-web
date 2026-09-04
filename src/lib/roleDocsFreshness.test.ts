@@ -31,6 +31,7 @@ test('dashboard docs parse into current onboarding sections', () => {
             'Manager Dashboard Map',
             'Readiness And Verification',
             'Property Inventory',
+            'Reservation Approvals',
             'Leads, Shortlists, And 10-Minute Response',
             'Fast Track, Case Files, And Documents',
             'Applications, Appointments, Contracts, And Support',

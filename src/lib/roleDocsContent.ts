@@ -201,6 +201,11 @@ const managerConfig: RoleDocsConfig = {
                 'It is the manager-side queue for selected-property cases that now need close follow-through. Use it to spot active, closing-soon, and completed cases, then open the redesigned workspace where the stepper, current focus, utility dock, and linked actions stay together.',
         },
         {
+            question: 'How should I handle a pending reservation approval?',
+            answer:
+                'Open the reservation on the dashboard, verify the property, booking dates, user, and linked journey, then select Confirm Reservation only when those details are correct. After confirmation, verify both the success message and the updated status.',
+        },
+        {
             question: 'When should I use leads, messages, and appointments separately?',
             answer:
                 'Use leads for intake and active client context, messages for written coordination, and appointments for schedule ownership. Once a case is in fast-track, applications, appointments, and contracts should behave as linked companion pages instead of separate workflow owners.',
@@ -241,6 +246,11 @@ const managerConfig: RoleDocsConfig = {
             term: 'Fast Track 24h lane',
             definition:
                 'The dashboard queue that summarizes active, closing-soon, and completed fast-track cases and opens the main workflow workspace.',
+        },
+        {
+            term: 'Reservation approval',
+            definition:
+                'A pending booking request that the manager validates against the property, dates, user, and linked journey before confirming it.',
         },
         {
             term: 'Shareable inventory',
