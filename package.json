@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-unit-tests.cjs",
     "test:docs:layout": "npm run build && tsx --test scripts/docs-mobile-layout-proof.tsx",
+    "test:property-save:browser": "node --test scripts/property-save-browser-proof.cjs",
     "test:fast-track": "tsx --test src/lib/apiUtils.test.ts src/lib/fastTrackWorkflow.test.ts src/lib/managerFastTrack.test.ts src/lib/userFastTrack.test.ts src/lib/fastTrackLinkedJourney.test.ts src/lib/fastTrackStageGuidance.test.ts src/lib/fastTrackProcessScenarios.test.ts",
     "test:e2e:dev": "node scripts/e2e-smoke.cjs --target=dev",
     "test:e2e:local": "node scripts/e2e-smoke.cjs --target=local",
