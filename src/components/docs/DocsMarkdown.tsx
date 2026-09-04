@@ -77,7 +77,7 @@ const components: Components = {
     table: ({ children }) => (
         <div className="mb-8 overflow-hidden rounded-[1.7rem] border border-orange-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
             <div className="overflow-x-auto" tabIndex={0} aria-label="Scrollable documentation table">
-                <table className="min-w-full divide-y divide-orange-100 text-left dark:divide-gray-800">
+                <table className="docs-data-table w-full min-w-[36rem] divide-y divide-orange-100 text-left dark:divide-gray-800">
                     {children}
                 </table>
             </div>
@@ -87,7 +87,7 @@ const components: Components = {
         <thead className="bg-orange-50/80 dark:bg-gray-900">{children}</thead>
     ),
     th: ({ children }) => (
-        <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-300">
+        <th className="min-w-[8rem] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-300">
             {children}
         </th>
     ),
