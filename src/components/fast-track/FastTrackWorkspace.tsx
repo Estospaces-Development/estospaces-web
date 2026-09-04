@@ -1705,6 +1705,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        if (!canUserPrepareFastTrackDocuments(selectedCase)) {
+            toast.info('Documents can only be uploaded during document collection.');
+            return;
+        }
+
         const file = selectedFiles[item.id];
         if (!file) {
             toast.error(`Choose a file for ${item.label.toLowerCase()} first.`);
