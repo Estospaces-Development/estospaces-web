@@ -13,6 +13,7 @@ import {
     rememberAuthorizedConversation,
 } from '@/lib/conversationVisibility';
 import { getAuthTokenVersion } from '@/lib/authToken';
+import { formatConversationTime } from '@/lib/conversationTime';
 import { mergeLatestMessagePage } from '@/lib/messagePagination';
 import {
     createUnavailableConversationThreadIssue,
@@ -377,7 +378,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             isMuted: backendConversation.is_muted ?? existingConversation?.isMuted ?? false,
             lastActivity: backendConversation.updated_at,
             lastMessage: lastMessage?.text || '',
-            lastMessageTime: formatMessageTime(lastMessage?.timestamp || backendConversation.updated_at),
+            lastMessageTime: formatConversationTime(lastMessage?.timestamp || backendConversation.updated_at),
             unreadCount: (() => {
                 const backendUnreadCount = Number(backendConversation.unread_count ?? existingConversation?.unreadCount ?? 0);
                 const readMarker = getConversationReadMarker(backendConversation);
@@ -584,7 +585,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                             isLoadingOlderMessages: false,
                             lastMessage: mappedMessages[mappedMessages.length - 1]?.text || conversation.lastMessage,
                             lastMessageTime: mappedMessages.length > 0
-                                ? mappedMessages[mappedMessages.length - 1].time
+                                ? formatConversationTime(mappedMessages[mappedMessages.length - 1].timestamp)
                                 : conversation.lastMessageTime,
                         };
                     });
@@ -601,7 +602,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                             hasOlderMessages: backendMessages.length === MESSAGE_PAGE_SIZE,
                             lastMessage: mappedMessages[mappedMessages.length - 1]?.text || '',
                             lastMessageTime: mappedMessages.length > 0
-                                ? mappedMessages[mappedMessages.length - 1].time
+                                ? formatConversationTime(mappedMessages[mappedMessages.length - 1].timestamp)
                                 : '',
                         },
                         ...updatedConversations,
@@ -898,7 +899,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                             ...conversation,
                             lastActivity: sentMessage.created_at,
                             lastMessage: mappedMessage.text,
-                            lastMessageTime: mappedMessage.time,
+                            lastMessageTime: formatConversationTime(mappedMessage.timestamp),
                             messages: [...conversation.messages, mappedMessage],
                         }
                         : conversation,
