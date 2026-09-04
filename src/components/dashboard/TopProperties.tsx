@@ -1,11 +1,12 @@
 "use client";
 
-import { Star } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
 import { formatPropertyStatusLabel } from '@/lib/propertyStatusBadge';
+import { formatManagerDashboardCount } from '@/lib/managerDashboardPresentation';
 
 interface TopProperty {
     id: string;
@@ -71,7 +72,7 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
-                <Star className="w-5 h-5 text-primary" />
+                <TrendingUp className="w-5 h-5 text-primary" aria-hidden="true" />
                 <h3 className="section-heading text-gray-800 dark:text-white">Top Performing properties</h3>
             </div>
 
@@ -115,8 +116,8 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
                             </div>
                             {property.price && <p className="text-lg font-bold text-gray-800 dark:text-white mb-2">{property.price}</p>}
                             <div className="flex items-center gap-4 secondary-label text-gray-600 dark:text-gray-400 text-sm">
-                                <span>{property.views} {property.views === 1 ? 'view' : 'views'}</span>
-                                <span>{property.inquiries} {property.inquiries === 1 ? 'Inquiry' : 'Inquiries'}</span>
+                                <span>{formatManagerDashboardCount(property.views)} {property.views === 1 ? 'view' : 'views'}</span>
+                                <span>{formatManagerDashboardCount(property.inquiries)} {property.inquiries === 1 ? 'Inquiry' : 'Inquiries'}</span>
                             </div>
                         </button>
                     ))}

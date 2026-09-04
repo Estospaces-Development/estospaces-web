@@ -1,12 +1,13 @@
 "use client";
 
-import { Zap } from 'lucide-react';
+import { Activity as ActivityIcon } from 'lucide-react';
 import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as leadsService from '@/services/leadsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { formatManagerActivityDateTime } from '@/lib/managerDashboardPresentation';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
@@ -58,7 +59,7 @@ const RecentActivity = () => {
                         type: 'New Lead',
                         name: lead.name || 'Interested User',
                         property: lead.property?.title || lead.propertyInterested || 'General Interest',
-                        date: new Date(lead.created_at).toLocaleDateString(),
+                        date: formatManagerActivityDateTime(new Date(lead.created_at)),
                         timestamp: new Date(lead.created_at),
                         leadId: lead.id,
                     });
@@ -72,7 +73,7 @@ const RecentActivity = () => {
                         type: property.status === 'published' || property.status === 'online' ? 'Listing Published' : 'Property Updated',
                         name: property.agent_name || 'Your Portfolio',
                         property: property.title || 'Property Listing',
-                        date: new Date(property.updated_at || property.created_at).toLocaleDateString(),
+                        date: formatManagerActivityDateTime(new Date(property.updated_at || property.created_at)),
                         timestamp: new Date(property.updated_at || property.created_at),
                         propertyId: property.id,
                     });
@@ -117,7 +118,7 @@ const RecentActivity = () => {
 
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
-                    <Zap className="w-5 h-5 text-blue-500 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+                    <ActivityIcon className="w-5 h-5 text-blue-500 transition-transform duration-300 group-hover:scale-110" aria-hidden="true" />
                     <h3 className="section-heading text-gray-800 dark:text-white transition-colors duration-300 group-hover:text-primary dark:group-hover:text-primary-light">Recent Activity</h3>
                 </div>
 
