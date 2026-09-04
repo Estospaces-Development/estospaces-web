@@ -10,7 +10,7 @@ export const formatConversationTime = (timestamp?: string, now = new Date()) => 
     }
 
     const parsed = new Date(timestamp);
-    if (Number.isNaN(parsed.getTime())) {
+    if (Number.isNaN(parsed.getTime()) || parsed.getUTCFullYear() <= 1) {
         return '';
     }
 
