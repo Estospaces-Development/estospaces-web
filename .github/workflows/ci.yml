@@ -46,6 +46,8 @@ jobs:
           npx tsx --test scripts/docs-mobile-layout-proof.tsx
       - name: Verify draft save duplicate prevention and failure recovery
         run: npm run test:property-save:browser
+      - name: Verify document access errors and valid preview URLs
+        run: npm run test:document-preview:browser
       - name: Build hardened Docker image
         run: |
           docker build \
