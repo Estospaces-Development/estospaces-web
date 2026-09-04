@@ -35,4 +35,5 @@ test('returns an empty label for missing or invalid timestamps', () => {
 
     assert.equal(formatConversationTime(undefined, now), '');
     assert.equal(formatConversationTime('not-a-date', now), '');
+    assert.equal(formatConversationTime('0001-01-01T00:00:00Z', now), '');
 });
