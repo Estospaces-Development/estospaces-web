@@ -157,8 +157,8 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                         <button
                             type="button"
                             onClick={() => setSearchOpen(true)}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-300 dark:hover:bg-gray-800 md:hidden"
                             aria-label="Open admin search"
+                            className="hidden h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-300 dark:hover:bg-gray-800 sm:inline-flex md:hidden"
                         >
                             <Search size={20} />
                         </button>
@@ -184,7 +184,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                             <Globe size={20} />
                         </Link>
 
-                        <div className="hidden sm:block"><ThemeSwitcher /></div>
+                        <div data-admin-mobile-theme-switcher><ThemeSwitcher /></div>
 
                         <NotificationDropdown />
 
