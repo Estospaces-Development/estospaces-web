@@ -19,3 +19,5 @@ jobs:
         run: bash .github/scripts/test-deploy-cloud-run.sh
       - name: Test canary request correlation and error gates
         run: bash .github/scripts/test-verify-cloud-run-canary.sh
+      - name: Test exact-image canonical-host smoke configuration
+        run: bash .github/scripts/test-production-image-smoke.sh

@@ -121,7 +121,7 @@ jobs:
             -addext 'subjectAltName=DNS:app.estospaces.com,DNS:admin.estospaces.com'
           cat >"${RUNNER_TEMP}/smoke-nginx.conf" <<'NGINX'
           server {
-            listen 8443 ssl;
+            listen 127.0.0.1:443 ssl;
             server_name app.estospaces.com admin.estospaces.com;
             ssl_certificate /smoke/smoke.crt;
             ssl_certificate_key /smoke/smoke.key;
@@ -141,7 +141,7 @@ jobs:
 
           for attempt in {1..30}; do
             if curl --fail --silent --show-error --insecure \
-              --noproxy '*' https://app.estospaces.com:8443/health >/dev/null; then
+              --noproxy '*' https://app.estospaces.com/health >/dev/null; then
               break
             fi
             if [[ "$attempt" == "30" ]]; then
@@ -153,9 +153,9 @@ jobs:
 
           export NO_PROXY='app.estospaces.com,admin.estospaces.com,127.0.0.1,localhost'
           export NODE_EXTRA_CA_CERTS="${RUNNER_TEMP}/smoke.crt"
-          export E2E_PROD_BASE_URL='https://app.estospaces.com:8443'
-          export E2E_PROD_APP_BASE_URL='https://app.estospaces.com:8443'
-          export E2E_PROD_ADMIN_BASE_URL='https://admin.estospaces.com:8443'
+          export E2E_PROD_BASE_URL='https://app.estospaces.com'
+          export E2E_PROD_APP_BASE_URL='https://app.estospaces.com'
+          export E2E_PROD_ADMIN_BASE_URL='https://admin.estospaces.com'
           export E2E_EXPECTED_BUILD_REVISION="${{ steps.build.outputs.build_marker }}"
           node scripts/app-release-smoke.cjs --target=prod
 
