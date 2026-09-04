@@ -414,8 +414,9 @@ export const resolveFastTrackStageNavigation = (
 };
 
 export const canUserPrepareFastTrackDocuments = (
-    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'> | null | undefined,
-) => fastTrackCase?.workspaceFinalStatus === 'active';
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'stage'> | null | undefined,
+) => fastTrackCase?.workspaceFinalStatus === 'active'
+    && (fastTrackCase.stage === 'selected' || fastTrackCase.stage === 'documents');
 
 export const canStartFastTrackDocumentUpload = (
     item: Pick<FastTrackCase['documents']['items'][number], 'status' | 'documentRecordId' | 'fileName' | 'fileUrl'>,

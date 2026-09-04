@@ -884,6 +884,26 @@ test('user can open and prepare documents before manager review starts', () => {
     );
 });
 
+for (const [stage, allowed] of [
+    ['selected', true],
+    ['documents', true],
+    ['viewing', false],
+    ['decision', false],
+    ['agreement', false],
+    ['handover', false],
+] as const) {
+    test(`user document upload eligibility at ${stage} matches the booking stage contract`, () => {
+        assert.equal(canUserPrepareFastTrackDocuments(buildCase({ stage, workspaceFinalStatus: 'active' })), allowed);
+        assert.equal(canUserPrepareFastTrackDocuments(buildCase({ stage, workspaceFinalStatus: 'completed' })), false);
+        assert.equal(canUserPrepareFastTrackDocuments(buildCase({ stage, workspaceFinalStatus: 'cancelled' })), false);
+    });
+}
+
+test('user cannot prepare documents without a selected case', () => {
+    assert.equal(canUserPrepareFastTrackDocuments(null), false);
+    assert.equal(canUserPrepareFastTrackDocuments(undefined), false);
+});
+
 test('manager document actions do not offer duplicate approval', () => {
     assert.deepEqual(getFastTrackDocumentReviewActions('uploaded', true), {
         canApprove: true,
