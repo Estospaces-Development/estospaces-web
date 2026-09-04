@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -38,4 +39,10 @@ test('registration success copy confirms provider acceptance when delivery was a
   assert.equal(copy.title, 'Account created');
   assert.match(copy.message, /sent a verification link/i);
   assert.match(copy.guidance, /spam/i);
+});
+
+test('terms review action keeps the mobile touch target at least 44px tall', () => {
+  const source = fs.readFileSync(new URL('./page.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /onClick=\{openTermsModal\}\s*className=\{`[^`]*min-h-11[^`]*`\}/);
 });
