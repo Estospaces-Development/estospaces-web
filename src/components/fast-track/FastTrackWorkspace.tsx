@@ -2125,12 +2125,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
                     closeExternalDocumentWindow();
+                    if (openExternally) {
+                        setPreviewModalOpen(true);
+                    }
                     if (revealInViewport) {
                         if (role === 'user') {
                             setUserDetailsModalOpen(true);
                         }
-                        return null;
                     }
+                    return null;
                 } else {
                     releasePreviewObjectUrl();
                     nextUrl = access.url;
