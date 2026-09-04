@@ -44,6 +44,8 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npx tsx --test scripts/docs-mobile-layout-proof.tsx
+      - name: Verify draft save duplicate prevention and failure recovery
+        run: npm run test:property-save:browser
       - name: Build hardened Docker image
         run: |
           docker build \

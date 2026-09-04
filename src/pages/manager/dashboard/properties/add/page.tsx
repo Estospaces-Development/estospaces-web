@@ -589,6 +589,7 @@ export default function AddPropertyPage() {
   const [mediaListLoading, setMediaListLoading] = useState(false);
   const [_mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const propertySaveInFlightRef = useRef(false);
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const [locationStatusMessage, setLocationStatusMessage] = useState("");
   const [pendingUnsavedNavigation, setPendingUnsavedNavigation] =
@@ -2004,6 +2005,7 @@ export default function AddPropertyPage() {
   };
 
   const handleSaveDraft = async () => {
+    if (propertySaveInFlightRef.current) return;
     if (!formData.title?.trim()) {
       setErrors({ title: "Property title is required to save draft" });
       setCurrentStep(1);
@@ -2011,7 +2013,9 @@ export default function AddPropertyPage() {
       return;
     }
 
+    propertySaveInFlightRef.current = true;
     setSaving(true);
+    let redirectPending = false;
     try {
       const propertyData = await buildPropertyData();
 
@@ -2035,6 +2039,7 @@ export default function AddPropertyPage() {
             `Draft saved, but media still needs to be attached: ${mediaFinalizeError}`,
             "warning",
           );
+          redirectPending = true;
           setTimeout(
             () => navigate(`/manager/dashboard/properties/edit/${result.id}`),
             1500,
@@ -2044,6 +2049,7 @@ export default function AddPropertyPage() {
       }
       setIsDirty(false);
       showToast("Property saved as draft successfully!", "success");
+      redirectPending = true;
       setTimeout(() => navigate("/manager/dashboard/properties"), 1500);
     } catch (error: any) {
       if (applyServerValidationErrors(error)) {
@@ -2054,11 +2060,15 @@ export default function AddPropertyPage() {
         "error",
       );
     } finally {
-      setSaving(false);
+      if (!redirectPending) {
+        propertySaveInFlightRef.current = false;
+        setSaving(false);
+      }
     }
   };
 
   const handleSaveOrPublish = async () => {
+    if (propertySaveInFlightRef.current) return;
     const isEditSubmission =
       mode === "edit" &&
       (formData.status === "draft" || formData.status === "rejected");
@@ -2098,7 +2108,9 @@ export default function AddPropertyPage() {
       return;
     }
 
+    propertySaveInFlightRef.current = true;
     setSaving(true);
+    let redirectPending = false;
     try {
       const propertyData = await buildPropertyData();
 
@@ -2139,6 +2151,7 @@ export default function AddPropertyPage() {
             `Property submitted for admin approval, but media still needs to be attached: ${mediaFinalizeError}`,
             "warning",
           );
+          redirectPending = true;
           setTimeout(
             () => navigate(`/manager/dashboard/properties/edit/${result.id}`),
             1500,
@@ -2150,6 +2163,7 @@ export default function AddPropertyPage() {
           "success",
         );
       }
+      redirectPending = true;
       setTimeout(() => navigate("/manager/dashboard/properties"), 1500);
     } catch (error: any) {
       if (applyServerValidationErrors(error)) {
@@ -2162,7 +2176,10 @@ export default function AddPropertyPage() {
         "error",
       );
     } finally {
-      setSaving(false);
+      if (!redirectPending) {
+        propertySaveInFlightRef.current = false;
+        setSaving(false);
+      }
     }
   };
 
