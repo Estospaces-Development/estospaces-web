@@ -13,6 +13,7 @@ import {
     normalizeLaunchCurrencyText,
 } from '@/lib/launchLocale';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { resolveManagerPropertySize } from '@/lib/managerDashboardDisplay';
 import PropertyShareAction from './PropertyShareAction';
 import ShareModal from './ShareModal';
 
@@ -32,6 +33,7 @@ interface ManagerPropertyCardProps {
         bathrooms?: number;
         area?: number;
         sqft?: number;
+        property_size_sqft?: number;
         status: string;
         images?: string[] | any[];
         image_urls?: unknown;
@@ -69,7 +71,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
         ) || 'No Address';
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
-    const size = property.area || property.sqft || 0;
+    const size = resolveManagerPropertySize(property);
     const description = property.description?.trim() || '';
 
     const formatPrice = (price?: PriceInfo | number | string) => {
