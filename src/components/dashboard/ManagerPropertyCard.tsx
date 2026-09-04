@@ -8,11 +8,14 @@ import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import {
     formatLaunchCurrencyForCountry,
-    formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     normalizeLaunchCurrencyText,
 } from '@/lib/launchLocale';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import {
+    getManagerPropertyLocation,
+    resolveManagerPropertySize,
+} from '@/lib/managerDashboardDisplay';
 import PropertyShareAction from './PropertyShareAction';
 import ShareModal from './ShareModal';
 
@@ -22,6 +25,9 @@ interface ManagerPropertyCardProps {
         title?: string;
         name?: string;
         address?: string;
+        address_line_1?: string;
+        city?: string;
+        postcode?: string;
         description?: string;
         location?: any;
         price?: PriceInfo | number | string;
@@ -32,6 +38,7 @@ interface ManagerPropertyCardProps {
         bathrooms?: number;
         area?: number;
         sqft?: number;
+        property_size_sqft?: number;
         status: string;
         images?: string[] | any[];
         image_urls?: unknown;
@@ -59,17 +66,10 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const [showShareModal, setShowShareModal] = useState(false);
     const { incrementShares } = useProperties();
     const title = formatLaunchPropertyText(property.title || property.name, 'Untitled Property');
-    const address =
-        formatLaunchPropertyLocation(
-            property.address ||
-            (typeof property.location === 'string'
-                ? property.location
-                : property.location?.addressLine1) ||
-            '',
-        ) || 'No Address';
+    const address = getManagerPropertyLocation(property);
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
-    const size = property.area || property.sqft || 0;
+    const size = resolveManagerPropertySize(property);
     const description = property.description?.trim() || '';
 
     const formatPrice = (price?: PriceInfo | number | string) => {
