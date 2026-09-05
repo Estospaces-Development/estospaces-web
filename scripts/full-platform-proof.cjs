@@ -224,9 +224,8 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
     {
       role: 'user',
       surface: 'user desktop workspace',
-      ok: isSkipped
-        ? true
-        : payload.userDesktop?.contentExpandedOnCollapse === true
+      ok: !isSkipped && payload.userDesktop?.skipped !== true
+          && payload.userDesktop?.contentExpandedOnCollapse === true
           && payload.userDesktop?.metricsInitiallyVisible === true
           && payload.userDesktop?.metricsAfterReload === false
           && payload.userDesktop?.stepperPosition === 'sticky'
@@ -238,9 +237,8 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
     {
       role: 'manager',
       surface: 'manager desktop workspace',
-      ok: isSkipped
-        ? true
-        : payload.managerDesktop?.contentExpandedOnCollapse === true
+      ok: !isSkipped && payload.managerDesktop?.skipped !== true
+          && payload.managerDesktop?.contentExpandedOnCollapse === true
           && payload.managerDesktop?.metricsVisible === true
           && payload.managerDesktop?.preferences?.show_metrics_strip === true,
       actual: payload.managerDesktop,
@@ -249,18 +247,16 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
     {
       role: 'admin',
       surface: 'admin desktop workspace',
-      ok: isSkipped
-        ? true
-        : payload.adminDesktop?.loaded === true,
+      ok: !isSkipped && payload.adminDesktop?.skipped !== true
+          && payload.adminDesktop?.loaded === true,
       actual: payload.adminDesktop,
       fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-ADMIN-DESKTOP',
     },
     {
       role: 'user',
       surface: 'user tablet workspace',
-      ok: isSkipped
-        ? true
-        : payload.userTablet?.railDrawerOpened === true
+      ok: !isSkipped && payload.userTablet?.skipped !== true
+          && payload.userTablet?.railDrawerOpened === true
           && payload.userTablet?.mastheadVisible === true
           && payload.userTablet?.detailsActionVisible === true,
       actual: payload.userTablet,
@@ -269,19 +265,17 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
     {
       role: 'user',
       surface: 'dashboard celebration',
-      ok: isSkipped
-        ? true
-        : payload.dashboardCelebration?.skipped === true
-          || (payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
+      ok: !isSkipped && payload.dashboardCelebration?.skipped !== true
+          && payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
             && payload.dashboardCelebration?.celebrateQueryCleared === true
-            && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false),
+            && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false,
       actual: payload.dashboardCelebration,
       fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-CELEBRATION',
     },
     {
       role: 'system',
       surface: 'fast-track browser diagnostics',
-      ok: diagnostics.length === 0 && payload.diagnosticsOk === true,
+      ok: !isSkipped && diagnostics.length === 0 && payload.diagnosticsOk === true,
       actual: { diagnosticsOk: payload.diagnosticsOk },
       errors: diagnostics,
       fixRef: 'FAST-TRACK-DIAGNOSTICS',
@@ -289,7 +283,8 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
     {
       role: 'system',
       surface: 'fast-track property reference integrity',
-      ok: payload.dataIntegrityOk === true,
+      ok: !isSkipped && payload.dataIntegrityOk === true
+        && (payload.unavailablePropertyUrls || []).length === 0,
       actual: {
         dataIntegrityOk: payload.dataIntegrityOk,
         unavailablePropertyUrls: payload.unavailablePropertyUrls || [],

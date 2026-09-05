@@ -366,10 +366,6 @@ async function run() {
     const managerSession = await login(CREDENTIALS.manager.email, CREDENTIALS.manager.password);
     const adminSession = await login(CREDENTIALS.admin.email, CREDENTIALS.admin.password);
 
-    await resetWorkspacePreferences(userSession.token, "user");
-    await resetWorkspacePreferences(managerSession.token, "manager");
-    await resetWorkspacePreferences(adminSession.token, "admin");
-
     const [userCases, managerCases, adminCases] = await Promise.all([
       listFastTrackCases(userSession.token),
       listFastTrackCases(managerSession.token),
@@ -382,20 +378,19 @@ async function run() {
       pickCase(managerCases, "active") || pickCase(managerCases, "completed");
     const adminActiveCase = pickCase(adminCases, "active");
 
-    if (!userActiveCase || !managerWorkspaceCase || !adminActiveCase) {
-      result.userDesktop = { skipped: true, reason: "no cases available" };
-      result.managerDesktop = { skipped: true, reason: "no cases available" };
-      result.adminDesktop = { skipped: true, reason: "no cases available" };
-      result.userTablet = { skipped: true, reason: "no cases available" };
-      result.functionalOk = true;
-      result.diagnosticsOk = true;
-      result.dataIntegrityOk = true;
-      result.overallOk = true;
-      fs.writeFileSync(OUTPUT_PATH, JSON.stringify(result, null, 2));
-      console.log("Fast Track: no cases available, skipping proof");
-      await browser.close();
-      return;
+    const missingCases = [
+      !userActiveCase && "user active case",
+      !userCompletedCase && "user completed case",
+      !managerWorkspaceCase && "manager active or completed case",
+      !adminActiveCase && "admin active case",
+    ].filter(Boolean);
+    if (missingCases.length > 0) {
+      throw new Error(`Required Fast Track cases unavailable: ${missingCases.join(", ")}`);
     }
+
+    await resetWorkspacePreferences(userSession.token, "user");
+    await resetWorkspacePreferences(managerSession.token, "manager");
+    await resetWorkspacePreferences(adminSession.token, "admin");
 
     const userContext = await newAuthedContext(
       browser,
@@ -725,10 +720,9 @@ async function run() {
       result.userTablet.railDrawerOpened === true &&
       result.userTablet.mastheadVisible === true &&
       result.userTablet.detailsActionVisible === true &&
-      (result.dashboardCelebration.skipped === true ||
-        (result.dashboardCelebration.celebrateRouteOverlayVisible === true &&
-          result.dashboardCelebration.celebrateQueryCleared === true &&
-          result.dashboardCelebration.plainDashboardCelebrationVisible === false));
+      result.dashboardCelebration.celebrateRouteOverlayVisible === true &&
+      result.dashboardCelebration.celebrateQueryCleared === true &&
+      result.dashboardCelebration.plainDashboardCelebrationVisible === false;
     result.diagnosticsOk =
       result.pageErrors.length === 0 &&
       result.consoleErrors.length === 0 &&
