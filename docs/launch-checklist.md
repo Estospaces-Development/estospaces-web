@@ -1,125 +1,122 @@
-# Estospaces UK Production Launch Checklist
+# Estospaces application release checklist
 
-Estospaces is a React web application backed by seven Go services on Google Cloud Run, with Cloud SQL and supporting Google Cloud services. The current release target is the existing UK region (`europe-west2`). No Mumbai migration or UK resource removal is included.
+Status: **NOT SIGNED OFF**. Evidence checkpoint: 5 September 2026.
 
-Estimated remaining active work: 3–5 hours after approvals and QA credentials are available, followed by a monitored soak period. Expected additional infrastructure cost: £0 for this plan because it reuses the existing UK production resources; normal Cloud Run, Cloud SQL, storage, and network usage charges continue.
+Estospaces is a React/Vite web app backed by seven Go services, Cloud SQL and media storage on Google Cloud. This checklist covers the current **Web-only application release**. It does not authorize backend deployments, database changes, infrastructure changes, region migration or a mobile-store release. Web runs in `europe-west2`; that alone does not establish every platform resource's location.
 
-Legend:
+Allow 1–3 hours for execution/review **after blockers are resolved**, plus 24 hours of post-release observation. Repairs or missing evidence can extend this; it is not a launch guarantee. No new fixed-cost infrastructure is proposed. Existing hosting, database, storage, network and build usage remain billable. An exact monthly total or zero cost increase has not been established.
 
-- 🧑 **You** — requires an owner decision, protected credential entry, or production approval.
-- 🤖 **Agent** — can be executed safely in code or through read-only verification.
-- 🤝 **Together** — the agent prepares and verifies; you approve the production-changing action.
+Owners: **Agent** = engineering work; **Owner** = product/security decision; **Together** = engineering prepares an exact plan and the owner approves it. Estimates below are active effort unless stated otherwise.
 
-## Final dev release audit — 1 September 2026
+## Current evidence boundary
 
-- [x] 🤖 **Agent — 5 minutes, completed:** Deploy frontend commit `87e91f9` to the dev Cloud Run service through the reviewed `develop` CI/CD path.
+| Item | Checkpoint | Meaning |
+| --- | --- | --- |
+| Dev source | `a5c17692b073854108a25d04999c054255feb401` | Latest reviewed Web changes |
+| Dev deployment | `estospaces-web-dev-00972-hug`, 100%; CD `33925687311` | Current manual replay target |
+| Local regression before PR128 | 1,422 unit tests; lint, typecheck, build and dependency audit passed | Does not replace live workflows |
+| CI | Six successful push workflows for a5c17692; PR128 seven checks successful | CI and CD checked separately |
+| Fresh bounded dev regression | 109/109, generated `2026-09-04T23:03:09.673Z`; SHA256 `95E4F51314E8D8732E305E774E6BC7C7CB06B306212F1B762BE333188A653F9A` | Current run; independent subreport review pending, not every business journey |
+| Live production | `estospaces-web-prod-00035-faz`, 100% | Still the older release |
+| Production marker | `c98f5428f446b409a2e42d764dbf2269124b9da8` | Latest dev fixes are not in this artifact |
+| Production observation | Nine public HTTPS health checks passed with certificate verification; Web 24-hour queries found zero ERROR/5xx entries | Historical artifact evidence, not new-release sign-off |
 
-  The candidate image built successfully, deployed as a verified revision, and passed the workflow health check. The automatic rollback step was not needed.
+Earlier “1,000 scenarios” evidence covers route-startup/authentication, **not 1,000 completed business journeys**. Earlier 109/109 aggregate proof predates the final five merges and lacks an exact revision marker. Neither establishes current whole-application coverage. Manual mobile checks use **283 × 642**; automated proofs must be identified separately.
 
-  **You'll know it worked when:** the dev deployment run is green and the live application serves the corrected Discover and Reviews behavior.
+`PAYMENTS_ENABLED` and `VIRTUAL_TOUR_ENABLED` are false in `src/lib/launchFlags.ts`. This release does not enable either feature. Do not perform real charges or advertise enabled payment/virtual-tour functionality on the strength of this checklist.
 
-- [x] 🤖 **Agent — 5 minutes, completed:** Run frontend build, type, lint, unit, Fast Track, dependency, source-security, and rollback gates.
+## Phase 0 — Acceptance and current-revision proof
 
-  Results: production build passed; TypeScript and ESLint passed; 471/471 frontend unit tests passed; 56/56 focused Fast Track tests passed; production dependency audit found 0 vulnerabilities; CodeQL, Trivy, Gitleaks, dependency review, and rollback tests passed.
+- [ ] **Agent — 30–90 minutes:** Complete current-revision user, manager and admin regression, including original reopened-ticket entry points, reload/persistence, cross-role handoffs, failure paths, console/network diagnostics and measured performance.
 
-  **You'll know it worked when:** every listed gate is green with no suppressed failure.
+  > Run the bounded dev platform regression with approved QA credentials held only in the test process. Manually replay mobile defects at 283 × 642. Record the build marker before and after testing, inspect every subreport and report all skipped or failed journeys.
 
-- [x] 🤖 **Agent — 45 minutes, completed:** Manually verify the deployed application at the minimum supported mobile viewport of 283×642.
+  **You'll know it worked when:** results are bound to a5c17692 / 00972-hug, required checks pass, and skipped checks are not counted as successful workflows.
 
-  User, manager, and admin navigation, property discovery, property details, maps, Reviews pagination, Fast Track confirmation, cross-role Fast Track stages, admin navigation, and responsive overflow were checked in the live dev environment. Discover now resets a stale page when switching sale/rent, removes cleared query parameters, and restores search state after returning from a property. User Reviews now show 8 records per page and reset correctly after filtering.
+- [ ] **Agent — 20–40 minutes:** Finish evidence comments for #545, #546, #547 and #553. Compare actual case/recipient identities before calling similarly named threads duplicates. An unavailable original fixture is not a proven fix.
 
-  **You'll know it worked when:** the live routes have no horizontal overflow, the corrected controls produce the expected URL and result counts, and Fast Track reaches the completed Handover stage without enabling historical mutations.
+  > Replay each original sequence, compare authoritative read-only data, add sanitized screenshots, revision, tests and limitations. Move a reproduced-and-resolved defect to QA Testing only after verification; preserve legitimate distinct direct chats.
 
-- [x] 🤖 **Agent — 20 minutes, completed:** Run the 283×642 screenshot audit and the full 1,000-scenario dev catalog.
+  **You'll know it worked when:** QA can repeat each comment on the named deployment and understand its exact disposition.
 
-  Results: 68/68 responsive routes passed. The 1,000-scenario catalog passed 1,000/1,000: 100 Public/Auth, 300 User, 300 Manager, 200 Admin, and 100 Cross-Role/System scenarios.
+- [ ] **Together — 15–30 minutes plus recovery time:** Resolve #299's missing historical `sale-id.pdf`. Safe UI error handling and a fresh synthetic-PDF control do not restore the original approved document.
 
-  **You'll know it worked when:** both saved JSON reports show zero failed routes or scenarios.
+  > Locate a verified original or backup without exposing private URLs. Prepare a recovery plan before shared-data writes. If this is an obsolete QA fixture, obtain an explicit disposition for that exact record and its release risk; never fabricate or approve replacement identity evidence.
 
-- [x] 🤖 **Agent — 15 minutes, completed:** Run functional platform proof across health endpoints, public Chromium/Firefox routes, role routing, messages, support, and Fast Track.
+  **You'll know it worked when:** original acceptance passes with recovered authentic data, or the owner explicitly dispositions the fixture. “Continue” does not choose between recovery and retirement.
 
-  Functional results passed: 40/40 role-route smoke checks, 24/24 public browser checks, 8/8 host-routing checks, 4/4 messaging checks, 10/10 support lifecycle steps, and the complete Fast Track workspace matrix. The aggregate report is 106/108 because of the two latency checks below, not a functional failure.
+## Phase 1 — One exact production candidate
 
-  **You'll know it worked when:** the functional artifacts report no page errors, console errors, network errors, or failed lifecycle steps.
+- [ ] **Together — 20–40 minutes:** Resolve repository release controls. The read-only audit found main/develop unprotected and no rulesets, while the production environment requires protected branches. Prepare narrow settings before changing them; do not weaken the production environment restriction.
 
-- [ ] 🤝 **Together — 30–90 minutes:** Resolve or explicitly accept the remaining latency gate before production promotion.
+  > Inspect protections, required checks, review permissions and environment policy. Propose enforceable settings, obtain approval for those exact settings, then verify routine direct pushes cannot bypass review.
 
-  The dev login route measured p95 1.091 seconds and core `/health` measured p95 1.123 seconds in the launch proof, above the 1.000-second target. Follow-up samples varied from about 0.6 to 1.23 seconds, which points to variable time-to-first-byte and Cloud Run/network latency rather than a frontend rendering failure. Inspect Cloud Run minimum instances, CPU allocation, region-to-user distance, and server timing before changing the application threshold. Do not weaken the 1-second gate merely to make the report green.
+  **You'll know it worked when:** production can run only from the reviewed protected branch with required gates enforced.
 
-  > Profile the dev web and core Cloud Run revisions, separate server processing time from DNS/TLS/network time, propose the smallest safe performance change, and rerun `npm run test:platform:dev`. Do not apply Terraform or change production without explicit approval.
+- [ ] **Together — 5–10 minutes:** Cancel or reject obsolete waiting production run `33900690073` before a new dispatch. It targets older main SHA `4f112d0`. Recheck its state first; do not cancel a different or actively serving release by assumption.
 
-  **You'll know it worked when:** a fresh full-platform proof passes 108/108, or the product owner formally accepts a revised latency objective with measured regional evidence.
+  > Confirm the old run still waits and its deploy job has not started, record the exact target, and perform only the specifically authorized cancellation. Do not approve it to clear the queue.
 
-- [ ] 🤖 **Agent — 20 minutes:** Remove or reconcile stale historical property references recorded by the Fast Track proof.
+  **You'll know it worked when:** no obsolete run can deploy later or occupy the production concurrency slot.
 
-  Completed Fast Track workflows remain usable and the proof had zero page, console, or network errors, but several historical case records reference catalog property IDs that no longer exist. This is non-blocking dev-data hygiene; do not delete customer or production records as part of cleanup.
+- [ ] **Agent — 20–40 minutes:** Prepare a reviewed develop-to-main promotion PR. At this checkpoint develop has 12 unique commits and main one unique merge; the main-only merge did not change the merge-base tree. Verify this again before integration.
 
-  > Audit the missing dev property IDs in `output/playwright/fast-track-workspace-dev-full-proof.json`, classify each as an expired QA fixture or a broken live reference, and prepare a non-destructive reconciliation plan.
+  > Inspect the complete current Web diff against live production, run required gates and independent review, and record the exact candidate. Do not resolve divergence blindly or merge without exact production authority.
 
-  **You'll know it worked when:** current cases resolve their property records and expired QA references are documented or safely archived without data loss.
+  **You'll know it worked when:** intended changes, tests, independent PASS and immutable source SHA are traceable in one promotion record.
 
-## Phase 0 — Current blockers
+- [ ] **Together — 10–20 minutes:** Obtain explicit approval to merge the named promotion PR from its exact develop SHA into main. After approval, merge through the reviewed path and verify the resulting main SHA and all required checks. Preparing a PR is not permission to merge it.
 
-- [x] **Agent — 30 minutes:** Keep the application in `europe-west2` and remove Mumbai from the active release plan.
+  > Present the exact source SHA, PR and reviewed diff for main-merge approval. After the owner approves, merge without bypassing protections, record the resulting main SHA and verify its checks before proposing production dispatch.
 
-  **You'll know it worked when:** deployment workflows and live inventory use the UK region only.
+  **You'll know it worked when:** the approved changes are on the verified main SHA, with merge authority and check results recorded. This does not yet authorize production traffic changes.
 
-- [x] **Agent — 2 hours:** Harden search-service shutdown handling, security gates, immutable image deployment, candidate health checks, traffic promotion, rollback, and failed-candidate cleanup.
+- [ ] **Agent — 15–30 minutes:** Establish the protected signed-in production proof path. Approved QA credentials exist in Secret Manager, but the audited Actions repository/environment inventories have no E2E credential names. Do not add secrets silently or use dev credentials in production.
 
-  **You'll know it worked when:** search CI, CodeQL, Gosec, Trivy, secret scanning, deployment tests, and the UK dev deployment are green.
+  > Execute the approved Secret Manager-backed proof path in memory, or prepare explicitly approved environment-secret configuration. Record only the secret resource/version reference, never its values. Ensure the release operator can test all three production QA roles.
 
-- [x] **Agent — 1 hour:** Remove shared usernames/passwords from runnable browser proof scripts and require protected environment variables.
+  **You'll know it worked when:** signed-in proof runs without credentials in source, public logs, artifacts or chat.
 
-  **You'll know it worked when:** source and diff secret scans pass and missing QA credentials stop the tests safely.
+- [ ] **Together — 20–40 minutes:** Replace the stale production runbook with an exact candidate plan. A runbook is the ordered deployment and recovery procedure. An image digest is the immutable identity of the built app.
 
-- [ ] **You — 15 minutes:** Add disposable dev QA credentials to the GitHub `dev` environment as `E2E_USER_EMAIL`, `E2E_USER_PASSWORD`, `E2E_MANAGER_EMAIL`, `E2E_MANAGER_PASSWORD`, `E2E_ADMIN_EMAIL`, and `E2E_ADMIN_PASSWORD`. Enter them directly in GitHub; never paste passwords into chat or commit them.
+  > Name the verified final main SHA, current rollback revision/digest, numeric error/latency stop thresholds, authenticated journeys, five-minute canary observation, rollback command and monitoring owner. The current workflow builds the candidate after dispatch: define how its emitted immutable digest and SHA/run/attempt build marker must be verified before traffic, then record the actual values when available. Do not invent a pre-build digest. Scope is estospaces-web-prod only; no backend, database, secret, Terraform or region mutation.
 
-  Go to the `estospaces-web` repository → **Settings** → **Environments** → **dev** → **Environment secrets** → **Add secret**.
+  **You'll know it worked when:** an independent verifier passes the runbook and the owner approves that artifact. Old approvals for c98f542 or 4f112d0 do not identify a new merge SHA.
 
-  **You'll know it worked when:** the full signed-in platform proof can authenticate all three roles without source-code defaults.
+- [ ] **Together — 5–10 minutes:** Obtain explicit production-dispatch and traffic approval for that exact main SHA and reviewed runbook, including its guarded build, 5% canary, 100% promotion and rollback operations.
 
-## Phase 1 — UK dev release proof
+  > Present the exact main SHA, estospaces-web-prod target and reviewed runbook. Ask for explicit authorization for workflow dispatch and the documented traffic operations, separately from permission to merge main.
 
-- [x] **Agent — 20 minutes:** Verify `/health` for the web app and all seven dev backend services.
+  **You'll know it worked when:** the owner approval identifies the exact source, production service and permitted operations before the workflow starts.
 
-  **You'll know it worked when:** every dev service returns HTTP 200 with status `ok`.
+## Phase 2 — Controlled release
 
-- [x] **Agent — 20 minutes:** Verify public routes on Chromium desktop, Chromium mobile, and Firefox desktop.
+- [ ] **Agent — 30–60 minutes after exact approval:** Execute the guarded GCP workflow. A canary sends 5% of requests to the new version initially. Verify the exact image before traffic, the public build marker, five-minute observation and recheck before 100% promotion.
 
-  **You'll know it worked when:** all 24 checks pass with zero page, console, and network errors.
+  > Deploy only the approved immutable Web artifact, retain the previous revision, inspect every gate and verify final traffic independently. Stop and use the approved rollback on a failed gate.
 
-- [x] **Agent — 30 minutes:** Verify the live Fast Track user workspace, document focus switching, refresh persistence, stage locking, and a progressed journey where every prior/current tab—including Book your viewing—is reachable.
+  **You'll know it worked when:** the approved artifact serves 100%, all canary/final checks pass and rollback remains available.
 
-  **You'll know it worked when:** document focus remains in the URL after refresh, incomplete documents keep Viewing locked, and completed prerequisites unlock all progressed tabs.
+- [ ] **Agent — 45–90 minutes:** Test the exact production artifact through app.estospaces.com and admin.estospaces.com using approved disposable QA accounts. Check normal HTTPS certificate verification, role routing, discovery, properties, messages, documents, Fast Track, manager/admin operations and affected mobile screens.
 
-- [ ] **Agent — 45–90 minutes after credentials exist:** Run the full signed-in user/manager/admin platform proof, including property creation/media/map/share, Fast Track cross-role notifications/documents/viewings, messaging, payments, verification, and admin review.
+  > Replay the agreed production journeys with reload, downstream visibility and error paths. Capture sanitized screenshots and diagnostics. Use only approved synthetic data; do not approve it as genuine legal/identity evidence or mutate customer data.
 
-  > Run `npm run test:platform:dev` and the focused mutation proofs using only the protected GitHub `dev` environment credentials; fix every failed scenario before production promotion.
+  **You'll know it worked when:** the new production artifact—not dev or an old artifact—passes the agreed workflow matrix with no release-blocking findings.
 
-  **You'll know it worked when:** the saved proof report shows every required role journey passed and no unexpected HTTP 5xx, console error, or page crash occurred.
+## Phase 3 — Operational handoff
 
-## Phase 2 — Production promotion
+- [ ] **Together — 20–40 minutes:** Confirm the incident owner, support escalation, public legal/contact pages, existing error/latency dashboards, backup/PITR status, restore evidence and alert delivery. PITR means restoring the database to a recent point in time. Health alone does not prove recoverability.
 
-- [ ] **Together — 15 minutes:** Review the exact production deployment plan. It must use immutable image digests, create zero-traffic candidate revisions, health-check each candidate, retain the current revision as rollback, and avoid database deletion or migration.
+  > Collect current read-only operational evidence, identify who responds to a launch incident and where rollback instructions are stored, and report missing evidence. No new monitoring product or subscription is proposed.
 
-  **You'll know it worked when:** the plan names every service, previous revision, candidate digest, health endpoint, rollback command, and confirms the region is `europe-west2`.
+  **You'll know it worked when:** a named operator can detect, triage and recover the release, and legal/support information has an owner-approved disposition.
 
-- [ ] **You — 5 minutes:** Give explicit approval for the named production service promotions. Approval is required because production traffic will change.
+- [ ] **Agent — 24 hours elapsed:** Observe the new release for unhandled application errors, authentication/dependency failures, latency and customer reports. Retain rollback artifacts throughout.
 
-  **You'll know it worked when:** the approval explicitly names the UK production promotion and states that no data deletion, database migration, Terraform apply, region move, or UK resource removal is authorized.
+  > Monitor the exact new revision using agreed thresholds. Report meaningful failures and use only approved rollback operations. Arrange the product's scheduled monitoring mechanism if observation continues after the active task; do not claim future observation has happened.
 
-- [ ] **Agent — 45–60 minutes after approval:** Promote the current reviewed images to the existing UK production services one service at a time, beginning with backend dependencies and ending with the web app. Verify each `/health` endpoint before proceeding.
+  **You'll know it worked when:** the complete window passes with zero unhandled application errors and required journeys stay healthy. Clean logs from 00035-faz do not count as the new release's observation.
 
-  > Promote only reviewed immutable digests in `europe-west2`; keep the prior revision available; stop and roll back on any health, authentication, or smoke-test failure.
+## Completion rule
 
-  **You'll know it worked when:** every production backend and web service returns HTTP 200 on `/health`, serves 100% traffic from the approved digest, and passes the production smoke test.
-
-## Phase 3 — Post-launch
-
-- [ ] **Agent — 24 hours:** Monitor Cloud Run errors, latency, authentication failures, payment/webhook errors, notification delivery, and database health. Do not delete rollback revisions during this period.
-
-  **You'll know it worked when:** there are zero unhandled application errors for 24 hours and all core flows remain healthy.
-
-- [ ] **Together — 20 minutes:** Triage the repository’s historical/default-branch Dependabot and Git-history secret-scan findings separately. Do not rotate or delete anything without explicit approval and impact review.
-
-  **You'll know it worked when:** every finding is classified as fixed, false positive, accepted with rationale, or assigned to an approved remediation.
+A QA status, green CI, health 200 or urgency is not launch sign-off. Sign-off requires original acceptance, exact deployment, the agreed functional matrix and operational/observation evidence. Report limitations plainly; never promise literal zero bugs or every possible scenario tested.
