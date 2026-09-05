@@ -527,18 +527,18 @@ export default function AdminDashboard() {
 
                     <div
                         id="recent-notifications"
-                        className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit"
+                        className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit"
                     >
-                        <div className="flex items-center justify-between mb-6 gap-3">
-                            <div>
-                                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <Bell className="text-orange-500" size={20} /> Recent Notifications
+                        <div className="mb-4 flex flex-col items-start gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                            <div className="min-w-0">
+                                <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 sm:text-lg sm:font-bold">
+                                    <Bell className="shrink-0 text-orange-500" size={20} /> Recent Notifications
                                 </h2>
                                 <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                                     New verification submissions and platform alerts land here first.
                                 </p>
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
+                            <span className="shrink-0 whitespace-nowrap text-[10px] font-medium uppercase tracking-widest text-gray-600 dark:text-gray-300 sm:font-bold">
                                 {recentNotifications.length} Recent
                             </span>
                         </div>
@@ -604,19 +604,19 @@ export default function AdminDashboard() {
                                         <button
                                             key={notification.id}
                                             onClick={() => handleRecentNotificationClick(notification)}
-                                            className={`w-full rounded-xl border px-4 py-4 text-left transition-all hover:shadow-sm ${
+                                            className={`w-full rounded-xl border p-3 text-left transition-all hover:shadow-sm sm:p-4 ${
                                                 notification.is_read
                                                     ? 'border-gray-100 bg-gray-50/70 hover:border-gray-200 dark:border-gray-800 dark:bg-gray-800/30 dark:hover:border-gray-700'
                                                     : 'border-orange-100 bg-orange-50/60 hover:border-orange-200 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:border-orange-800/60'
                                             }`}
                                         >
-                                        <div className="flex items-start gap-3">
-                                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-900">
+                                        <div className="flex items-start gap-2 sm:gap-3">
+                                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-900 sm:h-10 sm:w-10">
                                                 {getNotificationIcon(notification)}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
+                                                <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
+                                                    <div className="w-full min-w-0 sm:w-auto">
                                                         <div className="flex items-start gap-2">
                                                             <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-gray-900 dark:text-white">
                                                                 {displayCopy.title}
@@ -625,11 +625,11 @@ export default function AdminDashboard() {
                                                                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange-500" />
                                                             )}
                                                         </div>
-                                                        <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                                                        <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400 [overflow-wrap:anywhere]">
                                                             {displayCopy.message}
                                                         </p>
                                                     </div>
-                                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
+                                                    <span className="shrink-0 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-300 sm:font-bold sm:uppercase sm:tracking-widest">
                                                         {formatNotificationTime(notification.created_at)}
                                                     </span>
                                                 </div>
