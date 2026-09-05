@@ -566,39 +566,40 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
 
     return (
         <ModalWrapper onClose={onClose}>
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-4">
+            <div className="p-3 sm:p-6 border-b border-gray-100 dark:border-gray-700">
+                <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:gap-4">
                     <Avatar
                         userId={details.user.user_id}
                         src={details.user.avatar}
                         name={details.user.full_name}
                         size="xl"
+                        className="max-sm:[&>img]:h-10 max-sm:[&>img]:w-10 max-sm:[&>div]:h-10 max-sm:[&>div]:w-10 max-sm:[&>div]:text-sm"
                         shape="rounded"
                         fallbackClassName={isAdmin ? 'from-orange-500 to-amber-600' : 'from-blue-500 to-indigo-600'}
                     />
-                    <div className="flex-1 min-w-0">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
+                    <div className="col-span-2 row-start-2 flex-1 min-w-0 sm:col-auto sm:row-auto">
+                        <h2 className="text-base font-semibold sm:text-xl sm:font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
                             {isFastTrackReview ? `Fast-track review for ${details.user.full_name}` : details.user.full_name}
                         </h2>
-                        <div className="flex min-w-0 flex-wrap items-center gap-3 mt-1">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 mt-1">
                             <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${levelConfig.bg} ${levelConfig.text}`}>
                                 {levelLabel}
                             </span>
-                            <span className="min-w-0 text-sm text-gray-500 break-all">{details.user.email}</span>
+                            <span className="min-w-0 text-sm text-gray-500 dark:text-gray-400 break-all">{details.user.email}</span>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
                         aria-label={USER_VERIFICATION_REVIEW_CLOSE_LABEL}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                        className="col-start-2 row-start-1 flex h-11 w-11 shrink-0 items-center justify-center sm:h-auto sm:w-auto p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                     >
-                        <X size={20} className="text-gray-400" />
+                        <X size={20} className="text-gray-500 dark:text-gray-400" />
                     </button>
                 </div>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-5">
+            <div className="min-w-0 p-3 space-y-4 sm:p-6 sm:space-y-6 sm:max-h-[60vh] sm:overflow-y-auto">
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-3 sm:p-5">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">User Information</h3>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <InfoItem icon={Mail} label="Email" value={details.user.email} />
@@ -657,7 +658,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         {visibleReviewDocuments.length === 0 ? (
                             <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border-2 border-dashed border-gray-200">
                                 <FileText className="mx-auto text-gray-300 mb-2" size={32} />
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
                                     {reviewDocuments.length === 0 ? 'No documents uploaded' : 'No documents match this filter'}
                                 </p>
                                 <p className="mt-2 text-xs text-gray-400">
@@ -775,7 +776,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                         key={conversation.id}
                                         className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800"
                                     >
-                                        <div className="flex min-w-0 items-start justify-between gap-3">
+                                        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <MessageCircle className="h-4 w-4 shrink-0 text-orange-500" />
@@ -790,7 +791,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                                     {formatVerificationConversationLastMessage(conversation)}
                                                 </p>
                                             </div>
-                                            <div className="shrink-0 text-right">
+                                            <div className="min-w-0 text-left sm:shrink-0 sm:text-right">
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                     Conversation {formatVerificationConversationReference(conversation)}
                                                 </p>
@@ -827,11 +828,11 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                 </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 dark:border-gray-700">
+            <div className="min-w-0 p-3 sm:p-6 border-t border-gray-100 dark:border-gray-700">
                 {isVerificationApproved ? (
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
                                 <CheckCircle className="text-emerald-600" size={20} />
                             </div>
                             <div>
@@ -849,11 +850,11 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         </button>
                     </div>
                 ) : (
-                    <div className="flex gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
                     <button
                         onClick={() => handleVerificationUpdate('rejected')}
                         disabled={verificationActionLoading || Boolean(activeDocumentId)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
+                        className="min-w-0 flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-3 max-sm:text-sm bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
                     >
                         {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <XCircle size={16} />}
                         Revoke
@@ -862,7 +863,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         onClick={() => handleVerificationUpdate('verified')}
                         disabled={verificationActionLoading || Boolean(activeDocumentId) || !canApprove}
                         aria-describedby={approvalBlocker ? 'verification-approval-blocker' : undefined}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                        className={`min-w-0 flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-3 max-sm:text-sm text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
                         {verificationActionLoading ? <ActionSpinner size={16} className="" /> : <CheckCircle size={16} />}
                         {isFastTrackReview ? 'Complete fast-track verification' : 'Approve Verification'}
@@ -872,7 +873,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                 {approvalBlocker && (
                     <div
                         id="verification-approval-blocker"
-                        className="mt-3 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
+                        className="mt-3 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 sm:px-4 py-3 text-sm leading-5 sm:leading-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
                     >
                         <AlertCircle size={16} className="mt-0.5 shrink-0" />
                         <p>{approvalBlocker}</p>
@@ -927,19 +928,19 @@ const DocumentReviewCard: React.FC<{
     const reviewReasonErrorId = `document-review-reason-error-${document.id}`;
 
     return (
-        <div className={`rounded-xl border p-4 ${
+        <div className={`min-w-0 rounded-xl border p-3 sm:p-4 max-sm:[&_button]:min-h-11 ${
             isApprovedDocument
                 ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20'
                 : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
         }`}>
-            <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                    <div className={`p-2.5 rounded-xl ${config.bg}`}>
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
+                <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+                    <div className={`shrink-0 p-2 sm:p-2.5 rounded-xl ${config.bg}`}>
                         <StatusIcon className={config.text} size={18} />
                     </div>
-                    <div>
+                    <div className="min-w-0 [overflow-wrap:anywhere]">
                         <p className="font-medium text-gray-900 dark:text-white">{document.file_name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             {document.document_category} - {new Date(document.created_at).toLocaleDateString()}
                         </p>
                         {document.reject_reason && (
@@ -992,7 +993,7 @@ const DocumentReviewCard: React.FC<{
                                 {reviewReasonError}
                             </p>
                         )}
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
                             <button
                                 onClick={() => {
                                     const reason = buildVerificationDocumentReviewReason(reviewIssue, rejectReason);
@@ -1094,7 +1095,7 @@ const InfoItem: React.FC<{ icon: React.ElementType; label: string; value?: strin
             <Icon size={14} className="text-gray-600 dark:text-gray-400" />
         </div>
         <div className="min-w-0">
-            <p className="text-xs text-gray-500">{label}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
             <p className="text-sm font-medium text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
                 {value || <span className="text-gray-400 italic">Not provided</span>}
             </p>
@@ -1129,14 +1130,14 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
     }
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
             <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
             <div
                 data-testid="user-verification-review-modal"
                 role="dialog"
                 aria-modal="true"
                 aria-label="User verification review"
-                className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300"
+                className="relative min-w-0 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain sm:max-h-[90vh] sm:flex sm:flex-col sm:overflow-y-visible animate-in fade-in slide-in-from-bottom-4 duration-300"
             >
                 {children}
             </div>
