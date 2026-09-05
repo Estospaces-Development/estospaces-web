@@ -94,7 +94,7 @@ export function VirtualStorageFilePicker({
   return (
     <label htmlFor="virtual-storage-file" className="min-w-0 space-y-2 text-sm">
       <span className="font-medium text-gray-700 dark:text-gray-300">File</span>
-      <span className="relative flex min-h-12 min-w-0 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-gray-900 transition-colors hover:border-orange-300 has-[:focus-visible]:border-orange-400 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-orange-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:border-orange-500/60">
+      <span className="relative flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-gray-900 transition-colors hover:border-orange-300 has-[:focus-visible]:border-orange-400 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-orange-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:border-orange-500/60">
         <input
           id="virtual-storage-file"
           ref={inputRef}
@@ -106,7 +106,7 @@ export function VirtualStorageFilePicker({
         <span className="shrink-0 rounded-xl bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-700 dark:bg-orange-500/10 dark:text-orange-200">
           Choose file
         </span>
-        <span className="min-w-0 break-all text-sm text-gray-600 dark:text-gray-300">
+        <span className="min-w-0 flex-1 basis-40 break-all text-sm text-gray-600 dark:text-gray-300">
           {selectedFile?.name || "No file chosen"}
         </span>
       </span>
