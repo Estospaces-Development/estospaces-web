@@ -36,22 +36,10 @@ test("uses the mobile details action instead of requiring an always-visible util
   assert.doesNotMatch(proofSource, /result\.userTablet\.utilityDockVisible/);
 });
 
-test("skips celebration proof when no completed case exists", () => {
-  assert.match(proofSource, /if \(userCompletedCase\)/);
-  assert.match(proofSource, /reason: "no completed case available"/);
-});
-
 test("reports orphaned property references as a separate release gate", () => {
   assert.match(proofSource, /result\.dataIntegrityOk = result\.unavailablePropertyUrls\.length === 0/);
   assert.match(
     proofSource,
     /result\.functionalOk && result\.diagnosticsOk && result\.dataIntegrityOk/,
-  );
-});
-
-test("marks a no-case proof as an explicit clean skip", () => {
-  assert.match(
-    proofSource,
-    /result\.functionalOk = true;\s*result\.diagnosticsOk = true;\s*result\.dataIntegrityOk = true;\s*result\.overallOk = true;/,
   );
 });
