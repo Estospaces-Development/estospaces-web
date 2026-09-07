@@ -5,6 +5,7 @@ import { Home, LifeBuoy, MessageSquare, Search } from "lucide-react";
 import { useMessages } from "@/contexts/MessagesContext";
 import Avatar from "@/components/ui/Avatar";
 import { createDuplicateSafeKeyResolver } from "@/lib/reactListKeys";
+import { buildConversationIdentityDetails } from "@/lib/conversationIdentity";
 
 interface ConversationListProps {
   onSelectConversation: (id: string | null) => void;
@@ -14,15 +15,15 @@ interface ConversationListProps {
 type ConversationLike = {
   id: string;
   contactName?: string;
-  agentAvatar?: string;
+  agentAvatar?: string | null;
   agentId?: string;
   isOnline?: boolean;
   isSupportConversation?: boolean;
   unreadCount?: number;
   lastMessage?: string;
   lastMessageTime?: string;
-  propertyTitle?: string;
-  propertyAddress?: string;
+  propertyTitle?: string | null;
+  propertyAddress?: string | null;
   agentAgency?: string;
   isMuted?: boolean;
 };
@@ -81,7 +82,13 @@ export default function ConversationList({
   onSelectConversation,
   selectedConversationId,
 }: ConversationListProps) {
-  const { conversations, searchQuery, setSearchQuery } = useMessages();
+  const { conversations, allConversations, searchQuery, setSearchQuery } = useMessages();
+  const identityDetails = buildConversationIdentityDetails(allConversations.map((conversation) => ({
+    id: conversation.id,
+    title: getDisplayTitle(conversation),
+    group: getConversationGroup(conversation),
+    address: conversation.propertyAddress,
+  })));
   const groupedConversations = groupDefinitions
     .map((group) => ({
       ...group,
@@ -141,6 +148,7 @@ export default function ConversationList({
                       const unreadCount = conversation.unreadCount || 0;
                       const title = getDisplayTitle(conversation);
                       const subtitle = getDisplaySubtitle(conversation);
+                      const identityDetail = identityDetails.get(conversation.id);
                       const unreadLabel = unreadCount > 0 ? `${unreadCount} unread` : "Read";
                       const notificationLabel = conversation.isMuted ? "Muted" : "Notifications on";
 
@@ -155,7 +163,7 @@ export default function ConversationList({
                               : "border-transparent hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-700/40"
                           }`}
                           aria-pressed={selected}
-                          aria-label={[title, subtitle, unreadLabel, notificationLabel, conversation.lastMessageTime, conversation.lastMessage].filter(Boolean).join(". ")}
+                          aria-label={[title, subtitle, identityDetail, unreadLabel, notificationLabel, conversation.lastMessageTime, conversation.lastMessage].filter(Boolean).join(". ")}
                         >
                           {selected && (
                             <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-orange-500 dark:bg-orange-400" aria-hidden="true" />
@@ -204,6 +212,9 @@ export default function ConversationList({
                               <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
                                 {subtitle}
                               </p>
+                              {identityDetail && (
+                                <p className="mt-1 whitespace-normal [overflow-wrap:anywhere] text-xs font-medium text-gray-500 dark:text-gray-400">{identityDetail}</p>
+                              )}
                               {unreadCount > 0 && (
                                 <span className="mt-2 inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                                   {unreadLabel}
