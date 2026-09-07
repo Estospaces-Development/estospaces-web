@@ -2,7 +2,7 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
@@ -132,6 +132,8 @@ function DashboardContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const propertyRequestGeneration = useRef(0);
   const [dashboardMetricsLoading, setDashboardMetricsLoading] = useState(true);
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
@@ -172,6 +174,7 @@ function DashboardContent() {
   }, [canLoadOperationalDashboard, fastTrackRequestSearch]);
 
   const resetOperationalDashboardData = useCallback(() => {
+    propertyRequestGeneration.current += 1;
     setAnalytics(null);
     setProperties([]);
     setLivePropertyTotal(0);
@@ -183,6 +186,7 @@ function DashboardContent() {
     setFastTrackError(null);
     setBookingError(null);
     setIsLoading(false);
+    setPropertiesLoading(false);
     setDashboardMetricsLoading(false);
   }, []);
 
@@ -258,6 +262,7 @@ function DashboardContent() {
   }, [canLoadOperationalDashboard, managerVerificationLoading, resetOperationalDashboardData]);
 
   const fetchManagerProperties = useCallback(async (silent = false) => {
+    const requestGeneration = ++propertyRequestGeneration.current;
     if (managerVerificationLoading) {
       return;
     }
@@ -267,14 +272,12 @@ function DashboardContent() {
       setPropertyTotal(0);
       setPropertyTotalPages(1);
       setPropertyError(null);
-      if (!silent) {
-        setIsLoading(false);
-      }
+      setPropertiesLoading(false);
       return;
     }
 
     if (!silent) {
-      setIsLoading(true);
+      setPropertiesLoading(true);
       setPropertyError(null);
     }
 
@@ -287,6 +290,10 @@ function DashboardContent() {
         status: propertyStatusFilter !== 'all' ? propertyStatusFilter : undefined,
       });
 
+      if (requestGeneration !== propertyRequestGeneration.current) {
+        return;
+      }
+
       if (response.error) {
         setPropertyError(response.error.message);
         setProperties([]);
@@ -295,12 +302,13 @@ function DashboardContent() {
         return;
       }
 
+      setPropertyError(null);
       setProperties(response.data || []);
       setPropertyTotal(response.pagination?.total || 0);
       setPropertyTotalPages(response.pagination?.totalPages || 1);
     } finally {
-      if (!silent) {
-        setIsLoading(false);
+      if (requestGeneration === propertyRequestGeneration.current) {
+        setPropertiesLoading(false);
       }
     }
   }, [canLoadOperationalDashboard, managerVerificationLoading, propertyPage, propertySearchQuery, propertyStatusFilter, propertyTypeFilter]);
@@ -320,7 +328,10 @@ function DashboardContent() {
       void fetchManagerProperties();
     }, 300);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      propertyRequestGeneration.current += 1;
+    };
   }, [fetchManagerProperties, managerVerificationLoading]);
 
   useDashboardWorkspaceRefresh({
@@ -906,7 +917,7 @@ function DashboardContent() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {isLoading ? (
+                {propertiesLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="h-[350px] bg-gray-50 dark:bg-gray-900 animate-pulse rounded-2xl border border-gray-100 dark:border-gray-800" />
                   ))
@@ -959,7 +970,7 @@ function DashboardContent() {
                   pageSize={MANAGER_PROPERTIES_PAGE_SIZE}
                   currentItemCount={properties.length}
                   itemLabel="properties"
-                  disabled={isLoading}
+                  disabled={propertiesLoading}
                   className="mt-8"
                 />
               )}
