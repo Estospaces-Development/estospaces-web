@@ -33,6 +33,7 @@ interface ManagerPropertyCardProps {
         price?: PriceInfo | number | string;
         priceString?: string;
         listingType?: ListingType;
+        listing_type?: string | null;
         type?: string;
         bedrooms?: number;
         bathrooms?: number;
@@ -75,6 +76,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const formatPrice = (price?: PriceInfo | number | string) => {
         const isRentalListing =
             property.listingType === 'rent' ||
+            property.listing_type === 'rent' ||
             property.type?.toLowerCase() === 'rent';
         const formatPropertyAmount = (amount: number, currencyCode?: string | null) => (
             formatLaunchCurrencyForCountry(amount, {
