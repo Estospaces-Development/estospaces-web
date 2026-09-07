@@ -18,7 +18,11 @@ function collectTestFiles(dir, acc = []) {
     return acc;
 }
 
-const testFiles = collectTestFiles(join(process.cwd(), 'src')).sort();
+// Node 21+ interprets test arguments as globs; Node 20 still expects literal paths.
+const supportsTestGlobs = Number(process.versions.node.split('.')[0]) >= 21;
+const testFiles = collectTestFiles(join(process.cwd(), 'src'))
+    .sort()
+    .map((file) => supportsTestGlobs ? file.replace(/[[\]]/g, '[$&]') : file);
 if (testFiles.length === 0) {
     console.error('No test files found under src.');
     process.exit(1);
@@ -37,17 +41,19 @@ if (!existsSync(tsxCommand) || !existsSync(tsxCli)) {
     process.exit(1);
 }
 
+const testArguments = ['--test', '--test-reporter=tap'];
+
 function chunkFiles(files, maxLength = 24000) {
     const chunks = [];
     let current = [];
-    let length = process.execPath.length + tsxCli.length + '--test'.length;
+    let length = process.execPath.length + tsxCli.length + testArguments.join(' ').length;
 
     for (const file of files) {
         const nextLength = length + file.length + 3;
         if (current.length > 0 && nextLength > maxLength) {
             chunks.push(current);
             current = [];
-            length = process.execPath.length + tsxCli.length + '--test'.length;
+            length = process.execPath.length + tsxCli.length + testArguments.join(' ').length;
         }
 
         current.push(file);
@@ -62,7 +68,7 @@ function chunkFiles(files, maxLength = 24000) {
 }
 
 for (const chunk of chunkFiles(testFiles)) {
-    const result = spawnSync(process.execPath, [tsxCli, '--test', ...chunk], {
+    const result = spawnSync(process.execPath, [tsxCli, ...testArguments, ...chunk], {
         stdio: 'inherit',
     });
 
