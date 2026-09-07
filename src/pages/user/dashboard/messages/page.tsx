@@ -78,7 +78,9 @@ function MessagesContent() {
     const { user } = useAuth();
     const toast = useToast();
     const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
-    const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
+    const conversationRefreshesInFlightRef = useRef<Map<string, number>>(new Map());
+    const navigationGenerationRef = useRef(0);
+    const navigationKeyRef = useRef(location.key);
     const requestedConversationIdRef = useRef<string | null>(null);
     const threadIssueRef = useRef<HTMLDivElement | null>(null);
     const {
@@ -102,7 +104,32 @@ function MessagesContent() {
     const requestedConversationId = searchParams.get('conversation');
     const newConversationWith = searchParams.get('newConversationWith');
     const normalizedRequestedConversationId = requestedConversationId?.trim() || null;
+    if (navigationKeyRef.current !== location.key) {
+        navigationKeyRef.current = location.key;
+        navigationGenerationRef.current += 1;
+        conversationRefreshesInFlightRef.current.clear();
+        attemptedConversationRefreshesRef.current.clear();
+    }
     requestedConversationIdRef.current = normalizedRequestedConversationId;
+
+    useEffect(() => () => {
+        navigationGenerationRef.current += 1;
+        conversationRefreshesInFlightRef.current.clear();
+    }, []);
+
+    const handleSelectConversation = useCallback((conversationId: string) => {
+        navigationGenerationRef.current += 1;
+        requestedConversationIdRef.current = conversationId;
+        clearConversationThreadIssue();
+        setRouteConversationIssue(null);
+        setSelectedConversationId(conversationId);
+        setMobileView('thread');
+        const params = new URLSearchParams(location.search);
+        params.set('conversation', conversationId);
+        navigate(`${location.pathname}?${params}`, {
+            replace: normalizedRequestedConversationId === conversationId,
+        });
+    }, [clearConversationThreadIssue, location.pathname, location.search, navigate, normalizedRequestedConversationId, setSelectedConversationId]);
 
     useEffect(() => {
         if (!newConversationWith) {
@@ -189,6 +216,8 @@ function MessagesContent() {
         if (!normalizedRequestedConversationId) {
             attemptedConversationRefreshesRef.current.clear();
             conversationRefreshesInFlightRef.current.clear();
+            if (selectedConversationId) setSelectedConversationId(null);
+            if (!routeConversationIssue && !conversationThreadIssue) setMobileView('list');
             return;
         }
 
@@ -209,10 +238,11 @@ function MessagesContent() {
 
         if (queryResolution.status === 'refresh' && queryResolution.conversationId) {
             const conversationId = queryResolution.conversationId;
-            conversationRefreshesInFlightRef.current.add(conversationId);
+            const generation = navigationGenerationRef.current;
+            conversationRefreshesInFlightRef.current.set(conversationId, generation);
             void refreshConversations()
                 .then((result) => {
-                    if (requestedConversationIdRef.current !== conversationId) {
+                    if (requestedConversationIdRef.current !== conversationId || navigationGenerationRef.current !== generation) {
                         return;
                     }
                     if (result.outcome === 'superseded') {
@@ -238,7 +268,9 @@ function MessagesContent() {
                     navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
                 })
                 .finally(() => {
-                    conversationRefreshesInFlightRef.current.delete(conversationId);
+                    if (conversationRefreshesInFlightRef.current.get(conversationId) === generation) {
+                        conversationRefreshesInFlightRef.current.delete(conversationId);
+                    }
                 });
             return;
         }
@@ -249,6 +281,7 @@ function MessagesContent() {
                 conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId);
             }
             setRouteConversationIssue(null);
+            setMobileView('thread');
             if (selectedConversationId !== queryResolution.conversationId) {
                 setSelectedConversationId(queryResolution.conversationId);
             }
@@ -264,12 +297,14 @@ function MessagesContent() {
 
     }, [
         allConversations,
+        conversationThreadIssue,
         hasLoadedConversations,
         location.pathname,
         location.search,
         navigate,
         normalizedRequestedConversationId,
         refreshConversations,
+        routeConversationIssue,
         selectedConversationId,
         setSelectedConversationId,
     ]);
@@ -287,8 +322,8 @@ function MessagesContent() {
             return;
         }
 
-        navigate('/user/dashboard/messages', { replace: true });
-    }, [conversationThreadIssue, navigate, requestedConversationId]);
+        navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+    }, [conversationThreadIssue, location.pathname, location.search, navigate, requestedConversationId]);
 
     const handleSend = async (conversationId: string, text: string, attachments: any[]) => {
         try {
@@ -311,6 +346,7 @@ function MessagesContent() {
         }
 
         setOpeningRecommendedConversation(true);
+        const generation = ++navigationGenerationRef.current;
         try {
             const conversation = await messagesService.upsertDirectConversation(managerRecommendation.managerId, {
                 propertyId: managerRecommendation.propertyId,
@@ -330,29 +366,26 @@ function MessagesContent() {
             });
             rememberAuthorizedConversation(user.id, conversation);
             await refreshConversations();
-            setSelectedConversationId(conversation.id);
-            navigate('/user/dashboard/messages?conversation=' + conversation.id);
+            if (navigationGenerationRef.current === generation) handleSelectConversation(conversation.id);
         } catch (conversationError: any) {
             toast.error(conversationError?.message || 'Unable to open the manager conversation right now.');
         } finally {
             setOpeningRecommendedConversation(false);
         }
-    }, [managerRecommendation, navigate, refreshConversations, setSelectedConversationId, toast, user]);
+    }, [handleSelectConversation, managerRecommendation, refreshConversations, toast, user]);
 
     const handleRetryUnavailableThread = async () => {
         const conversationId = (conversationThreadIssue ?? routeConversationIssue)?.conversationId;
         if (!conversationId) {
             return;
         }
+        const generation = ++navigationGenerationRef.current;
         const result = await refreshConversations();
-        if (!result.success) {
+        if (navigationGenerationRef.current !== generation || !result.success || result.outcome === 'superseded') {
             return;
         }
         if (result.conversationIds.includes(conversationId)) {
-            clearConversationThreadIssue();
-            setRouteConversationIssue(null);
-            setSelectedConversationId(conversationId);
-            setMobileView('thread');
+            handleSelectConversation(conversationId);
             return;
         }
         clearConversationThreadIssue();
@@ -362,6 +395,8 @@ function MessagesContent() {
     };
 
     const handleBackToConversations = () => {
+        navigationGenerationRef.current += 1;
+        requestedConversationIdRef.current = null;
         clearConversationThreadIssue();
         setRouteConversationIssue(null);
         setSelectedConversationId(null);
@@ -438,8 +473,8 @@ function MessagesContent() {
                         ) : (
                             <ConversationList
                                 onSelectConversation={(id) => {
-                                    setSelectedConversationId(id);
-                                    setMobileView('thread');
+                                    if (id) handleSelectConversation(id);
+                                    else handleBackToConversations();
                                 }}
                                 selectedConversationId={selectedConversationId}
                             />
@@ -452,7 +487,7 @@ function MessagesContent() {
                             {/* Mobile back button */}
                             <button
                                 type="button"
-                                onClick={() => setMobileView('list')}
+                                onClick={handleBackToConversations}
                                 className="flex min-h-11 flex-shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:text-orange-500 dark:border-gray-700 lg:hidden"
                             >
                                 <ArrowLeft size={16} />
@@ -460,6 +495,7 @@ function MessagesContent() {
                             </button>
                             <ConversationThread conversationId={selectedConversationId} />
                             <MessageInput
+                                key={selectedConversationId}
                                 conversationId={selectedConversationId}
                                 onSend={handleSend}
                             />
