@@ -2911,12 +2911,12 @@ const UserPropertyDetail = () => {
                             )}
                         </section>
 
-                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 md:p-7">
+                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 sm:p-6 md:p-7">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Location & maps</p>
-                                    <h3 className="mt-3 text-[1.9rem] font-semibold leading-tight tracking-tight text-gray-900 dark:text-white">
-                                        Open the property in {preferredMapsLabel}
+                                    <h3 className="mt-3 text-xl font-semibold leading-tight tracking-tight text-gray-900 dark:text-white sm:text-[1.9rem]">
+                                        {propertyMapState.externalUrl ? `Open the property in ${preferredMapsLabel}` : 'Property location'}
                                     </h3>
                                     <p className="mt-3 max-w-[34rem] text-sm leading-6 text-gray-600 dark:text-gray-300">
                                         {propertyMapState.statusDescription}
@@ -2940,10 +2940,11 @@ const UserPropertyDetail = () => {
                                     href={propertyMapState.externalUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="group mt-6 block"
+                                    className="group mt-6 block rounded-[1.7rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-600"
                                     aria-label={`Open ${property?.title || 'property'} in ${preferredMapsLabel}`}
                                 >
-                                    <div className="relative aspect-[16/10] overflow-hidden rounded-[1.7rem] border border-stone-200/80 bg-stone-100 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                    <div data-property-map-preview className="overflow-hidden rounded-[1.7rem] border border-stone-200/80 bg-stone-100 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                      <div className="relative aspect-[16/10]">
                                         {propertyMapState.embedUrl ? (
                                             <iframe
                                                 src={propertyMapState.embedUrl}
@@ -2958,22 +2959,19 @@ const UserPropertyDetail = () => {
                                                 </div>
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent transition-opacity group-hover:opacity-95" />
-                                        <div className="absolute left-4 top-4 rounded-xl bg-white/95 px-3.5 py-2 text-sm font-semibold text-orange-700 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-zinc-900/90 dark:text-orange-200">
+                                        <div className="absolute left-3 top-3 rounded-xl bg-white/95 px-3 py-2 text-sm font-medium text-orange-700 shadow-sm ring-1 ring-black/5 backdrop-blur-sm dark:bg-zinc-900/90 dark:text-orange-200 sm:left-4 sm:top-4">
                                             <span className="inline-flex items-center gap-2">
                                                 <span>Open in Maps</span>
                                                 <ExternalLink size={15} />
                                             </span>
                                         </div>
-                                        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+                                      </div>
+                                        <div className="relative space-y-2 bg-white p-3 text-gray-900 dark:bg-zinc-950 dark:text-white sm:p-4">
+                                            <p className="text-xs font-medium text-orange-700 dark:text-orange-300">
                                                 {propertyMapState.statusTitle}
                                             </p>
-                                            <p className="mt-2 text-sm font-semibold text-white">
+                                            <p className="break-words text-sm leading-5">
                                                 {propertyMapAddress}
-                                            </p>
-                                            <p className="mt-1 text-sm text-white/80">
-                                                Opens in {preferredMapsLabel} when you press the map.
                                             </p>
                                         </div>
                                     </div>

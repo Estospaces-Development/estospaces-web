@@ -73,6 +73,43 @@ test("getPropertyMapState returns an unavailable state when location data is mis
   assert.equal(state.statusTitle, "Location unavailable");
 });
 
+test("missing-location display copy never becomes a Maps search destination", () => {
+  for (const displayAddress of ["Location unavailable", "  LOCATION UNAVAILABLE  ", ""]) {
+    const state = getPropertyMapState(
+      { country: "India" },
+      { displayAddress },
+    );
+    assert.equal(state.externalUrl, null);
+    assert.equal(state.embedUrl, null);
+    assert.equal(state.hasAddress, false);
+    assert.equal(state.displayAddress, "");
+  }
+});
+
+test("saved missing-location copy is not treated as a real address", () => {
+  const state = getPropertyMapState({ address: "Location unavailable" });
+  assert.equal(state.externalUrl, null);
+  assert.equal(state.hasAddress, false);
+});
+
+test("a verified pin stays usable without sending missing-location copy to Apple Maps", () => {
+  const state = getPropertyMapState(
+    { country: "United Kingdom", latitude: 51.5034, longitude: -0.1276 },
+    { displayAddress: "Location unavailable", userAgent: "iPhone" },
+  );
+  const url = new URL(state.externalUrl ?? "");
+  assert.equal(state.hasCoordinates, true);
+  assert.equal(state.hasAddress, false);
+  assert.equal(url.searchParams.get("ll"), "51.5034,-0.1276");
+  assert.equal(url.searchParams.get("q"), "51.5034,-0.1276");
+});
+
+test("an address containing similar words is retained rather than broadly filtered", () => {
+  const state = getPropertyMapState({ address: "12 Location Unavailable House, London" });
+  assert.equal(state.hasAddress, true);
+  assert.equal(new URL(state.externalUrl ?? "").searchParams.get("query"), "12 Location Unavailable House, London");
+});
+
 test("getPreferredMapsProvider selects Apple Maps for Apple user agents", () => {
   assert.equal(
     getPreferredMapsProvider(
