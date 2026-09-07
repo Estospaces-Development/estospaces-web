@@ -22,6 +22,13 @@ import * as propertyPage from "./page";
 
 const propertyDetailSource = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
+test("map caption stays in document flow below the preview at every width", () => {
+  assert.match(propertyDetailSource, /data-property-map-preview/);
+  assert.match(propertyDetailSource, /className="relative aspect-\[16\/10\]"/);
+  assert.match(propertyDetailSource, /className="relative space-y-2 bg-white p-3 text-gray-900 dark:bg-zinc-950 dark:text-white sm:p-4"/);
+  assert.match(propertyDetailSource, /className="break-words text-sm leading-5"/);
+});
+
 test("sale property page exposes a submit-offer entry card", () => {
   const markup = renderToStaticMarkup(
     <SaleOfferEntryCard

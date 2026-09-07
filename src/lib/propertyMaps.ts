@@ -50,12 +50,17 @@ export interface PropertyMapState {
 
 const APPLE_DEVICE_PATTERN = /\b(iPhone|iPad|iPod|Macintosh)\b/i;
 
+const normalizeMapAddress = (value: string | null | undefined) => {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed.toLowerCase() === "location unavailable" ? "" : trimmed;
+};
+
 const joinAddressParts = (parts: Array<string | null | undefined>) => {
   const seen = new Set<string>();
   const normalizedParts: string[] = [];
 
   parts.forEach((part) => {
-    const trimmed = typeof part === "string" ? part.trim() : "";
+    const trimmed = normalizeMapAddress(part);
     if (!trimmed) {
       return;
     }
@@ -133,11 +138,12 @@ export const getPropertyMapState = (
 ): PropertyMapState => {
   const provider = getPreferredMapsProvider(options?.userAgent);
   const coordinates = getPropertyMapCoordinates(property);
-  const overrideDisplayAddress =
+  // A supplied display address is authoritative, even when deliberately empty.
+  // Falling back would restore raw location data the caller already excluded.
+  const displayAddress =
     typeof options?.displayAddress === "string"
-      ? options.displayAddress.trim()
-      : "";
-  const displayAddress = overrideDisplayAddress || getPropertyDisplayAddress(property);
+      ? normalizeMapAddress(options.displayAddress)
+      : getPropertyDisplayAddress(property);
 
   if (coordinates) {
     const pinQuery = `${coordinates.latitude},${coordinates.longitude}`;
