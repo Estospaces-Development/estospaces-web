@@ -155,7 +155,7 @@ export default function ConversationList({
                               : "border-transparent hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-700/40"
                           }`}
                           aria-pressed={selected}
-                          aria-label={`${title}. ${subtitle}. ${unreadLabel}. ${notificationLabel}. ${conversation.lastMessage || "No recent message"}`}
+                          aria-label={[title, subtitle, unreadLabel, notificationLabel, conversation.lastMessageTime, conversation.lastMessage].filter(Boolean).join(". ")}
                         >
                           {selected && (
                             <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-orange-500 dark:bg-orange-400" aria-hidden="true" />
