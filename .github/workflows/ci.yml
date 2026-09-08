@@ -50,6 +50,8 @@ jobs:
         run: npm run test:document-preview:browser
       - name: Verify admin notification readability and search on mobile
         run: npm run test:admin-notifications:browser
+      - name: Verify admin lead count refresh and pagination
+        run: npm run test:admin-lead-counts:browser
       - name: Build hardened Docker image
         run: |
           docker build \

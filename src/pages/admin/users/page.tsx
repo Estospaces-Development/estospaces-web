@@ -2,7 +2,7 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     UserPlus, Users,
@@ -11,6 +11,7 @@ import {
 
 import { userService } from '@/services/userService';
 import { getPlatformAnalytics, invalidateAnalyticsCache } from '@/services/analyticsService';
+import type { AnalyticsData } from '@/services/analyticsService';
 import { getAdminBrokers, getAllLeads, reassignLead } from '@/services/leadsService';
 import type { AdminBrokerOption, Lead } from '@/services/leadsService';
 import { User } from '@/types';
@@ -236,7 +237,9 @@ function UserManagementContent() {
     const [sortBy, setSortBy] = useState<AdminUsersSortOption>('newest');
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
-    const [statsData, setStatsData] = useState<any>(null);
+    const [statsData, setStatsData] = useState<AnalyticsData | null>(null);
+    const [statsError, setStatsError] = useState<string | null>(null);
+    const [statsLoading, setStatsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [actionUserId, setActionUserId] = useState<string | null>(null);
     const [stateChangeUser, setStateChangeUser] = useState<User | null>(null);
@@ -257,28 +260,23 @@ function UserManagementContent() {
     const [leadPage, setLeadPage] = useState(1);
     const [leadPagination, setLeadPagination] = useState<{ total?: number; page?: number; limit?: number } | null>(null);
     const [leadReassignReason, setLeadReassignReason] = useState('Admin reassignment from relationship hub');
+    const leadRequestId = useRef(0);
+    const statsRequestId = useRef(0);
     const PAGE_SIZE = 20;
 
     const fetchUsers = useCallback(async () => {
         try {
             setLoading(true);
             const roleFilter = activeTab === 'all' ? '' : activeTab;
-            const [{ data: userData, pagination: userPagination, error: userError }, { data: analytics, error: analyticsError }] = await Promise.all([
-                userService.getAllUsers(currentPage, PAGE_SIZE, {
+            const { data: userData, pagination: userPagination, error: userError } = await userService.getAllUsers(currentPage, PAGE_SIZE, {
                     search: normalizeAdminUserSearch(searchQuery),
                     role: roleFilter,
-                }),
-                getPlatformAnalytics()
-            ]);
+                });
             if (userError) {
                 throw new Error(userError);
             }
-            if (analyticsError) {
-                throw new Error(analyticsError);
-            }
             setUsers(userData || []);
             setPagination(userPagination);
-            setStatsData(analytics);
             setLoadError(null);
         } catch (error: any) {
             setLoadError(error.message || 'User registry is not available right now.');
@@ -287,7 +285,22 @@ function UserManagementContent() {
         }
     }, [activeTab, currentPage, searchQuery]);
 
+    const fetchStats = useCallback(async () => {
+        const requestId = ++statsRequestId.current;
+        setStatsLoading(true);
+        const response = await getPlatformAnalytics(true);
+        if (requestId !== statsRequestId.current) return;
+        if (response.error) {
+            setStatsError('Platform totals could not refresh. Previously loaded totals may be stale; try Refresh.');
+        } else {
+            setStatsData(response.data);
+            setStatsError(null);
+        }
+        setStatsLoading(false);
+    }, []);
+
     const fetchLeadReassignmentData = useCallback(async () => {
+        const requestId = ++leadRequestId.current;
         try {
             setAdminLeadLoading(true);
             const [leadResponse, brokerResponse] = await Promise.all([
@@ -298,6 +311,7 @@ function UserManagementContent() {
                 }),
                 getAdminBrokers(1, 50, 'approved'),
             ]);
+            if (requestId !== leadRequestId.current) return;
             if (leadResponse.error) {
                 throw new Error(leadResponse.error);
             }
@@ -309,11 +323,21 @@ function UserManagementContent() {
             setAdminBrokers(brokerResponse.data || []);
             setAdminLeadError(null);
         } catch (error: any) {
-            setAdminLeadError(formatAdminLeadReassignmentLoadError(error.message));
+            if (requestId === leadRequestId.current) {
+                setAdminLeadError(formatAdminLeadReassignmentLoadError(error.message));
+            }
         } finally {
-            setAdminLeadLoading(false);
+            if (requestId === leadRequestId.current) setAdminLeadLoading(false);
         }
     }, [leadPage, leadSearchQuery, leadSortBy, leadStatusFilter]);
+
+    const refreshLeadOverview = useCallback(async () => {
+        await Promise.all([fetchLeadReassignmentData(), fetchStats()]);
+    }, [fetchLeadReassignmentData, fetchStats]);
+
+    useEffect(() => {
+        void fetchStats();
+    }, [fetchStats]);
 
     useEffect(() => {
         fetchUsers();
@@ -333,7 +357,7 @@ function UserManagementContent() {
         ],
         refresh: async () => {
             invalidateAnalyticsCache('platform_analytics');
-            await Promise.all([fetchUsers(), fetchLeadReassignmentData()]);
+            await Promise.all([fetchUsers(), refreshLeadOverview()]);
         },
     });
 
@@ -443,7 +467,7 @@ function UserManagementContent() {
             delete next[lead.id];
             return next;
         });
-        await fetchLeadReassignmentData();
+        await refreshLeadOverview();
     };
 
     const stats = [
@@ -557,6 +581,9 @@ function UserManagementContent() {
                 ))}
             </div>
 
+            <p className="text-xs text-gray-500 dark:text-gray-300">Platform-wide totals. Lead results below follow their own filters.</p>
+            {statsError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{statsError}</p>}
+
             {loadError && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
                     {loadError}
@@ -571,11 +598,11 @@ function UserManagementContent() {
                     </div>
                     <button
                         type="button"
-                        onClick={fetchLeadReassignmentData}
-                        disabled={adminLeadLoading}
+                        onClick={refreshLeadOverview}
+                        disabled={adminLeadLoading || statsLoading}
                         className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white"
                     >
-                        {adminLeadLoading ? <ActionSpinner size="xs" label="Refreshing users" /> : <RefreshCw size={16} />}
+                        {adminLeadLoading || statsLoading ? <ActionSpinner size="xs" label="Refreshing leads and totals" /> : <RefreshCw size={16} />}
                         Refresh
                     </button>
                 </div>
@@ -800,6 +827,7 @@ function UserManagementContent() {
                         pageSize={ADMIN_LEAD_QUEUE_PAGE_SIZE}
                         currentItemCount={visibleReassignableLeads.length}
                         itemLabel="leads"
+                        showWhenSinglePage
                     />
                 </div>
             </section>
