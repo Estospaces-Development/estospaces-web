@@ -554,7 +554,7 @@ function UserManagementContent() {
                             value={searchQuery}
                             onChange={(e) => handleUserSearchChange(e.target.value)}
                             maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
-                            className="h-12 w-full rounded-xl border bg-white py-3 pl-11 pr-3 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64 sm:rounded-2xl sm:pl-12 sm:pr-6"
+                            className="h-12 w-full rounded-xl border bg-white py-3 pl-11 pr-3 text-sm font-bold text-gray-900 shadow-sm outline-none transition-all placeholder:text-gray-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:w-64 sm:rounded-2xl sm:pl-12 sm:pr-6"
                         />
                     </div>
                     <button
