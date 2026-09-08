@@ -445,16 +445,28 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 min-[480px]:flex min-[480px]:items-center">
-                            <button
-                                onClick={handleMessageAgent}
-                                disabled={openingConversation}
-                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-orange-50 hover:text-orange-500 disabled:cursor-wait disabled:opacity-60 dark:hover:bg-orange-900/20"
-                                title={openingConversation ? 'Opening thread' : 'Message Agent'}
-                                aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
-                            >
-                                {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
-                            </button>
+                        <div className="flex min-w-0 flex-col gap-2 min-[480px]:flex-row min-[480px]:items-center">
+                            <div className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)] gap-2">
+                                <button
+                                    onClick={handleMessageAgent}
+                                    disabled={openingConversation}
+                                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-orange-50 hover:text-orange-500 disabled:cursor-wait disabled:opacity-60 dark:hover:bg-orange-900/20"
+                                    title={openingConversation ? 'Opening thread' : 'Message Agent'}
+                                    aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
+                                >
+                                    {openingConversation ? <ActionSpinner size={18} className="" /> : <MessageSquare size={18} />}
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onClick();
+                                    }}
+                                    className="flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 hover:shadow"
+                                >
+                                    {primaryAction.label}
+                                    <ChevronRight size={16} className="shrink-0" />
+                                </button>
+                            </div>
                             {canWithdraw && (
                                 <button
                                     onClick={(e) => {
@@ -466,16 +478,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                     Withdraw
                                 </button>
                             )}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onClick();
-                                }}
-                                className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 hover:shadow"
-                            >
-                                {primaryAction.label}
-                                <ChevronRight size={16} />
-                            </button>
                         </div>
                     </div>
                 </div>
