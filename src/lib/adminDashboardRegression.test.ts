@@ -18,3 +18,13 @@ test('admin dashboard recent notifications use the shared notification visual he
     assert.match(adminDashboardSource, /getNotificationTone/);
     assert.doesNotMatch(notificationIconBlock, /className="text-(blue|gray|orange|purple)-500"/);
 });
+
+test('admin platform snapshot uses plain-language copy without an internal API path', () => {
+    const snapshot = adminDashboardSource.slice(
+        adminDashboardSource.indexOf('{/* Platform Snapshot */}'),
+        adminDashboardSource.indexOf('id="recent-notifications"'),
+    );
+
+    assert.match(snapshot, /Live platform data\./);
+    assert.doesNotMatch(snapshot, /\/api\/|<code>/);
+});

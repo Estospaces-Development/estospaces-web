@@ -521,7 +521,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Snapshot data is loaded from <code>/api/v1/admin/analytics</code>.
+                            Live platform data.
                         </p>
                     </div>
 
