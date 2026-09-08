@@ -15,12 +15,16 @@ test('admin mobile header uses compact titles without losing the full page name'
         compact: 'Research',
     });
     assert.deepEqual(getAdminPageTitles('/admin/users'), {
-        full: 'User Management',
+        full: 'Users',
         compact: 'Users',
     });
     assert.deepEqual(getAdminPageTitles('/admin/fast-track'), {
         full: 'Fast Track',
         compact: 'Fast Track',
+    });
+    assert.deepEqual(getAdminPageTitles('/admin/properties'), {
+        full: 'Listings',
+        compact: 'Listings',
     });
 });
 

@@ -23,6 +23,7 @@ import { adminUpdatePropertyStatus, copyProperty, deleteProperty as deleteProper
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 import PaginationBar from '@/components/ui/PaginationBar';
 import {
     ADMIN_PROPERTY_STATUS_FILTERS,
@@ -505,7 +506,7 @@ function PropertyManagementContent() {
                         </span>
                     </div>
                     <h1 className="text-4xl font-black leading-none tracking-tight text-gray-900 dark:text-white">
-                        Registry Control
+                        {ADMIN_FEATURE_LABELS.listings}
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm font-medium text-gray-500 dark:text-gray-400">
                         Review every manager listing here. Pending submissions can be approved, rejected, or suspended without leaving the registry.

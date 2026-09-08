@@ -9,6 +9,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 
 type MobileWorkspaceRole = 'manager' | 'admin';
 
@@ -26,9 +27,9 @@ const roleItems = {
   ],
   admin: [
     { icon: LayoutDashboard, label: 'Home', mobileLabel: 'Home', path: '/admin/dashboard', exact: true },
-    { icon: Users, label: 'Users', mobileLabel: 'Users', path: '/admin/users', activePaths: ['/admin/user-management'] },
+    { icon: Users, label: ADMIN_FEATURE_LABELS.users, mobileLabel: ADMIN_FEATURE_LABELS.users, path: '/admin/users', activePaths: ['/admin/user-management'] },
     { icon: ShieldCheck, label: 'Verify', mobileLabel: 'Verify', path: '/admin/verifications' },
-    { icon: Building2, label: 'Properties', mobileLabel: 'Listings', path: '/admin/properties' },
+    { icon: Building2, label: ADMIN_FEATURE_LABELS.listings, mobileLabel: ADMIN_FEATURE_LABELS.listings, path: '/admin/properties' },
   ],
 } satisfies Record<MobileWorkspaceRole, Array<{
   icon: typeof LayoutDashboard;

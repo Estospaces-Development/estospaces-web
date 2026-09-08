@@ -131,7 +131,7 @@ test('admin users expose visible sort and global search control copy', () => {
 });
 
 test('admin users page title matches the admin navigation label', () => {
-  assert.equal(getAdminUsersPageTitle(), 'User Management');
+  assert.equal(getAdminUsersPageTitle(), 'Users');
   assert.equal(getAdminUsersPageSubtitle(), 'Global Registry');
 });
 

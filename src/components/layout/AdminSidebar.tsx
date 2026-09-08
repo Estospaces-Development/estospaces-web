@@ -20,6 +20,7 @@ import {
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLoginPath } from '@/lib/authUtils';
+import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 
 interface AdminSidebarProps {
     isOpen?: boolean;
@@ -47,9 +48,9 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
     const menuItems = [
         { icon: LayoutDashboard, label: 'Overview', path: '/admin/dashboard' },
         { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
-        { icon: Users, label: 'User Management', path: '/admin/users' },
+        { icon: Users, label: ADMIN_FEATURE_LABELS.users, path: '/admin/users' },
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
-        { icon: Building2, label: 'Properties', path: '/admin/properties' },
+        { icon: Building2, label: ADMIN_FEATURE_LABELS.listings, path: '/admin/properties' },
         { icon: Zap, label: 'Fast Track', path: '/admin/fast-track' },
         { icon: MessageSquare, label: 'Help & Support', path: '/admin/help' },
         { icon: Star, label: 'Reviews', path: '/admin/reviews' },
