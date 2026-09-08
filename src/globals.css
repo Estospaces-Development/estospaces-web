@@ -464,6 +464,10 @@
     color: #374151;
   }
 
+  :where(.dark) .dark\:text-gray-300 {
+    color: var(--color-gray-300);
+  }
+
   .dark .dark\:text-gray-400,
   .dark .dark\:text-gray-500 {
     color: #d1d5db;

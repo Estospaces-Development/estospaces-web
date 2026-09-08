@@ -4,6 +4,31 @@ const { setTimeout: delay } = require('node:timers/promises');
 const { test } = require('node:test');
 const { chromium } = require('playwright');
 
+const renderedContrast = locator => locator.evaluate(element => {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  const rgba = color => {
+    context.clearRect(0, 0, 1, 1);
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+    return Array.from(context.getImageData(0, 0, 1, 1).data);
+  };
+  let background = [255, 255, 255, 255];
+  const ancestors = [];
+  for (let node = element; node; node = node.parentElement) ancestors.unshift(node);
+  for (const node of ancestors) {
+    const layer = rgba(getComputedStyle(node).backgroundColor);
+    background = background.map((value, i) => i === 3 ? 255 : layer[i] * layer[3] / 255 + value * (1 - layer[3] / 255));
+  }
+  const foreground = rgba(getComputedStyle(element).color);
+  const luminance = color => color.slice(0, 3).map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, value, i) => sum + value * [0.2126, 0.7152, 0.0722][i], 0);
+  const blended = foreground.map((value, i) => i === 3 ? 255 : value * foreground[3] / 255 + background[i] * (1 - foreground[3] / 255));
+  const light = luminance(blended), dark = luminance(background);
+  return { ratio: (Math.max(light, dark) + 0.05) / (Math.min(light, dark) + 0.05), color: getComputedStyle(element).color, opacity: getComputedStyle(element).opacity };
+});
+
 test('admin lead refresh updates the global card and filtered queue without stale analytics', async () => {
   const baseUrl = 'http://127.0.0.1:4327';
   const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4327', '--strictPort'], { stdio: 'ignore' });
@@ -149,6 +174,49 @@ test('admin lead refresh updates the global card and filtered queue without stal
     await page.reload({ waitUntil: 'domcontentloaded' });
     await queue.getByText(`Showing 1-${active} of ${active} leads`, { exact: true }).waitFor();
     await card.getByText(String(active), { exact: true }).waitFor();
+    for (const width of [283, 1440]) {
+      await page.setViewportSize({ width, height: 642 });
+      for (const theme of ['dark', 'light']) {
+        await page.getByRole('button', { name: `Switch to ${theme} mode`, exact: true }).click();
+        await page.waitForFunction(expected => document.documentElement.classList.contains('dark') === (expected === 'dark'), theme);
+        await delay(350); // Let the application's 300ms theme transitions finish before measuring.
+        const refresh = queue.getByRole('button', { name: 'Refresh', exact: true });
+        const controls = [refresh, page.getByRole('button', { name: 'Export CSV', exact: true }), page.getByRole('textbox', { name: 'Search users and lead reassignment leads', exact: true }), page.getByText('Active Leads', { exact: true })];
+        for (const control of controls) {
+          const rendered = await renderedContrast(control);
+          assert.ok(rendered.ratio >= 4.5, `${theme}/${width}: ${await control.getAttribute('aria-label') || await control.textContent()} contrast ${JSON.stringify(rendered)}`);
+          assert.equal(rendered.opacity, '1', 'Available controls must not inherit a disabled opacity');
+        }
+        await refresh.hover();
+        await delay(350);
+        const hovered = await renderedContrast(refresh);
+        assert.ok(hovered.ratio >= 4.5, 'Hover retains readable text');
+        if (theme === 'dark') assert.equal(hovered.color, 'rgb(255, 255, 255)', 'The explicit dark hover color must win over the resting gray');
+        await refresh.focus();
+        await page.keyboard.press('Tab');
+        assert.equal(await queue.getByRole('textbox', { name: 'Search reassignment leads', exact: true }).evaluate(el => el === document.activeElement), true);
+        const disabled = queue.locator('button:disabled').filter({ hasText: /Reassign/ }).filter({ visible: true }).first();
+        assert.equal(await disabled.isDisabled(), true, 'Unavailable reassignment stays disabled');
+        assert.ok(Number(await disabled.evaluate(el => getComputedStyle(el).opacity)) < 1, 'Disabled state remains visually distinct');
+        // ManagerReviewModal deliberately keeps a white surface in both themes.
+        await page.evaluate(() => {
+          const surface = document.createElement('div');
+          surface.id = 'forced-light-contrast-fixture';
+          surface.className = 'bg-white';
+          for (const color of ['text-gray-400', 'text-gray-500']) {
+            const label = document.createElement('span');
+            label.className = color;
+            label.textContent = 'Not provided';
+            surface.appendChild(label);
+          }
+          document.body.appendChild(surface);
+        });
+        for (const label of await page.locator('#forced-light-contrast-fixture span').all()) {
+          assert.ok((await renderedContrast(label)).ratio >= 4.5, `${theme}: forced-light dialog text stays readable`);
+        }
+        await page.locator('#forced-light-contrast-fixture').evaluate(el => el.remove());
+      }
+    }
     assert.deepEqual(errors, []);
     assert.deepEqual(writes, [], 'Regression must not mutate live or fixture records');
     await context.close();
