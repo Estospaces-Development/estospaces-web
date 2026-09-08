@@ -260,7 +260,7 @@ async function main() {
       const adminBaseUrl = getRoleBaseUrl(target, 'admin');
       await pass(results, `admin property registry ${suffix}`, () => withPage(browser, adminSession, viewport, async (page, watchers) => {
         await page.goto(`${adminBaseUrl}/admin/properties`);
-        await assertHealthy(page, '/admin/properties', ['Registry Control']);
+        await assertHealthy(page, '/admin/properties', ['Listings']);
         await page.getByPlaceholder(/search registry/i).fill('QA');
         await page.getByLabel(/sort/i).selectOption('oldest').catch(() => {});
         await assertNoSevereAxeIssues(page, `admin property registry ${suffix}`);

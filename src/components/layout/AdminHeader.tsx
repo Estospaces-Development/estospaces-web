@@ -8,13 +8,14 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import { useAuth } from '../../contexts/AuthContext';
 import Avatar from '../ui/Avatar';
 import { getProfileLinkLabel } from '@/lib/profileMenuAccessibility';
+import { ADMIN_FEATURE_LABELS, matchesAdminPageQuery } from '@/lib/adminFeatureLabels';
 
 const ADMIN_PAGES = [
     { label: 'Dashboard', path: '/admin/dashboard' },
     { label: 'Notifications', path: '/admin/notifications' },
-    { label: 'User Management', path: '/admin/users' },
+    { label: ADMIN_FEATURE_LABELS.users, path: '/admin/users' },
     { label: 'Verifications', path: '/admin/verifications' },
-    { label: 'Properties', path: '/admin/properties' },
+    { label: ADMIN_FEATURE_LABELS.listings, path: '/admin/properties' },
     { label: 'Fast Track', path: '/admin/fast-track' },
     { label: 'Help & Support', path: '/admin/help' },
     { label: 'Reviews', path: '/admin/reviews' },
@@ -36,9 +37,9 @@ export const getAdminPageTitles = (pathname: string) => {
     else if (pathname.includes('/analytics')) full = 'Analytics';
     else if (pathname.includes('/fast-track')) full = 'Fast Track';
     else if (pathname.includes('/notifications')) full = 'Notifications';
-    else if (pathname.includes('/users')) full = 'User Management';
+    else if (pathname.includes('/users')) full = ADMIN_FEATURE_LABELS.users;
     else if (pathname.includes('/verifications')) full = 'Verifications';
-    else if (pathname.includes('/properties')) full = 'Properties';
+    else if (pathname.includes('/properties')) full = ADMIN_FEATURE_LABELS.listings;
     else if (pathname.includes('/chat') || pathname.includes('/help')) full = 'Help & Support';
     else if (pathname.includes('/reviews')) full = 'Reviews';
     else if (pathname.includes('/research')) full = 'Observational Research';
@@ -47,13 +48,11 @@ export const getAdminPageTitles = (pathname: string) => {
 
     const compact = full === 'Observational Research'
         ? 'Research'
-        : full === 'User Management'
-            ? 'Users'
-            : full === 'Admin Profile'
-                ? 'Profile'
-                : full === 'System Settings'
-                    ? 'Settings'
-                    : full;
+        : full === 'Admin Profile'
+            ? 'Profile'
+            : full === 'System Settings'
+                ? 'Settings'
+                : full;
 
     return { full, compact };
 };
@@ -75,8 +74,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
     const filteredPages = useMemo(() => {
         if (!normalizedSearchQuery) return ADMIN_PAGES;
-        const q = normalizedSearchQuery;
-        return ADMIN_PAGES.filter(p => p.label.toLowerCase().includes(q));
+        return ADMIN_PAGES.filter(p => matchesAdminPageQuery(p, normalizedSearchQuery));
     }, [normalizedSearchQuery]);
     const showFastTrackSearchAction = normalizedSearchQuery.length > 0 && filteredPages.length === 0;
     const adminDisplayName = user?.name || user?.email || 'Admin';

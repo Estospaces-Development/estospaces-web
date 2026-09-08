@@ -22,6 +22,7 @@ import PaginationBar from '@/components/ui/PaginationBar';
 import Avatar from '@/components/ui/Avatar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getAuthPath } from '@/lib/authUtils';
+import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 
 export type AdminUsersSortOption = 'newest' | 'oldest' | 'name_asc' | 'email_asc' | 'status';
 export type AdminLeadSortOption = 'newest' | 'oldest' | 'lead_number' | 'status';
@@ -71,7 +72,7 @@ export function getAdminUsersRegistryTableScrollLabel(): string {
 }
 
 export function getAdminUsersPageTitle(): string {
-    return 'User Management';
+    return ADMIN_FEATURE_LABELS.users;
 }
 
 export function getAdminUsersPageSubtitle(): string {

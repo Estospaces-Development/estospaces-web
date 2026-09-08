@@ -27,6 +27,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useManagerVerification } from "../../contexts/ManagerVerificationContext";
 import Avatar from "../ui/Avatar";
 import { getLoginPath } from "@/lib/authUtils";
+import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -106,9 +107,9 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain: _useSubdomain = false }: Side
 
   const adminMenuItems = [
     { icon: LayoutDashboard, label: "Overview", path: "/admin/dashboard" },
-    { icon: Users, label: "User Management", path: "/admin/users" },
+    { icon: Users, label: ADMIN_FEATURE_LABELS.users, path: "/admin/users" },
     { icon: Shield, label: "Verifications", path: "/admin/verifications" },
-    { icon: Building2, label: "All Properties", path: "/admin/properties" },
+    { icon: Building2, label: ADMIN_FEATURE_LABELS.listings, path: "/admin/properties" },
     { icon: Settings, label: "System Settings", path: "/admin/settings" },
   ];
 

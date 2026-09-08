@@ -1,3 +1,5 @@
+import { ADMIN_FEATURE_LABELS } from './adminFeatureLabels';
+
 // Custom type to replace Next.js Metadata
 export interface Metadata {
     title?: string;
@@ -95,6 +97,6 @@ export const pageMetadata = {
     managerAnalytics: generateMetadata({ title: 'Analytics', path: '/manager/analytics', noIndex: true }),
     adminDashboard: generateMetadata({ title: 'Admin Dashboard', path: '/admin/dashboard', noIndex: true }),
     adminVerifications: generateMetadata({ title: 'Verifications', path: '/admin/verifications', noIndex: true }),
-    adminUsers: generateMetadata({ title: 'User Management', path: '/admin/users', noIndex: true }),
+    adminUsers: generateMetadata({ title: ADMIN_FEATURE_LABELS.users, path: '/admin/users', noIndex: true }),
     adminChat: generateMetadata({ title: 'Support Chat', path: '/admin/chat', noIndex: true }),
 };

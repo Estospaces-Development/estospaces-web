@@ -35,6 +35,7 @@ import {
 } from '@/services/notificationsService';
 import { getNotificationIconColorClass, getNotificationTone } from '@/lib/notificationVisuals';
 import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
+import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 
 const snapshotIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?: number }>> = {
     activity: Activity,
@@ -399,7 +400,7 @@ export default function AdminDashboard() {
                                         <Building2 size={24} />
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Property Hub</h3>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">{ADMIN_FEATURE_LABELS.listings}</h3>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-blue-700/80 dark:group-hover:text-blue-300/80">Manage Inventory</p>
                                     </div>
                                 </div>
@@ -417,7 +418,7 @@ export default function AdminDashboard() {
                                         <Users size={24} />
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">User Registry</h3>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">{ADMIN_FEATURE_LABELS.users}</h3>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-emerald-700/80 dark:group-hover:text-emerald-300/80">View Clients</p>
                                     </div>
                                 </div>
