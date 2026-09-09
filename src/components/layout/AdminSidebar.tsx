@@ -80,7 +80,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
                 {isOpen && onToggle && (
                     <button
                         onClick={onToggle}
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800 lg:hidden"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-300 dark:hover:bg-gray-800 lg:hidden"
                         aria-label="Close sidebar"
                     >
                         <ChevronLeft size={18} />

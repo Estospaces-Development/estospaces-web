@@ -129,7 +129,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                 <div className="flex min-h-16 items-center justify-between gap-2 px-2.5 py-2 sm:gap-3 sm:px-6 sm:py-3">
                     <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
                         {onMenuToggle && (
-                            <button onClick={onMenuToggle} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-gray-800 lg:hidden" aria-label="Open admin sidebar">
+                            <button onClick={onMenuToggle} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-gray-300 dark:hover:bg-gray-800 lg:hidden" aria-label="Open admin sidebar">
                                 <Menu size={20} />
                             </button>
                         )}
