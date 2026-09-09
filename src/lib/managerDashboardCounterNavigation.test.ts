@@ -20,13 +20,13 @@ test('manager dashboard summary counters navigate to their workspaces', () => {
 test('manager dashboard KPI counters expose destination actions', () => {
   const source = readSource('src/pages/manager/dashboard/page.tsx');
 
-  assert.match(source, /title="Live Fast Track"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/fast-track'\)\}/);
+  assert.match(source, /title="Active Fast Track"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/fast-track'\)\}/);
   assert.match(source, /title="Active Listings"[\s\S]*?onClick=\{\(\) => navigate\(buildManagerActiveListingsPath\(\)\)\}/);
   assert.match(source, /title="Total Views"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/analytics'\)\}/);
   assert.match(source, /title="Conversion Rate"[\s\S]*?onClick=\{\(\) => navigate\('\/manager\/analytics'\)\}/);
   assert.match(source, /liveFastTrackChange: `Across all cases:/);
   assert.match(source, /const \[dashboardMetricsLoading, setDashboardMetricsLoading\] = useState\(true\)/);
-  assert.match(source, /title="Live Fast Track"[\s\S]*?loading=\{dashboardMetricsLoading\}/);
+  assert.match(source, /title="Active Fast Track"[\s\S]*?loading=\{dashboardMetricsLoading\}/);
   assert.match(source, /title="Active Listings"[\s\S]*?loading=\{dashboardMetricsLoading\}/);
   assert.match(source, /title="Total Views"[\s\S]*?loading=\{dashboardMetricsLoading\}/);
   assert.match(source, /title="Conversion Rate"[\s\S]*?loading=\{dashboardMetricsLoading\}/);

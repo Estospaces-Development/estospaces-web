@@ -514,7 +514,7 @@ function DashboardContent() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
         <StatCard
-          title="Live Fast Track"
+          title="Active Fast Track"
           value={stats.liveFastTrack}
           change={stats.liveFastTrackChange}
           icon={CalendarCheck}
