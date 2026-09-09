@@ -315,7 +315,7 @@ export const extractPostcodeFromAddress = (address: string): string | null => {
 export const getUserLocation = async ({
     searchInput = null,
     profileLocation = null,
-    useGeolocation = true,
+    useGeolocation = false,
 }: GetUserLocationParams): Promise<LocationData | null> => {
     let location: LocationData | null = null;
 
