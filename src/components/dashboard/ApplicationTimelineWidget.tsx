@@ -894,7 +894,7 @@ const ApplicationTimelineWidget = () => {
         { id: 'requests', label: 'Agent requests', count: brokerRequests.length, itemLabel: 'agent requests' },
         { id: 'viewings', label: 'Viewings', count: viewingItems.length, itemLabel: 'viewings' },
         { id: 'contracts', label: 'Contracts', count: contractItems.length, itemLabel: 'contracts' },
-        { id: 'listings', label: 'My homes', count: listings.length, itemLabel: 'listings' },
+        { id: 'listings', label: 'My Homes', count: listings.length, itemLabel: 'listings' },
     ];
     const activeTabConfig = timelineTabs.find((tab) => tab.id === activeTab) || timelineTabs[0];
     const statusSummary = loading

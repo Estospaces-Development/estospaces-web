@@ -59,12 +59,12 @@ test('five loaded homes retain the full journey tab label before and after selec
     try {
         await act(async () => root.render(<MemoryRouter><componentModule.exports.default /></MemoryRouter>));
         const tab = [...container.querySelectorAll('button')]
-            .find((button) => button.getAttribute('role') === 'tab' && button.textContent === 'My homes (5)');
+            .find((button) => button.getAttribute('role') === 'tab' && button.textContent === 'My Homes (5)');
         assert.ok(tab, 'The last pill must identify its group as well as its actual count');
         assert.equal(tab.hidden, false);
         assert.equal(tab.getAttribute('aria-selected'), 'false');
         await act(async () => tab.click());
-        assert.equal(tab.textContent, 'My homes (5)');
+        assert.equal(tab.textContent, 'My Homes (5)');
         assert.equal(tab.getAttribute('aria-selected'), 'true');
         assert.ok(container.textContent.includes('Named home 1'), 'Selecting the tab opens its home records');
         assert.ok(container.textContent.includes('5 listings shown'), 'The group count includes the next page');
