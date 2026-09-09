@@ -1,3 +1,6 @@
+import { getSupportedLaunchCountry, isValidLaunchLocationCodeForCountry } from '@/lib/launchLocale';
+import { areCoordinatesInsideLaunchMarket } from '@/lib/mapCoordinates';
+
 /**
  * Location Service
  * Handles user location detection via geolocation or search input
@@ -144,6 +147,7 @@ const fetchIndianPinCoords = async (pinCode: string) => {
             for (const entry of offices) {
                 if (!entry || typeof entry !== 'object') continue;
                 const record = entry as Record<string, unknown>;
+                if (record.pincode != null && String(record.pincode).trim() !== pinCode) continue;
                 const latitude = parseProviderCoordinate(record.latitude, -90, 90);
                 const longitude = parseProviderCoordinate(record.longitude, -180, 180);
                 if (latitude === null || longitude === null || (latitude === 0 && longitude === 0)) {
@@ -254,6 +258,10 @@ export const getCoordinatesFromPostcode = async (postcode: string): Promise<any 
 
             const data = await response.json();
             if (data.result) {
+                const providerCountry = data.result.country;
+                if (providerCountry && !['England', 'Scotland', 'Wales', 'Northern Ireland', 'United Kingdom'].includes(providerCountry)) {
+                    return null;
+                }
                 return {
                     latitude: data.result.latitude,
                     longitude: data.result.longitude,
@@ -280,14 +288,21 @@ export const getCoordinatesFromPostcode = async (postcode: string): Promise<any 
 export const getCoordinatesFromAddress = async (
     location: PropertyLocationLookup,
 ): Promise<ResolvedMapCoordinates | null> => {
+    const market = getSupportedLaunchCountry(location.countryCode);
+    if (!market || !isValidLaunchLocationCodeForCountry(location.postalCode, market)) return null;
     const coordinates = await getCoordinatesFromPostcode(location.postalCode);
-    const latitude = Number(coordinates?.latitude);
-    const longitude = Number(coordinates?.longitude);
+    const latitude = parseProviderCoordinate(coordinates?.latitude, -90, 90);
+    const longitude = parseProviderCoordinate(coordinates?.longitude, -180, 180);
+    const providerPostcode = typeof coordinates?.postcode === 'string'
+        ? normalizeLocationCode(coordinates.postcode)
+        : '';
 
     if (
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude) ||
-        (latitude === 0 && longitude === 0)
+        latitude === null ||
+        longitude === null ||
+        !providerPostcode ||
+        !areCoordinatesInsideLaunchMarket(latitude, longitude, market) ||
+        providerPostcode !== normalizeLocationCode(location.postalCode)
     ) {
         return null;
     }

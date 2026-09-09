@@ -1457,16 +1457,17 @@ export default function AddPropertyPage() {
         );
         return;
       }
-      const latitude = Number(coordinates?.latitude);
-      const longitude = Number(coordinates?.longitude);
+      if (!coordinates) {
+        throw new Error("No map position returned for the entered postal code");
+      }
       applyPropertyLocation(
-        latitude,
-        longitude,
+        coordinates.latitude,
+        coordinates.longitude,
         "PIN or postcode area located. Click or drag the marker to the exact building.",
       );
     } catch {
       showToast(
-        "We could not find that PIN or postcode. Check it and try again, or use your current location.",
+        "We could not find that PIN or postcode. Check it and try again, use your current location, or zoom in and click the map.",
         "error",
       );
     } finally {

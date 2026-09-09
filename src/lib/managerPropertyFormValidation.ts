@@ -2,7 +2,6 @@ import type { ListingType } from "@/contexts/PropertyContext";
 import {
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
-  getLaunchCityFromPin,
   getLaunchStateCodeFromPinPrefix,
   getSupportedLaunchCountry,
   isLaunchIndiaCountry,
@@ -165,10 +164,7 @@ export function validateManagerPropertyField(
       if (pinStateCode && values.stateCode && values.stateCode.toUpperCase() !== pinStateCode) {
         return "PIN code does not match the selected state";
       }
-      const pinCityName = getLaunchCityFromPin(values.postalCode);
-      if (pinCityName && values.city && values.city.trim() && values.city.trim().toLowerCase() !== pinCityName.toLowerCase()) {
-        return `PIN code does not match the selected city (${pinCityName})`;
-      }
+      // PIN locality hints are not authoritative city boundaries or alias lists.
       return null;
     case "latitude": {
       const coordinateError = validateCoordinate(values.latitude, -90, 90, "Latitude");

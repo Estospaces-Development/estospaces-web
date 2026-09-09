@@ -3,6 +3,59 @@ import assert from "node:assert/strict";
 
 import { getCoordinatesFromAddress } from "./locationService";
 
+test('property lookup rejects a postcode from a different selected country before contacting a provider', async () => {
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests++;
+    return new Response(JSON.stringify({ result: { latitude: 51.5, longitude: -0.1, postcode: 'SW1A 1AA' } }));
+  };
+  try {
+    assert.equal(await getCoordinatesFromAddress({ postalCode: 'SW1A 1AA', countryCode: 'IN' }), null);
+    assert.equal(requests, 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+for (const [name, result] of [
+  ['different postcode', { latitude: 51.5, longitude: -0.1, postcode: 'SW1A 2AA' }],
+  ['missing postcode identity', { latitude: 51.5, longitude: -0.1 }],
+  ['null postcode identity', { latitude: 51.5, longitude: -0.1, postcode: null }],
+  ['non-string postcode identity', { latitude: 51.5, longitude: -0.1, postcode: 12345 }],
+  ['empty postcode identity', { latitude: 51.5, longitude: -0.1, postcode: '  ' }],
+  ['missing latitude', { latitude: null, longitude: -0.1, postcode: 'SW1A 1AA' }],
+  ['boolean coordinate', { latitude: true, longitude: -0.1, postcode: 'SW1A 1AA' }],
+  ['wrong country coordinates', { latitude: 13.08, longitude: 80.27, postcode: 'SW1A 1AA' }],
+  ['conflicting country metadata', { latitude: 51.5, longitude: -0.1, postcode: 'SW1A 1AA', country: 'France' }],
+] as const) {
+  test(`property lookup rejects provider ${name}`, async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({ result }));
+    try {
+      assert.equal(await getCoordinatesFromAddress({ postalCode: 'SW1A 1AA', countryCode: 'GB' }), null);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+}
+
+test('property lookup accepts UK constituent-country metadata', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 51.5, longitude: -0.1, postcode: 'SW1A 1AA', country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await getCoordinatesFromAddress({ postalCode: 'SW1A 1AA', countryCode: 'GB' }), { latitude: 51.5, longitude: -0.1 });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('property lookup rejects a conflicting PIN in a legacy India office record', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ status: 'success', data: [
+    { pincode: '600002', latitude: 13.08, longitude: 80.27, district: 'Chennai' },
+  ] }));
+  try {
+    assert.equal(await getCoordinatesFromAddress({ postalCode: '600001', countryCode: 'IN' }), null);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("getCoordinatesFromAddress resolves India using only the entered PIN", async () => {
   const originalFetch = globalThis.fetch;
   const requestedURLs: string[] = [];

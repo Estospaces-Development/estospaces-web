@@ -44,12 +44,12 @@ const markerIcon = L.divIcon({
   iconAnchor: [17, 34],
 });
 
-function MapPositionController({ position }: { position: [number, number] }) {
+function MapPositionController({ position, hasLocation }: { position: [number, number]; hasLocation: boolean }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(position, 16);
-  }, [map, position]);
+    map.setView(position, hasLocation ? 16 : 5);
+  }, [map, position, hasLocation]);
 
   return null;
 }
@@ -62,12 +62,39 @@ function MapClickHandler({
 }) {
   useMapEvents({
     click: (event) => {
+      const target = event.originalEvent?.target as { closest?: (selector: string) => Element | null } | null;
+      if (target?.closest?.('button')) return;
       if (!disabled) {
         onLocationChange(event.latlng.lat, event.latlng.lng);
       }
     },
   });
   return null;
+}
+
+function MapCenterPlacement({
+  onLocationChange,
+  disabled,
+}: Pick<PropertyLocationPickerProps, "onLocationChange"> & {
+  disabled: boolean;
+}) {
+  const map = useMap();
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        const center = map.getCenter();
+        onLocationChange(center.lat, center.lng);
+      }}
+      className="absolute left-4 top-4 z-[500] inline-flex min-h-11 items-center gap-2 rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm font-semibold text-orange-950 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-900 dark:bg-gray-900 dark:text-orange-50"
+    >
+      <Crosshair className="h-4 w-4" />
+      Place pin at map center
+    </button>
+  );
 }
 
 export default function PropertyLocationPicker({
@@ -154,7 +181,8 @@ export default function PropertyLocationPicker({
       >
         <p id="property-location-map-instructions" className="sr-only">
           Click the map or drag the marker with a pointer. Keyboard users can
-          use the direction buttons to move the pin in small steps.
+          pan the map and place the first pin at its center, then use the
+          direction buttons to move the pin in small steps.
         </p>
         <MapContainer
           center={position}
@@ -173,11 +201,17 @@ export default function PropertyLocationPicker({
           />
           <MapClickHandler
             onLocationChange={onLocationChange}
-            disabled={!hasLocation || disabled || busy}
+            disabled={disabled || busy || !market}
           />
+          {!hasLocation && (
+            <MapCenterPlacement
+              onLocationChange={onLocationChange}
+              disabled={disabled || busy || !market}
+            />
+          )}
+          <MapPositionController position={position} hasLocation={hasLocation} />
           {hasLocation && (
             <>
-              <MapPositionController position={position} />
               <Marker
                 position={position}
                 icon={markerIcon}
@@ -196,8 +230,8 @@ export default function PropertyLocationPicker({
           <div className="pointer-events-none absolute inset-x-4 bottom-4 z-[500] flex items-center gap-2 rounded-xl border border-white/80 bg-white/95 px-4 py-3 text-sm font-medium text-gray-700 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-200">
             <Crosshair className="h-4 w-4 shrink-0 text-orange-500" />
             <span>
-              Find the entered address or use your current location to place
-              the marker.
+              Find the entered address, use your current location, or zoom in
+              and click the map to place the marker.
             </span>
           </div>
         )}
