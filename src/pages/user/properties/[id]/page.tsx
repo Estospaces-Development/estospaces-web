@@ -1082,14 +1082,18 @@ const UserPropertyDetail = () => {
     }, [id]);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchProperty = async () => {
             if (!id) {
                 return;
             }
 
             setLoading(true);
+            setError(null);
+            setProperty(null);
             try {
                 const { data, error: apiError } = await getPropertyById(id);
+                if (cancelled) return;
                 if (apiError) {
                     setError(apiError);
                 } else if (data) {
@@ -1104,22 +1108,24 @@ const UserPropertyDetail = () => {
                     setError('Property not found');
                 }
             } catch {
-                setError('Failed to load property details');
+                if (!cancelled) setError('Failed to load property details');
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
-        fetchProperty();
+        void fetchProperty();
+        return () => { cancelled = true; };
     }, [geoMarket, id, user?.role]);
 
     useEffect(() => {
         const role = String(user?.role || '').trim().toLowerCase();
-        if (!id || !property || !user?.id || role !== 'user') {
+        if (!id || !property || property.id.toLowerCase() !== id.trim().toLowerCase() || !user?.id || role !== 'user') {
             return;
         }
 
-        const viewedKey = `property_viewed:${user.id}:${id}`;
+        const canonicalPropertyId = property.id.toLowerCase();
+        const viewedKey = `property_viewed:${user.id}:${canonicalPropertyId}`;
         if (sessionStorage.getItem(viewedKey)) {
             return;
         }
@@ -1127,7 +1133,7 @@ const UserPropertyDetail = () => {
         // Mark before sending so a rerender cannot issue duplicate events. If
         // the request fails, remove the marker so the next visit can retry.
         sessionStorage.setItem(viewedKey, 'pending');
-        void recordPropertyView(id).then(({ recorded }) => {
+        void recordPropertyView(canonicalPropertyId).then(({ recorded }) => {
             if (!recorded) {
                 sessionStorage.removeItem(viewedKey);
             }
