@@ -180,6 +180,20 @@ test('admin lead refresh updates the global card and filtered queue without stal
         await page.getByRole('button', { name: `Switch to ${theme} mode`, exact: true }).click();
         await page.waitForFunction(expected => document.documentElement.classList.contains('dark') === (expected === 'dark'), theme);
         await delay(350); // Let the application's 300ms theme transitions finish before measuring.
+        if (width === 283) {
+          const openSidebar = page.getByRole('button', { name: 'Open admin sidebar', exact: true });
+          assert.ok((await renderedContrast(openSidebar)).ratio >= 3, `${theme}: mobile sidebar opener must remain visible`);
+          await openSidebar.press('Enter');
+          const closeSidebar = page.getByRole('button', { name: 'Close sidebar', exact: true });
+          await closeSidebar.waitFor({ state: 'visible' });
+          assert.ok((await renderedContrast(closeSidebar)).ratio >= 3, `${theme}: mobile sidebar closer must remain visible`);
+          for (const control of [openSidebar, closeSidebar]) {
+            const size = await control.evaluate(el => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height }));
+            assert.ok(size.width >= 44 && size.height >= 44, 'Sidebar controls preserve their touch targets');
+          }
+          await closeSidebar.press('Enter');
+          await closeSidebar.waitFor({ state: 'hidden' });
+        }
         const refresh = queue.getByRole('button', { name: 'Refresh', exact: true });
         const controls = [refresh, page.getByRole('button', { name: 'Export CSV', exact: true }), page.getByRole('textbox', { name: 'Search users and lead reassignment leads', exact: true }), page.getByText('Active Leads', { exact: true })];
         for (const control of controls) {
