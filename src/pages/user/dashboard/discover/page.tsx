@@ -1096,18 +1096,23 @@ function DiscoverContent() {
 
                 <section
                     aria-labelledby="discover-results-heading"
+                    aria-busy={loading}
                     className="mb-5 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between sm:px-5"
                     data-discover-results-summary
                 >
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700 dark:text-orange-300">Available homes</p>
                         <h2 id="discover-results-heading" className="mt-1 font-display text-xl font-semibold tracking-[-0.025em] text-gray-950 dark:text-white">
-                            {total} {total === 1 ? 'home' : 'homes'} found
+                            {loading ? 'Loading homes...' : error ? 'Homes unavailable' : <>{total} {total === 1 ? 'home' : 'homes'} found</>}
                         </h2>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            {paginatedProperties.length > 0
-                                ? `Showing ${paginatedProperties.length} on this page in ${viewMode === 'map' ? 'map' : 'card'} view.`
-                                : 'Adjust your search to find the right home.'}
+                            {loading
+                                ? 'Updating your search results.'
+                                : error
+                                    ? 'We could not load these homes. Please try again.'
+                                    : paginatedProperties.length > 0
+                                        ? `Showing ${paginatedProperties.length} on this page in ${viewMode === 'map' ? 'map' : 'card'} view.`
+                                        : 'Adjust your search to find the right home.'}
                         </p>
                     </div>
 

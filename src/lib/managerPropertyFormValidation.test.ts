@@ -213,6 +213,12 @@ test("validateManagerPropertyField rejects phone numbers exceeding 15 digits (#2
   assert.equal(withinLimit, null);
 });
 
+test('postal validation accepts a city when the PIN hint names a locality within it', () => {
+  assert.equal(validateManagerPropertyField('postalCode', {
+    ...baseValues, country: 'India', countryCode: 'IN', stateCode: 'DL', city: 'New Delhi', postalCode: '110075',
+  }), null);
+});
+
 test("validateManagerPropertyField rejects PIN code that mismatches selected state (#281)", () => {
   const mismatch = validateManagerPropertyField("postalCode", {
     ...baseValues,

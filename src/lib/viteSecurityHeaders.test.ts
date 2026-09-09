@@ -19,7 +19,7 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /'X-Content-Type-Options': 'nosniff'/);
   assert.match(viteConfigSource, /'Referrer-Policy': 'strict-origin-when-cross-origin'/);
   assert.match(viteConfigSource, /camera=\(\)/);
-  assert.match(viteConfigSource, /geolocation=\(\)/);
+  assert.match(viteConfigSource, /geolocation=\(self\)/);
   assert.match(viteConfigSource, /microphone=\(\)/);
   assert.match(viteConfigSource, /frame-ancestors 'none'/);
   assert.doesNotMatch(viteConfigSource, /unsafe-eval/);
@@ -35,6 +35,9 @@ test('dev server sends the same release-blocking security headers as production'
 });
 
 test('production security headers allow signed and blob backed document previews', () => {
+  assert.match(nginxSecurityHeadersSource, /geolocation=\(self\)/);
+  assert.match(nginxSecurityHeadersSource, /camera=\(\)/);
+  assert.match(nginxSecurityHeadersSource, /microphone=\(\)/);
   assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/js\.stripe\.com/);

@@ -577,7 +577,7 @@ const BrokerResponseWidget: React.FC = () => {
             setAvailabilityBlockedReason(response.data.blocked_reason || null);
             setAvailabilityStatusMessage(
                 response.data.blocked_reason
-                    || (response.data.available_for_fast_response ? 'Live queue is on.' : 'Live queue paused.')
+                    || (response.data.available_for_fast_response ? 'Available for new requests.' : 'Live queue paused.')
             );
             publishWorkspaceSync({
                 source: 'mutation',
@@ -600,14 +600,16 @@ const BrokerResponseWidget: React.FC = () => {
     const availabilityLabel = availabilityBlockedReason
         ? 'Live dispatch unavailable'
         : availableForFastResponse
-            ? 'Live queue is on'
+            ? pendingCount > 0
+                ? 'Available for requests'
+                : 'Standing by — available for requests'
             : 'Offline for the rapid-response queue';
     const availabilityHint = availabilityBlockedReason
         ? availabilityBlockedReason
         : availableForFastResponse
             ? pendingCount > 0
                 ? `${pendingCount} waiting user${pendingCount === 1 ? '' : 's'} are shown below with their own countdown.`
-                : 'Waiting users will appear here with their own 10-minute countdown.'
+                : 'No waiting requests. New requests will appear here with their own 10-minute countdown.'
             : 'Go live when you want to start receiving user requests.';
     const visibleRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-request');
     const matchedRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-matched-request');

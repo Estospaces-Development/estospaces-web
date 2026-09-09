@@ -112,6 +112,8 @@ import {
 } from '@/lib/fastTrackCaseContext';
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
+import FastTrackCompletionRefresh from '@/components/fast-track/FastTrackCompletionRefresh';
+import { canRefreshFastTrackCompletion } from '@/lib/fastTrackWorkspace';
 import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
 import {
     FastTrackCaseMasthead,
@@ -1572,12 +1574,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        if (isFastTrackStageReadOnly(selectedCase, role)) {
+        const completionRefreshAllowed = action === 'retry_handover_sync'
+            && canRefreshFastTrackCompletion(selectedCase, role, user?.id);
+        if ((action === 'retry_handover_sync' && !completionRefreshAllowed)
+            || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)) {
             setPendingAdminOverrideAction(null);
             setStageConfirmDialog(null);
             setCancelCaseDialogOpen(false);
             toast.info('This Fast Track is closed and available for viewing only.');
-            return;
+            return 'This Fast Track is closed and available for viewing only.';
         }
 
         const actionPayload = adminOverride
@@ -1598,11 +1603,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setActiveAction(null);
 
         if (actionError || !data) {
-            toast.error(actionError || 'Unable to update the fast-track workspace.');
-            return;
+            const message = actionError || 'Unable to update the fast-track workspace.';
+            if (action !== 'retry_handover_sync') toast.error(message);
+            return message;
         }
 
         const shouldRefreshMutatedCase = [
+            'retry_handover_sync',
             'publish_agreement',
             'confirm_agreement',
             'mark_handover_ready',
@@ -1611,7 +1618,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         ].includes(action) || data.workspaceFinalStatus === 'completed';
         const refreshedCase = shouldRefreshMutatedCase
             ? await getFastTrackCaseById(data.caseId, { suppressErrorToast: true })
-            : { data: null };
+            : { data: null, error: null };
         const nextCase = refreshedCase.data || data;
 
         updateLocalCase(nextCase);
@@ -1628,6 +1635,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
+        if (action === 'retry_handover_sync' && (refreshedCase.error || !refreshedCase.data)) {
+            return refreshedCase.error || 'Completion was saved, but the confirming read failed. Try refreshing again.';
+        }
+        return null;
     }, [publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
 
     const runAction = useCallback((
@@ -3615,6 +3626,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         );
     };
 
+    const renderCompletionRefresh = () => selectedCase && canRefreshFastTrackCompletion(selectedCase, role, user?.id) ? (
+        <FastTrackCompletionRefresh
+            key={selectedCase.caseId}
+            disabled={Boolean(activeAction)}
+            onRefresh={async () => (await executeFastTrackAction('retry_handover_sync', {})) ?? null}
+        />
+    ) : null;
+
     const renderHandoverStage = () => {
         if (!selectedCase) {
             return null;
@@ -3655,6 +3674,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <p className="mt-2">
                                 The keys and final handover are already confirmed. This workspace is now kept for your records.
                             </p>
+                            {renderCompletionRefresh()}
                         </div>
                     </SectionShell>
                 );
@@ -3686,12 +3706,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <ActionButton
                             onClick={() => void runAction('confirm_handover', {}, 'Handover confirmed.')}
                             busy={activeAction === 'confirm_handover'}
-                            disabled={selectedCase.handover.confirmedByUser || !canUserConfirmFastTrackHandover(selectedCase)}
+                            disabled={Boolean(activeAction) || selectedCase.handover.confirmedByUser || !canUserConfirmFastTrackHandover(selectedCase)}
                             title={!canUserConfirmFastTrackHandover(selectedCase) ? 'The manager must mark handover ready first.' : undefined}
                         >
                             Confirm I got the keys
                         </ActionButton>
                     </div>
+                    {renderCompletionRefresh()}
                 </SectionShell>
             );
         }
@@ -3709,7 +3730,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     >
                         <p className="text-base font-semibold">Case already completed</p>
                         <p className="mt-2">
-                            The final handover has already been completed. No additional handover action is required from this workspace.
+                            The final handover has already been completed. Handover details remain read-only.
                         </p>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 dark:border-emerald-900/40 dark:bg-gray-950/40">
@@ -3725,6 +3746,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 </p>
                             </div>
                         </div>
+                        {renderCompletionRefresh()}
                     </div>
                 </SectionShell>
             );
@@ -4360,7 +4382,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </div>
                                     ) : null}
                                     <fieldset
-                                        disabled={isFastTrackStageReadOnly(selectedCase, role) && effectiveVisibleStage !== 'documents'}
+                                        disabled={isFastTrackStageReadOnly(selectedCase, role) && effectiveVisibleStage !== 'documents'
+                                            && !(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion(selectedCase, role, user?.id))}
                                         aria-label={isFastTrackStageReadOnly(selectedCase, role) ? 'Closed Fast Track stage — view only' : undefined}
                                         className="m-0 min-w-0 border-0 p-0 disabled:cursor-not-allowed disabled:opacity-75"
                                     >

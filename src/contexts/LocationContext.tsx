@@ -78,7 +78,7 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
                 const location = await getUserLocation({
                     profileLocation,
-                    useGeolocation: true,
+                    useGeolocation: false,
                 });
 
                 setUserLocation(location);

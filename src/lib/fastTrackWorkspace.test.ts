@@ -16,6 +16,7 @@ import {
     canStartFastTrackDocumentUpload,
     canUserPrepareFastTrackDocuments,
     canUserConfirmFastTrackHandover,
+    canRefreshFastTrackCompletion,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
@@ -41,6 +42,24 @@ import {
     shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
 } from './fastTrackWorkspace';
+
+test('completion refresh requires genuine completion and an authorized participant', () => {
+    const completed = buildCase({ workspaceFinalStatus: 'completed', stage: 'handover', handover: {
+        status: 'completed', completedAt: '2026-09-07T10:00:00Z', completedBy: 'manager-1', confirmedByUser: true,
+    } });
+    for (const [role, actor] of [['manager', 'manager-1'], ['admin', 'admin-1'], ['user', 'user-1']]) {
+        assert.equal(canRefreshFastTrackCompletion(completed, role, actor), true);
+    }
+    for (const [role, actor] of [['manager', 'other'], ['user', 'other'], ['broker', 'manager-1'], ['admin', '']]) {
+        assert.equal(canRefreshFastTrackCompletion(completed, role, actor), false);
+    }
+    for (const patch of [
+        { workspaceFinalStatus: 'active' as const }, { workspaceFinalStatus: 'cancelled' as const },
+        { stage: 'documents' as const }, { handover: { ...completed.handover, status: 'ready' as const } },
+        { handover: { ...completed.handover, completedAt: '' } },
+        { handover: { ...completed.handover, completedBy: ' ' } },
+    ]) assert.equal(canRefreshFastTrackCompletion({ ...completed, ...patch }, 'admin', 'admin-1'), false);
+});
 
 const fastTrackWorkspaceComponent = readFileSync(
     resolve(process.cwd(), 'src/components/fast-track/FastTrackWorkspace.tsx'),

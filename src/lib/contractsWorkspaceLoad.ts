@@ -12,6 +12,7 @@ type InitialWorkspaceFetchers = {
   getContracts: () => Promise<ServiceResult<Contract>>;
   getApplications: () => Promise<ServiceResult<Application>>;
   getFastTrackCases: () => Promise<ServiceResult<FastTrackCase>>;
+  requireLinkedData?: boolean;
 };
 
 export type ContractsWorkspaceInitialData = {
@@ -39,12 +40,16 @@ export const loadContractsWorkspaceInitialData = async ({
   getContracts,
   getApplications,
   getFastTrackCases,
+  requireLinkedData = false,
 }: InitialWorkspaceFetchers): Promise<ContractsWorkspaceInitialData> => {
   const [contractsResult, applicationsResult, fastTrackResult] =
     await Promise.all([getContracts(), getApplications(), getFastTrackCases()]);
 
   if (contractsResult.error) {
     throw new Error(contractsResult.error);
+  }
+  if (requireLinkedData && (applicationsResult.error || fastTrackResult.error)) {
+    throw new Error(applicationsResult.error || fastTrackResult.error!);
   }
 
   return {

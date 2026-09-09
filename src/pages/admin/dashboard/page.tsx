@@ -201,7 +201,7 @@ export default function AdminDashboard() {
     });
 
     if (loading) {
-        return <BrandLoadingScreen variant="section" label="Initializing Command Center..." />;
+        return <BrandLoadingScreen variant="screen" label="Initializing Command Center..." />;
     }
 
     // Map values from backend

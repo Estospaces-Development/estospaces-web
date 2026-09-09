@@ -113,9 +113,10 @@ export default function ContractsPage() {
   );
 
   const fetchData = useCallback(
-    async ({ background = false }: { background?: boolean } = {}) => {
+    async ({ background = false, reportFailure = false }: { background?: boolean; reportFailure?: boolean } = {}) => {
+      const observeRequest = (request: Promise<void>) => reportFailure ? request : request.catch(() => undefined);
       if (inFlightRequestRef.current) {
-        return inFlightRequestRef.current;
+        return observeRequest(inFlightRequestRef.current);
       }
 
       const isFirstLoad = !hasLoadedInitialDataRef.current && !background;
@@ -133,6 +134,7 @@ export default function ContractsPage() {
             getApplications: () => getApplications({ suppressErrorToast: true }),
             getFastTrackCases: () =>
               getFastTrackCases({ suppressErrorToast: true }),
+            requireLinkedData: hasLoadedInitialDataRef.current,
           });
 
           setContracts(initialData.contracts);
@@ -147,6 +149,7 @@ export default function ContractsPage() {
           });
         } catch (_error: any) {
           toast.error("Failed to load contracts");
+          throw _error;
         } finally {
           if (isFirstLoad) {
             setIsInitialLoading(false);
@@ -157,7 +160,7 @@ export default function ContractsPage() {
       })();
 
       inFlightRequestRef.current = request;
-      return request;
+      return observeRequest(request);
     },
     [toast],
   );
@@ -782,7 +785,7 @@ export default function ContractsPage() {
                       }}
                       title="Linked agreement and handover controls"
                       onCaseUpdated={handleFastTrackCaseUpdated}
-                      onRefresh={() => fetchData({ background: true })}
+                      onRefresh={() => fetchData({ background: true, reportFailure: true })}
                     />
                   )}
                   {contractPagination.items.map((contract) => {

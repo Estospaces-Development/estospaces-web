@@ -381,12 +381,16 @@ const AddressSection = ({
     // Handlers
     const handleCountryChange = useCallback(async (countryId: string) => {
         const country = countries.find(c => c.id === countryId);
+        const postalCountryCode = getLaunchCountryFromLocationCode(value.postalCode);
 
         onChange({
             ...value,
             countryId,
             countryName: country?.name || '',
             countryCode: country?.code || '',
+            postalCode: postalCountryCode && postalCountryCode !== country?.code.toUpperCase()
+                ? ''
+                : value.postalCode,
             // Clear dependent fields
             stateId: '',
             stateName: '',
