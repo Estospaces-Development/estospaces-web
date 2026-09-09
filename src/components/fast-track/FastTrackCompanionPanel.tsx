@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 import DateField from "@/components/ui/DateField";
 import TimeField from "@/components/ui/TimeField";
+import FastTrackCompletionRefresh from "@/components/fast-track/FastTrackCompletionRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { usePublishWorkspaceSync } from "@/contexts/WorkspaceSyncContext";
@@ -23,6 +24,7 @@ import {
 } from "@/lib/fastTrackCompanion";
 import {
   canUserConfirmFastTrackHandover,
+  canRefreshFastTrackCompletion,
   FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
   getFastTrackManagerAgreementStatus,
   getFastTrackDecisionGuard,
@@ -43,7 +45,7 @@ interface FastTrackCompanionPanelProps {
   title?: string;
   className?: string;
   onCaseUpdated?: (nextCase: FastTrackCase) => void;
-  onRefresh?: () => void | Promise<void>;
+  onRefresh?: (options?: { silent?: boolean }) => void | Promise<void>;
 }
 
 const toDateInputValue = (dateTime?: string) => {
@@ -159,29 +161,58 @@ export default function FastTrackCompanionPanel({
 
   const runAction = useCallback(
     async (action: string, payload: Record<string, unknown>, successMessage: string) => {
+      if (action === "retry_handover_sync" && !canRefreshFastTrackCompletion(fastTrackCase, role, user?.id)) {
+        return "Completion refresh is not available for this case.";
+      }
       setActiveAction(action);
-      const result = await syncFastTrackCompanionAction({
-        fastTrackCase,
-        request: { action, payload },
-        publishWorkspaceSync,
-        reason: `Companion action: ${action}`,
-        tags: FAST_TRACK_COMPANION_SYNC_TAGS,
-      });
-      setActiveAction(null);
+      let updateSaved = false;
+      try {
+        const result = await syncFastTrackCompanionAction({
+          fastTrackCase,
+          request: { action, payload },
+          publishWorkspaceSync,
+          reason: `Companion action: ${action}`,
+          tags: FAST_TRACK_COMPANION_SYNC_TAGS,
+        });
 
-      if (result.error || !result.data) {
-        toast.error(result.error || "Unable to update the linked fast-track case.");
-        return;
-      }
+        if (result.error || !result.data) {
+          let message = result.error || "Unable to update the linked fast-track case.";
+          if (["complete_handover", "confirm_handover", "retry_handover_sync"].includes(action) && onRefresh) {
+            try {
+              await onRefresh({ silent: true });
+            } catch {
+              message += " The latest case could not be loaded. Reload to check its status.";
+            }
+          }
+          if (action !== "retry_handover_sync") toast.error(message);
+          return message;
+        }
 
-      onCaseUpdated?.(result.data);
-      if (onRefresh) {
-        await onRefresh();
+        updateSaved = true;
+        onCaseUpdated?.(result.data);
+        await onRefresh?.({ silent: true });
+        if (action !== "retry_handover_sync") toast.success(successMessage);
+        return null;
+      } catch {
+        const message = updateSaved
+          ? "Update saved, but the latest case could not be loaded. Reload to check its status."
+          : "Unable to update the linked fast-track case. Please refresh and try again.";
+        if (action !== "retry_handover_sync") toast.error(message);
+        return message;
+      } finally {
+        setActiveAction(null);
       }
-      toast.success(successMessage);
     },
-    [fastTrackCase, onCaseUpdated, onRefresh, publishWorkspaceSync, toast],
+    [fastTrackCase, onCaseUpdated, onRefresh, publishWorkspaceSync, role, toast, user?.id],
   );
+
+  const completionRefresh = canRefreshFastTrackCompletion(fastTrackCase, role, user?.id) ? (
+    <FastTrackCompletionRefresh
+      key={fastTrackCase.caseId}
+      disabled={Boolean(activeAction)}
+      onRefresh={() => runAction("retry_handover_sync", {}, "")}
+    />
+  ) : null;
 
   const handleOpenMessages = useCallback(async () => {
     if (!user || !threadRecipientId) {
@@ -665,6 +696,7 @@ export default function FastTrackCompanionPanel({
           <p className="mt-2">
             The keys and final handover are already confirmed. No more receipt confirmation is needed here.
           </p>
+          {completionRefresh}
         </div>
       );
     }
@@ -684,7 +716,7 @@ export default function FastTrackCompanionPanel({
               void runAction("confirm_handover", {}, "Handover confirmed.")
             }
             disabled={
-              activeAction === "confirm_handover" ||
+              Boolean(activeAction) ||
               fastTrackCase.handover.confirmedByUser ||
               !canUserConfirmFastTrackHandover(fastTrackCase)
             }
@@ -698,6 +730,7 @@ export default function FastTrackCompanionPanel({
             )}
             Confirm handover
           </button>
+          {completionRefresh}
         </div>
       );
     }

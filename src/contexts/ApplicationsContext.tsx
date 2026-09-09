@@ -169,7 +169,7 @@ interface ApplicationsContextType {
     setPropertyTypeFilter: (type: string) => void;
     dateRangeFilter: { start: string | null; end: string | null };
     setDateRangeFilter: (range: { start: string | null; end: string | null }) => void;
-    fetchApplications: () => Promise<void>;
+    fetchApplications: (options?: { silent?: boolean; reportFailure?: boolean }) => Promise<void>;
     withdrawApplication: (id: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
     updateApplicationStatus: (id: string, status: string, reviewNotes?: string) => Promise<{ success: boolean; error?: string }>;
     registerConsumer: () => () => void;
@@ -677,7 +677,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     }, []);
     const fetchRevisionRef = useRef(0);
 
-    const fetchApplications = useCallback(async () => {
+    const fetchApplications = useCallback(async (options: { silent?: boolean; reportFailure?: boolean } = {}) => {
         const fetchRevision = ++fetchRevisionRef.current;
         const isCurrentFetch = () => isCurrentApplicationsFetch(fetchRevision, fetchRevisionRef.current);
         if (!user) {
@@ -686,159 +686,170 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return;
         }
 
-        setIsLoading(true);
+        if (!options.silent) setIsLoading(true);
         setError(null);
 
-        const [fastTrackCasesResult, applicationsResult, viewingsResult, saleProgressionsResult] = await Promise.all([
-            getFastTrackCases({ suppressErrorToast: true }),
-            getBackendApplications({ suppressErrorToast: true }),
-            getViewings().catch(() => [] as Viewing[]),
-            getSaleProgressions({ suppressErrorToast: true }),
-        ]);
+        try {
+            const [fastTrackCasesResult, applicationsResult, viewingsResult, saleProgressionsResult] = await Promise.all([
+                getFastTrackCases({ suppressErrorToast: true }),
+                getBackendApplications({ suppressErrorToast: true }),
+                getViewings().catch(() => [] as Viewing[]),
+                getSaleProgressions({ suppressErrorToast: true }),
+            ]);
 
-        if (!isCurrentFetch()) {
-            return;
-        }
-
-        if (applicationsResult.error) {
-            setError(applicationsResult.error);
-            setApplications([]);
-            setIsLoading(false);
-            return;
-        }
-
-        const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
-        const propertyContextById = new Map<string, PropertyContext>();
-        const refreshedApplicationPropertyContextById = new Map<string, PropertyContext>();
-
-        (applicationsResult.data || []).forEach((application) => {
-            if (!application.property_id) {
-                return;
+            if (applicationsResult.error) {
+                throw new Error(applicationsResult.error);
+            }
+            if (options.silent && (fastTrackCasesResult.error || saleProgressionsResult.error)) {
+                throw new Error(fastTrackCasesResult.error || saleProgressionsResult.error!);
             }
 
-            propertyContextById.set(application.property_id, {
-                title: application.property_title,
-                address: application.property_address,
-                image: application.property_image,
-                price: application.property_price,
-                country: application.property_country,
-                currency: application.property_currency,
-                propertyType: application.property_type,
-                agentName: application.agent_name,
-                agentAgency: application.agent_agency,
-                agentEmail: application.agent_email,
-                agentPhone: application.agent_phone,
-            });
-        });
-
-        relatedViewings.forEach((viewing) => {
-            if (!viewing.property_id) {
-                return;
-            }
-
-            propertyContextById.set(
-                viewing.property_id,
-                mergePropertyContexts(propertyContextById.get(viewing.property_id), {
-                    title: viewing.property_title,
-                    address: viewing.property_address,
-                    image: viewing.property_image,
-                    price: viewing.property_price,
-                    country: (viewing as any).property_country,
-                    currency: (viewing as any).property_currency,
-                    propertyType: viewing.listing_type,
-                    agentName: viewing.agent_name,
-                    agentAgency: viewing.agent_agency,
-                    agentEmail: viewing.agent_email,
-                    agentPhone: viewing.agent_phone,
-                }),
-            );
-        });
-
-        const backendApplications = applicationsResult.data || [];
-        const saleProgressions = saleProgressionsResult.data || [];
-        if (!isCurrentFetch()) {
-            return;
-        }
-        await hydrateMissingSaleProgressionPropertyContexts(saleProgressions, propertyContextById);
-
-        if (!isCurrentFetch()) {
-            return;
-        }
-
-        const saleProgressionKeys = new Set(
-            saleProgressions.map((progression) =>
-                buildJourneyKey({
-                    propertyId: progression.property_id,
-                    userId: progression.user_id,
-                    leadId: progression.lead_id,
-                    fastTrackCaseId: progression.fast_track_case_id,
-                }),
-            ),
-        );
-
-        const fastTrackCases = fastTrackCasesResult.data || [];
-        const publishApplications = () => {
             if (!isCurrentFetch()) {
                 return;
             }
 
-            const mappedApplications = backendApplications
-                .filter((application) => {
-                    if (application.listing_type !== 'sale') {
-                        return true;
-                    }
+            const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
+            const propertyContextById = new Map<string, PropertyContext>();
+            const refreshedApplicationPropertyContextById = new Map<string, PropertyContext>();
 
-                    return !saleProgressionKeys.has(
-                        buildJourneyKey({
-                            propertyId: application.property_id,
-                            userId: application.user_id,
-                            leadId: application.lead_id,
-                            fastTrackCaseId: application.fast_track_case_id,
-                        }),
-                    );
-                })
-                .map((application) => (
-                    mapBackendApplication(
-                        application,
-                        findRelatedViewing(application, relatedViewings),
-                        refreshedApplicationPropertyContextById.get(application.property_id)
-                            || propertyContextById.get(application.property_id),
-                    )
-                ));
-            const mappedSaleProgressions = saleProgressions.map((progression) =>
-                mapSaleProgression(
-                    progression,
-                    refreshedApplicationPropertyContextById.get(progression.property_id)
-                        || propertyContextById.get(progression.property_id),
-                    findRelatedSaleViewing(progression, relatedViewings),
-                ),
-            );
+            (applicationsResult.data || []).forEach((application) => {
+                if (!application.property_id) {
+                    return;
+                }
 
-            setApplications(
-                [...mappedApplications, ...mappedSaleProgressions]
-                .map((application) => attachLinkedFastTrackCase(application, fastTrackCases))
-                .sort(
-                    (left, right) =>
-                        new Date(right.lastUpdated || right.createdAt).getTime() -
-                        new Date(left.lastUpdated || left.createdAt).getTime(),
-                ),
-            );
-        };
-
-        publishApplications();
-        setIsLoading(false);
-
-        const applicationsNeedingRefresh = backendApplications.filter(applicationNeedsCurrentPropertyContext);
-        if (applicationsNeedingRefresh.length > 0) {
-            void hydrateApplicationPropertyContexts(applicationsNeedingRefresh, refreshedApplicationPropertyContextById)
-                .then(() => {
-                    if (isCurrentFetch()) {
-                        publishApplications();
-                    }
-                })
-                .catch(() => {
-                    // Initial application snapshots remain usable when a background refresh fails.
+                propertyContextById.set(application.property_id, {
+                    title: application.property_title,
+                    address: application.property_address,
+                    image: application.property_image,
+                    price: application.property_price,
+                    country: application.property_country,
+                    currency: application.property_currency,
+                    propertyType: application.property_type,
+                    agentName: application.agent_name,
+                    agentAgency: application.agent_agency,
+                    agentEmail: application.agent_email,
+                    agentPhone: application.agent_phone,
                 });
+            });
+
+            relatedViewings.forEach((viewing) => {
+                if (!viewing.property_id) {
+                    return;
+                }
+
+                propertyContextById.set(
+                    viewing.property_id,
+                    mergePropertyContexts(propertyContextById.get(viewing.property_id), {
+                        title: viewing.property_title,
+                        address: viewing.property_address,
+                        image: viewing.property_image,
+                        price: viewing.property_price,
+                        country: (viewing as any).property_country,
+                        currency: (viewing as any).property_currency,
+                        propertyType: viewing.listing_type,
+                        agentName: viewing.agent_name,
+                        agentAgency: viewing.agent_agency,
+                        agentEmail: viewing.agent_email,
+                        agentPhone: viewing.agent_phone,
+                    }),
+                );
+            });
+
+            const backendApplications = applicationsResult.data || [];
+            const saleProgressions = saleProgressionsResult.data || [];
+            if (!isCurrentFetch()) {
+                return;
+            }
+            await hydrateMissingSaleProgressionPropertyContexts(saleProgressions, propertyContextById);
+
+            if (!isCurrentFetch()) {
+                return;
+            }
+
+            const saleProgressionKeys = new Set(
+                saleProgressions.map((progression) =>
+                    buildJourneyKey({
+                        propertyId: progression.property_id,
+                        userId: progression.user_id,
+                        leadId: progression.lead_id,
+                        fastTrackCaseId: progression.fast_track_case_id,
+                    }),
+                ),
+            );
+
+            const fastTrackCases = fastTrackCasesResult.data || [];
+            const publishApplications = () => {
+                if (!isCurrentFetch()) {
+                    return;
+                }
+
+                const mappedApplications = backendApplications
+                    .filter((application) => {
+                        if (application.listing_type !== 'sale') {
+                            return true;
+                        }
+
+                        return !saleProgressionKeys.has(
+                            buildJourneyKey({
+                                propertyId: application.property_id,
+                                userId: application.user_id,
+                                leadId: application.lead_id,
+                                fastTrackCaseId: application.fast_track_case_id,
+                            }),
+                        );
+                    })
+                    .map((application) => (
+                        mapBackendApplication(
+                            application,
+                            findRelatedViewing(application, relatedViewings),
+                            refreshedApplicationPropertyContextById.get(application.property_id)
+                                || propertyContextById.get(application.property_id),
+                        )
+                    ));
+                const mappedSaleProgressions = saleProgressions.map((progression) =>
+                    mapSaleProgression(
+                        progression,
+                        refreshedApplicationPropertyContextById.get(progression.property_id)
+                            || propertyContextById.get(progression.property_id),
+                        findRelatedSaleViewing(progression, relatedViewings),
+                    ),
+                );
+
+                setApplications(
+                    [...mappedApplications, ...mappedSaleProgressions]
+                    .map((application) => attachLinkedFastTrackCase(application, fastTrackCases))
+                    .sort(
+                        (left, right) =>
+                            new Date(right.lastUpdated || right.createdAt).getTime() -
+                            new Date(left.lastUpdated || left.createdAt).getTime(),
+                    ),
+                );
+            };
+
+            publishApplications();
+            setIsLoading(false);
+
+            const applicationsNeedingRefresh = backendApplications.filter(applicationNeedsCurrentPropertyContext);
+            if (applicationsNeedingRefresh.length > 0) {
+                void hydrateApplicationPropertyContexts(applicationsNeedingRefresh, refreshedApplicationPropertyContextById)
+                    .then(() => {
+                        if (isCurrentFetch()) {
+                            publishApplications();
+                        }
+                    })
+                    .catch(() => {
+                        // Initial application snapshots remain usable when a background refresh fails.
+                    });
+            }
+        } catch (fetchError) {
+            const message = fetchError instanceof Error ? fetchError.message : 'Unable to refresh applications.';
+            if (isCurrentFetch()) {
+                setError(message);
+                if (!options.silent) setApplications([]);
+            }
+            if (options.silent && options.reportFailure !== false) throw new Error(message);
+        } finally {
+            if (isCurrentFetch()) setIsLoading(false);
         }
     }, [user]);
 
@@ -861,7 +872,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
     useWorkspaceRefresh({
         tags: syncTags,
-        refresh: fetchApplications,
+        refresh: () => fetchApplications({ silent: true, reportFailure: false }),
         enabled: Boolean(user) && consumerCount > 0,
     });
 

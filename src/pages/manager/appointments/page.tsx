@@ -43,6 +43,7 @@ const FILTERS = [
 
 type FetchAppointmentsOptions = {
     background?: boolean;
+    reportFailure?: boolean;
 };
 
 function formatDateTime(dateTime: string) {
@@ -242,6 +243,9 @@ export default function ManagerAppointmentsPage() {
                 bookingsService.getViewings(),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
+            if (fastTrackCasesResult.error && hasLoadedAppointmentsRef.current) {
+                throw new Error(fastTrackCasesResult.error);
+            }
             setAppointments(viewingsData);
             setFastTrackCases(fastTrackCasesResult.data || []);
             setError(null);
@@ -253,6 +257,7 @@ export default function ManagerAppointmentsPage() {
             } else {
                 toast.error('Unable to refresh appointments. Showing the last loaded information.');
             }
+            if (options.reportFailure) throw fetchError;
         } finally {
             if (shouldBlockForLoad) {
                 setLoading(false);
@@ -633,7 +638,7 @@ export default function ManagerAppointmentsPage() {
                                             caseItem.caseId === nextCase.caseId ? nextCase : caseItem
                                         )));
                                     }}
-                                    onRefresh={() => fetchAppointments({ background: true })}
+                                    onRefresh={() => fetchAppointments({ background: true, reportFailure: true })}
                                 />
                             </div>
                         )}

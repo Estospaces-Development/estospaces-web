@@ -34,6 +34,24 @@ test("loadContractsWorkspaceInitialData keeps contract errors blocking", async (
   );
 });
 
+for (const failedSource of ['applications', 'cases']) test(`background contract refresh rejects ${failedSource} errors instead of returning empty linked data`, async () => {
+  await assert.rejects(loadContractsWorkspaceInitialData({
+    getContracts: async () => ({ data: [], error: null }),
+    getApplications: async () => failedSource === 'applications' ? { data: null, error: 'Applications unavailable' } : { data: [], error: null },
+    getFastTrackCases: async () => failedSource === 'cases' ? { data: null, error: 'Cases unavailable' } : { data: [], error: null },
+    requireLinkedData: true,
+  }), /unavailable/);
+});
+
+test('initial contracts still load when optional linked cases are unavailable', async () => {
+  const result = await loadContractsWorkspaceInitialData({
+    getContracts: async () => ({ data: [], error: null }),
+    getApplications: async () => ({ data: [], error: null }),
+    getFastTrackCases: async () => ({ data: null, error: 'Cases unavailable' }),
+  });
+  assert.deepEqual(result, { contracts: [], applications: [], fastTrackCases: [] });
+});
+
 test("loadContractsWorkspaceSaleProgressions falls back to an empty list on optional failures", async () => {
   const saleProgressions = await loadContractsWorkspaceSaleProgressions(async () => ({
     data: null,

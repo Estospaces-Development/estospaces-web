@@ -3,6 +3,22 @@ import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 export type FastTrackWorkspaceRole = 'user' | 'manager' | 'admin';
 
+export const canRefreshFastTrackCompletion = (
+    fastTrackCase: FastTrackCase | null | undefined,
+    role: string,
+    actorId: string | null | undefined,
+) => Boolean(
+    actorId && fastTrackCase
+    && fastTrackCase.workspaceFinalStatus === 'completed'
+    && fastTrackCase.stage === 'handover'
+    && fastTrackCase.handover.status === 'completed'
+    && fastTrackCase.handover.completedAt?.trim()
+    && fastTrackCase.handover.completedBy?.trim()
+    && (role === 'admin'
+        || (role === 'manager' && fastTrackCase.managerId === actorId)
+        || (role === 'user' && fastTrackCase.clientId === actorId)),
+);
+
 export const FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE = (
     'Agreement published. Waiting for the user to sign before handover.'
 );

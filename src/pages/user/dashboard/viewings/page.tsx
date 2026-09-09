@@ -92,7 +92,7 @@ export default function ViewingsPage() {
         { value: 'cancelled', label: 'Cancelled' },
     ];
 
-    const fetchViewings = useCallback(async (options: { silent?: boolean } = {}) => {
+    const fetchViewings = useCallback(async (options: { silent?: boolean; reportFailure?: boolean } = {}) => {
         const silent = Boolean(options.silent);
         if (!silent) {
             setLoading(true);
@@ -103,6 +103,9 @@ export default function ViewingsPage() {
                 bookingsService.getViewings({ suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
+            if ((silent || options.reportFailure) && (fastTrackCasesResult.error || !fastTrackCasesResult.data)) {
+                throw new Error(fastTrackCasesResult.error || 'Unable to load linked viewing cases.');
+            }
             const mappedViewings = data.map((viewing: any) => ({
                 ...viewing,
                 date: viewing.scheduled_at,
@@ -123,12 +126,13 @@ export default function ViewingsPage() {
             setViewings(mappedViewings);
             setFastTrackCases(fastTrackCasesResult.data || []);
             setLoadError(null);
-        } catch {
+        } catch (error) {
             if (!silent) {
                 setViewings([]);
                 setFastTrackCases([]);
                 setLoadError('Your viewing schedule is temporarily unavailable. Please try again.');
             }
+            if (options.reportFailure) throw error;
         } finally {
             if (!silent) {
                 setLoading(false);
@@ -504,7 +508,7 @@ export default function ViewingsPage() {
                                         caseItem.caseId === nextCase.caseId ? nextCase : caseItem
                                     )));
                                 }}
-                                onRefresh={fetchViewings}
+                                onRefresh={(options) => fetchViewings({ ...options, reportFailure: true })}
                             />
                         )}
                         {focusedViewingId && (

@@ -96,23 +96,29 @@ export default function ManagerContractsPage() {
         || searchParams.get('property'),
     );
 
-    const fetchContracts = useCallback(async () => {
-        setLoading(true);
-        const [contractsResult, applicationsResult, fastTrackResult] = await Promise.all([
-            getUserContracts(),
-            getApplications({ suppressErrorToast: true }),
-            getFastTrackCases({ suppressErrorToast: true }),
-        ]);
-
-        if (contractsResult.error) {
-            toastError(contractsResult.error);
-        } else if (contractsResult.data) {
-            setContracts(contractsResult.data);
+    const fetchContracts = useCallback(async (options: { silent?: boolean; reportFailure?: boolean } = {}) => {
+        if (!options.silent) setLoading(true);
+        try {
+            const [contractsResult, applicationsResult, fastTrackResult] = await Promise.all([
+                getUserContracts(),
+                getApplications({ suppressErrorToast: true }),
+                getFastTrackCases({ suppressErrorToast: true }),
+            ]);
+            const readError = contractsResult.error || applicationsResult.error || fastTrackResult.error;
+            if ((options.silent || options.reportFailure)
+                && (readError || !contractsResult.data || !applicationsResult.data || !fastTrackResult.data)) {
+                throw new Error(readError || 'Unable to load linked contract records.');
+            }
+            if (readError) toastError(readError);
+            if (contractsResult.data) setContracts(contractsResult.data);
+            setApplications(applicationsResult.data || []);
+            setFastTrackCases(fastTrackResult.data || []);
+        } catch (error) {
+            if (!options.silent) toastError(error instanceof Error ? error.message : 'Unable to load linked contract records.');
+            if (options.reportFailure) throw error;
+        } finally {
+            if (!options.silent) setLoading(false);
         }
-
-        setApplications(applicationsResult.data || []);
-        setFastTrackCases(fastTrackResult.data || []);
-        setLoading(false);
     }, [toastError]);
 
     useEffect(() => { fetchContracts(); }, [fetchContracts]);
@@ -124,7 +130,7 @@ export default function ManagerContractsPage() {
             WORKSPACE_SYNC_TAGS.FAST_TRACK,
             WORKSPACE_SYNC_TAGS.PAYMENTS,
         ],
-        refresh: fetchContracts,
+        refresh: () => fetchContracts({ silent: true }),
     });
 
     useEffect(() => {
@@ -470,7 +476,7 @@ export default function ManagerContractsPage() {
                         <PenTool size={16} /> {createContractEntryState.status === 'loading' ? 'Loading...' : 'Create contract'}
                     </button>
                     <button
-                        onClick={fetchContracts}
+                        onClick={() => void fetchContracts()}
                         className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 sm:px-4"
                     >
                         {loading ? <ActionSpinner size="xs" label="Refreshing contracts" /> : <RefreshCw size={16} />} Refresh
@@ -624,7 +630,7 @@ export default function ManagerContractsPage() {
                             }}
                             title="Linked agreement and handover controls"
                             onCaseUpdated={handleFastTrackCaseUpdated}
-                            onRefresh={fetchContracts}
+                            onRefresh={(options) => fetchContracts({ ...options, reportFailure: true })}
                         />
                     )}
                     {filteredContracts.map(contract => {

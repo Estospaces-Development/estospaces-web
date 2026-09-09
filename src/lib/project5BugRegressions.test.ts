@@ -207,7 +207,7 @@ test('manager appointments keep records visible during background refreshes', ()
     assert.match(managerAppointmentsPage, /const \[isRefreshing, setIsRefreshing\] = useState\(false\)/);
     assert.match(managerAppointmentsPage, /const shouldBlockForLoad = !options\.background && !hasLoadedAppointmentsRef\.current/);
     assert.match(managerAppointmentsPage, /refresh: \(\) => fetchAppointments\(\{ background: true \}\)/);
-    assert.match(managerAppointmentsPage, /onRefresh=\{\(\) => fetchAppointments\(\{ background: true \}\)\}/);
+    // The actual companion callback's background/error behavior is exercised in FastTrackParentRefresh.test.tsx.
     assert.doesNotMatch(managerAppointmentsPage, /refresh: fetchAppointments/);
 });
 

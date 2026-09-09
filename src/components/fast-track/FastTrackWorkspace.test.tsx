@@ -363,10 +363,11 @@ test("closed manager and admin Fast Track stages are read-only while user record
   const source = workspaceSource();
   assert.match(source, /data-fast-track-closed-case-read-only/);
   assert.match(source, /Closed case — view only/);
-  assert.match(source, /disabled=\{isFastTrackStageReadOnly\(selectedCase, role\) && effectiveVisibleStage !== 'documents'\}/);
+  assert.match(source, /disabled=\{isFastTrackStageReadOnly\(selectedCase, role\) && effectiveVisibleStage !== 'documents'\s*&& !\(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\)\)\}/);
   assert.match(source, /readOnly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
   assert.match(source, /aria-readonly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
-  assert.match(source, /if \(isFastTrackStageReadOnly\(selectedCase, role\)\) \{\s*setPendingAdminOverrideAction\(null\);\s*setStageConfirmDialog\(null\);\s*setCancelCaseDialogOpen\(false\);/);
+  assert.match(source, /action === 'retry_handover_sync'\s*&& canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\)/);
+  assert.match(source, /isFastTrackStageReadOnly\(selectedCase, role\) && !completionRefreshAllowed/);
 });
 
 test("user still sees handover confirmation when manager has completed the case", () => {
@@ -400,7 +401,9 @@ test("completed manager handover is read-only with clear feedback", () => {
 
   assert.match(source, /data-fast-track-completed-handover-summary/);
   assert.match(source, /Case already completed/);
-  assert.match(source, /No additional handover action is required from this workspace/);
+  assert.match(source, /Handover details remain read-only/);
+  assert.match(source, /executeFastTrackAction\('retry_handover_sync', \{\}\)/);
+  assert.equal(source.match(/\{renderCompletionRefresh\(\)\}/g)?.length, 3);
 });
 
 test("manager review submit stays disabled until a star rating is selected", () => {
