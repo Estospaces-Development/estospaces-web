@@ -417,11 +417,13 @@ function DashboardContent() {
 
   const stats = {
     liveFastTrack: formatManagerDashboardCount(fastTrackSummary.active),
-    liveFastTrackChange: `Across all cases: ${[
+    liveFastTrackChange: fastTrackSummary.active === 0
+      ? 'No active cases. Live queue status is shown in the response tracker below.'
+      : `Across active cases: ${[
         fastTrackSummary.completed > 0 && `${fastTrackSummary.completed} completed`,
         fastTrackSummary.cancelled > 0 && `${fastTrackSummary.cancelled} closed`,
         fastTrackSummary.closingSoon > 0 && `${fastTrackSummary.closingSoon} closing soon`,
-    ].filter(Boolean).join(' · ') || 'no completed or closed cases'}`,
+      ].filter(Boolean).join(' · ') || 'no completed or closed cases'}`,
     activeProperties: formatManagerDashboardCount(getManagerLiveListingCount(analytics, properties, livePropertyTotal)),
     activeListingsChange: analytics?.property_growth || '0%',
     totalViews: formatManagerDashboardCount(totalViews),
@@ -514,7 +516,7 @@ function DashboardContent() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
         <StatCard
-          title="Active Fast Track"
+          title="Active Fast Track cases"
           value={stats.liveFastTrack}
           change={stats.liveFastTrackChange}
           icon={CalendarCheck}
