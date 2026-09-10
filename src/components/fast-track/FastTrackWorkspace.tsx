@@ -570,7 +570,7 @@ export const FastTrackDocumentReviewControls = ({
                     Waiting for the user to upload this file.
                 </p>
             )}
-            {actions.canRequestReplacement ? (
+            {actions.canRequestReplacement && item.status !== 'approved' ? (
                 <ActionButton
                     tone="secondary"
                     onClick={() => onReview('reupload_needed')}

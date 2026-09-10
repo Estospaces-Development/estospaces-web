@@ -129,7 +129,7 @@ test("approved fast-track documents cannot be approved twice", () => {
 
   assert.doesNotMatch(approvedMarkup, /aria-label="Approve Identity"/);
   assert.match(approvedMarkup, /Approved\. No further approval is needed\./);
-  assert.match(approvedMarkup, /aria-label="Request replacement for Identity"/);
+  assert.doesNotMatch(approvedMarkup, /aria-label="Request replacement for Identity"/);
 
   const uploadedMarkup = renderToStaticMarkup(
     <FastTrackDocumentReviewControls
