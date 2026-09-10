@@ -19,7 +19,11 @@ const { resolveTarget, loginViaApi, createAuthedContext } = require('./platform-
     fs.mkdirSync(output, { recursive: true });
     for (const width of [283, 360, 1280]) {
       await page.setViewportSize({ width, height: 642 });
+      const analyticsResponse = page.waitForResponse((response) => response.url().includes('/api/v1/admin/analytics') && response.request().method() === 'GET');
       await page.goto(`${base}/admin/dashboard`);
+      const analytics = await analyticsResponse;
+      assert.ok(analytics.ok() && analytics.headers()['content-type']?.includes('application/json'), 'Analytics must load from the real API');
+      assert.equal((await analytics.json()).success, true, 'Analytics must return successful data');
       const grid = page.locator('[data-mobile-compact-summary-grid]');
       await grid.waitFor({ state: 'visible' });
       await page.getByText('Recorded response times only; unanswered leads excluded', { exact: true }).waitFor();
