@@ -16,7 +16,7 @@ test("nearby properties map uses profile location and each property's currency",
   assert.match(source, /\{emptyState\.title\}/);
   assert.match(source, /\{emptyState\.description\}/);
   assert.match(source, /emptyState\.actionLabel/);
-  assert.match(source, /navigate\('\/user\/dashboard\/settings'\)/);
+  assert.match(source, /navigate\('\/user\/dashboard\/settings\?tab=search'\)/);
   assert.match(source, /formatMapPropertyPrice\(property/);
   assert.doesNotMatch(source, /formatMapPriceInRupees/);
   assert.doesNotMatch(source, /Add a PIN code to unlock the map/);
