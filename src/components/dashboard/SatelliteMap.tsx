@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Filter, Home, X } from 'lucide-react';
+import { Filter, Globe, Home, Layers, X } from 'lucide-react';
 import { getUserProperties } from '@/services/userPropertiesService';
 import {
     getManagerPropertyMapCenter,
@@ -82,6 +82,7 @@ function MapController({
 
 const SatelliteMap = () => {
     const [activeFilters, setActiveFilters] = useState<string[]>(['property']);
+    const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
     const [showFilters, setShowFilters] = useState(() => (
         typeof window !== 'undefined' && shouldOpenManagerMapFiltersByDefault(window.innerWidth)
     ));
@@ -139,6 +140,7 @@ const SatelliteMap = () => {
     const filteredLocations = allLocations.filter((location) => activeFilters.includes(location.type));
     const mapCenter = getManagerPropertyMapCenter(filteredLocations.length > 0 ? filteredLocations : allLocations);
     const mapKey = [
+        mapStyle,
         mapCenter.join(':'),
         activeFilters.join(':'),
         ...filteredLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`),
@@ -158,8 +160,9 @@ const SatelliteMap = () => {
 
     return (
         <div
-            className="relative w-full h-full min-h-[500px]"
+            className="relative h-full min-h-[500px] w-full overflow-hidden rounded-2xl border border-gray-100 bg-gray-100 dark:border-gray-700 dark:bg-gray-900"
             data-manager-dashboard-map="properties"
+            data-manager-map-style={mapStyle}
             data-manager-map-property-count={propertyLocations.length}
             data-manager-map-marker-count={filteredLocations.length}
         >
@@ -208,8 +211,16 @@ const SatelliteMap = () => {
                                         <div className="text-sm font-medium text-gray-800 dark:text-white">
                                             {filter.label}
                                         </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            {loadingProperties ? 'Loading locations…' : propertyError ? 'Locations unavailable' : `${count} mapped · ${propertyTotal} total`}
+                                        <div className="text-xs text-gray-500 dark:text-gray-400" data-manager-map-filter-count={filter.id}>
+                                            {loadingProperties
+                                                ? 'Loading locations…'
+                                                : propertyError
+                                                    ? 'Locations unavailable'
+                                                    : propertyTotal === 0
+                                                        ? 'No listings yet'
+                                                        : count === 0
+                                                            ? `${propertyTotal} listed · no verified pins`
+                                                            : `${propertyTotal} listed · ${count} mapped`}
                                         </div>
                                     </div>
                                     {isActive && (
@@ -245,6 +256,33 @@ const SatelliteMap = () => {
                 </button>
             )}
 
+            <div className="absolute right-4 top-4 z-[500] flex rounded-xl border border-gray-100 bg-white/95 p-1 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-800/95">
+                <button
+                    type="button"
+                    onClick={() => setMapStyle('standard')}
+                    aria-pressed={mapStyle === 'standard'}
+                    data-manager-map-style="standard"
+                    className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${mapStyle === 'standard'
+                        ? 'bg-orange-500 text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+                >
+                    <Layers className="h-3.5 w-3.5" />
+                    Map
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setMapStyle('satellite')}
+                    aria-pressed={mapStyle === 'satellite'}
+                    data-manager-map-style="satellite"
+                    className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${mapStyle === 'satellite'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+                >
+                    <Globe className="h-3.5 w-3.5" />
+                    Satellite
+                </button>
+            </div>
+
             {(loadingProperties || propertyError || filteredLocations.length === 0) && (
                 <div className="absolute bottom-4 left-4 right-4 z-[500] rounded-lg border border-gray-100 bg-white/95 px-4 py-3 text-sm text-gray-700 shadow-lg dark:border-gray-700 dark:bg-gray-800/95 dark:text-gray-200" data-manager-map-state>
                     {loadingProperties
@@ -274,11 +312,19 @@ const SatelliteMap = () => {
             >
                 <MapController center={mapCenter} locations={filteredLocations} />
 
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    noWrap
-                />
+                {mapStyle === 'standard' ? (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        noWrap
+                    />
+                ) : (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        noWrap
+                    />
+                )}
 
                 {filteredLocations.map((location) => {
                     const icon = getIconForType(location.type);
