@@ -318,6 +318,8 @@ const AddressSection = ({
         }
     }, [value.countryId, countries.length, countries, value.stateId, value.cityId, states.length, initialLoadComplete, cities.length]);
 
+    const citiesBelongToSelectedState = cities.length > 0 && cities.every(city => city.state_id === value.stateId);
+
     // Load cities when state changes (including when initialized with ID)
     useEffect(() => {
         let isMounted = true;
@@ -333,7 +335,7 @@ const AddressSection = ({
 
             // Initialization can populate cities while this effect's request is
             // cancelled. Settle its loading state when that result is current.
-            if (cities.length > 0 && cities.every(city => city.state_id === value.stateId)) {
+            if (citiesBelongToSelectedState) {
                 setLoadingCities(false);
                 return;
             }
@@ -373,7 +375,7 @@ const AddressSection = ({
         return () => {
             isMounted = false;
         };
-    }, [value.stateId, states.length, states, cities]);
+    }, [value.stateId, states.length, states, citiesBelongToSelectedState]);
 
     // Handlers
     const handleCountryChange = useCallback(async (countryId: string) => {
