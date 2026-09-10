@@ -3070,7 +3070,8 @@ const UserPropertyDetail = () => {
                             Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
                         </div>
 
-                        {isSaleOfferListingType(property.listing_type) && (
+                        {/* Sale offer entry is temporarily disabled at the product owner's request. */}
+                        {isSaleOfferListingType(property.listing_type) && false && (
                             <div className="mt-5">
                                 <SaleOfferEntryCard
                                     priceLabel={priceLabel}
