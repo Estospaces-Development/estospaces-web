@@ -375,7 +375,7 @@ const NearbyPropertiesMap = ({
                                         handleOpenWorkspace(properties[0]);
                                         return;
                                     }
-                                    navigate('/user/dashboard/settings');
+                                    navigate('/user/dashboard/settings?tab=search');
                                 }}
                                 className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
                             >
