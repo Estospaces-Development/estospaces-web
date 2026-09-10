@@ -14,7 +14,6 @@ test('manager map surfaces do not hijack page scrolling to zoom', () => {
         source('src/components/manager/LeadActionMap.tsx'), /scrollWheelZoom=\{false\}/);
     assert.match(source('src/components/dashboard/SatelliteMap.tsx'), /scrollWheelZoom=\{false\}/);
 });
-
 test('manager maps retain a user-selected view until their pinned locations change', () => {
     for (const path of [
         'src/components/dashboard/MapView.tsx',
