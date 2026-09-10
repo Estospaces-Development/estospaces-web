@@ -286,7 +286,7 @@ export default function AdminDashboard() {
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.slaCompliance.toFixed(1)}%</span>
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Responses under 10 mins</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">10-minute SLA success; pending leads excluded</p>
 
                         {/* Progress Bar */}
                         <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full mt-4 overflow-hidden">
@@ -313,7 +313,7 @@ export default function AdminDashboard() {
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.avgResponseTime}</span>
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Global broker average</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Recorded response times only; unanswered leads excluded</p>
                     </div>
                 </div>
 

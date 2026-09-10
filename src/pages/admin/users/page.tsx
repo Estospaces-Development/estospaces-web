@@ -649,14 +649,14 @@ function UserManagementContent() {
                         </select>
                     </label>
                     <label className="block">
-                        <span className="sr-only">Reassignment reason</span>
-                        <input
-                            type="text"
+                        <span className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-300">Reassignment reason</span>
+                        <textarea
                             aria-label="Reassignment reason"
+                            rows={3}
                             value={leadReassignReason}
                             onChange={(event) => setLeadReassignReason(event.target.value.slice(0, ADMIN_LEAD_REASSIGN_REASON_MAX_LENGTH))}
                             maxLength={ADMIN_LEAD_REASSIGN_REASON_MAX_LENGTH}
-                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            className="w-full resize-y rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-normal text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                         />
                     </label>
                 </div>
@@ -905,13 +905,13 @@ function UserManagementContent() {
                                 <div className="flex min-w-0 items-center gap-3">
                                     <Avatar userId={user.id} src={user.avatar_url || user.avatar} name={displayName} size="md" shape="rounded" fallbackClassName="from-emerald-500 to-teal-600" />
                                     <div className="min-w-0 flex-1">
-                                        <h3 className="truncate text-sm font-black text-gray-900 dark:text-white">{displayName}</h3>
-                                        <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{user.email}</p>
+                                        <h3 className="break-words text-sm font-semibold text-gray-900 dark:text-white">{displayName}</h3>
                                     </div>
                                     <span id={statusId} aria-label={`${displayName} is ${user.is_active ? 'active' : 'deactivated'}`} className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${user.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'}`}>
                                         {user.is_active ? 'Active' : 'Off'}
                                     </span>
                                 </div>
+                                <p className="mt-3 break-all text-xs leading-relaxed text-gray-600 dark:text-gray-300">{user.email}</p>
                                 <dl className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-3 dark:bg-gray-950">
                                     <div>
                                         <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Role</dt>
@@ -1064,15 +1064,18 @@ function UserManagementContent() {
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="admin-user-state-dialog-title"
-                        className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+                        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-gray-700 dark:bg-gray-900 sm:p-6"
                     >
                         <div className="space-y-2">
-                            <h2 id="admin-user-state-dialog-title" className="text-xl font-black text-gray-900 dark:text-white">
+                            <h2 id="admin-user-state-dialog-title" className="break-words text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
                                 {buildAdminUserStateDialogTitle(stateChangeUser)}
                             </h2>
-                            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                                Record the admin reason before changing access for {stateChangeUser.email}.
-                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Confirm the account identity before changing access.</p>
+                            <dl className="space-y-2 rounded-xl bg-gray-50 p-3 text-sm dark:bg-gray-950">
+                                <div><dt className="text-xs text-gray-500">Email</dt><dd className="break-all text-gray-900 dark:text-white">{stateChangeUser.email}</dd></div>
+                                <div><dt className="text-xs text-gray-500">Role</dt><dd className="capitalize text-gray-900 dark:text-white">{stateChangeUser.role}</dd></div>
+                                <div><dt className="text-xs text-gray-500">Account ID</dt><dd className="break-all text-xs text-gray-700 dark:text-gray-300">{stateChangeUser.id}</dd></div>
+                            </dl>
                         </div>
 
                         <div className="mt-6 space-y-2">
@@ -1101,7 +1104,7 @@ function UserManagementContent() {
                             )}
                         </div>
 
-                        <div className="mt-6 flex justify-end gap-3">
+                        <div className="mt-6 flex flex-col-reverse justify-end gap-3 sm:flex-row">
                             <button
                                 type="button"
                                 onClick={handleCancelUserStateChange}
