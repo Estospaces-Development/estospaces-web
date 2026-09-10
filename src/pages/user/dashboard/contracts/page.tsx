@@ -804,13 +804,13 @@ export default function ContractsPage() {
                               : "border-transparent hover:border-orange-500/20"
                         }`}
                       >
-                        <div className="flex min-w-0 flex-col items-start gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
-                          <div className="flex min-w-0 items-center gap-3 min-[360px]:gap-4">
-                            <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-orange-500">
+                        <div className="flex min-w-0 flex-wrap items-start gap-3">
+                          <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-3 sm:gap-4">
+                            <div className="shrink-0 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-orange-500">
                               <FileText size={24} />
                             </div>
                             <div className="min-w-0">
-                              <h4 className="font-bold text-gray-900 dark:text-white">
+                              <h4 className="break-words font-bold text-gray-900 dark:text-white">
                                 {(contract.contract_type || "Contract")
                                   .charAt(0)
                                   .toUpperCase() +
@@ -819,8 +819,8 @@ export default function ContractsPage() {
                                   )}{" "}
                                 Agreement
                               </h4>
-                              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1 flex items-center gap-2">
-                                <Calendar size={12} />
+                              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1 flex flex-wrap items-center gap-2">
+                                <Calendar size={12} className="shrink-0" />
                                 Starts:{" "}
                                 {contract.start_date
                                   ? new Date(
@@ -831,7 +831,7 @@ export default function ContractsPage() {
                             </div>
                           </div>
                           <div
-                            className={`max-w-full rounded-full border px-3 py-1 text-left text-[10px] font-black uppercase leading-4 tracking-widest min-[360px]:shrink-0 ${getStatusStyles(contract.status || "")}`}
+                            className={`max-w-full break-words rounded-full border px-3 py-1 text-left text-[10px] font-black uppercase leading-4 tracking-widest ${getStatusStyles(contract.status || "")}`}
                           >
                             {getStatusLabel(contract.status || "")}
                           </div>

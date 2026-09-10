@@ -187,8 +187,10 @@ test('small-phone dashboard skeletons and contract cards reflow without changing
   assert.match(userContracts, /flex min-w-0 flex-col gap-4 min-\[380px\]:flex-row/);
   assert.match(userContracts, /h-40 w-full[^\n]+min-\[380px\]:h-24 min-\[380px\]:w-24/);
   assert.match(userContracts, /flex min-w-0 flex-col items-start gap-2 min-\[380px\]:flex-row/);
-  assert.match(userContracts, /flex min-w-0 flex-col items-start gap-3 min-\[360px\]:flex-row/);
-  assert.match(userContracts, /max-w-full rounded-full border/);
+  assert.match(userContracts, /flex min-w-0 flex-wrap items-start gap-3/);
+  assert.match(userContracts, /flex min-w-0 flex-\[1_1_12rem\] items-center/);
+  assert.match(userContracts, /max-w-full break-words rounded-full border/);
+  assert.doesNotMatch(userContracts, /tracking-widest min-\[360px\]:shrink-0/);
   assert.match(verificationSection, /flex min-w-0 flex-col items-stretch gap-3/);
   assert.match(verificationSection, /min-h-11 w-full items-center justify-center/);
   assert.match(adminProperties, /flex min-w-0 flex-col items-start gap-2 min-\[360px\]:flex-row/);
