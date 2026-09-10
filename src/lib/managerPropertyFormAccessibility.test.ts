@@ -222,7 +222,8 @@ test('manager property money fields display the selected currency symbol', () =>
 
 test('manager property location uses address lookup, current location, and a map picker', () => {
   assert.match(managerPropertyFormPage, /PropertyLocationPicker/);
-  assert.match(managerPropertyFormPage, /getCoordinatesFromAddress/);
+  assert.match(managerPropertyFormPage, /resolvePropertyLocation/);
+  assert.match(managerPropertyFormPage, /resolution\.kind === "mismatch"/);
   assert.match(managerPropertyFormPage, /getUserGeolocation/);
   assert.match(managerPropertyFormPage, /addressChanged \? "" : formData\.latitude/);
   assert.match(managerPropertyFormPage, /onLocationChange=\{handleMapLocationChange\}/);
