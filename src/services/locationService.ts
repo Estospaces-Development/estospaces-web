@@ -31,12 +31,28 @@ interface GetUserLocationParams {
 export interface PropertyLocationLookup {
     postalCode: string;
     countryCode: string;
+    city?: string;
+    state?: string;
 }
 
 export interface ResolvedMapCoordinates {
     latitude: number;
     longitude: number;
 }
+
+export type PropertyLocationResolution =
+    | {
+        kind: 'resolved';
+        latitude: number;
+        longitude: number;
+    }
+    | {
+        kind: 'mismatch';
+        field: 'city' | 'state';
+        expected: string;
+        resolved: string;
+    }
+    | { kind: 'unavailable' };
 
 type GeolocationPolicyDocument = Document & {
     permissionsPolicy?: {
@@ -158,6 +174,7 @@ const fetchIndianPinCoords = async (pinCode: string) => {
                     longitude,
                     postcode: pinCode,
                     city: String(record.district || record.state || record.statename || ''),
+                    state: String(record.state || record.statename || ''),
                 };
             }
         }
@@ -166,6 +183,25 @@ const fetchIndianPinCoords = async (pinCode: string) => {
     }
 
     return null;
+};
+
+const normalizeGeographyLabel = (value: string) => value
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/\b(city|district|borough|county|region|state|province)\s+of\b/g, '')
+    .replace(/\b(city|district|borough|county|region|state|province)\b/g, '')
+    .replace(/\b(england|india|uk|united kingdom)\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const locationLabelsMatch = (expected: string, resolved: string) => {
+    const normalizedExpected = normalizeGeographyLabel(expected);
+    const normalizedResolved = normalizeGeographyLabel(resolved);
+    if (!normalizedExpected || !normalizedResolved) return true;
+    return normalizedExpected === normalizedResolved ||
+        normalizedExpected.includes(normalizedResolved) ||
+        normalizedResolved.includes(normalizedExpected);
 };
 
 export const validateLocationCode = (postcode: string): string | null => {
@@ -267,6 +303,7 @@ export const getCoordinatesFromPostcode = async (postcode: string): Promise<any 
                     longitude: data.result.longitude,
                     postcode: data.result.postcode,
                     city: data.result.admin_district || data.result.region || '',
+                    state: data.result.region || data.result.country || '',
                 };
             }
             return null;
@@ -285,11 +322,13 @@ export const getCoordinatesFromPostcode = async (postcode: string): Promise<any 
  * area. Exact street details never leave the application; managers refine the
  * initial postal position using the map or their current location.
  */
-export const getCoordinatesFromAddress = async (
+export const resolvePropertyLocation = async (
     location: PropertyLocationLookup,
-): Promise<ResolvedMapCoordinates | null> => {
+): Promise<PropertyLocationResolution> => {
     const market = getSupportedLaunchCountry(location.countryCode);
-    if (!market || !isValidLaunchLocationCodeForCountry(location.postalCode, market)) return null;
+    if (!market || !isValidLaunchLocationCodeForCountry(location.postalCode, market)) {
+        return { kind: 'unavailable' };
+    }
     const coordinates = await getCoordinatesFromPostcode(location.postalCode);
     const latitude = parseProviderCoordinate(coordinates?.latitude, -90, 90);
     const longitude = parseProviderCoordinate(coordinates?.longitude, -180, 180);
@@ -304,10 +343,39 @@ export const getCoordinatesFromAddress = async (
         !areCoordinatesInsideLaunchMarket(latitude, longitude, market) ||
         providerPostcode !== normalizeLocationCode(location.postalCode)
     ) {
-        return null;
+        return { kind: 'unavailable' };
     }
 
-    return { latitude, longitude };
+    const providerCity = typeof coordinates.city === 'string' ? coordinates.city : '';
+    if (location.city && providerCity && !locationLabelsMatch(location.city, providerCity)) {
+        return {
+            kind: 'mismatch',
+            field: 'city',
+            expected: location.city,
+            resolved: providerCity,
+        };
+    }
+
+    const providerState = typeof coordinates.state === 'string' ? coordinates.state : '';
+    if (location.state && providerState && !locationLabelsMatch(location.state, providerState)) {
+        return {
+            kind: 'mismatch',
+            field: 'state',
+            expected: location.state,
+            resolved: providerState,
+        };
+    }
+
+    return { kind: 'resolved', latitude, longitude };
+};
+
+export const getCoordinatesFromAddress = async (
+    location: PropertyLocationLookup,
+): Promise<ResolvedMapCoordinates | null> => {
+    const resolution = await resolvePropertyLocation(location);
+    return resolution.kind === 'resolved'
+        ? { latitude: resolution.latitude, longitude: resolution.longitude }
+        : null;
 };
 
 /**
