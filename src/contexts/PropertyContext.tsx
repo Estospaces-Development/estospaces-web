@@ -18,7 +18,7 @@ import { getErrorMessage } from "@/lib/apiUtils";
 import { isAuthRoutePath } from "@/lib/authUtils";
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from "@/contexts/WorkspaceSyncContext";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
-import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
+import { formatLaunchCurrencyForCountry, getSupportedLaunchCountry, LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import { sortProperties } from "@/lib/propertySorting";
 
 // Type definitions
@@ -125,6 +125,17 @@ const normalizeDateInputValue = (value?: string | null): string | undefined => {
 
   return parsed.toISOString().slice(0, 10);
 };
+
+export const mapServicePropertyLocation = (p: propertyService.Property): Property['location'] => ({
+  addressLine1: p.address_line_1,
+  addressLine2: p.address_line_2,
+  city: p.city,
+  postalCode: p.postcode,
+  country: p.country,
+  countryCode: getSupportedLaunchCountry(p.country, p.country) || undefined,
+  latitude: toOptionalNumber(p.latitude),
+  longitude: toOptionalNumber(p.longitude),
+});
 
 export interface PriceInfo {
   amount: number;
@@ -687,15 +698,7 @@ export const PropertyProvider = ({
       propertyType: p.property_type as PropertyType,
       listingType: p.listing_type as ListingType,
       status: p.status as PropertyStatus,
-      location: {
-        addressLine1: p.address_line_1,
-        addressLine2: p.address_line_2,
-        city: p.city,
-        postalCode: p.postcode,
-        country: p.country,
-        latitude: toOptionalNumber(p.latitude),
-        longitude: toOptionalNumber(p.longitude),
-      },
+      location: mapServicePropertyLocation(p),
       address: p.address_line_1,
       city: p.city,
       zipCode: p.postcode,

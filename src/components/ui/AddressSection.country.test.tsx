@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { act, useState } from 'react';
+import { act, StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Window } from 'happy-dom';
 
@@ -48,7 +48,7 @@ async function mountAddress(initial: AddressFormData) {
         await window.happyDOM.close();
     };
     try {
-        await act(async () => root.render(<Harness />));
+        await act(async () => root.render(<StrictMode><Harness /></StrictMode>));
     } catch (error) {
         await restore();
         throw error;
@@ -56,6 +56,7 @@ async function mountAddress(initial: AddressFormData) {
     return {
         value: () => latest,
         country: () => window.document.querySelector('select')!.value,
+        city: () => window.document.querySelectorAll('select')[2],
         changeCountry: async (id: string) => {
             const select = window.document.querySelector('select');
             assert.ok(select);
@@ -67,6 +68,14 @@ async function mountAddress(initial: AddressFormData) {
         restore,
     };
 }
+
+test('reopening a saved address leaves the loaded city selectable', async () => {
+    const form = await mountAddress(india);
+    try {
+        assert.equal(form.city()?.value, '2001');
+        assert.equal(form.city()?.disabled, false);
+    } finally { await form.restore(); }
+});
 
 for (const [name, initial, target, expectedName, expectedCode] of [
     ['India to UK', india, '1', 'United Kingdom', 'GB'],

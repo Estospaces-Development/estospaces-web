@@ -3,9 +3,33 @@ import assert from 'node:assert/strict';
 import {
   createPropertyLoadSequence,
   filterContextProperties,
+  mapServicePropertyLocation,
   type Property,
   type PropertyFilters,
 } from './PropertyContext';
+import type { Property as ServiceProperty } from '../services/propertyService';
+
+test('list-to-edit location keeps the launch market and persisted pin together', () => {
+  for (const [country, code, latitude, longitude] of [
+    ['India', 'IN', '13.001127', '80.257313'],
+    ['United Kingdom', 'GB', '51.501', '-0.142'],
+    ['UK', 'GB', '51.501', '-0.142'],
+  ]) {
+    const source: ServiceProperty = {
+      id: 'qa-draft', title: 'QA draft', property_type: 'apartment', listing_type: 'rent',
+      status: 'draft', price: 25000, currency: code === 'IN' ? 'INR' : 'GBP',
+      bedrooms: 2, bathrooms: 1, address_line_1: 'QA Street', city: 'QA City',
+      postcode: code === 'IN' ? '600020' : 'SW1A 1AA', country, latitude, longitude,
+    };
+    const location = mapServicePropertyLocation(source);
+    assert.equal(location?.countryCode, code);
+    assert.equal(location?.latitude, Number(latitude));
+    assert.equal(location?.longitude, Number(longitude));
+    assert.equal(location?.country, country);
+    assert.equal(mapServicePropertyLocation({ ...source, country: 'Unknown' })?.countryCode, undefined);
+    assert.equal(mapServicePropertyLocation({ ...source, latitude: '' })?.latitude, undefined);
+  }
+});
 
 test('property context ignores responses superseded by a newer request', () => {
   const sequence = createPropertyLoadSequence();
