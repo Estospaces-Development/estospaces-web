@@ -18,6 +18,9 @@ test('all general dashboard map tiles use the correct axis order and never repea
   assert.match(genericMapSource, /worldCopyJump/);
   assert.match(satelliteMapSource, /noWrap/);
   assert.match(satelliteMapSource, /worldCopyJump/);
+  assert.match(satelliteMapSource, /openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png/);
+  assert.match(satelliteMapSource, /scrollWheelZoom=\{false\}/);
+  assert.doesNotMatch(satelliteMapSource, /arcgisonline\.com/);
 });
 
 test('map surfaces fail closed instead of substituting a different property location', () => {
