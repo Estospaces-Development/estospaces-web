@@ -97,6 +97,10 @@ export interface Property {
   featured?: boolean;
   address_line_1: string;
   address_line_2?: string;
+  state?: string;
+  state_code?: string;
+  neighborhood?: string;
+  landmark?: string;
   city: string;
   postcode: string;
   country: string;

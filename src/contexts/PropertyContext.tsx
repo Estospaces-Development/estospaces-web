@@ -129,6 +129,10 @@ const normalizeDateInputValue = (value?: string | null): string | undefined => {
 export const mapServicePropertyLocation = (p: propertyService.Property): Property['location'] => ({
   addressLine1: p.address_line_1,
   addressLine2: p.address_line_2,
+  state: p.state,
+  stateCode: p.state_code,
+  neighborhood: p.neighborhood,
+  landmark: p.landmark,
   city: p.city,
   postalCode: p.postcode,
   country: p.country,
@@ -136,6 +140,25 @@ export const mapServicePropertyLocation = (p: propertyService.Property): Propert
   latitude: toOptionalNumber(p.latitude),
   longitude: toOptionalNumber(p.longitude),
 });
+
+export const mapContextPropertyLocation = (p: Partial<Property>): Partial<propertyService.Property> => {
+  const result: Partial<propertyService.Property> = {};
+  if (p.location?.addressLine1 !== undefined) result.address_line_1 = p.location.addressLine1;
+  if (p.location?.addressLine2 !== undefined) result.address_line_2 = p.location.addressLine2;
+  if (p.location?.state !== undefined) result.state = p.location.state;
+  if (p.location?.stateCode !== undefined) result.state_code = p.location.stateCode;
+  if (p.location?.neighborhood !== undefined) result.neighborhood = p.location.neighborhood;
+  if (p.location?.landmark !== undefined) result.landmark = p.location.landmark;
+  if (p.location?.city !== undefined) result.city = p.location.city;
+  if (p.location?.postalCode !== undefined) result.postcode = p.location.postalCode;
+  if (p.location?.country !== undefined) result.country = p.location.country;
+  if (p.location?.latitude !== undefined) result.latitude = p.location.latitude;
+  if (p.location?.longitude !== undefined) result.longitude = p.location.longitude;
+  if (!result.city && p.city) result.city = p.city;
+  if (!result.address_line_1 && p.address) result.address_line_1 = p.address;
+  if (!result.postcode && p.zipCode) result.postcode = p.zipCode;
+  return result;
+};
 
 export interface PriceInfo {
   amount: number;
@@ -819,24 +842,7 @@ export const PropertyProvider = ({
       serviceProps.maintenance_charges = p.financial.maintenanceCharges;
 
     // Location fields
-    if (p.location?.addressLine1 !== undefined)
-      serviceProps.address_line_1 = p.location.addressLine1;
-    if (p.location?.addressLine2 !== undefined)
-      serviceProps.address_line_2 = p.location.addressLine2;
-    if (p.location?.city !== undefined) serviceProps.city = p.location.city;
-    if (p.location?.postalCode !== undefined)
-      serviceProps.postcode = p.location.postalCode;
-    if (p.location?.country !== undefined)
-      serviceProps.country = p.location.country;
-    if (p.location?.latitude !== undefined)
-      serviceProps.latitude = p.location.latitude;
-    if (p.location?.longitude !== undefined)
-      serviceProps.longitude = p.location.longitude;
-    // Fallback to top-level fields
-    if (!serviceProps.city && p.city) serviceProps.city = p.city;
-    if (!serviceProps.address_line_1 && p.address)
-      serviceProps.address_line_1 = p.address;
-    if (!serviceProps.postcode && p.zipCode) serviceProps.postcode = p.zipCode;
+    Object.assign(serviceProps, mapContextPropertyLocation(p));
 
     // Property details
     if (p.bedrooms !== undefined) serviceProps.bedrooms = p.bedrooms;

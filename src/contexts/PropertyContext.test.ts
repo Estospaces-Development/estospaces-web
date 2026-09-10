@@ -4,10 +4,39 @@ import {
   createPropertyLoadSequence,
   filterContextProperties,
   mapServicePropertyLocation,
+  mapContextPropertyLocation,
   type Property,
   type PropertyFilters,
 } from './PropertyContext';
 import type { Property as ServiceProperty } from '../services/propertyService';
+
+test('address detail fields survive form writes and list-to-edit reads', () => {
+  const details = { state: 'Tamil Nadu', state_code: 'TN', neighborhood: 'Adyar', landmark: 'Near the library' };
+  const source = {
+    id: 'qa-address', title: 'QA address', property_type: 'apartment', listing_type: 'rent',
+    status: 'draft', price: 25000, currency: 'INR', bedrooms: 2, bathrooms: 1,
+    address_line_1: '2 QA Street', city: 'Chennai', postcode: '600020', country: 'India',
+    latitude: 13.001127, longitude: 80.257313, ...details,
+  } satisfies ServiceProperty;
+  const location = mapServicePropertyLocation(source);
+  assert.equal(location?.state, details.state);
+  assert.equal(location?.stateCode, details.state_code);
+  assert.equal(location?.neighborhood, details.neighborhood);
+  assert.equal(location?.landmark, details.landmark);
+  assert.deepEqual(mapContextPropertyLocation({ location }), {
+    address_line_1: source.address_line_1, city: source.city, postcode: source.postcode,
+    country: source.country, latitude: source.latitude, longitude: source.longitude, ...details,
+  });
+});
+
+test('address detail patches distinguish omitted fields from explicit clearing', () => {
+  assert.deepEqual(mapContextPropertyLocation({ title: 'Only change title' }), {});
+  assert.deepEqual(mapContextPropertyLocation({ location: { landmark: 'A new landmark' } }), { landmark: 'A new landmark' });
+  assert.deepEqual(mapContextPropertyLocation({ location: { state: '', stateCode: '', neighborhood: '', landmark: '' } }), {
+    state: '', state_code: '', neighborhood: '', landmark: '',
+  });
+  assert.deepEqual(mapContextPropertyLocation({ location: { countryId: 'in', stateId: 'tn', cityId: 'chennai' } }), {});
+});
 
 test('list-to-edit location keeps the launch market and persisted pin together', () => {
   for (const [country, code, latitude, longitude] of [
