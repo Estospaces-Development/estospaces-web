@@ -1177,7 +1177,7 @@ function DiscoverContent() {
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">No properties match your search</h3>
                                 <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                                    Try adjusting your filters or search terms. We're constantly adding new listings across India.
+                                    Try a different location or adjust your filters.
                                 </p>
                                 <button
                                     onClick={handleClearFilters}

@@ -38,6 +38,12 @@ test('discover page uses clear task-led copy and pressed-state controls', () => 
     assert.match(discoverPage, /aria-pressed=\{viewMode === 'map'\}/);
 });
 
+test('discover empty results offer a recovery action without a country-specific inventory promise', () => {
+    assert.match(discoverPage, /Try a different location or adjust your filters\./);
+    assert.doesNotMatch(discoverPage, /constantly adding new listings across India/);
+    assert.match(discoverPage, /onClick=\{handleClearFilters\}/);
+});
+
 test('discover listing tabs are not reset by a new search params object with the same URL', () => {
     assert.match(discoverPage, /const searchParamSnapshot = searchParams\.toString\(\)/);
     assert.match(discoverPage, /\[searchParamSnapshot, setActiveTab\]/);
