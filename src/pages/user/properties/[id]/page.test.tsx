@@ -14,7 +14,6 @@ import {
   getImmersiveGalleryDialogLabel,
   getPropertyDetailFallbackBackTarget,
   resolvePropertyFastTrackCtaState,
-  SaleOfferEntryCard,
   shouldLoadViewingAvailability,
   shouldUseBrowserHistoryForPropertyDetailBack,
 } from "./page";
@@ -29,25 +28,10 @@ test("map caption stays in document flow below the preview at every width", () =
   assert.match(propertyDetailSource, /className="break-words text-sm leading-5"/);
 });
 
-test("sale property page exposes a submit-offer entry card", () => {
-  const markup = renderToStaticMarkup(
-    <SaleOfferEntryCard
-      priceLabel="GBP 425,000"
-      offerAmount=""
-      offerNotes=""
-      isSubmitting={false}
-      onAmountChange={() => {}}
-      onNotesChange={() => {}}
-      onSubmit={() => {}}
-    />,
-  );
-
-  assert.match(markup, /Submit Offer/);
-  assert.match(markup, /Offer amount/);
-  assert.match(markup, /Notes for the offer/);
-  assert.match(markup, /GBP 425,000/);
-  assert.match(markup, /bg-emerald-700/);
-  assert.doesNotMatch(markup, /bg-emerald-600/);
+test("property detail keeps the user journey focused and does not expose a sale offer form", () => {
+  assert.doesNotMatch(propertyDetailSource, /SaleOfferEntryCard/);
+  assert.doesNotMatch(propertyDetailSource, /Submit Offer/);
+  assert.doesNotMatch(propertyDetailSource, /createOffer/);
 });
 
 test("property detail formats guide price from property country and currency", () => {
@@ -190,24 +174,6 @@ test("broker-selected rental fast-track start sends the resolved manager while b
   assert.equal(request?.manager_id, "manager-stale-lead");
 });
 
-test("sale offer amount input accepts ordinary round-pound offers", () => {
-  const markup = renderToStaticMarkup(
-    <SaleOfferEntryCard
-      priceLabel="GBP 425,000"
-      offerAmount="11000"
-      offerNotes=""
-      isSubmitting={false}
-      onAmountChange={() => {}}
-      onNotesChange={() => {}}
-      onSubmit={() => {}}
-    />,
-  );
-
-  assert.match(markup, /type="number"/);
-  assert.match(markup, /min="1"/);
-  assert.match(markup, /step="1"/);
-  assert.doesNotMatch(markup, /step="1000"/);
-});
 
 test("public property detail skips authenticated viewing availability before sign-in", () => {
   assert.equal(shouldLoadViewingAvailability("property-123", null), false);
