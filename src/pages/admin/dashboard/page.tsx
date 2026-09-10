@@ -269,7 +269,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Core Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
+            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
 
                 {/* SLA Compliance */}
                 <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 sm:p-6">

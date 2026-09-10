@@ -210,7 +210,7 @@ test('mobile dashboards use compact app-native hierarchy while desktop breakpoin
   assert.match(brokerResponseWidget, /data-manager-mobile-live-response/);
   assert.match(brokerResponseWidget, /View queue/);
   assert.match(brokerResponseWidget, /hidden sm:block/);
-  assert.match(adminDashboard, /grid grid-cols-2 gap-3[^\n]+lg:grid-cols-4/);
+  assert.match(adminDashboard, /grid grid-cols-1 gap-3 min-\[360px\]:grid-cols-2[^\n]+lg:grid-cols-4/);
 });
 
 test('focused mobile workflows disclose one current task before secondary tools', () => {
