@@ -166,7 +166,7 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
                 maxBoundsViscosity={1}
                 worldCopyJump
                 style={{ height: '100%', width: '100%', zIndex: 0 }}
-                scrollWheelZoom={true}
+                scrollWheelZoom={false}
                 fadeAnimation={false}
                 markerZoomAnimation={false}
                 zoomAnimation={false}

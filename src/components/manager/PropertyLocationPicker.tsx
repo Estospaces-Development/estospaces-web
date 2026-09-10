@@ -192,7 +192,7 @@ export default function PropertyLocationPicker({
           maxBoundsViscosity={1}
           worldCopyJump
           className="h-full w-full"
-          scrollWheelZoom
+          scrollWheelZoom={false}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
