@@ -87,6 +87,7 @@ const SatelliteMap = () => {
     ));
     const [isMounted, setIsMounted] = useState(false);
     const [mapProperties, setMapProperties] = useState<any[]>([]);
+    const [propertyTotal, setPropertyTotal] = useState(0);
     const [loadingProperties, setLoadingProperties] = useState(true);
     const [propertyError, setPropertyError] = useState<string | null>(null);
 
@@ -95,13 +96,25 @@ const SatelliteMap = () => {
         setPropertyError(null);
 
         try {
-            const response = await getUserProperties({ limit: 100 });
-            if (response.error) {
-                setPropertyError(response.error.message);
-                setMapProperties([]);
-                return;
+            const properties: any[] = [];
+            let page = 1;
+            let total = 0;
+            let hasNextPage = true;
+            while (hasNextPage) {
+                const response = await getUserProperties({ limit: 100, page });
+                if (response.error) {
+                    setPropertyError(response.error.message);
+                    setMapProperties([]);
+                    setPropertyTotal(0);
+                    return;
+                }
+                properties.push(...(response.data || []));
+                total = response.pagination.total;
+                hasNextPage = response.pagination.hasNextPage;
+                page += 1;
             }
-            setMapProperties(response.data || []);
+            setMapProperties(properties);
+            setPropertyTotal(total);
         } finally {
             setLoadingProperties(false);
         }
@@ -196,7 +209,7 @@ const SatelliteMap = () => {
                                             {filter.label}
                                         </div>
                                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            {count} {count === 1 ? 'location' : 'locations'}
+                                            {loadingProperties ? 'Loading locations…' : propertyError ? 'Locations unavailable' : `${count} mapped · ${propertyTotal} total`}
                                         </div>
                                     </div>
                                     {isActive && (
@@ -211,8 +224,15 @@ const SatelliteMap = () => {
                     </div>
 
                     <p aria-live="polite" className="mt-3 text-xs text-gray-500 dark:text-gray-400" data-manager-map-location-summary>
-                        Showing {filteredLocations.length} of {propertyLocations.length} property locations
+                        {loadingProperties ? 'Loading property inventory…' : propertyError ? 'Property inventory could not be loaded.' : (
+                            <>Showing {filteredLocations.length} of {propertyTotal} property locations</>
+                        )}
                     </p>
+                    {!loadingProperties && !propertyError && propertyTotal > propertyLocations.length && (
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            {propertyTotal - propertyLocations.length} {propertyTotal - propertyLocations.length === 1 ? 'property needs' : 'properties need'} a valid map location. Update the location in Properties to add its pin.
+                        </p>
+                    )}
             </ManagerMapFilterPanel>
 
             {!showFilters && (
