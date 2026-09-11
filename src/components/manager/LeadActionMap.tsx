@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock3, FileUp, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from '@/lib/leafletReact';
@@ -63,11 +63,17 @@ const getLeadRemainingSeconds = (lead: Lead, now: number) => {
     return remaining > 0 ? remaining : 0;
 };
 
-function LeadMapAutoFit({ leads }: { leads: Lead[] }) {
+function LeadMapAutoFit({ leads, locationKey }: { leads: Lead[]; locationKey: string }) {
     const map = useMap();
+    const appliedLocationKey = useRef<string | null>(null);
 
     useEffect(() => {
+        if (appliedLocationKey.current === locationKey) {
+            return;
+        }
+
         try {
+            appliedLocationKey.current = locationKey;
             const points = leads
                 .map(getLeadMapCoordinates)
                 .filter((coordinates): coordinates is [number, number] => coordinates !== null);
@@ -88,7 +94,7 @@ function LeadMapAutoFit({ leads }: { leads: Lead[] }) {
         } catch {
             // Ignore transient Leaflet teardown errors during route or data changes.
         }
-    }, [leads, map]);
+    }, [leads, locationKey, map]);
 
     return null;
 }
@@ -130,8 +136,11 @@ export default function LeadActionMap({
         () => leadsWithCoordinates.find((lead) => lead.id === selectedLeadID) || null,
         [leadsWithCoordinates, selectedLeadID],
     );
-    const mapKey = useMemo(() => (
-        leadsWithCoordinates.map((lead) => `${lead.id}:${getLeadMapCoordinates(lead)?.join(':')}`).join('|')
+    const mapLocationKey = useMemo(() => (
+        leadsWithCoordinates
+            .map((lead) => `${lead.id}:${getLeadMapCoordinates(lead)?.join(':')}`)
+            .sort()
+            .join('|')
     ), [leadsWithCoordinates]);
     const uniqueLocationCount = useMemo(() => new Set(
         leadsWithCoordinates.map((lead) => getLeadMapCoordinates(lead)?.join(':')),
@@ -180,7 +189,7 @@ export default function LeadActionMap({
                 <div className="relative h-[460px] bg-slate-100 dark:bg-slate-950">
                     {isMounted ? (
                         <MapContainer
-                            key={mapKey}
+                            key={mapLocationKey}
                             center={initialMapCenter}
                             zoom={6}
                             minZoom={2}
@@ -193,7 +202,7 @@ export default function LeadActionMap({
                             markerZoomAnimation={false}
                             zoomAnimation={false}
                         >
-                            <LeadMapAutoFit leads={leadsWithCoordinates} />
+                            <LeadMapAutoFit leads={leadsWithCoordinates} locationKey={mapLocationKey} />
                             <TileLayer
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
