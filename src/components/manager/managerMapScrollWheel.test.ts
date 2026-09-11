@@ -18,6 +18,7 @@ test('manager map surfaces do not hijack page scrolling to zoom', () => {
 test('manager maps retain a user-selected view until their pinned locations change', () => {
     for (const path of [
         'src/components/dashboard/MapView.tsx',
+        'src/components/dashboard/SatelliteMap.tsx',
         'src/components/manager/LeadActionMap.tsx',
     ]) {
         const component = source(path);
