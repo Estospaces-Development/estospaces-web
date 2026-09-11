@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/contexts/MessagesContext';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { buildConversationPropertyPath } from '@/lib/messagesInbox';
+import { buildConversationPropertyPath, getConversationPropertyNavigationMessage } from '@/lib/messagesInbox';
+import { getPropertyById } from '@/services/propertyService';
 import MessageBubble from './MessageBubble';
 
 interface ConversationThreadProps {
@@ -24,6 +25,8 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     const scrollRef = useRef<HTMLDivElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
     const [isSavingPreference, setIsSavingPreference] = useState(false);
+    const [isCheckingProperty, setIsCheckingProperty] = useState(false);
+    const [propertyNavigationMessage, setPropertyNavigationMessage] = useState<string | null>(null);
     const messageKeyFor = createDuplicateSafeKeyResolver('conversation-message');
     const propertyPath = buildConversationPropertyPath(conversation?.propertyId, user?.role);
 
@@ -71,6 +74,25 @@ export default function ConversationThread({ conversationId }: ConversationThrea
         navigate(`/user/dashboard/help?${params.toString()}`);
     };
 
+    const handleOpenProperty = async () => {
+        if (!conversation?.propertyId || !propertyPath || isCheckingProperty) {
+            return;
+        }
+
+        setPropertyNavigationMessage(null);
+        setIsCheckingProperty(true);
+        try {
+            const { data, status } = await getPropertyById(conversation.propertyId, { suppressErrorToast: true });
+            if (data) {
+                navigate(propertyPath);
+                return;
+            }
+            setPropertyNavigationMessage(getConversationPropertyNavigationMessage(status));
+        } finally {
+            setIsCheckingProperty(false);
+        }
+    };
+
     return (
         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-gray-50 p-2.5 dark:bg-gray-900/50 sm:gap-4 sm:p-4 md:p-6" tabIndex={0} aria-label="Conversation messages">
             {conversation && (
@@ -87,9 +109,11 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                     {propertyPath ? (
                         <button
                             type="button"
-                            onClick={() => navigate(propertyPath)}
+                            onClick={() => void handleOpenProperty()}
+                            disabled={isCheckingProperty}
+                            aria-busy={isCheckingProperty || undefined}
                             aria-label="Back to property"
-                            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300 sm:gap-2 sm:px-4 sm:text-sm"
+                            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300 sm:gap-2 sm:px-4 sm:text-sm"
                         >
                             <Home size={16} />
                             <span className="sm:hidden">Property</span>
@@ -117,6 +141,11 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                         {isSavingPreference ? 'Updating...' : conversation.isMuted ? 'Unmute' : 'Mute'}
                     </button>
                     </div>
+                    {propertyNavigationMessage ? (
+                        <p role="status" className="text-xs text-amber-700 dark:text-amber-200 md:ml-auto">
+                            {propertyNavigationMessage}
+                        </p>
+                    ) : null}
                 </div>
             )}
             {messages.length > 0 ? (

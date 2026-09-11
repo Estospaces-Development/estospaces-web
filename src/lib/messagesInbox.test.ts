@@ -6,6 +6,7 @@ import {
     buildConversationListUrl,
     buildConversationPropertyPath,
     createConversationRefreshFailedIssue,
+    getConversationPropertyNavigationMessage,
     isUnavailableConversationThreadError,
     resolveConversationQuerySelection,
     resolveHasLoadedConversations,
@@ -37,6 +38,12 @@ test('conversation property action targets the exact linked property', () => {
     );
     assert.equal(buildConversationPropertyPath('property/one', 'admin'), '/admin/properties/property%2Fone');
     assert.equal(buildConversationPropertyPath(''), null);
+});
+
+test('a missing conversation property keeps the person in the conversation with a clear explanation', () => {
+    assert.match(getConversationPropertyNavigationMessage(404), /no longer available/);
+    assert.match(getConversationPropertyNavigationMessage(404), /support ticket/);
+    assert.match(getConversationPropertyNavigationMessage(503), /try again/);
 });
 
 test('conversation query selection waits for the initial inbox load before selecting a deep link', () => {
