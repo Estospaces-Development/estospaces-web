@@ -46,3 +46,20 @@ test('terms review action keeps the mobile touch target at least 44px tall', () 
 
   assert.match(source, /onClick=\{openTermsModal\}\s*className=\{`[^`]*min-h-11[^`]*`\}/);
 });
+
+test('terms dialog bounds its height and keeps acceptance outside the shrinking scroll region', () => {
+  const markup = renderToStaticMarkup(
+    <TermsAcceptanceModal isOpen canAccept={false} onClose={() => {}} onAccept={() => {}} onReachedEnd={() => {}} />,
+  );
+  assert.match(markup, /flex max-h-\[calc\(100dvh-2rem\)\] flex-col/);
+  assert.match(markup, /min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+  assert.match(markup, /data-terms-actions="true" class="shrink-0/);
+  assert.match(markup, /disabled=""[^>]*>I Have Read and Agree/);
+});
+
+test('terms acceptance is enabled only after reaching the end and closed dialog renders nothing', () => {
+  const props = { onClose() {}, onAccept() {}, onReachedEnd() {} };
+  const markup = renderToStaticMarkup(<TermsAcceptanceModal {...props} isOpen canAccept />);
+  assert.doesNotMatch(markup, /disabled=""/);
+  assert.equal(renderToStaticMarkup(<TermsAcceptanceModal {...props} isOpen={false} canAccept={false} />), '');
+});
