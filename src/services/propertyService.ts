@@ -30,6 +30,7 @@ interface CachedPropertyLookup {
   cacheable: boolean;
   data: Property | null;
   error: string | null;
+  status?: number;
 }
 
 const propertyDetailCache = createAsyncRequestCache<CachedPropertyLookup>(
@@ -341,7 +342,7 @@ export const getAdminProperties = async (filters: Record<string, any> = {}) => {
 export const getPropertyById = async (
   id: string,
   options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
-): Promise<{ data: Property | null; error: string | null }> => {
+): Promise<{ data: Property | null; error: string | null; status?: number }> => {
   const normalizedId = id.trim();
   const cacheKey = `${getAuthTokenVersion()}|${normalizedId}|${options.suppressErrorToast === true ? "silent" : "default"}`;
   const result = await propertyDetailCache.get(cacheKey, async () => {
@@ -353,17 +354,18 @@ export const getPropertyById = async (
         `${CORE_URL()}${endpoint}`,
         options,
       );
-      return { cacheable: true, data, error: null };
+      return { cacheable: true, data, error: null, status: undefined };
     } catch (error: unknown) {
       return {
         cacheable: getErrorStatus(error) === 404,
         data: null,
         error: getErrorMessage(error),
+        status: getErrorStatus(error),
       };
     }
   });
 
-  return { data: result.data, error: result.error };
+  return { data: result.data, error: result.error, status: result.status };
 };
 
 export const getPropertyContextsByIds = async (
