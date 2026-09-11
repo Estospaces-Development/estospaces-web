@@ -45,6 +45,7 @@ import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserD
 import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
+import { rememberAuthorizedConversation } from '@/lib/conversationVisibility';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
@@ -2008,6 +2009,9 @@ const UserPropertyDetail = () => {
                 recipientAgency: workflowRecipientAgency,
             });
 
+            if (user?.id) {
+                rememberAuthorizedConversation(user.id, conversation);
+            }
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to open the message thread.');
