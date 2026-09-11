@@ -8,11 +8,12 @@ const managerLayoutSource = readFileSync(
   "utf8",
 );
 
-test("manager operational providers stay mounted but load only after approval", () => {
+test("manager operational providers retain approval gate while owned inventory supports drafts", () => {
   assert.match(managerLayoutSource, /function ManagerOperationalProviders/);
   assert.match(managerLayoutSource, /useManagerVerification\(\)/);
   assert.match(managerLayoutSource, /operationalDataEnabled = !isLoading && isVerified/);
-  assert.match(managerLayoutSource, /<PropertyProvider scope="manager" enabled=\{operationalDataEnabled\}>/);
+  assert.match(managerLayoutSource, /inventoryEnabled = canLoadManagerInventory\(isLoading, isVerified, pathname\)/);
+  assert.match(managerLayoutSource, /<PropertyProvider scope="manager" enabled=\{inventoryEnabled\}>/);
   assert.match(managerLayoutSource, /<LeadProvider enabled=\{operationalDataEnabled\}>/);
   assert.match(managerLayoutSource, /<MessagesProvider>\{children\}<\/MessagesProvider>/);
   assert.match(managerLayoutSource, /<ManagerVerificationProvider>\s*<ManagerOperationalProviders>/);
@@ -28,7 +29,7 @@ test("reported direct operational routes require manager approval", () => {
   assert.match(appSource, /path="contracts" element=\{<VerifiedManagerRoute><ManagerContracts \/><\/VerifiedManagerRoute>\}/);
 });
 
-test("manager provider loaders remain empty until verification is approved", () => {
+test("manager provider loaders remain empty whenever their access gate is disabled", () => {
   const propertySource = readFileSync(resolve(process.cwd(), "src/contexts/PropertyContext.tsx"), "utf8");
   const leadSource = readFileSync(resolve(process.cwd(), "src/contexts/LeadContext.tsx"), "utf8");
   const verificationSource = readFileSync(resolve(process.cwd(), "src/contexts/ManagerVerificationContext.tsx"), "utf8");
