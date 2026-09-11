@@ -448,13 +448,13 @@ const AddressSection = ({
         setLoadingCities(false);
     }, [states, value, onChange]);
 
-    const handleCityChange = useCallback((cityId: string) => {
-        const city = cities.find(c => c.id === cityId);
+    const handleCityChange = useCallback((cityName: string) => {
+        const city = cities.find(c => c.state_id === value.stateId && c.name.toLowerCase() === cityName.trim().toLowerCase());
 
         onChange({
             ...value,
-            cityId,
-            cityName: city?.name || '',
+            cityId: city?.id || '',
+            cityName,
         });
     }, [cities, value, onChange]);
 
@@ -569,8 +569,8 @@ const AddressSection = ({
     }, [disabled, value.countryId, loadingStates]);
 
     const isCityDisabled = useMemo(() => {
-        return disabled || !value.stateId || loadingCities;
-    }, [disabled, value.stateId, loadingCities]);
+        return disabled || !value.stateId;
+    }, [disabled, value.stateId]);
 
     const getFieldId = useCallback((field: string) => (
         fieldIdPrefix ? `${fieldIdPrefix}-${field}` : field
@@ -733,21 +733,38 @@ const AddressSection = ({
                 )}
 
                 {/* City */}
-                {renderSelect(
-                    'city',
-                    'City',
-                    value.cityId,
-                    cities,
-                    handleCityChange,
-                    loadingCities,
-                    isCityDisabled,
-                    cityError,
-                    retryCities,
-                    value.stateId
-                        ? administrativeAreaCopy.cityPlaceholder
-                        : administrativeAreaCopy.cityFirstPlaceholder,
-                    errors.city
-                )}
+                <div>
+                    <label htmlFor={getFieldId('city')} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        City {required && <span className="text-red-500">*</span>}
+                    </label>
+                    <input
+                        id={getFieldId('city')}
+                        type="text"
+                        autoComplete="address-level2"
+                        list={getFieldId('city-suggestions')}
+                        value={value.cityName}
+                        onInput={(event) => handleCityChange(event.currentTarget.value)}
+                        disabled={isCityDisabled}
+                        placeholder={value.stateId ? 'Enter city or town' : administrativeAreaCopy.cityFirstPlaceholder}
+                        aria-invalid={Boolean(errors.city)}
+                        aria-describedby={[getFieldId('city-help'), errors.city ? getFieldErrorId('city') : null].filter(Boolean).join(' ')}
+                        className={`w-full min-w-0 px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed ${errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                    />
+                    <datalist id={getFieldId('city-suggestions')}>
+                        {cities.filter(city => city.state_id === value.stateId).map(city => <option key={city.id} value={city.name} />)}
+                    </datalist>
+                    <p id={getFieldId('city-help')} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Choose a suggestion or enter your city or town.
+                    </p>
+                    {loadingCities && <p role="status" className="mt-1 text-sm text-gray-500 dark:text-gray-400">Loading suggestions...</p>}
+                    {cityError && (
+                        <div className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                            City suggestions could not load. You can still enter your city.
+                            <button type="button" onClick={retryCities} disabled={disabled || loadingCities} className="ml-2 underline focus-visible:outline focus-visible:outline-2">Retry suggestions</button>
+                        </div>
+                    )}
+                    {errors.city && <p id={getFieldErrorId('city')} role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.city}</p>}
+                </div>
             </div>
 
             {/* Address Lines */}

@@ -53,10 +53,23 @@ async function mountAddress(initial: AddressFormData) {
         await restore();
         throw error;
     }
+    const cityInput = () => {
+        const input = window.document.getElementById('country-test-city');
+        assert.ok(input instanceof window.HTMLInputElement);
+        return input;
+    };
     return {
         value: () => latest,
         country: () => window.document.querySelector('select')!.value,
-        city: () => window.document.querySelectorAll('select')[2],
+        city: cityInput,
+        cityInput,
+        changeCity: async (name: string) => {
+            const input = cityInput();
+            await act(async () => {
+                input.value = name;
+                input.dispatchEvent(new window.Event('input', { bubbles: true }));
+            });
+        },
         changeCountry: async (id: string) => {
             const select = window.document.querySelector('select');
             assert.ok(select);
@@ -69,11 +82,49 @@ async function mountAddress(initial: AddressFormData) {
     };
 }
 
-test('reopening a saved address leaves the loaded city selectable', async () => {
+test('a saved city outside the suggestions remains visible without a fabricated city ID', async () => {
+    const form = await mountAddress({ ...india, cityId: '', cityName: 'Tiruchirappalli', postalCode: '620001' });
+    try {
+        assert.equal(form.cityInput()?.tagName, 'INPUT');
+        assert.equal(form.cityInput()?.value, 'Tiruchirappalli');
+        assert.equal(form.value().cityId, '');
+        assert.equal(form.value().stateId, '201');
+    } finally { await form.restore(); }
+});
+
+test('reopening a saved address leaves the loaded city editable', async () => {
     const form = await mountAddress(india);
     try {
-        assert.equal(form.city()?.value, '2001');
+        assert.equal(form.city()?.value, 'Chennai');
         assert.equal(form.city()?.disabled, false);
+    } finally { await form.restore(); }
+});
+
+test('entering a missing city clears the old suggestion ID without changing the postal address', async () => {
+    const form = await mountAddress(india);
+    try {
+        await form.changeCity('Tiruchirappalli');
+        assert.equal(form.value().cityName, 'Tiruchirappalli');
+        assert.equal(form.value().cityId, '');
+        assert.equal(form.value().stateId, '201');
+        assert.equal(form.value().postalCode, '600001');
+        await form.changeCity('Chennai');
+        assert.equal(form.value().cityId, '2001');
+        await form.changeCity('');
+        assert.equal(form.value().cityId, '');
+        assert.equal(form.value().cityName, '');
+    } finally { await form.restore(); }
+});
+
+test('UK towns outside the suggestions can be entered and are cleared on country switch', async () => {
+    const form = await mountAddress(uk);
+    try {
+        await form.changeCity('Reading');
+        assert.equal(form.value().cityName, 'Reading');
+        assert.equal(form.value().cityId, '');
+        await form.changeCountry('2');
+        assert.equal(form.city()?.value, '');
+        assert.equal(form.city()?.disabled, true);
     } finally { await form.restore(); }
 });
 

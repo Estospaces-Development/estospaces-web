@@ -32,6 +32,7 @@ test('property map permits first-pin placement and resets its viewport when coun
   try {
     await act(async () => root.render(<Picker {...props} latitude={null} longitude={null} countryCode="IN" />));
     assert.ok(map);
+    assert.equal(map.scrollWheelZoom.enabled(), false, 'page scrolling must not change the property-map zoom');
     const placeAtCenter = [...host.querySelectorAll('button')].find(button => button.textContent === 'Place pin at map center');
     assert.ok(placeAtCenter, 'Keyboard users must have a first-pin placement action');
     map.setView([13.09, 80.28], 16, { animate: false });

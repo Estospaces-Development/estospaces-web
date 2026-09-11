@@ -121,3 +121,14 @@ test('hiding pins does not change inventory totals or mark valid coordinates as 
         assert.deepEqual(view.requests, [1]);
     } finally { view.cleanup(); }
 });
+
+test('map makes an empty pin state explicit without inventing a marker', async () => {
+    const view = await renderMap([page([{ id: 'missing' }], 1, 1)]);
+    try {
+        assert.match(
+            view.host.querySelector('[data-manager-map-filter-count="property"]')!.textContent,
+            /1 listed · no verified pins/,
+        );
+        assert.equal(view.host.querySelectorAll('[data-pin]').length, 0);
+    } finally { view.cleanup(); }
+});

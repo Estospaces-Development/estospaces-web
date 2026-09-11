@@ -158,7 +158,7 @@ const SatelliteMap = () => {
 
     return (
         <div
-            className="relative w-full h-full min-h-[500px]"
+            className="relative h-full min-h-[500px] w-full overflow-hidden rounded-2xl border border-gray-100 bg-gray-100 dark:border-gray-700 dark:bg-gray-900"
             data-manager-dashboard-map="properties"
             data-manager-map-property-count={propertyLocations.length}
             data-manager-map-marker-count={filteredLocations.length}
@@ -208,8 +208,16 @@ const SatelliteMap = () => {
                                         <div className="text-sm font-medium text-gray-800 dark:text-white">
                                             {filter.label}
                                         </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            {loadingProperties ? 'Loading locations…' : propertyError ? 'Locations unavailable' : `${count} mapped · ${propertyTotal} total`}
+                                        <div className="text-xs text-gray-500 dark:text-gray-400" data-manager-map-filter-count={filter.id}>
+                                            {loadingProperties
+                                                ? 'Loading locations…'
+                                                : propertyError
+                                                    ? 'Locations unavailable'
+                                                    : propertyTotal === 0
+                                                        ? 'No listings yet'
+                                                        : count === 0
+                                                            ? `${propertyTotal} listed · no verified pins`
+                                                            : `${propertyTotal} listed · ${count} mapped`}
                                         </div>
                                     </div>
                                     {isActive && (

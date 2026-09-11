@@ -68,7 +68,7 @@ import {
   type Property as ServiceProperty,
 } from "@/services/propertyService";
 import {
-  getCoordinatesFromAddress,
+  resolvePropertyLocation,
   getUserGeolocation,
 } from "@/services/locationService";
 import Toast from "@/components/ui/Toast";
@@ -1446,9 +1446,11 @@ export default function AddPropertyPage() {
     const locationRevision = locationRevisionRef.current;
     setResolvingLocation(true);
     try {
-      const coordinates = await getCoordinatesFromAddress({
+      const resolution = await resolvePropertyLocation({
         postalCode: formData.postalCode,
         countryCode: formData.countryCode,
+        city: formData.city,
+        state: formData.state,
       });
       if (locationRevision !== locationRevisionRef.current) {
         showToast(
@@ -1457,12 +1459,19 @@ export default function AddPropertyPage() {
         );
         return;
       }
-      if (!coordinates) {
+      if (resolution.kind === "mismatch") {
+        const mismatchMessage = `The entered ${resolution.field} does not match ${formData.postalCode}. It resolves to ${resolution.resolved}.`;
+        setErrors((previous) => ({ ...previous, [resolution.field]: mismatchMessage }));
+        focusFirstErrorField({ [resolution.field]: mismatchMessage });
+        showToast(mismatchMessage, "error");
+        return;
+      }
+      if (resolution.kind !== "resolved") {
         throw new Error("No map position returned for the entered postal code");
       }
       applyPropertyLocation(
-        coordinates.latitude,
-        coordinates.longitude,
+        resolution.latitude,
+        resolution.longitude,
         "PIN or postcode area located. Click or drag the marker to the exact building.",
       );
     } catch {

@@ -46,7 +46,6 @@ import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
-import { createOffer } from '@/services/salesService';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
 import FastTrackRequestConfirmationModal from '@/components/fast-track/FastTrackRequestConfirmationModal';
@@ -73,11 +72,6 @@ import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages, getPropertyVideos } from '@/lib/propertyImages';
 import { getPropertyGalleryDisplayState } from '@/lib/propertyGalleryState';
-import {
-    MAX_SALE_OFFER_NOTES_LENGTH,
-    buildSaleOfferPayload,
-    isSaleOfferListingType,
-} from '@/lib/saleOfferEntry';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     resetPropertyDetailScroll,
@@ -575,93 +569,6 @@ const formatLeadStage = (value?: string) => {
         .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-interface SaleOfferEntryCardProps {
-    priceLabel: string;
-    offerAmount: string;
-    offerNotes: string;
-    error?: string;
-    isSubmitting: boolean;
-    onAmountChange: (value: string) => void;
-    onNotesChange: (value: string) => void;
-    onSubmit: React.FormEventHandler<HTMLFormElement>;
-}
-
-export const SaleOfferEntryCard = ({
-    priceLabel,
-    offerAmount,
-    offerNotes,
-    error = '',
-    isSubmitting,
-    onAmountChange,
-    onNotesChange,
-    onSubmit,
-}: SaleOfferEntryCardProps) => (
-    <form
-        onSubmit={onSubmit}
-        className="rounded-[1.7rem] border border-emerald-200/80 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20"
-    >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between xl:flex-col">
-            <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
-                    Sale offer
-                </p>
-                <h4 className="mt-2 text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-                    Submit Offer
-                </h4>
-                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                    Send your offer to the assigned broker for review against the guide price of {priceLabel}.
-                </p>
-            </div>
-            <span className="w-fit rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-300">
-                Buyer action
-            </span>
-        </div>
-
-        <label className="mt-4 block text-sm text-gray-700 dark:text-gray-300">
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                Offer amount
-            </span>
-            <input
-                type="number"
-                min="1"
-                step="1"
-                value={offerAmount}
-                onChange={(event) => onAmountChange(event.target.value)}
-                placeholder="425000"
-                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-emerald-500 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-white"
-            />
-        </label>
-
-        <label className="mt-3 block text-sm text-gray-700 dark:text-gray-300">
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                Notes for the offer
-            </span>
-            <textarea
-                rows={3}
-                value={offerNotes}
-                onChange={(event) => onNotesChange(event.target.value)}
-                placeholder="Timing, conditions, or proof-of-funds context"
-                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-emerald-500 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-white"
-            />
-        </label>
-
-        {error ? (
-            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                {error}
-            </p>
-        ) : null}
-
-        <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-emerald-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-            {isSubmitting && <ActionSpinner size={15} className="" />}
-            {isSubmitting ? 'Submitting offer...' : 'Submit Offer'}
-        </button>
-    </form>
-);
-
 interface RentalApplicationEntryCardProps {
     minimumMoveInDate: string;
     form: RentalApplicationForm;
@@ -935,7 +842,6 @@ const UserPropertyDetail = () => {
     const [savedPropertyStatusMessage, setSavedPropertyStatusMessage] = useState('');
     const [isStartingFastTrack, setIsStartingFastTrack] = useState(false);
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
-    const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
     const [isSubmittingRentalApplication, setIsSubmittingRentalApplication] = useState(false);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -1020,11 +926,6 @@ const UserPropertyDetail = () => {
         user_notes: '',
     });
     const [viewingFormErrors, setViewingFormErrors] = useState<ViewingRequestValidationErrors>({});
-    const [offerForm, setOfferForm] = useState({
-        amount: '',
-        notes: '',
-    });
-    const [offerFormError, setOfferFormError] = useState('');
     const [rentalApplicationForm, setRentalApplicationForm] = useState<RentalApplicationForm>({
         moveInDate: '',
         leaseDurationMonths: '12',
@@ -1047,7 +948,6 @@ const UserPropertyDetail = () => {
     activePropertyIdRef.current = property?.id || null;
     const viewingFormRef = useRef<HTMLFormElement | null>(null);
     const wasFastTrackModalOpenRef = useRef(false);
-    const offerInFlightRef = useRef(false);
     const rentalApplicationInFlightRef = useRef(false);
 
     useEffect(() => {
@@ -2114,69 +2014,6 @@ const UserPropertyDetail = () => {
         }
     };
 
-    const handleSubmitOffer = async (event: React.FormEvent) => {
-        event.preventDefault();
-
-        if (offerInFlightRef.current) {
-            return;
-        }
-
-        if (!ensureAuthenticated()) {
-            return;
-        }
-
-        const { payload, error: payloadError } = buildSaleOfferPayload({
-            property,
-            lead: activeLead,
-            fastTrackCase: activeFastTrackCase,
-            amount: offerForm.amount,
-            notes: offerForm.notes,
-        });
-
-        if (payloadError || !payload) {
-            setOfferFormError(payloadError || 'Unable to prepare the offer.');
-            toast.error(payloadError || 'Unable to prepare the offer.');
-            return;
-        }
-
-        offerInFlightRef.current = true;
-        setIsSubmittingOffer(true);
-        setOfferFormError('');
-        try {
-            const offerResult = await createOffer(payload, { suppressErrorToast: true });
-            if (offerResult.error || !offerResult.data) {
-                throw new Error(offerResult.error || 'Unable to submit the offer.');
-            }
-
-            setOfferForm({ amount: '', notes: '' });
-            toast.success('Offer submitted. Your broker can review it in the live sale workspace.');
-            await loadFastTrackWorkspace({ silent: true });
-        } catch (actionError: any) {
-            setOfferFormError(actionError?.message || 'Unable to submit the offer.');
-            toast.error(actionError?.message || 'Unable to submit the offer.');
-        } finally {
-            offerInFlightRef.current = false;
-            setIsSubmittingOffer(false);
-        }
-    };
-
-    const handleSaleOfferAmountChange = (amount: string) => {
-        setOfferForm((previous) => ({ ...previous, amount }));
-        setOfferFormError('');
-    };
-
-    const handleSaleOfferNotesChange = (notes: string) => {
-        setOfferForm((previous) => ({ ...previous, notes }));
-        if (
-            notes.trim().replace(/\s+/g, ' ').length <=
-            MAX_SALE_OFFER_NOTES_LENGTH
-        ) {
-            setOfferFormError('');
-        } else {
-            setOfferFormError('Offer notes must be 1000 characters or fewer.');
-        }
-    };
-
     const handleRentalApplicationChange = (field: keyof RentalApplicationForm, value: string) => {
         setRentalApplicationForm((previous) => ({ ...previous, [field]: value }));
         setRentalApplicationErrors((previous) => {
@@ -3069,22 +2906,6 @@ const UserPropertyDetail = () => {
                         <div className="mt-4 rounded-[1.35rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
                             Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
                         </div>
-
-                        {/* Sale offer entry is temporarily disabled at the product owner's request. */}
-                        {isSaleOfferListingType(property.listing_type) && false && (
-                            <div className="mt-5">
-                                <SaleOfferEntryCard
-                                    priceLabel={priceLabel}
-                                    offerAmount={offerForm.amount}
-                                    offerNotes={offerForm.notes}
-                                    error={offerFormError}
-                                    isSubmitting={isSubmittingOffer}
-                                    onAmountChange={handleSaleOfferAmountChange}
-                                    onNotesChange={handleSaleOfferNotesChange}
-                                    onSubmit={handleSubmitOffer}
-                                />
-                            </div>
-                        )}
 
                         {property.listing_type === 'rent' && (
                             <div className="mt-5">

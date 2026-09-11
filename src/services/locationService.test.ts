@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getCoordinatesFromAddress } from "./locationService";
+import { getCoordinatesFromAddress, resolvePropertyLocation } from "./locationService";
 
 test('property lookup rejects a postcode from a different selected country before contacting a provider', async () => {
   const originalFetch = globalThis.fetch;
@@ -256,4 +256,56 @@ test("getCoordinatesFromAddress resolves UK postcodes after normalizing the disp
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('property resolution rejects a UK postcode whose provider district conflicts with the selected city', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 54.5973,
+    longitude: -5.9301,
+    postcode: 'BT1 1AA',
+    admin_district: 'Belfast',
+    region: 'Northern Ireland',
+    country: 'Northern Ireland',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'BT1 1AA', countryCode: 'GB', city: 'Bristol', state: 'South West England',
+    }), {
+      kind: 'mismatch', field: 'city', expected: 'Bristol', resolved: 'Belfast',
+    });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('property resolution accepts a city label alias returned by the UK postcode provider', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 51.4545,
+    longitude: -2.5879,
+    postcode: 'BS1 1AA',
+    admin_district: 'City of Bristol',
+    region: 'South West',
+    country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'BS1 1AA', countryCode: 'GB', city: 'Bristol', state: 'South West England',
+    }), { kind: 'resolved', latitude: 51.4545, longitude: -2.5879 });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('property resolution rejects an Indian PIN whose provider state conflicts with the selected state', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ success: true, data: {
+    pincode: '600001', post_offices: [{
+      district: 'Chennai', state: 'Tamil Nadu', latitude: 13.0827, longitude: 80.2707,
+    }],
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: '600001', countryCode: 'IN', city: 'Chennai', state: 'Kerala',
+    }), {
+      kind: 'mismatch', field: 'state', expected: 'Kerala', resolved: 'Tamil Nadu',
+    });
+  } finally { globalThis.fetch = originalFetch; }
 });

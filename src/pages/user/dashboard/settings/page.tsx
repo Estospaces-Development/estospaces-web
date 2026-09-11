@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Bell,
     ArrowLeft,
@@ -45,6 +45,7 @@ type TabId = 'alerts' | 'search' | 'account' | 'contracts';
 
 export default function SettingsPage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
     const authContext = useOptionalAuth();
     const geoMarket = useUserGeoMarket(authContext?.user);
@@ -55,7 +56,16 @@ export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [activeTab, setActiveTab] = useState<TabId>('alerts');
+    const requestedTab = searchParams.get('tab');
+    const activeTab: TabId = requestedTab === 'search' || requestedTab === 'account' || requestedTab === 'contracts'
+        ? requestedTab : 'alerts';
+    const setActiveTab = (tab: TabId) => {
+        setSearchParams(previous => {
+            const next = new URLSearchParams(previous);
+            next.set('tab', tab);
+            return next;
+        });
+    };
     const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
     const [preferenceErrors, setPreferenceErrors] = useState<PreferencesValidationErrors>({});
     const [originalPreferences, setOriginalPreferences] = useState<UserPreferences>(defaultPreferences);

@@ -514,14 +514,14 @@ function PropertyManagementContent() {
                 </div>
                 <div className="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
                     <div className="group relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-blue-500" size={18} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-300 transition-colors group-focus-within:text-blue-500" size={18} />
                         <input
                             type="text"
                             aria-label="Search property registry"
                             placeholder="Search registry..."
                             value={searchQuery}
                             onChange={(event) => handleSearchChange(event.target.value)}
-                        className="w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64"
+                            className="w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold text-gray-900 dark:text-white placeholder:text-gray-600 dark:placeholder:text-gray-300 shadow-sm outline-none transition-all focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64"
                         />
                     </div>
                     <button
@@ -553,7 +553,7 @@ function PropertyManagementContent() {
                                     className={`rounded-xl px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
                                         filteringType === type.value
                                             ? 'bg-blue-700 text-white shadow-lg shadow-blue-700/20'
-                                            : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900'
                                     }`}
                                 >
                                     {type.label}
@@ -576,7 +576,7 @@ function PropertyManagementContent() {
                                     className={`rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
                                         statusFilter === status.value
                                             ? 'bg-emerald-700 text-white shadow-lg shadow-emerald-700/20'
-                                            : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900'
                                     }`}
                                 >
                                     {status.label}
