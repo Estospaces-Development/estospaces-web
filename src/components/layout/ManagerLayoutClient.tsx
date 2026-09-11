@@ -14,6 +14,7 @@ import { LeadProvider } from '../../contexts/LeadContext';
 import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import RoleMobileNavigation from './RoleMobileNavigation';
+import { canLoadManagerInventory } from '@/lib/managerInventoryAccess';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -22,10 +23,12 @@ interface ManagerLayoutClientProps {
 
 function ManagerOperationalProviders({ children }: { children: React.ReactNode }) {
     const { isLoading, isVerified } = useManagerVerification();
+    const { pathname } = useLocation();
     const operationalDataEnabled = !isLoading && isVerified;
+    const inventoryEnabled = canLoadManagerInventory(isLoading, isVerified, pathname);
 
     return (
-        <PropertyProvider scope="manager" enabled={operationalDataEnabled}>
+        <PropertyProvider scope="manager" enabled={inventoryEnabled}>
             <LeadProvider enabled={operationalDataEnabled}>
                 <MessagesProvider>{children}</MessagesProvider>
             </LeadProvider>
