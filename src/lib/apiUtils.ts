@@ -435,12 +435,11 @@ export function resolveManagerWorkflowErrorPresentation(error: unknown): Manager
     };
 }
 
-async function parseJsonResponse<T>(response: Response): Promise<ApiEnvelope<T>> {
+async function parseJsonResponse<T>(response: Response, text: string): Promise<ApiEnvelope<T>> {
     if (response.status === 204) {
         return {} as ApiEnvelope<T>;
     }
 
-    const text = await response.text();
     if (!text) {
         return {} as ApiEnvelope<T>;
     }
@@ -469,6 +468,7 @@ export async function apiFetchEnvelope<T>(
 
     const callerSignal = requestOptions.signal;
     let response: Response | null = null;
+    let responseText = '';
     try {
         const maxAttempts = isReadMethod(method) ? READ_NETWORK_RETRY_ATTEMPTS + 1 : 1;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -497,6 +497,8 @@ export async function apiFetchEnvelope<T>(
                 response = await fetch(url, {
                     ...fetchOptions,
                 });
+                // Keep cancellation active until the complete response body arrives.
+                responseText = await response.text();
                 break;
             } catch (error: any) {
                 if (error?.name === 'AbortError' || attempt >= maxAttempts - 1) {
@@ -538,7 +540,7 @@ export async function apiFetchEnvelope<T>(
         let errorMsg = `API error: ${response.status}`;
         let fieldErrors: Record<string, string> | undefined;
         try {
-            const errorJson = await parseJsonResponse<any>(response);
+            const errorJson = await parseJsonResponse<any>(response, responseText);
             errorMsg = errorJson.error || errorJson.message || errorMsg;
             if (errorJson.field_errors && typeof errorJson.field_errors === 'object') {
                 fieldErrors = errorJson.field_errors as Record<string, string>;
@@ -565,7 +567,7 @@ export async function apiFetchEnvelope<T>(
         );
     }
 
-    const json = await parseJsonResponse<T>(response);
+    const json = await parseJsonResponse<T>(response, responseText);
     if (typeof window !== 'undefined') {
         syncAuthExpiryState(getStoredAuthToken());
     }

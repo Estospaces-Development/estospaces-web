@@ -88,8 +88,12 @@ export function SupportTicketList({
                                 )}
                             </div>
                             {ticket.unread_count > 0 && (
-                                <span className="inline-flex min-w-8 shrink-0 justify-center rounded-full bg-orange-700 px-2 py-1 text-xs font-bold text-white">
-                                    {ticket.unread_count}
+                                <span
+                                    title={`${ticket.unread_count} unread ${ticket.unread_count === 1 ? 'message' : 'messages'}`}
+                                    aria-label={`${ticket.unread_count} unread ${ticket.unread_count === 1 ? 'message' : 'messages'}`}
+                                    className="inline-flex min-w-8 shrink-0 justify-center rounded-full bg-orange-700 px-2 py-1 text-xs font-bold text-white"
+                                >
+                                    {ticket.unread_count} unread
                                 </span>
                             )}
                         </div>
