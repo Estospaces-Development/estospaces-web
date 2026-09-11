@@ -271,20 +271,20 @@ export function TermsAcceptanceModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-950/70 backdrop-blur-sm" onClick={onClose} />
             <div
-                className="relative w-full max-w-4xl rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+                className="relative flex max-h-[calc(100dvh-2rem)] flex-col w-full max-w-4xl rounded-2xl md:rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="terms-dialog-title"
                 aria-describedby="terms-dialog-description"
             >
-                <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-4">
+                <div className="shrink-0 px-3 py-3 md:px-6 md:py-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-2 md:gap-4">
                     <div>
-                        <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-600 mb-3">
+                        <div className="hidden md:inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-600 mb-3">
                             <FileText size={12} />
                             Required Read-Through
                         </div>
-                        <h3 id="terms-dialog-title" className="text-xl font-black text-gray-900 dark:text-white">Review Terms & Conditions</h3>
-                        <p id="terms-dialog-description" className="text-sm text-gray-500 mt-1">
+                        <h3 id="terms-dialog-title" className="text-base md:text-xl font-semibold text-gray-900 dark:text-white">Review Terms & Conditions</h3>
+                        <p id="terms-dialog-description" className="text-xs md:text-sm text-gray-500 mt-1">
                             Scroll through the full terms before accepting. Last updated: {TERMS_LAST_UPDATED}
                         </p>
                     </div>
@@ -292,14 +292,17 @@ export function TermsAcceptanceModal({
                         ref={closeButtonRef}
                         type="button"
                         onClick={onClose}
-                        className={`px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${authFocusClass}`}
+                        className={`shrink-0 min-h-11 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${authFocusClass}`}
                     >
                         Close
                     </button>
                 </div>
 
                 <div
-                    className="max-h-[60vh] overflow-y-auto px-6 py-6 bg-gray-50/80 dark:bg-gray-950/60"
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 md:px-6 md:py-6 bg-gray-50/80 dark:bg-gray-950/60"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Terms document"
                     onScroll={(event) => {
                         const element = event.currentTarget;
                         const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
@@ -308,14 +311,14 @@ export function TermsAcceptanceModal({
                         }
                     }}
                 >
-                    <div className="rounded-[1.5rem] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 md:p-8">
+                    <div className="rounded-xl md:rounded-[1.5rem] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-3 md:p-8">
                         <TermsDocument compact />
                     </div>
                 </div>
 
-                <div className="px-6 py-5 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div data-terms-actions="true" className="shrink-0 px-3 py-3 md:px-6 md:py-5 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
                     <p
-                        className={`break-words text-sm font-medium ${canAccept ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
+                        className={`break-words text-xs md:text-sm font-medium ${canAccept ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
                         aria-live="polite"
                     >
                         {canAccept
@@ -326,7 +329,7 @@ export function TermsAcceptanceModal({
                         type="button"
                         onClick={onAccept}
                         disabled={!canAccept}
-                        className={`px-6 py-3 rounded-2xl bg-orange-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors ${authFocusClass}`}
+                        className={`shrink-0 min-h-11 px-3 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl bg-orange-500 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors ${authFocusClass}`}
                     >
                         I Have Read and Agree
                     </button>
