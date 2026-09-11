@@ -23,6 +23,14 @@ export const buildConversationPropertyPath = (propertyId?: string | null, role?:
     return `/user/properties/${encodedPropertyId}`;
 };
 
+export function getConversationPropertyNavigationMessage(status?: number) {
+    if (status === 404) {
+        return 'This conversation is linked to a property that is no longer available. You can continue the conversation or create a support ticket.';
+    }
+
+    return 'We could not verify the linked property. Please try again.';
+}
+
 export interface ConversationQueryResolutionInput {
     requestedConversationId: string | null | undefined;
     hasLoadedConversations: boolean;
