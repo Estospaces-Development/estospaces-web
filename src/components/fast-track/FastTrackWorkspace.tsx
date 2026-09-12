@@ -1595,12 +1595,21 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : payload;
 
         setActiveAction(action);
-        const { data, error: actionError } = await performFastTrackAction(
-            selectedCase.id,
-            { action, payload: actionPayload },
-            { suppressErrorToast: true },
-        );
-        setActiveAction(null);
+        let data: FastTrackCase | null = null;
+        let actionError: string | null = null;
+        try {
+            const result = await performFastTrackAction(
+                selectedCase.id,
+                { action, payload: actionPayload },
+                { suppressErrorToast: true },
+            );
+            data = result.data;
+            actionError = result.error;
+        } catch {
+            actionError = 'Unable to update the fast-track workspace.';
+        } finally {
+            setActiveAction(null);
+        }
 
         if (actionError || !data) {
             const message = actionError || 'Unable to update the fast-track workspace.';
