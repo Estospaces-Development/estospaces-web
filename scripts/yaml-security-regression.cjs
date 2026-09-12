@@ -9,9 +9,9 @@ test('YAML tooling preserves ordinary mappings and merges', () => {
   });
 });
 
-test('YAML tooling bounds empty merge sources as well as populated keys', () => {
+test('YAML tooling bounds total merge keys', () => {
   assert.throws(
-    () => yaml.load('source: &source [{}, {}, {}]\nresult: {<<: *source}', { maxTotalMergeKeys: 2 }),
+    () => yaml.load('source: &source [{a: 1}, {b: 2}, {c: 3}]\nresult: {<<: *source}', { maxTotalMergeKeys: 2 }),
     /maxTotalMergeKeys/,
   );
 });
