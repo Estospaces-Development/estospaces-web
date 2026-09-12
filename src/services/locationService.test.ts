@@ -294,6 +294,23 @@ test('property resolution accepts a city label alias returned by the UK postcode
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('property resolution accepts London when the postcode provider returns its Westminster borough', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 51.5034,
+    longitude: -0.1276,
+    postcode: 'SW1A 2AA',
+    admin_district: 'Westminster',
+    region: 'London',
+    country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'SW1A 2AA', countryCode: 'GB', city: 'London', state: 'London',
+    }), { kind: 'resolved', latitude: 51.5034, longitude: -0.1276 });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('property resolution rejects an Indian PIN whose provider state conflicts with the selected state', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({ success: true, data: {
