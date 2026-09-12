@@ -36,7 +36,7 @@ ENV VITE_MESSAGING_SERVICE_URL=$VITE_MESSAGING_SERVICE_URL
 RUN npm run build:prod
 
 # Production stage — serve static files with Nginx
-FROM nginx:alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752
+FROM nginx:alpine@sha256:a9ae6f6d078d477e21323310498e5196cb2b7c0aedd9e07b7306612077227d7c
 
 RUN mkdir -p /etc/nginx/snippets /var/cache/nginx /var/run /var/log/nginx
 RUN sed -i -E 's#pid[[:space:]]+[^;]+;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
