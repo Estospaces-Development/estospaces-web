@@ -168,6 +168,17 @@ test("validateManagerPropertyForm enforces floor relationships and optional mone
   );
 });
 
+test("validateManagerPropertyField allows valid multi-floor buildings", () => {
+  assert.equal(
+    validateManagerPropertyField("totalFloors", {
+      ...baseValues,
+      floorNumber: 10,
+      totalFloors: 11,
+    }),
+    null,
+  );
+});
+
 test("validateManagerPropertyField requires a map location and keeps alternate phone optional", () => {
   assert.equal(
     validateManagerPropertyField("latitude", { ...baseValues, latitude: "" }),
