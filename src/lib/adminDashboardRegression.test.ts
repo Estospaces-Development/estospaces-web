@@ -25,6 +25,6 @@ test('admin platform snapshot uses plain-language copy without an internal API p
         adminDashboardSource.indexOf('id="recent-notifications"'),
     );
 
-    assert.match(snapshot, /Live platform data\./);
+    assert.match(snapshot, /Paid revenue excludes active Fast Track cases and unpaid bookings\./);
     assert.doesNotMatch(snapshot, /\/api\/|<code>/);
 });

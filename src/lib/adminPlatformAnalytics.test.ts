@@ -111,10 +111,16 @@ test('admin dashboard snapshot includes booking revenue and active listing count
     const snapshot = buildAdminDashboardSnapshot(analytics);
 
     assert.equal(snapshot.find((item) => item.label === 'Total Bookings')?.value, '6');
-    assert.equal(snapshot.find((item) => item.label === 'Revenue')?.value, '\u20b91,25,000');
+    assert.equal(snapshot.find((item) => item.label === 'Paid revenue')?.value, '\u20b91,25,000');
     assert.equal(snapshot.find((item) => item.label === 'Active Listings')?.value, '8');
 });
 
 test('admin currency formatting remains readable for missing revenue', () => {
     assert.equal(formatAdminCurrency(undefined), '\u20b90');
+});
+
+test('admin dashboard distinguishes paid revenue from active booking work', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/admin/dashboard/page.tsx'), 'utf8');
+
+    assert.match(source, /Paid revenue excludes active Fast Track cases and unpaid bookings\./);
 });

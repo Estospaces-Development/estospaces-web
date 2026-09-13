@@ -522,7 +522,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Live platform data.
+                            Paid revenue excludes active Fast Track cases and unpaid bookings.
                         </p>
                     </div>
 
