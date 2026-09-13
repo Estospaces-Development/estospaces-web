@@ -218,6 +218,17 @@ export const isUserVisibleConversation = (conversation: Conversation) => {
         return false;
     }
 
+    // A linked enquiry is part of a real workflow even when its property title
+    // resembles an old QA fixture. Explicit internal markers still win above.
+    if ([
+        conversation.property_id,
+        conversation.fast_track_case_id,
+        metadata.property_id,
+        metadata.fast_track_case_id,
+    ].some(value => readText(value).trim())) {
+        return true;
+    }
+
     const displayNames = [
         conversation.title,
         conversation.property_title,
