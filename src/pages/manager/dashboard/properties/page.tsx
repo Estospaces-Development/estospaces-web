@@ -476,7 +476,7 @@ function PropertiesContent() {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute right-0 z-50 mt-2 w-[min(14rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900"
+                                        className="absolute left-0 z-50 mt-2 w-56 max-w-[calc(100vw-2rem)] origin-top-left overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 sm:left-auto sm:right-0 sm:origin-top-right"
                                     >
                                         {sortOptions.map((option, index) => (
                                             <button

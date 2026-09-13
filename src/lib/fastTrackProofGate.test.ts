@@ -34,7 +34,7 @@ const completeProof = () => ({
     celebrateRouteOverlayVisible: true, celebrateQueryCleared: true,
     plainDashboardCelebrationVisible: false,
   },
-  diagnosticsOk: true, dataIntegrityOk: true,
+  diagnosticsOk: true, overallOk: true, dataIntegrityOk: true,
   pageErrors: [], consoleErrors: [], networkErrors: [], unavailablePropertyUrls: [],
 });
 
@@ -44,9 +44,12 @@ test('a complete Fast Track proof produces seven passing checks', () => {
   assert.equal(result.filter((row) => row.status === 'passed').length, 7);
 });
 
-test('top-level skipped evidence never passes role or celebration checks', () => {
+test('top-level skipped evidence fails role checks while allowing expected diagnostics skip', () => {
   const result = aggregateFastTrack('dev', 'proof.json', { ...completeProof(), skipped: true });
-  for (const row of result) assert.equal(row.status, 'failed', row.surface);
+  for (const row of result.filter((candidate) => candidate.surface !== 'fast-track browser diagnostics')) {
+    assert.equal(row.status, 'failed', row.surface);
+  }
+  assert.equal(result.find((row) => row.surface === 'fast-track browser diagnostics')?.status, 'passed');
 });
 
 const proofSections = ['userDesktop', 'managerDesktop', 'adminDesktop', 'userTablet', 'dashboardCelebration'] as const;

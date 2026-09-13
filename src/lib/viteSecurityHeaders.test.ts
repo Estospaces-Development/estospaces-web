@@ -116,3 +116,10 @@ test('staging and gcp-dev nginx configs proxy __api/ and __dev_proxy/ prefixes',
   assert.match(gcpDevNginxSource, /location \/__dev_proxy\/core\//);
   assert.match(gcpDevNginxSource, /proxy_pass https:\/\/estospaces-core-service-dev/);
 });
+
+test('same-origin nginx proxies strip browser Origin before backend CORS checks', () => {
+  const devOriginHeaders = gcpDevNginxSource.match(/proxy_set_header Origin "";/g) || [];
+  const prodOriginHeaders = prodNginxSource.match(/proxy_set_header Origin "";/g) || [];
+  assert.ok(devOriginHeaders.length >= 14, `expected every dev proxy location to strip Origin, found ${devOriginHeaders.length}`);
+  assert.ok(prodOriginHeaders.length >= 7, `expected every prod proxy location to strip Origin, found ${prodOriginHeaders.length}`);
+});
