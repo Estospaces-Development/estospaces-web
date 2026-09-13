@@ -71,6 +71,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
     const size = resolveManagerPropertySize(property);
+    const draftNeedsArea = property.status.trim().toLowerCase() === 'draft' && size <= 0;
     const description = property.description?.trim() || '';
 
     const formatPrice = (price?: PriceInfo | number | string) => {
@@ -175,6 +176,13 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
 
                 {description && (
                     <p className="mb-4 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{description}</p>
+                )}
+
+                {draftNeedsArea && (
+                    <p className="mb-4 text-sm leading-relaxed text-amber-800 dark:text-amber-300">
+                        <span className="font-medium">Draft incomplete.</span>{' '}
+                        Add property area before submitting for approval.
+                    </p>
                 )}
 
                 {inventoryCaption && (
