@@ -1503,10 +1503,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                             </div>
                                             {handoffMinutesRemaining !== null && !selectedProperty && availableSharedProperties.length === 0 && staleSharedPropertiesCount === 0 && (
                                                 <div className="w-full rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20 sm:w-auto sm:shrink-0 sm:text-right">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
-                                                    <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                                                        {getBrokerShortlistDueValue(handoffMinutesRemaining)}
-                                                    </p>
+                                                    <div className="sm:shrink-0 sm:whitespace-nowrap">
+                                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
+                                                        <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                            {getBrokerShortlistDueValue(handoffMinutesRemaining)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
