@@ -2015,8 +2015,6 @@ const UserPropertyDetail = () => {
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to open the message thread.');
-        } finally {
-            setIsCreatingConversation(false);
         }
     };
 
