@@ -1,10 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getManagerPropertyFirstErrorStep } from "@/lib/managerPropertyFormValidation";
 
 import {
   isValidLocationCode,
   mapPropertyMutationFieldErrors,
 } from "@/lib/propertyValidationErrors";
+
+for (const [apiField, formField] of [
+  ["total_floors", "totalFloors"],
+  ["floor_number", "floorNumber"],
+  ["parking_spaces", "parkingSpaces"],
+]) {
+  test(`server ${apiField} error stays visible on Property Details`, () => {
+    const errors = mapPropertyMutationFieldErrors({ [apiField]: "Please correct this value" });
+    assert.deepEqual(errors, { [formField]: "Please correct this value" });
+    assert.equal(getManagerPropertyFirstErrorStep(errors), 3);
+  });
+}
 
 test("isValidLocationCode accepts Indian PIN codes and UK postcodes", () => {
   assert.equal(isValidLocationCode("600001"), true);
