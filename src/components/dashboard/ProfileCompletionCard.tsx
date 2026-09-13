@@ -29,7 +29,7 @@ const ProfileCompletionCard = () => {
                 {/* Blinking/Pulsing Glow Effect - Refined for elegance */}
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-400/50 to-pink-600/50 rounded-xl opacity-50 blur-sm group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
 
-                <div className="relative flex items-center gap-4 bg-white dark:bg-gray-800 p-3 pr-8 rounded-xl shadow-lg max-w-sm hover:shadow-xl transition-shadow duration-300">
+                <div className="relative flex items-center gap-4 rounded-xl bg-white p-3 pr-12 shadow-lg transition-shadow duration-300 hover:shadow-xl dark:bg-gray-800">
 
                     {/* Icon */}
                     <div className="flex-shrink-0 w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center">
@@ -58,10 +58,10 @@ const ProfileCompletionCard = () => {
                     {/* Close Button - More subtle */}
                     <button
                         onClick={() => setIsVisible(false)}
-                        className="absolute top-2 right-2 w-5 h-5 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 opacity-100 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 sm:opacity-0 sm:group-hover:opacity-100 dark:bg-gray-700 dark:text-gray-300"
                         aria-label="Dismiss profile reminder"
                     >
-                        <X size={10} />
+                        <X size={14} strokeWidth={2.25} />
                     </button>
 
                 </div>

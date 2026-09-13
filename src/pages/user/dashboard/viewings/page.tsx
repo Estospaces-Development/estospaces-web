@@ -457,8 +457,10 @@ export default function ViewingsPage() {
                         {filterOptions.map((option) => (
                             <button
                                 key={option.value}
+                                type="button"
+                                aria-pressed={filter === option.value}
                                 onClick={() => setFilter(option.value)}
-                                className={`rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
+                                className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
                                     filter === option.value
                                         ? 'bg-orange-500 text-white shadow-[0_14px_28px_-16px_rgba(249,115,22,0.85)]'
                                         : 'bg-gray-50 text-gray-600 hover:bg-orange-50 hover:text-gray-900 dark:bg-gray-900/60 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100'

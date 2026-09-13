@@ -21,7 +21,7 @@ const SECURITY_HEADERS = {
     "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
     "connect-src 'self' http: https: ws: wss:",
     "frame-src 'self' blob: https://storage.googleapis.com https://storage.cloud.google.com https://*.googleusercontent.com https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com https://cdn.pannellum.org",
-    "media-src 'self' blob:",
+    "media-src 'self' blob: http: https:",
     "form-action 'self'",
   ].join('; '),
 };

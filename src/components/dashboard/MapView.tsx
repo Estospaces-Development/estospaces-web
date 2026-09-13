@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {  Layers, Globe } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from '@/lib/leafletReact';
 import L from 'leaflet';
@@ -54,11 +54,17 @@ const createCustomIcon = (color: string, iconType: 'house' | 'agency') => {
 const houseIcon = createCustomIcon('#ef4444', 'house');
 const agencyIcon = createCustomIcon('#3b82f6', 'agency');
 
-function MapAutoCenter({ locations }: { locations: any[] }) {
+function MapAutoCenter({ locations, locationKey }: { locations: any[]; locationKey: string }) {
     const map = useMap();
+    const appliedLocationKey = useRef<string | null>(null);
 
     useEffect(() => {
+        if (appliedLocationKey.current === locationKey) {
+            return;
+        }
+
         try {
+            appliedLocationKey.current = locationKey;
             map.closePopup();
             if (locations.length > 0) {
                 const bounds = L.latLngBounds(locations.map((location) => [location.lat, location.lng]));
@@ -67,7 +73,7 @@ function MapAutoCenter({ locations }: { locations: any[] }) {
         } catch {
             // Keep the page usable when Leaflet tears down during route churn.
         }
-    }, [locations, map]);
+    }, [locationKey, locations, map]);
 
     return null;
 }
@@ -102,11 +108,14 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
         () => [...validHouses, ...validAgencies],
         [validAgencies, validHouses],
     );
+    const locationKey = useMemo(() => validLocations
+        .map((location) => `${location.id}:${location.lat}:${location.lng}`)
+        .sort()
+        .join('|'), [validLocations]);
     const mapKey = useMemo(() => [
         mapStyle,
-        ...validHouses.map((house) => `house:${house.id}:${house.lat}:${house.lng}`),
-        ...validAgencies.map((agency) => `agency:${agency.id}:${agency.lat}:${agency.lng}`),
-    ].join('|'), [mapStyle, validAgencies, validHouses]);
+        locationKey,
+    ].join('|'), [locationKey, mapStyle]);
 
     if (!isMounted) {
         return (
@@ -171,7 +180,7 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
-                <MapAutoCenter locations={validLocations} />
+                <MapAutoCenter locations={validLocations} locationKey={locationKey} />
 
                 {mapStyle === 'standard' ? (
                     <TileLayer

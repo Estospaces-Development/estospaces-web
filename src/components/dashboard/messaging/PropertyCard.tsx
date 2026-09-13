@@ -5,6 +5,7 @@ import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
+import { getPropertyById } from '@/services/propertyService';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -27,10 +28,23 @@ interface MessagingPropertyCardProps {
     property: PropertyData | null;
 }
 
+export type PropertyCardLookupStatus = 'idle' | 'checking' | 'unavailable' | 'error';
+
+export function getPropertyCardLookupMessage(status: PropertyCardLookupStatus) {
+    if (status === 'unavailable') {
+        return 'This property is no longer available.';
+    }
+    if (status === 'error') {
+        return 'We could not verify this property. Try again.';
+    }
+    return '';
+}
+
 const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
     const navigate = useNavigate();
     const [showStreetView, setShowStreetView] = useState(false);
     const [showTour, setShowTour] = useState(false);
+    const [lookupStatus, setLookupStatus] = useState<PropertyCardLookupStatus>('idle');
 
     if (!property || !property.propertyId) {
         return null;
@@ -45,10 +59,19 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
         });
     };
 
-    const handleViewDetails = () => {
-        if (property.propertyId) {
-            navigate(`/user/properties/${property.propertyId}`);
+    const handleViewDetails = async () => {
+        if (!property.propertyId || lookupStatus === 'checking') {
+            return;
         }
+
+        setLookupStatus('checking');
+        const { data, error } = await getPropertyById(property.propertyId, { suppressErrorToast: true });
+        if (data) {
+            navigate(`/user/properties/${property.propertyId}`);
+            return;
+        }
+
+        setLookupStatus(error?.toLowerCase().includes('not found') ? 'unavailable' : 'error');
     };
 
     const verifiedCoordinates = getVerifiedPropertyMapCoordinates({
@@ -96,12 +119,19 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
                             </p>
                         )}
 
+                        {lookupStatus !== 'idle' && lookupStatus !== 'checking' && (
+                            <p role="status" className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                {getPropertyCardLookupMessage(lookupStatus)}
+                            </p>
+                        )}
+
                         <div className="flex items-center gap-2 mt-2">
                             <button
-                                onClick={handleViewDetails}
-                                className="flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors"
+                                onClick={() => void handleViewDetails()}
+                                disabled={lookupStatus === 'checking' || lookupStatus === 'unavailable'}
+                                className="flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                <span>View Details</span>
+                                <span>{lookupStatus === 'checking' ? 'Checking property…' : 'View Details'}</span>
                                 <ExternalLink size={12} />
                             </button>
 

@@ -294,6 +294,23 @@ test('property resolution accepts a city label alias returned by the UK postcode
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('property resolution accepts London when the postcode provider returns its Westminster borough', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 51.5034,
+    longitude: -0.1276,
+    postcode: 'SW1A 2AA',
+    admin_district: 'Westminster',
+    region: 'London',
+    country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'SW1A 2AA', countryCode: 'GB', city: 'London', state: 'London',
+    }), { kind: 'resolved', latitude: 51.5034, longitude: -0.1276 });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('property resolution rejects an Indian PIN whose provider state conflicts with the selected state', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({ success: true, data: {
@@ -307,5 +324,18 @@ test('property resolution rejects an Indian PIN whose provider state conflicts w
     }), {
       kind: 'mismatch', field: 'state', expected: 'Kerala', resolved: 'Tamil Nadu',
     });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('property resolution never treats an arbitrary UK region as the selected city', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 53.7591, longitude: -2.7032, postcode: 'PR1 5QH',
+    admin_district: 'Preston', region: 'North West', country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'PR1 5QH', countryCode: 'GB', city: 'North West', state: 'North West',
+    }), { kind: 'mismatch', field: 'city', expected: 'North West', resolved: 'Preston' });
   } finally { globalThis.fetch = originalFetch; }
 });

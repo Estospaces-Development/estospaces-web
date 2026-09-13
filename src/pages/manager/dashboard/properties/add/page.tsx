@@ -1454,7 +1454,7 @@ export default function AddPropertyPage() {
       });
       if (locationRevision !== locationRevisionRef.current) {
         showToast(
-          "The address changed while we were locating it. Find the updated address again.",
+          "The location changed while we were locating it. Find the address again if you want to replace the selected pin.",
           "warning",
         );
         return;
@@ -1497,7 +1497,7 @@ export default function AddPropertyPage() {
       const coordinates = await getUserGeolocation();
       if (locationRevision !== locationRevisionRef.current) {
         showToast(
-          "The address changed while location permission was open. Choose the location again.",
+          "The location changed while permission was open. Choose your current location again if you want to replace the selected pin.",
           "warning",
         );
         return;
@@ -1526,6 +1526,7 @@ export default function AddPropertyPage() {
 
   const handleMapLocationChange = useCallback(
     (latitude: number, longitude: number) => {
+      locationRevisionRef.current += 1;
       applyPropertyLocation(
         latitude,
         longitude,

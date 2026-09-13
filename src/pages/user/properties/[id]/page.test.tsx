@@ -34,6 +34,17 @@ test("property detail keeps the user journey focused and does not expose a sale 
   assert.doesNotMatch(propertyDetailSource, /createOffer/);
 });
 
+test("property enquiry preserves a newly created thread before opening the inbox", () => {
+  assert.match(propertyDetailSource, /import \{ rememberAuthorizedConversation \} from '@\/lib\/conversationVisibility';/);
+  const upsertIndex = propertyDetailSource.indexOf('messagesService.upsertDirectConversation(managerId');
+  const rememberIndex = propertyDetailSource.indexOf('rememberAuthorizedConversation(user.id, conversation);', upsertIndex);
+  const navigateIndex = propertyDetailSource.indexOf('navigate(`/user/dashboard/messages?conversation=${conversation.id}`);', upsertIndex);
+
+  assert.ok(upsertIndex >= 0);
+  assert.ok(rememberIndex > upsertIndex, 'the new thread must be retained after it is created');
+  assert.ok(navigateIndex > rememberIndex, 'the inbox must open only after the new thread is retained');
+});
+
 test("property detail formats guide price from property country and currency", () => {
   assert.equal(
     formatPropertyDetailCurrency(2400, { country: "GB", currency: "GBP" } as any),

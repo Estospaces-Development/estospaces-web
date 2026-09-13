@@ -41,6 +41,24 @@ test('getPrimaryPropertyImage falls back when no usable image exists', () => {
     );
 });
 
+test('generated dummy artwork uses the unavailable state without discarding real photos', () => {
+    const dummy = 'https://dummyimage.com/800x500/f97316/ffffff.png&text=Issue228';
+    const real = 'https://assets.estospaces.com/property.jpg';
+    const property = { image_urls: JSON.stringify([dummy, real]) };
+    assert.deepEqual(getPropertyImages(property), [real]);
+    assert.equal(getPrimaryPropertyImage({ image_url: dummy }, '/unavailable.svg'), '/unavailable.svg');
+    assert.equal(property.image_urls, JSON.stringify([dummy, real]));
+});
+
+test('placeholder detection matches hostnames, not names inside real media URLs', () => {
+    const images = [
+        'https://assets.estospaces.com/dummyimage.com/photo.jpg',
+        'https://dummyimage.com.assets.estospaces.com/photo.jpg',
+    ];
+    assert.deepEqual(getPropertyImages({ images }), images);
+    assert.deepEqual(getPropertyImages({ image_url: 'https://www.dummyimage.com/800x500' }), []);
+});
+
 test('getPropertyImages passes GCS media bucket URLs through resolveMediaUrl', () => {
     const images = getPropertyImages({
         image_urls: [

@@ -346,17 +346,25 @@ export const resolvePropertyLocation = async (
         return { kind: 'unavailable' };
     }
 
+    const selectedCity = location.city ?? '';
     const providerCity = typeof coordinates.city === 'string' ? coordinates.city : '';
-    if (location.city && providerCity && !locationLabelsMatch(location.city, providerCity)) {
+    const providerState = typeof coordinates.state === 'string' ? coordinates.state : '';
+    const cityMatchesProvider = !selectedCity || !providerCity || locationLabelsMatch(selectedCity, providerCity);
+    // UK postcodes.io reports London boroughs (for example Westminster) as the
+    // district while the product's city selection is London. Other regions
+    // (for example North West) are not cities and cannot bypass district checks.
+    const cityMatchesUkRegion = market === 'GB'
+        && locationLabelsMatch(selectedCity, 'London')
+        && locationLabelsMatch(providerState, 'London');
+    if (!cityMatchesProvider && !cityMatchesUkRegion) {
         return {
             kind: 'mismatch',
             field: 'city',
-            expected: location.city,
+            expected: selectedCity,
             resolved: providerCity,
         };
     }
 
-    const providerState = typeof coordinates.state === 'string' ? coordinates.state : '';
     if (location.state && providerState && !locationLabelsMatch(location.state, providerState)) {
         return {
             kind: 'mismatch',

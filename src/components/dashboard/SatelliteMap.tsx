@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, Home, X } from 'lucide-react';
 import { getUserProperties } from '@/services/userPropertiesService';
 import {
@@ -55,14 +55,22 @@ const filterOptions = [
 function MapController({
     center,
     locations,
+    locationKey,
 }: {
     center: [number, number];
     locations: Location[];
+    locationKey: string;
 }) {
     const map = useMap();
+    const appliedLocationKey = useRef<string | null>(null);
 
     useEffect(() => {
+        if (appliedLocationKey.current === locationKey) {
+            return;
+        }
+
         try {
+            appliedLocationKey.current = locationKey;
             map.closePopup();
             if (locations.length > 1) {
                 map.fitBounds(
@@ -75,7 +83,7 @@ function MapController({
         } catch {
             // Ignore transient Leaflet teardown errors during view resets.
         }
-    }, [center, locations, map]);
+    }, [center, locationKey, locations, map]);
 
     return null;
 }
@@ -138,10 +146,14 @@ const SatelliteMap = () => {
     const allLocations = propertyLocations;
     const filteredLocations = allLocations.filter((location) => activeFilters.includes(location.type));
     const mapCenter = getManagerPropertyMapCenter(filteredLocations.length > 0 ? filteredLocations : allLocations);
+    const locationKey = filteredLocations
+        .map((location) => `${location.id}:${location.lat}:${location.lng}`)
+        .sort()
+        .join('|');
     const mapKey = [
         mapCenter.join(':'),
         activeFilters.join(':'),
-        ...filteredLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`),
+        locationKey,
     ].join('|');
 
     const getIconForType = (type: string) => {
@@ -280,7 +292,7 @@ const SatelliteMap = () => {
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
-                <MapController center={mapCenter} locations={filteredLocations} />
+                <MapController center={mapCenter} locations={filteredLocations} locationKey={locationKey} />
 
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

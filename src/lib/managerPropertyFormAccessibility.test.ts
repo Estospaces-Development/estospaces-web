@@ -227,6 +227,19 @@ test('manager property location uses address lookup, current location, and a map
   assert.match(managerPropertyFormPage, /getUserGeolocation/);
   assert.match(managerPropertyFormPage, /addressChanged \? "" : formData\.latitude/);
   assert.match(managerPropertyFormPage, /onLocationChange=\{handleMapLocationChange\}/);
+  assert.match(managerPropertyFormPage, /const handleMapLocationChange[\s\S]*locationRevisionRef\.current \+= 1/);
+  assert.doesNotMatch(managerPropertyFormPage, />\s*Latitude\s*</);
+  assert.doesNotMatch(managerPropertyFormPage, />\s*Longitude\s*</);
+});
+
+test('manager property location uses address lookup, current location, and a map picker', () => {
+  assert.match(managerPropertyFormPage, /PropertyLocationPicker/);
+  assert.match(managerPropertyFormPage, /resolvePropertyLocation/);
+  assert.match(managerPropertyFormPage, /resolution\.kind === "mismatch"/);
+  assert.match(managerPropertyFormPage, /getUserGeolocation/);
+  assert.match(managerPropertyFormPage, /addressChanged \? "" : formData\.latitude/);
+  assert.match(managerPropertyFormPage, /onLocationChange=\{handleMapLocationChange\}/);
+  assert.match(managerPropertyFormPage, /const handleMapLocationChange[\s\S]*locationRevisionRef\.current \+= 1/);
   assert.doesNotMatch(managerPropertyFormPage, />\s*Latitude\s*</);
   assert.doesNotMatch(managerPropertyFormPage, />\s*Longitude\s*</);
 });

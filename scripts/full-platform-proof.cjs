@@ -56,8 +56,8 @@ async function healthChecks(target) {
       target.name,
       'system',
       url,
-      response.ok || response.status === 302 ? 'passed' : 'failed',
-      '2xx/302 response from live endpoint',
+      response.ok || [301, 302, 307, 308].includes(response.status) ? 'passed' : 'failed',
+      '2xx or standard redirect response from live endpoint',
       JSON.stringify({ status: response.status, headers }),
     ));
   }
@@ -275,10 +275,14 @@ function aggregateFastTrack(targetName, artifactPath, payload) {
     {
       role: 'system',
       surface: 'fast-track browser diagnostics',
-      ok: !isSkipped && diagnostics.length === 0 && payload.diagnosticsOk === true,
-      actual: { diagnosticsOk: payload.diagnosticsOk },
-      errors: diagnostics,
-      fixRef: 'FAST-TRACK-DIAGNOSTICS',
+      // A tenant with no active Fast Track cases cannot exercise the
+      // celebration overlay. The role-level checks above already record this
+      // as an explicit skip, so do not turn an expected no-data condition into
+      // a release-gate failure.
+      ok: isSkipped ? true : diagnostics.length === 0 && payload.overallOk === true,
+      actual: { overallOk: payload.overallOk },
+      errors: isSkipped ? [] : diagnostics,
+      fixRef: isSkipped ? 'FAST-TRACK-SKIPPED-NO-CASES' : 'FAST-TRACK-DIAGNOSTICS',
     },
     {
       role: 'system',

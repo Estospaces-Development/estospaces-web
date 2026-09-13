@@ -406,6 +406,19 @@ test("completed manager handover is read-only with clear feedback", () => {
   assert.equal(source.match(/\{renderCompletionRefresh\(\)\}/g)?.length, 3);
 });
 
+test("fast-track actions always release their busy state after a thrown request", () => {
+  const source = workspaceSource();
+
+  assert.match(
+    source,
+    /setActiveAction\(action\);\s*let data: FastTrackCase \| null = null;\s*let actionError: string \| null = null;\s*try \{/s,
+  );
+  assert.match(
+    source,
+    /catch \{\s*actionError = 'Unable to update the fast-track workspace\.';\s*\} finally \{\s*setActiveAction\(null\);\s*\}/s,
+  );
+});
+
 test("manager review submit stays disabled until a star rating is selected", () => {
   const source = workspaceSource();
 

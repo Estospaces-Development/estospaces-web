@@ -228,8 +228,10 @@ function parseOption(argv, name) {
 }
 
 function resolveLoginPath(baseUrl) {
-  const hostname = new URL(baseUrl).hostname;
-  return hostname.endsWith(".run.app") ? "/login/" : "/login";
+  // `/sessions/create` was the retired landing/admin route. All hosted app
+  // surfaces use the canonical login screen; the trailing slash is handled
+  // consistently by the GCP Nginx auth-route rule.
+  return "/login/";
 }
 
 async function ensureReachable(baseUrl) {
