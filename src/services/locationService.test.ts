@@ -326,3 +326,16 @@ test('property resolution rejects an Indian PIN whose provider state conflicts w
     });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('property resolution never treats an arbitrary UK region as the selected city', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 53.7591, longitude: -2.7032, postcode: 'PR1 5QH',
+    admin_district: 'Preston', region: 'North West', country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'PR1 5QH', countryCode: 'GB', city: 'North West', state: 'North West',
+    }), { kind: 'mismatch', field: 'city', expected: 'North West', resolved: 'Preston' });
+  } finally { globalThis.fetch = originalFetch; }
+});

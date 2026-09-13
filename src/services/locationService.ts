@@ -351,10 +351,11 @@ export const resolvePropertyLocation = async (
     const providerState = typeof coordinates.state === 'string' ? coordinates.state : '';
     const cityMatchesProvider = !selectedCity || !providerCity || locationLabelsMatch(selectedCity, providerCity);
     // UK postcodes.io reports London boroughs (for example Westminster) as the
-    // district while the product's city selection is London. A selected city
-    // matching the provider region is still a valid address, without relaxing
-    // district validation for other markets.
-    const cityMatchesUkRegion = market === 'GB' && Boolean(selectedCity) && Boolean(providerState) && locationLabelsMatch(selectedCity, providerState);
+    // district while the product's city selection is London. Other regions
+    // (for example North West) are not cities and cannot bypass district checks.
+    const cityMatchesUkRegion = market === 'GB'
+        && locationLabelsMatch(selectedCity, 'London')
+        && locationLabelsMatch(providerState, 'London');
     if (!cityMatchesProvider && !cityMatchesUkRegion) {
         return {
             kind: 'mismatch',
