@@ -14,5 +14,15 @@ const toDataUri = (title: string, subtitle: string, accent: string) =>
         </svg>
     `)}`;
 
-export const PROPERTY_PLACEHOLDER_IMAGE = toDataUri('Estospaces', 'Property media unavailable', '#f97316');
+export const PROPERTY_PLACEHOLDER_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400">
+        <title>Property media unavailable</title>
+        <rect width="640" height="400" fill="#f1f5f9" />
+        <g transform="translate(288 132) scale(2.667)" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m2 2 20 20 M9 3h10a2 2 0 0 1 2 2v10 M21 21H5a2 2 0 0 1-2-2V5 M3 16l5-5 M14 14l1-1 6 6" />
+            <circle cx="15" cy="8" r="1" />
+        </g>
+        <text x="320" y="245" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#64748b">Property media unavailable</text>
+    </svg>
+`)}`;
 export const AGENCY_PLACEHOLDER_IMAGE = toDataUri('Estospaces', 'Agency media unavailable', '#2563eb');
