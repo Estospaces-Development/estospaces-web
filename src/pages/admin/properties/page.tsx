@@ -10,7 +10,6 @@ import {
     ChevronRight,
     Copy,
     Globe,
-    Home,
     Layers,
     MapPin,
     Plus,
@@ -21,7 +20,7 @@ import { useProperties } from '@/contexts/PropertyContext';
 import { useToast } from '@/contexts/ToastContext';
 import { adminUpdatePropertyStatus, copyProperty, deleteProperty as deletePropertyRequest } from '@/services/propertyService';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
-import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import PropertyMediaImage from '@/components/dashboard/PropertyMediaImage';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 import PaginationBar from '@/components/ui/PaginationBar';
@@ -626,7 +625,7 @@ function PropertyManagementContent() {
                             const propertyId = resolvePropertyId(property);
                             const propertyCardKey = resolvePropertyCardKey(propertyId, index);
                             const isBusy = propertyId !== null && updatingPropertyId === propertyId;
-                            const propertyImage = getPrimaryPropertyImage(property, PROPERTY_PLACEHOLDER_IMAGE);
+                            const propertyImage = getPrimaryPropertyImage(property);
 
                             return (
                                 <div
@@ -634,16 +633,10 @@ function PropertyManagementContent() {
                                     className="group overflow-hidden rounded-[3rem] border bg-white shadow-2xl shadow-gray-200/50 transition-all duration-500 hover:-translate-y-2 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none"
                                 >
                                 <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 dark:from-gray-800 dark:to-gray-900">
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <Home size={44} />
-                                    </div>
-                                    <img
-                                        src={propertyImage || PROPERTY_PLACEHOLDER_IMAGE}
+                                    <PropertyMediaImage
+                                        src={propertyImage}
                                         alt={property.title || 'Property'}
                                         className="relative h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                                        onError={(event) => {
-                                            event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                        }}
                                     />
                                     <div className="absolute left-6 top-6 flex items-center gap-2">
                                         <span className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg ring-1 ring-inset backdrop-blur-md ${statusBadge.badgeClassName}`}>

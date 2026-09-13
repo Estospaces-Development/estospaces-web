@@ -91,7 +91,9 @@ export const resolvePropertyImageUrl = (image: string): string => {
 const isPlaceholderUrl = (image: string) => {
     try {
         const url = new URL(image);
-        return url.hostname === 'example.com';
+        return url.hostname === 'example.com'
+            || url.hostname === 'dummyimage.com'
+            || url.hostname === 'www.dummyimage.com';
     } catch {
         return false;
     }

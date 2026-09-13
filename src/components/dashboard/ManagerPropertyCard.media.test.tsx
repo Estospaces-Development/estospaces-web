@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
@@ -15,8 +16,14 @@ const renderCard = (image_urls: unknown) => renderToStaticMarkup(
     </PropertyProvider></WorkspaceSyncProvider></MemoryRouter>,
 );
 
+test('admin registry shares the responsive empty-media component instead of cropping SVG text', () => {
+    const source = readFileSync('src/pages/admin/properties/page.tsx', 'utf8');
+    assert.match(source, /<PropertyMediaImage\s+src=\{propertyImage\}/);
+    assert.doesNotMatch(source, /PROPERTY_PLACEHOLDER_IMAGE/);
+});
+
 test('manager missing media has one accessible empty state, not a placeholder image', () => {
-    for (const images of [undefined, 'null', '[]', ['https://example.com/a.jpg']]) {
+    for (const images of [undefined, 'null', '[]', ['https://example.com/a.jpg'], ['https://dummyimage.com/800x500/f97316/ffffff.png&text=Issue228']]) {
         const browser = new Window();
         try {
             browser.document.body.innerHTML = renderCard(images);
