@@ -13,7 +13,7 @@ test("Home Choices content can wrap without being squeezed by its deadline card"
   assert.match(source, /flex min-w-0 flex-col gap-3 sm:flex-row/);
   assert.match(source, /min-w-0 flex-1/);
   assert.match(source, /break-words text-sm font-semibold/);
-  assert.match(source, /sm:w-auto sm:shrink-0 sm:whitespace-nowrap sm:text-right/);
+  assert.match(source, /sm:w-auto sm:shrink-0 sm:text-right/);
 });
 
 test("matched agent requests use compact progressive disclosure on phones", () => {
@@ -113,7 +113,8 @@ test("manager property controls remain usable on narrow screens", () => {
   const source = readSource("pages/manager/dashboard/properties/page.tsx");
 
   assert.match(source, /flex w-full flex-wrap items-center justify-between gap-2 lg:w-auto lg:justify-end/);
-  assert.match(source, /right-0 z-50 mt-2 w-\[min\(14rem,calc\(100vw-2rem\)\)\]/);
+  assert.match(source, /left-0 z-50 mt-2 w-56 max-w-\[calc\(100vw-2rem\)\]/);
+  assert.match(source, /sm:left-auto sm:right-0/);
   assert.match(source, /overflow-x-auto/);
   assert.match(source, /<table className="min-w-\[760px\] w-full text-left">/);
 });
@@ -132,7 +133,6 @@ test("manager case-file documents follow both light and dark themes", () => {
   assert.match(source, /border-orange-200 bg-orange-50\/70 p-5 shadow-sm dark:border-\[#35261a\] dark:bg-\[#101010\]/);
   assert.match(source, /border-gray-200 bg-gray-50 p-5 shadow-sm dark:border-\[#252525\] dark:bg-\[#0c0c0c\]/);
 });
-
 test("role guides surface actions before supporting desktop detail on phones", () => {
   const source = readSource("components/docs/RoleDocsPage.tsx");
 
