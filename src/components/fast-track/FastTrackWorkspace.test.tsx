@@ -364,10 +364,13 @@ test("closed manager and admin Fast Track stages are read-only while user record
   assert.match(source, /data-fast-track-closed-case-read-only/);
   assert.match(source, /Closed case — view only/);
   assert.match(source, /disabled=\{isFastTrackStageReadOnly\(selectedCase, role\) && effectiveVisibleStage !== 'documents'\s*&& !\(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\)\)\}/);
-  assert.match(source, /readOnly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
-  assert.match(source, /aria-readonly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
+  assert.match(source, /const notesReadOnly = isFastTrackStageReadOnly\(selectedCase, role\)\s*&& !canRequestCompletedCaseReplacement/);
+  assert.match(source, /readOnly=\{notesReadOnly\}/);
+  assert.match(source, /aria-readonly=\{notesReadOnly\}/);
   assert.match(source, /action === 'retry_handover_sync'\s*&& canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\)/);
-  assert.match(source, /isFastTrackStageReadOnly\(selectedCase, role\) && !completionRefreshAllowed/);
+  assert.match(source, /isFastTrackStageReadOnly\(selectedCase, role\)\s*&& !completionRefreshAllowed\s*&& !completedDocumentRecoveryAllowed/);
+  assert.match(source, /request_document_replacement/);
+  assert.match(source, /The completed case stays closed/);
 });
 
 test("user still sees handover confirmation when manager has completed the case", () => {

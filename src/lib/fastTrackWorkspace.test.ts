@@ -14,6 +14,7 @@ import {
     buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
     canStartFastTrackDocumentUpload,
+    canRequestCompletedFastTrackDocumentReplacement,
     canUserPrepareFastTrackDocuments,
     canUserConfirmFastTrackHandover,
     canRefreshFastTrackCompletion,
@@ -27,6 +28,7 @@ import {
     getFastTrackManagerAgreementStatus,
     isFastTrackHistoricalStageForCase,
     isFastTrackDocumentDraftDirty,
+    isCompletedFastTrackDocumentRecoveryAction,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
     resolveFastTrackDocumentSearchParam,
@@ -921,6 +923,92 @@ for (const [stage, allowed] of [
 test('user cannot prepare documents without a selected case', () => {
     assert.equal(canUserPrepareFastTrackDocuments(null), false);
     assert.equal(canUserPrepareFastTrackDocuments(undefined), false);
+});
+
+test('completed document recovery is limited to an explicit replacement workflow', () => {
+    const baseDocuments = buildCase().documents;
+    const completed = buildCase({
+        workspaceFinalStatus: 'completed',
+        stage: 'handover',
+        handover: {
+            status: 'completed',
+            completedAt: '2026-09-14T10:00:00Z',
+            completedBy: 'manager-1',
+            confirmedByUser: true,
+        },
+        documents: {
+            ...baseDocuments,
+            allUploaded: true,
+            allApproved: true,
+            note: '',
+            items: [
+                {
+                    id: 'identity',
+                    label: 'Identity',
+                    status: 'approved',
+                    documentRecordId: 'missing-document-record',
+                    fileName: 'sale-id.pdf',
+                    fileUrl: 'https://example.test/missing-sale-id.pdf',
+                    mimeType: 'application/pdf',
+                    uploadedAt: '2026-09-01T10:00:00Z',
+                    reviewedAt: '2026-09-01T10:10:00Z',
+                    reviewedBy: 'manager-1',
+                    uploadNote: '',
+                    reviewNote: '',
+                    note: '',
+                    requestReason: '',
+                    requestDueAt: '',
+                },
+            ],
+        },
+    });
+    const identity = completed.documents.items[0];
+
+    assert.equal(canRequestCompletedFastTrackDocumentReplacement(completed, identity, 'manager'), true);
+    assert.equal(canRequestCompletedFastTrackDocumentReplacement(completed, identity, 'user'), false);
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(completed, 'manager', 'request_document_replacement', {
+        document_id: 'identity',
+        note: 'The approved file is unavailable. Please upload the original again.',
+    }), true);
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(completed, 'manager', 'request_document_replacement', {
+        document_id: 'identity',
+        note: '',
+    }), false);
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(completed, 'user', 'upload_document', {
+        document_id: 'identity',
+    }), false);
+
+    const reuploadRequested = {
+        ...completed,
+        documents: {
+            ...completed.documents,
+            items: [{ ...identity, status: 'reupload_needed' as const }],
+        },
+    };
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(reuploadRequested, 'user', 'upload_document', {
+        document_id: 'identity',
+    }), true);
+
+    const uploadedReplacement = {
+        ...reuploadRequested,
+        documents: {
+            ...reuploadRequested.documents,
+            items: [{ ...reuploadRequested.documents.items[0], status: 'uploaded' as const }],
+        },
+    };
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(uploadedReplacement, 'manager', 'review_document', {
+        document_id: 'identity',
+        outcome: 'approved',
+    }), true);
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(uploadedReplacement, 'manager', 'review_document', {
+        document_id: 'identity',
+        outcome: 'reupload_needed',
+        note: 'The replacement is unreadable.',
+    }), true);
+    assert.equal(isCompletedFastTrackDocumentRecoveryAction(uploadedReplacement, 'manager', 'review_document', {
+        document_id: 'identity',
+        outcome: 'reupload_needed',
+    }), false);
 });
 
 test('manager document actions do not offer duplicate approval', () => {

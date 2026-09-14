@@ -42,6 +42,7 @@ import {
     buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
     canStartFastTrackDocumentUpload,
+    canRequestCompletedFastTrackDocumentReplacement,
     canUserPrepareFastTrackDocuments,
     canUserConfirmFastTrackHandover,
     describeFastTrackWorkspaceFocus,
@@ -56,6 +57,7 @@ import {
     isFastTrackDocumentDraftDirty,
     isFastTrackHistoricalStageForCase,
     isFastTrackCaseCompleteForRole,
+    isCompletedFastTrackDocumentRecoveryAction,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
     resolveFastTrackDocumentSearchParam,
@@ -1576,8 +1578,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const completionRefreshAllowed = action === 'retry_handover_sync'
             && canRefreshFastTrackCompletion(selectedCase, role, user?.id);
+        const completedDocumentRecoveryAllowed = isCompletedFastTrackDocumentRecoveryAction(
+            selectedCase,
+            role,
+            action,
+            payload,
+        );
         if ((action === 'retry_handover_sync' && !completionRefreshAllowed)
-            || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)) {
+            || (isFastTrackStageReadOnly(selectedCase, role)
+                && !completionRefreshAllowed
+                && !completedDocumentRecoveryAllowed)) {
             setPendingAdminOverrideAction(null);
             setStageConfirmDialog(null);
             setCancelCaseDialogOpen(false);
@@ -1641,7 +1651,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 propertyId: nextCase.propertyId,
             },
         });
-        if (nextCase.workspaceFinalStatus !== 'completed') {
+        if (nextCase.workspaceFinalStatus !== 'completed' || completedDocumentRecoveryAllowed) {
             toast.success(successMessage || 'Workspace updated.');
         }
         if (action === 'retry_handover_sync' && (refreshedCase.error || !refreshedCase.data)) {
@@ -1725,7 +1735,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        if (!canUserPrepareFastTrackDocuments(selectedCase)) {
+        const completedDocumentRecoveryAllowed = isCompletedFastTrackDocumentRecoveryAction(
+            selectedCase,
+            role,
+            'upload_document',
+            { document_id: item.id },
+        );
+        if (!canUserPrepareFastTrackDocuments(selectedCase) && !completedDocumentRecoveryAllowed) {
             toast.info('Documents can only be uploaded during document collection.');
             return;
         }
@@ -1819,7 +1835,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             documentUploadsInFlightRef.current.delete(item.id);
             setActiveAction(null);
         }
-    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
+    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, role, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? getFastTrackCaseStatusChip(selectedCase, deadlineNow) : null;
@@ -2958,16 +2974,54 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item, itemIndex) => {
-                        const canUpload = role === 'user' && canUserPrepareFastTrackDocuments(selectedCase);
                         const busyKey = `upload-${item.id}`;
                         const selectedFile = selectedFiles[item.id] || null;
                         const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
+                        const canUploadCompletedCaseReplacement = isCompletedFastTrackDocumentRecoveryAction(
+                            selectedCase,
+                            role,
+                            'upload_document',
+                            { document_id: item.id },
+                        );
+                        const canUpload = role === 'user' && (
+                            canUserPrepareFastTrackDocuments(selectedCase)
+                            || canUploadCompletedCaseReplacement
+                        );
                         const uploadCopy = getFastTrackDocumentUploadCopy({
                             status: item.status,
                             hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
                         });
                         const focused = focusedDocumentItem?.id === item.id;
                         const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
+                        const canRequestCompletedCaseReplacement = canRequestCompletedFastTrackDocumentReplacement(
+                            selectedCase,
+                            item,
+                            role,
+                        )
+                            && previewItemId === item.id
+                            && Boolean(previewError)
+                            && !previewUrl;
+                        const canSubmitCompletedCaseReplacement = isCompletedFastTrackDocumentRecoveryAction(
+                            selectedCase,
+                            role,
+                            'request_document_replacement',
+                            {
+                                document_id: item.id,
+                                note: documentNotes[item.id] || '',
+                            },
+                        );
+                        const canReviewCompletedCaseReplacement = isCompletedFastTrackDocumentRecoveryAction(
+                            selectedCase,
+                            role,
+                            'review_document',
+                            {
+                                document_id: item.id,
+                                outcome: 'approved',
+                            },
+                        );
+                        const notesReadOnly = isFastTrackStageReadOnly(selectedCase, role)
+                            && !canRequestCompletedCaseReplacement
+                            && !canReviewCompletedCaseReplacement;
                         const canRequestDocument = role !== 'user'
                             && selectedCase.workspaceFinalStatus === 'active'
                             && selectedCase.stage === 'documents'
@@ -3107,8 +3161,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {canUpload || canPreview ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
-                                        readOnly={isFastTrackStageReadOnly(selectedCase, role)}
-                                        aria-readonly={isFastTrackStageReadOnly(selectedCase, role)}
+                                        readOnly={notesReadOnly}
+                                        aria-readonly={notesReadOnly}
                                         onChange={(event) => setDocumentNotes((previous) => ({
                                             ...previous,
                                             [item.id]: event.target.value,
@@ -3169,23 +3223,53 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             }))}
                                             onRequest={() => handleRequestDocument(item, documentRequestReason, documentRequestDeadline)}
                                         />
+                                    ) : canRequestCompletedCaseReplacement ? (
+                                        <div className="mt-3 space-y-3 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+                                            <p className="font-semibold">File unavailable</p>
+                                            <p className="text-xs leading-5">The completed case stays closed. Add a reason, then request a replacement file from the user.</p>
+                                            <ActionButton
+                                                tone="secondary"
+                                                onClick={() => void runAction(
+                                                    'request_document_replacement',
+                                                    {
+                                                        document_id: item.id,
+                                                        note: documentNotes[item.id] || '',
+                                                    },
+                                                    `${item.label} replacement requested. The completed case remains closed.`,
+                                                )}
+                                                busy={activeAction === 'request_document_replacement'}
+                                                disabled={!canSubmitCompletedCaseReplacement}
+                                                className="w-full"
+                                            >
+                                                <Upload size={16} />
+                                                Request replacement
+                                            </ActionButton>
+                                        </div>
                                     ) : (
                                         <FastTrackDocumentReviewControls
                                             item={item}
                                             hasAttachedFile={canPreview}
                                             busy={activeAction === 'review_document'}
-                                            readOnly={isFastTrackStageReadOnly(selectedCase, role)}
-                                            onReview={(outcome) => void runAction(
-                                                'review_document',
-                                                {
+                                            readOnly={isFastTrackStageReadOnly(selectedCase, role) && !canReviewCompletedCaseReplacement}
+                                            onReview={(outcome) => {
+                                                const payload = {
                                                     document_id: item.id,
                                                     outcome,
                                                     note: documentNotes[item.id] || '',
-                                                },
-                                                outcome === 'approved'
-                                                    ? `${item.label} approved.`
-                                                    : `${item.label} marked for replacement.`,
-                                            )}
+                                                };
+                                                if (isFastTrackStageReadOnly(selectedCase, role)
+                                                    && !isCompletedFastTrackDocumentRecoveryAction(selectedCase, role, 'review_document', payload)) {
+                                                    toast.info('Add a replacement reason before requesting another upload.');
+                                                    return;
+                                                }
+                                                void runAction(
+                                                    'review_document',
+                                                    payload,
+                                                    outcome === 'approved'
+                                                        ? `${item.label} approved.`
+                                                        : `${item.label} marked for replacement.`,
+                                                );
+                                            }}
                                         />
                                     )}
                                 </div>
