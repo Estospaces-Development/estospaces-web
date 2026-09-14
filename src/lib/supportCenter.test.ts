@@ -208,6 +208,14 @@ test('resuming support always clears its pending state after the detail request 
     assert.match(source, /loadingTicketDetailsRef\.current\.delete\(ticketId\);\s*if \(!silent && supportCenterMountedRef\.current\) \{\s*setDetailLoading\(false\);\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);/);
 });
 
+test('selecting a support ticket scrolls directly to its loaded transcript', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /const ticketTranscriptRef = useRef<HTMLDivElement>\(null\)/);
+    assert.match(source, /if \(!selectedTicketId \|\| selectedTicket\?\.id !== selectedTicketId\) \{\s*return;\s*\}\s*ticketTranscriptRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+    assert.match(source, /<div ref=\{ticketTranscriptRef\} className="min-w-0 space-y-5">/);
+});
+
 test('background support polling never surfaces repeated detail-load errors', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
 
