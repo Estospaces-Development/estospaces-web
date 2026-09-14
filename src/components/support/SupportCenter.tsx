@@ -280,6 +280,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
     const loadDetail = useCallback(async (ticketId: string, silent = false) => {
         if (loadingTicketDetailsRef.current.has(ticketId)) {
+            setResumingTicketId((current) => current === ticketId ? null : current);
             return;
         }
 
@@ -304,7 +305,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
             }
         } finally {
             loadingTicketDetailsRef.current.delete(ticketId);
-            if (!silent && supportCenterMountedRef.current) setDetailLoading(false);
+            if (!silent && supportCenterMountedRef.current) {
+                setDetailLoading(false);
+                setResumingTicketId((current) => current === ticketId ? null : current);
+            }
         }
     }, [toast]);
 

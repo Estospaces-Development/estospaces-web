@@ -201,11 +201,18 @@ test('support actions expose a visible pending state and avoid button-submit sid
     assert.match(ticketListSource, /aria-current=\{active \? 'page' : undefined\}/);
 });
 
+test('resuming support always clears its pending state after the detail request settles or is already in flight', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);\s*return;/);
+    assert.match(source, /loadingTicketDetailsRef\.current\.delete\(ticketId\);\s*if \(!silent && supportCenterMountedRef\.current\) \{\s*setDetailLoading\(false\);\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);/);
+});
+
 test('background support polling never surfaces repeated detail-load errors', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
 
     assert.match(source, /const loadingTicketDetailsRef = useRef\(new Set<string>\(\)\)/);
-    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*return;/);
+    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);\s*return;/);
     assert.match(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{[\s\S]*?toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
     assert.doesNotMatch(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{[\s\S]*?\}\s*toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
 });
