@@ -172,6 +172,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const detailRequestVersionRef = useRef(0);
     const supportCenterMountedRef = useRef(false);
     const composerHeadingRef = useRef<HTMLHeadingElement>(null);
+    const ticketTranscriptRef = useRef<HTMLDivElement>(null);
 
     const handleStartNewTicket = useCallback(() => {
         setSearchParams(new URLSearchParams(), { replace: true });
@@ -352,6 +353,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
         setReplyAttachments([]);
         setReplyDraftId('');
     }, [selectedTicketId]);
+
+    useEffect(() => {
+        if (!selectedTicketId || selectedTicket?.id !== selectedTicketId) {
+            return;
+        }
+
+        ticketTranscriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [selectedTicket?.id, selectedTicketId]);
 
     useEffect(() => {
         if (resumingTicketId && selectedTicket?.id === resumingTicketId && !detailLoading) {
@@ -677,7 +686,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     )}
                 </div>
 
-                <div className="min-w-0 space-y-5">
+                <div ref={ticketTranscriptRef} className="min-w-0 space-y-5">
                     {!isAdmin && !selectedTicket && (
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                             <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 ref={composerHeadingRef} tabIndex={-1} className="text-2xl font-black text-gray-950 outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:text-white dark:focus-visible:ring-offset-gray-900">Open a support ticket</h2></div>
