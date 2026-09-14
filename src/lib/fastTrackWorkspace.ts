@@ -434,6 +434,48 @@ export const canUserPrepareFastTrackDocuments = (
 ) => fastTrackCase?.workspaceFinalStatus === 'active'
     && (fastTrackCase.stage === 'selected' || fastTrackCase.stage === 'documents');
 
+export const canRequestCompletedFastTrackDocumentReplacement = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'> | null | undefined,
+    item: Pick<FastTrackCase['documents']['items'][number], 'status' | 'documentRecordId' | 'fileUrl'> | null | undefined,
+    role: FastTrackWorkspaceRole,
+) => Boolean(
+    fastTrackCase?.workspaceFinalStatus === 'completed'
+    && (role === 'manager' || role === 'admin')
+    && item?.status === 'approved'
+    && (item.documentRecordId || item.fileUrl),
+);
+
+export const isCompletedFastTrackDocumentRecoveryAction = (
+    fastTrackCase: FastTrackCase | null | undefined,
+    role: FastTrackWorkspaceRole,
+    action: string,
+    payload?: Record<string, unknown>,
+) => {
+    const documentId = String(payload?.document_id || '').trim();
+    const item = fastTrackCase?.documents.items.find((candidate) => candidate.id === documentId);
+    if (!fastTrackCase || !item || fastTrackCase.workspaceFinalStatus !== 'completed') {
+        return false;
+    }
+
+    switch (action) {
+        case 'request_document_replacement':
+            return canRequestCompletedFastTrackDocumentReplacement(fastTrackCase, item, role)
+                && Boolean(String(payload?.note || '').trim());
+        case 'upload_document':
+            return role === 'user' && item.status === 'reupload_needed';
+        case 'review_document':
+            {
+                const outcome = String(payload?.outcome || '').trim();
+                return (role === 'manager' || role === 'admin')
+                    && item.status === 'uploaded'
+                    && (outcome === 'approved'
+                        || (outcome === 'reupload_needed' && Boolean(String(payload?.note || '').trim())));
+            }
+        default:
+            return false;
+    }
+};
+
 export const canStartFastTrackDocumentUpload = (
     item: Pick<FastTrackCase['documents']['items'][number], 'status' | 'documentRecordId' | 'fileName' | 'fileUrl'>,
     file: Pick<File, 'name' | 'size' | 'lastModified'> | null | undefined,
