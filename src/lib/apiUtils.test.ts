@@ -6,6 +6,7 @@ import {
     ApiRequestError,
     apiFetch,
     buildApiUrl,
+    getErrorMessage,
     getAuthHeaders,
     handleUnauthorizedResponse,
     resolveManagerWorkflowErrorPresentation,
@@ -24,6 +25,19 @@ test('buildApiUrl resolves local proxy paths against the current origin fallback
     const url = buildApiUrl('/__dev_proxy/core', '/api/v1/leads/broker');
 
     assert.equal(url.toString(), 'http://localhost/__dev_proxy/core/api/v1/leads/broker');
+});
+
+test('login validation responses never expose Go struct validation details', () => {
+    const backendError = new ApiRequestError(
+        "Validation failed: Key: 'LoginRequest.Password' Error:Field validation for 'Password' failed on the 'min' tag",
+        "Validation failed: Key: 'LoginRequest.Password' Error:Field validation for 'Password' failed on the 'min' tag",
+        400,
+    );
+
+    assert.equal(
+        getErrorMessage(backendError),
+        'Invalid credentials. Please check your email and password.',
+    );
 });
 
 test('auth headers use the in-memory bearer token without reading browser token storage', () => {
