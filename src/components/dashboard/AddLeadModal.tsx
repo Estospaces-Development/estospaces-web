@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
 import { Lead } from '@/contexts/LeadContext';
+import { validateOptionalLeadPhone } from '@/lib/manualLeadPhone';
 import {
     LeadScoreInputValue,
     normalizeLeadScoreInitialValue,
@@ -103,11 +104,8 @@ const AddLeadModal = ({
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!(formData.name || '').trim()) newErrors.name = 'Name is required';
-        if (!(formData.phone || '').trim()) {
-            newErrors.phone = 'Phone is required';
-        } else if (!/^[+]?[\d\s()-]+$/.test((formData.phone || '').trim())) {
-            newErrors.phone = 'Phone must contain only numbers, spaces, and +()-';
-        }
+        const phoneError = validateOptionalLeadPhone(formData.phone);
+        if (phoneError) newErrors.phone = phoneError;
         if (!(formData.email || '').trim()) {
             newErrors.email = 'Email is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email || '')) {
@@ -236,7 +234,7 @@ const AddLeadModal = ({
 
                         <div>
                             <label htmlFor="manual-lead-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Phone
+                                Phone (optional)
                             </label>
                             <input
                                 id="manual-lead-phone"
