@@ -24,6 +24,7 @@ import {
 } from '@/lib/managerPropertyDashboard';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 
@@ -725,7 +726,7 @@ function PropertiesContent() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                            {property.priceString}
+                                            {formatManagerPropertyPrice(property)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statusBadge.badgeClassName}`}>
