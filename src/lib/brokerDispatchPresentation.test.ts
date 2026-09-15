@@ -221,6 +221,20 @@ test('manager tracker countdown only applies before a broker has matched the req
     assert.ok((pendingSeconds || 0) > 0);
 });
 
+test('manager countdown follows the broker offer deadline instead of the overall user window', () => {
+    const request = {
+        status: 'submitted', dispatch_status: 'matching_wave_1',
+        response_deadline_at: new Date(Date.now() + 600_000).toISOString(),
+        broker_offer_expires_at: new Date(Date.now() + 80_000).toISOString(),
+        broker_offer_status: 'pending',
+    };
+    const remaining = getManagerTrackerResponseCountdown(request);
+    assert.ok(typeof remaining === 'number' && remaining > 0 && remaining <= 80);
+    assert.equal(getManagerTrackerResponseCountdown({ ...request, broker_offer_status: 'expired' }), 0);
+    assert.equal(getManagerTrackerResponseCountdown({ ...request, broker_offer_status: 'accepted' }), undefined);
+    assert.equal(getManagerTrackerResponseCountdown({ ...request, broker_offer_expires_at: 'invalid' }), 0);
+});
+
 test('manager tracker sorting keeps share-needed workspaces ahead of completed downstream leads', () => {
     const sorted = sortManagerTrackerItems([
         {

@@ -255,6 +255,8 @@ export interface BrokerRequestRecord {
   dispatch_status?: string;
   dispatch_started_at?: string;
   response_deadline_at?: string;
+  broker_offer_expires_at?: string;
+  broker_offer_status?: string;
   dispatch_wave?: number;
   available_broker_count?: number;
   dispatched_broker_count?: number;
