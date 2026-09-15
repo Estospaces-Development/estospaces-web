@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, CircleHelp, LifeBuoy, RefreshCw, Ticket } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -167,7 +167,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
     // Guard against duplicate / concurrent fetches that fire when filters change
     // (every `fetchTickets` identity change re-triggers the load useEffect). This
     // also prevents multiple "Request timed out" toasts when the API is slow.
-    const fetchingRef = useRef(false);
+    const fetchingRef = useRef<symbol | null>(null);
     const loadingTicketDetailsRef = useRef(new Set<string>());
     const detailRequestVersionRef = useRef(0);
     const supportCenterMountedRef = useRef(false);
@@ -230,13 +230,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
     const fetchTickets = useCallback(async (silent = false) => {
         if (fetchingRef.current) return;
-        fetchingRef.current = true;
+        const request = Symbol('ticket-list-request');
+        fetchingRef.current = request;
         if (!silent) setLoading(true);
         try {
             const data = isAdmin
                 ? await supportService.getAllTickets({ limit: 100 })
                 : await supportService.getTickets({ limit: 100 });
-            if (!supportCenterMountedRef.current) return;
+            if (!supportCenterMountedRef.current || fetchingRef.current !== request) return;
 
             setAllTickets(data);
             const visibleTickets = data.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
@@ -270,14 +271,22 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 }, { replace: true });
             }
         } catch (error: any) {
-            if (!silent && supportCenterMountedRef.current) {
+            if (!silent && supportCenterMountedRef.current && fetchingRef.current === request) {
                 toast.error(error.message || 'Failed to load support tickets');
             }
         } finally {
-            fetchingRef.current = false;
-            if (!silent && supportCenterMountedRef.current) setLoading(false);
+            if (fetchingRef.current === request) {
+                fetchingRef.current = null;
+                if (!silent && supportCenterMountedRef.current) setLoading(false);
+            }
         }
     }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
+
+    // Navigation and filter changes retire the old list request before it can
+    // restore its captured ticket selection or overwrite the new queue.
+    useLayoutEffect(() => () => {
+        fetchingRef.current = null;
+    }, [fetchTickets]);
 
     const loadDetail = useCallback(async (ticketId: string, silent = false) => {
         if (loadingTicketDetailsRef.current.has(ticketId)) {
