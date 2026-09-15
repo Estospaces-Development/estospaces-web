@@ -6,9 +6,17 @@ import { MemoryRouter } from 'react-router-dom';
 
 import  { NearbyBrokerCard } from './NearbyAgenciesList';
 import {
+  formatBrokerRequestLocationCodeInput,
   limitNearestAgenciesForDashboard,
   USER_DASHBOARD_NEAREST_AGENCY_LIMIT,
 } from './BrokerRequestWidget';
+
+test('broker request postcode input preserves the standard UK separator while typing', () => {
+  assert.equal(formatBrokerRequestLocationCodeInput('sw1a '), 'SW1A ');
+  assert.equal(formatBrokerRequestLocationCodeInput('sw1a  1aa'), 'SW1A 1AA');
+  assert.equal(formatBrokerRequestLocationCodeInput('SW1A1AA'), 'SW1A1AA');
+  assert.equal(formatBrokerRequestLocationCodeInput('600 001'), '600001');
+});
 
 // ── #316: broker name is clickable and links to messaging conversation ──
 
