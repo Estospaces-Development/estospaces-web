@@ -5,7 +5,9 @@ import {
     AUTH_EXPIRED_EVENT,
     ApiRequestError,
     apiFetch,
+    apiFetchEnvelope,
     buildApiUrl,
+    getErrorMessage,
     getAuthHeaders,
     handleUnauthorizedResponse,
     resolveManagerWorkflowErrorPresentation,
@@ -24,6 +26,19 @@ test('buildApiUrl resolves local proxy paths against the current origin fallback
     const url = buildApiUrl('/__dev_proxy/core', '/api/v1/leads/broker');
 
     assert.equal(url.toString(), 'http://localhost/__dev_proxy/core/api/v1/leads/broker');
+});
+
+test('login validation responses never expose Go struct validation details', () => {
+    const backendError = new ApiRequestError(
+        "Validation failed: Key: 'LoginRequest.Password' Error:Field validation for 'Password' failed on the 'min' tag",
+        "Validation failed: Key: 'LoginRequest.Password' Error:Field validation for 'Password' failed on the 'min' tag",
+        400,
+    );
+
+    assert.equal(
+        getErrorMessage(backendError),
+        'Invalid credentials. Please check your email and password.',
+    );
 });
 
 test('auth headers use the in-memory bearer token without reading browser token storage', () => {
@@ -178,6 +193,49 @@ test('write request network failures do not retry', async () => {
             body: JSON.stringify({ name: 'QA write' }),
         }));
         assert.equal(attempts, 1);
+    } finally {
+        Object.defineProperty(globalThis, 'fetch', {
+            value: originalFetch,
+            configurable: true,
+        });
+    }
+});
+
+test('request timeout remains active until successful and error response bodies finish', async () => {
+    const originalFetch = globalThis.fetch;
+    let status = 200;
+
+    Object.defineProperty(globalThis, 'fetch', {
+        value: async (_input: RequestInfo | URL, init?: RequestInit) => {
+            const signal = init?.signal;
+            return {
+                ok: status >= 200 && status < 300,
+                status,
+                text: () => new Promise<string>((_resolve, reject) => {
+                    signal?.addEventListener('abort', () => {
+                        const error = new Error('The operation was aborted.');
+                        error.name = 'AbortError';
+                        reject(error);
+                    }, { once: true });
+                }),
+            } as Response;
+        },
+        configurable: true,
+    });
+
+    try {
+        for (const expectedStatus of [200, 503]) {
+            status = expectedStatus;
+            await assert.rejects(
+                () => apiFetchEnvelope('https://example.test/api/v1/offer-review', {
+                    method: 'POST',
+                    auth: false,
+                    suppressErrorToast: true,
+                    timeoutMs: 25,
+                }),
+                (error: unknown) => error instanceof ApiRequestError && error.message === 'Request timed out',
+            );
+        }
     } finally {
         Object.defineProperty(globalThis, 'fetch', {
             value: originalFetch,

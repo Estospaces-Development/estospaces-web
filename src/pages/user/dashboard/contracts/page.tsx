@@ -49,6 +49,7 @@ import {
 } from "@/lib/contractsWorkspaceLoad";
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import PaginationBar from "@/components/ui/PaginationBar";
+import { UserContractCardFrame } from "@/components/dashboard/contracts/UserContractCardFrame";
 import { shouldShowScopedListSearch } from "@/lib/userAppSearch";
 import {
   usePublishWorkspaceSync,
@@ -794,15 +795,10 @@ export default function ContractsPage() {
                       contract.user_signed_at,
                     );
                     return (
-                      <div
+                      <UserContractCardFrame
                         key={contract.id}
-                        className={`p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border transition-all group ${
-                          contract.id === focusedContract?.id
-                            ? "border-orange-300 dark:border-orange-700 shadow-orange-100 dark:shadow-orange-900/20 shadow-sm ring-2 ring-orange-200/80 dark:ring-orange-900/40"
-                            : needsSignature
-                              ? "border-orange-300 dark:border-orange-700 shadow-orange-100 dark:shadow-orange-900/20 shadow-sm"
-                              : "border-transparent hover:border-orange-500/20"
-                        }`}
+                        needsSignature={needsSignature}
+                        isLinked={contract.id === focusedContract?.id}
                       >
                         <div className="flex min-w-0 flex-wrap items-start gap-3">
                           <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-3 sm:gap-4">
@@ -910,7 +906,7 @@ export default function ContractsPage() {
                             <Download size={18} />
                           </button>
                         </div>
-                      </div>
+                      </UserContractCardFrame>
                     );
                   })}
                   <PaginationBar

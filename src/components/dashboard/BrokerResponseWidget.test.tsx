@@ -81,6 +81,7 @@ test('available manager with no pending requests is standing by without an activ
     const text = await renderTracker(true, []);
     assert.match(text, /Standing by/);
     assert.match(text, /No waiting requests/);
+    assert.doesNotMatch(text, /their own 10-minute countdown/);
     assert.doesNotMatch(text, /Live queue is on|Response required in:/);
 });
 

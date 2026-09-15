@@ -133,7 +133,8 @@ export default function AdminDashboard() {
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [recentNotificationSearch, setRecentNotificationSearch] = useState('');
-    const [pendingVerificationsCount, setPendingVerificationsCount] = useState<number>(0);
+    const [pendingVerificationsCount, setPendingVerificationsCount] = useState<number | null>(null);
+    const [pendingVerificationsError, setPendingVerificationsError] = useState<string | null>(null);
     const {
         notifications,
         loading: notificationsLoading,
@@ -170,17 +171,24 @@ export default function AdminDashboard() {
         void fetchAnalytics();
     }, [fetchAnalytics]);
 
+    const loadPendingVerifications = useCallback(async () => {
+        return getAdminPendingVerificationsCount();
+    }, []);
+
+    const applyPendingVerifications = useCallback((result: Awaited<ReturnType<typeof getAdminPendingVerificationsCount>>) => {
+        setPendingVerificationsCount(result.data);
+        setPendingVerificationsError(result.error);
+    }, []);
+
     useEffect(() => {
         let cancelled = false;
-        const loadPendingCount = async () => {
-            const count = await getAdminPendingVerificationsCount();
+        void loadPendingVerifications().then((result) => {
             if (!cancelled) {
-                setPendingVerificationsCount(count);
+                applyPendingVerifications(result);
             }
-        };
-        loadPendingCount();
+        });
         return () => { cancelled = true; };
-    }, []);
+    }, [applyPendingVerifications, loadPendingVerifications]);
 
     useDashboardWorkspaceRefresh({
         tags: [
@@ -197,7 +205,13 @@ export default function AdminDashboard() {
             WORKSPACE_SYNC_TAGS.MESSAGES,
             WORKSPACE_SYNC_TAGS.SUPPORT,
         ],
-        refresh: () => fetchAnalytics(true, true),
+        refresh: async () => {
+            const [, pendingResult] = await Promise.all([
+                fetchAnalytics(true, true),
+                loadPendingVerifications(),
+            ]);
+            applyPendingVerifications(pendingResult);
+        },
     });
 
     if (loading) {
@@ -212,7 +226,9 @@ export default function AdminDashboard() {
         activeTransactions: data?.leadAnalytics?.totalLeads || data?.active_leads || 0
     };
 
-    const platformSnapshot = buildAdminDashboardSnapshot(data);
+    const platformSnapshot = buildAdminDashboardSnapshot(data, {
+        pendingVerifications: pendingVerificationsCount,
+    });
 
     const recentNotificationSearchTerm = recentNotificationSearch.trim().toLowerCase();
     const recentNotifications = [...notifications]
@@ -330,9 +346,11 @@ export default function AdminDashboard() {
                             <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-gray-600 dark:text-gray-300 sm:text-xs sm:tracking-widest">Pending Verifications</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.pendingVerifications}</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.pendingVerifications ?? '—'}</span>
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Awaiting admin review</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">
+                            {pendingVerificationsError ? 'Verification queue unavailable' : 'Awaiting admin review'}
+                        </p>
                     </div>
                 </div>
 
@@ -383,7 +401,9 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="min-w-0">
                                         <h3 className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-orange-700 dark:text-white dark:group-hover:text-orange-400 sm:text-base">Verifications</h3>
-                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">{data?.pending_verifications || 0} Pending Reviews</p>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">
+                                            {pendingVerificationsCount ?? '—'} {pendingVerificationsError ? 'Verification queue unavailable' : 'Pending Reviews'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-orange-500 opacity-0 shadow-sm transition-all group-hover:opacity-100 dark:bg-gray-700 sm:flex">
@@ -522,13 +542,14 @@ export default function AdminDashboard() {
                         </div>
 
                         <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Live platform data.
+                            Paid revenue excludes active Fast Track cases and unpaid bookings.
                         </p>
                     </div>
+                </div>
 
-                    <div
+                <div
                         id="recent-notifications"
-                        className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit"
+                        className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 lg:col-span-3"
                     >
                         <div className="mb-4 flex flex-col items-start gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                             <div className="min-w-0">
@@ -642,7 +663,6 @@ export default function AdminDashboard() {
                             </div>
                         )}
                     </div>
-                </div>
             </div>
         </div>
     );

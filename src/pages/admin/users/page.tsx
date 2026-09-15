@@ -427,10 +427,7 @@ function UserManagementContent() {
         return new Map(adminBrokers.map((broker) => [broker.user_id, getAdminBrokerDisplayName(broker)]));
     }, [adminBrokers]);
 
-    const visibleReassignableLeads = useMemo(() => (
-        adminLeads.filter((lead) => !isLeadClosedForReassignment(lead))
-    ), [adminLeads]);
-    const leadTotalItems = leadPagination?.total ?? visibleReassignableLeads.length;
+    const leadTotalItems = leadPagination?.total ?? adminLeads.length;
     const leadTotalPages = Math.max(1, Math.ceil(leadTotalItems / ADMIN_LEAD_QUEUE_PAGE_SIZE));
     const safeLeadPage = Math.min(leadPage, leadTotalPages);
 
@@ -670,14 +667,15 @@ function UserManagementContent() {
                 <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="Lead reassignment cards">
                     {adminLeadLoading ? (
                         <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
-                    ) : visibleReassignableLeads.length === 0 ? (
+                    ) : adminLeads.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
-                            <p className="text-sm font-black text-gray-900 dark:text-white">No open leads ready for reassignment</p>
+                            <p className="text-sm font-black text-gray-900 dark:text-white">No leads match your current filters</p>
                         </div>
-                    ) : visibleReassignableLeads.map((lead) => {
+                    ) : adminLeads.map((lead) => {
                         const selectedBrokerId = leadBrokerSelections[lead.id] || '';
                         const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
                         const isBusy = reassigningLeadId === lead.id;
+                        const isClosed = isLeadClosedForReassignment(lead);
                         const rowError = leadReassignErrors[lead.id];
                         const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
                         const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
@@ -690,6 +688,7 @@ function UserManagementContent() {
                                     <div className="min-w-0">
                                         <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
                                         <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">{lead.status || 'pending'}</p>
+                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
                                     </div>
                                     <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
                                 </div>
@@ -700,6 +699,7 @@ function UserManagementContent() {
                                 <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-500">New broker</label>
                                 <select
                                     id={`admin-mobile-lead-reassign-${lead.id}`}
+                                    disabled={isClosed}
                                     aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
                                     value={selectedBrokerId}
                                     onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
@@ -742,17 +742,18 @@ function UserManagementContent() {
                                         <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
                                     </td>
                                 </tr>
-                            ) : visibleReassignableLeads.length === 0 ? (
+                            ) : adminLeads.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-8 py-10 text-center">
-                                        <p className="text-base font-black text-gray-900 dark:text-white">No open leads ready for reassignment</p>
+                                        <p className="text-base font-black text-gray-900 dark:text-white">No leads match your current filters</p>
                                     </td>
                                 </tr>
                             ) : (
-                                visibleReassignableLeads.map((lead) => {
+                                adminLeads.map((lead) => {
                                     const selectedBrokerId = leadBrokerSelections[lead.id] || '';
                                     const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
                                     const isBusy = reassigningLeadId === lead.id;
+                                    const isClosed = isLeadClosedForReassignment(lead);
                                     const rowError = leadReassignErrors[lead.id];
                                     const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
                                     const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
@@ -768,6 +769,7 @@ function UserManagementContent() {
                                                 <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
                                                     {lead.status || 'pending'}
                                                 </p>
+                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
                                             </td>
                                             <td className="px-8 py-5 align-top">
                                                 <p className="max-w-xs break-words text-sm font-bold text-gray-600 dark:text-gray-300">
@@ -780,6 +782,7 @@ function UserManagementContent() {
                                                 </label>
                                                 <select
                                                     id={`admin-lead-reassign-${lead.id}`}
+                                                    disabled={isClosed}
                                                     aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
                                                     value={selectedBrokerId}
                                                     onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
@@ -825,7 +828,7 @@ function UserManagementContent() {
                         onPageChange={setLeadPage}
                         totalItems={leadTotalItems}
                         pageSize={ADMIN_LEAD_QUEUE_PAGE_SIZE}
-                        currentItemCount={visibleReassignableLeads.length}
+                        currentItemCount={adminLeads.length}
                         itemLabel="leads"
                         showWhenSinglePage
                     />

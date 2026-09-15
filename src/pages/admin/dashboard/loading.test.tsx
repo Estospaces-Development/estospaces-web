@@ -40,3 +40,10 @@ test('recent notification refresh stays inline without hiding loaded dashboard c
     assert.match(html, /data-loading-layer="inline"/);
     assert.doesNotMatch(html, /fixed inset-0/);
 });
+
+test('verification count refresh uses the actionable queue for every dashboard surface', () => {
+    assert.match(source, /const \[pendingVerificationsCount, setPendingVerificationsCount\] = useState<number \| null>\(null\);/);
+    assert.match(source, /pendingVerifications: pendingVerificationsCount/);
+    assert.match(source, /fetchAnalytics\(true, true\),[\s\S]*loadPendingVerifications\(\)/);
+    assert.doesNotMatch(source, /data\?\.pending_verifications \|\| 0\} Pending Reviews/);
+});
