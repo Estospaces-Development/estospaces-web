@@ -82,7 +82,7 @@ const mount = async (surface: 'appointments' | 'contracts' | 'manager-contracts'
         const load = (id: string): unknown => {
             if (id in boundaries) return boundaries[id];
             if (id === '@/lib/fastTrackCompanion') return loadSource('src/lib/fastTrackCompanion.ts');
-            if (id === '@/components/fast-track/FastTrackCompanionPanel' || id === '@/components/fast-track/FastTrackCompletionRefresh') return loadSource(`src/${id.slice(2)}.tsx`);
+            if (id === '@/components/fast-track/FastTrackCompanionPanel' || id === '@/components/fast-track/FastTrackCompletionRefresh' || id === '@/components/dashboard/contracts/UserContractCardFrame') return loadSource(`src/${id.slice(2)}.tsx`);
             if (id.startsWith('@/components/')) return { __esModule: true, default: () => null };
             return require(id.startsWith('@/') ? resolve('src', id.slice(2)) : id);
         };
