@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatManagerPropertyPrice } from "./managerPropertyPrice";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -52,7 +53,6 @@ test("user search preferences follow the signed-in user's market instead of hard
 test("shared search ranges and property cards format money by country context", () => {
   const searchBarSource = readSource("components/ui/SearchBar.tsx");
   const propertyCardSource = readSource("components/dashboard/PropertyCard.tsx");
-  const managerPropertyCardSource = readSource("components/dashboard/ManagerPropertyCard.tsx");
 
   assert.match(searchBarSource, /buildSearchPriceRanges/);
   assert.match(searchBarSource, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
@@ -66,10 +66,9 @@ test("shared search ranges and property cards format money by country context", 
   assert.doesNotMatch(propertyCardSource, /typeof property\.location === 'string'/);
   assert.doesNotMatch(propertyCardSource, /formatLaunchCurrency\(/);
 
-  assert.match(managerPropertyCardSource, /formatLaunchCurrencyForCountry\(amount/);
-  assert.match(managerPropertyCardSource, /property\.countryCode/);
-  assert.match(managerPropertyCardSource, /currencyCode: currencyCode \|\| property\.currency/);
-  assert.doesNotMatch(managerPropertyCardSource, /formatLaunchCurrency\(/);
+  assert.equal(formatManagerPropertyPrice({ price: 2500000, countryCode: "IN" }), "₹25,00,000");
+  assert.equal(formatManagerPropertyPrice({ price: 2500000, countryCode: "GB" }), "£2,500,000");
+  assert.equal(formatManagerPropertyPrice({ price: { amount: 1000, currency: "GBP" }, countryCode: "IN" }), "£1,000");
 });
 
 test("application displays preserve property country for currency formatting", () => {
