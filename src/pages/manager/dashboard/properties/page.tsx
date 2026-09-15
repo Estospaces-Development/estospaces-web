@@ -25,6 +25,7 @@ import {
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
+import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 
@@ -127,7 +128,7 @@ function PropertiesContent() {
     const geoMarket = useUserGeoMarket(user);
     const {
         filteredProperties,
-        properties: _properties,
+        properties,
         selectedProperties,
         filters,
         sort,
@@ -377,7 +378,15 @@ function PropertiesContent() {
         return filteredProperties;
     }, [filteredProperties, activeTab]);
 
-    if (!isMounted) return <BrandLoadingScreen variant="section" label="Loading properties..." />;
+    const isInitialInventoryLoading = shouldShowManagerPropertyInitialLoader(
+        loading,
+        properties.length,
+        pagination.total,
+    );
+
+    if (!isMounted || isInitialInventoryLoading) {
+        return <BrandLoadingScreen variant="section" label="Loading properties..." />;
+    }
 
     return (
         <div className="space-y-6 font-sans">
