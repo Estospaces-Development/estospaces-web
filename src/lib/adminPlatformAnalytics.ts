@@ -196,6 +196,7 @@ export const createAdminAnalyticsExportDeduper = (windowMs = 1000) => {
 
 export const buildAdminDashboardSnapshot = (
     data?: AnalyticsData | null,
+    { pendingVerifications = data?.pending_verifications }: { pendingVerifications?: number | null } = {},
 ): AdminAnalyticsDisplayItem[] => [
     { id: 'users', label: 'Total Users', value: formatAdminNumber(data?.total_users), icon: 'users', color: 'text-blue-500' },
     { id: 'properties', label: 'Total Properties', value: formatAdminNumber(getAdminTotalProperties(data)), icon: 'building', color: 'text-emerald-500' },
@@ -203,5 +204,5 @@ export const buildAdminDashboardSnapshot = (
     { id: 'revenue', label: 'Paid revenue', value: formatAdminCurrency(data?.total_revenue ?? 0), icon: 'trending', color: 'text-green-500' },
     { id: 'active-listings', label: 'Active Listings', value: formatAdminNumber(getAdminActiveListings(data)), icon: 'activity', color: 'text-orange-500' },
     { id: 'brokers', label: 'Verified Brokers', value: formatAdminNumber(data?.total_brokers), icon: 'zap', color: 'text-purple-500' },
-    { id: 'pending', label: 'Pending Verifications', value: formatAdminNumber(data?.pending_verifications), icon: 'activity', color: 'text-amber-500' },
+    { id: 'pending', label: 'Pending Verifications', value: pendingVerifications === null ? '—' : formatAdminNumber(pendingVerifications), icon: 'activity', color: 'text-amber-500' },
 ];
