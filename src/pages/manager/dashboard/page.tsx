@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
@@ -43,6 +43,11 @@ import ManualFastTrackModal from '@/components/manager/FastTrack/ManualFastTrack
 import RoleDocsPreviewCard from '@/components/docs/RoleDocsPreviewCard';
 import { managerDocs } from '@/lib/roleDocsContent';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import {
+  isCurrentBookingRequest,
+  markBookingConfirmed,
+  nextBookingRequestGeneration,
+} from '@/lib/managerBookingRefresh';
 
 const MANAGER_PROPERTIES_PAGE_SIZE = 6;
 
@@ -121,6 +126,7 @@ function DashboardContent() {
   const [livePropertyTotal, setLivePropertyTotal] = useState<number | null>(null);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const bookingRequestGeneration = useRef(0);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
@@ -149,6 +155,7 @@ function DashboardContent() {
     : managerVerificationError || readinessCopy?.description;
 
   const resetOperationalDashboardData = useCallback(() => {
+    bookingRequestGeneration.current = nextBookingRequestGeneration(bookingRequestGeneration.current);
     setAnalytics(null);
     setProperties([]);
     setLivePropertyTotal(0);
@@ -172,6 +179,8 @@ function DashboardContent() {
       return;
     }
 
+    const bookingGeneration = nextBookingRequestGeneration(bookingRequestGeneration.current);
+    bookingRequestGeneration.current = bookingGeneration;
     if (!silent) {
       setIsLoading(true);
     }
@@ -215,6 +224,9 @@ function DashboardContent() {
       }
 
       const bookingsRes = await Promise.allSettled([bookingsTask]);
+      if (!isCurrentBookingRequest(bookingGeneration, bookingRequestGeneration.current)) {
+        return;
+      }
       const bookingResult = bookingsRes[0];
       if (bookingResult.status === 'fulfilled') {
         setBookings(bookingResult.value || []);
@@ -434,9 +446,8 @@ function DashboardContent() {
     setBookingError(null);
     try {
       await bookingsService.confirmBooking(booking.id, { suppressErrorToast: true });
-      setBookings((previous) => previous.map((item) => (
-        item.id === booking.id ? { ...item, status: 'confirmed' } : item
-      )));
+      bookingRequestGeneration.current = nextBookingRequestGeneration(bookingRequestGeneration.current);
+      setBookings((previous) => markBookingConfirmed(previous, booking.id));
       toast.success('Reservation confirmed.');
     } catch (error: any) {
       const message = error?.message || 'Unable to confirm this reservation.';
