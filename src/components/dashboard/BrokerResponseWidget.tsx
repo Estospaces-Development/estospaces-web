@@ -609,7 +609,7 @@ const BrokerResponseWidget: React.FC = () => {
         : availableForFastResponse
             ? pendingCount > 0
                 ? `${pendingCount} waiting user${pendingCount === 1 ? '' : 's'} are shown below with their own countdown.`
-                : 'No waiting requests. New requests will appear here with their own 10-minute countdown.'
+                : 'No waiting requests. New requests will appear here with their actual response countdown.'
             : 'Go live when you want to start receiving user requests.';
     const visibleRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-request');
     const matchedRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-matched-request');

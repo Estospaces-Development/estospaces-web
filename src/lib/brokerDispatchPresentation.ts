@@ -249,12 +249,18 @@ export const getManagerWorkspaceStateLabel = (request: BrokerRequestRecord) => {
 };
 
 export const getManagerTrackerResponseCountdown = (
-    request: Pick<BrokerRequestRecord, 'dispatch_status' | 'status' | 'response_deadline_at'>,
+    request: Pick<BrokerRequestRecord, 'dispatch_status' | 'status' | 'response_deadline_at' | 'broker_offer_expires_at' | 'broker_offer_status'>,
 ) => {
-    if (request.dispatch_status === 'broker_matched' || request.status === 'matched') {
+    if (request.dispatch_status === 'broker_matched' || request.status === 'matched' || request.broker_offer_status === 'accepted') {
         return undefined;
     }
 
+    if (request.broker_offer_status === 'expired') return 0;
+    if (request.broker_offer_expires_at !== undefined) {
+        return secondsUntilDeadline(request.broker_offer_expires_at) ?? 0;
+    }
+
+    // Compatibility with servers that do not yet expose the scoped offer deadline.
     return secondsUntilDeadline(request.response_deadline_at);
 };
 
