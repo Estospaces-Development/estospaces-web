@@ -130,6 +130,7 @@ function DashboardContent() {
   const [livePropertyTotal, setLivePropertyTotal] = useState<number | null>(null);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const bookingRequestGeneration = useRef(0);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
@@ -174,6 +175,7 @@ function DashboardContent() {
   }, [canLoadOperationalDashboard, fastTrackRequestSearch]);
 
   const resetOperationalDashboardData = useCallback(() => {
+    bookingRequestGeneration.current += 1;
     propertyRequestGeneration.current += 1;
     setAnalytics(null);
     setProperties([]);
@@ -200,6 +202,7 @@ function DashboardContent() {
       return;
     }
 
+    const bookingGeneration = ++bookingRequestGeneration.current;
     if (!silent) {
       setIsLoading(true);
       setDashboardMetricsLoading(true);
@@ -245,6 +248,9 @@ function DashboardContent() {
       }
 
       const bookingsRes = await Promise.allSettled([bookingsTask]);
+      if (bookingGeneration !== bookingRequestGeneration.current) {
+        return;
+      }
       const bookingResult = bookingsRes[0];
       if (bookingResult.status === 'fulfilled') {
         setBookings(bookingResult.value || []);
@@ -476,6 +482,7 @@ function DashboardContent() {
     setBookingError(null);
     try {
       await bookingsService.confirmBooking(booking.id, { suppressErrorToast: true });
+      bookingRequestGeneration.current += 1;
       setBookings((previous) => previous.map((item) => (
         item.id === booking.id ? { ...item, status: 'confirmed' } : item
       )));

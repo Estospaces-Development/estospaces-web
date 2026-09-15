@@ -9,6 +9,7 @@ import { Window } from 'happy-dom';
 import ts from 'typescript';
 
 import type { getUserProperties } from '@/services/userPropertiesService';
+import type { Booking } from '@/services/bookingsService';
 import PaginationBar from '@/components/ui/PaginationBar';
 
 type PropertyQuery = NonNullable<Parameters<typeof getUserProperties>[0]>;
@@ -31,7 +32,10 @@ const response = (prefix: string, total: number, page = 1): PropertyResponse => 
   error: null,
 });
 
-const installDashboard = async () => {
+const installDashboard = async (bookingActions?: {
+  getBookings: () => Promise<Booking[]>;
+  confirmBooking: (id: string) => Promise<void>;
+}) => {
   const browserWindow = new Window({ url: 'https://estospaces.test/manager/dashboard' });
   const replacements = {
     window: browserWindow, document: browserWindow.document, navigator: browserWindow.navigator,
@@ -73,7 +77,7 @@ const installDashboard = async () => {
     },
     '@/services/analyticsService': { getManagerAnalytics: async () => ({ data: null }), invalidateAnalyticsCache() {} },
     '@/services/fastTrackService': { getFastTrackCases: async () => ({ data: [], error: null }) },
-    '@/services/bookingsService': { bookingsService: { getBookings: () => bookings.promise } },
+    '@/services/bookingsService': { bookingsService: bookingActions || { getBookings: () => bookings.promise } },
     '@/lib/roleDocsContent': { managerDocs: {} },
     '@/services/userPropertiesService': {
       getUserProperties: (query: PropertyQuery) => {
@@ -157,6 +161,136 @@ test('Dashboard retains the latest filter results when an older request succeeds
     assert.deepEqual(ui.cards(), ['current-draft-0', 'current-draft-1']);
     assert.doesNotMatch(ui.text(), /19 properties/);
   } finally { await ui.restore(); }
+});
+
+const pendingBooking: Booking = {
+  id: 'reservation-610', property_id: 'property-610', user_id: 'user-610', manager_id: 'manager-610',
+  check_in_date: '2026-10-01', check_out_date: '2026-10-02', guest_count: 1,
+  total_amount: 100, currency: 'GBP', status: 'pending', created_at: '2026-09-15',
+};
+
+test('a refresh started before confirmation cannot restore the confirmed reservation to Pending', async () => {
+  const staleBookings = deferred<Booking[]>();
+  let loads = 0;
+  const confirmations: string[] = [];
+  const ui = await installDashboard({
+    getBookings: () => ++loads === 1 ? Promise.resolve([pendingBooking]) : staleBookings.promise,
+    confirmBooking: async (id) => { confirmations.push(id); },
+  });
+  try {
+    await act(async () => { ui.requests[0].complete(response('initial', 0)); });
+    let refreshing!: Promise<void>;
+    await act(async () => { refreshing = ui.refresh(); });
+    const confirm = [...ui.host.querySelectorAll('button')].find((button) => button.textContent?.includes('Confirm Reservation'));
+    assert.ok(confirm);
+    await act(async () => { confirm.click(); });
+    assert.deepEqual(confirmations, [pendingBooking.id]);
+    assert.doesNotMatch(ui.host.textContent || '', /Confirm Reservation/);
+    await act(async () => {
+      staleBookings.complete([pendingBooking]);
+      ui.requests[1].complete(response('refreshed', 0));
+      await refreshing;
+    });
+    assert.doesNotMatch(ui.host.textContent || '', /Confirm Reservation/);
+    assert.match(ui.host.querySelector('[data-mobile-reservation-summary]')?.textContent || '', /Pending0Approved1/);
+  } finally { staleBookings.complete([]); await ui.restore(); }
+});
+
+test('a failed confirmation remains pending and can be retried successfully', async () => {
+  let confirmations = 0;
+  const ui = await installDashboard({
+    getBookings: async () => [pendingBooking],
+    confirmBooking: async () => { if (++confirmations === 1) throw new Error('Confirmation failed'); },
+  });
+  try {
+    await act(async () => { ui.requests[0].complete(response('initial', 0)); });
+    const confirm = [...ui.host.querySelectorAll('button')].find((button) => button.textContent?.includes('Confirm Reservation'));
+    assert.ok(confirm);
+    await act(async () => { confirm.click(); });
+    assert.match(ui.host.textContent || '', /Confirmation failed/);
+    assert.equal(confirm.disabled, false);
+    assert.match(ui.host.querySelector('[data-mobile-reservation-summary]')?.textContent || '', /Pending1Approved0/);
+    await act(async () => { confirm.click(); });
+    assert.equal(confirmations, 2);
+    assert.doesNotMatch(ui.host.textContent || '', /Confirmation failed|Confirm Reservation/);
+    assert.match(ui.host.querySelector('[data-mobile-reservation-summary]')?.textContent || '', /Pending0Approved1/);
+  } finally { await ui.restore(); }
+});
+
+test('a fresh post-confirmation refresh accepts later server states and unrelated reservations', async () => {
+  let loads = 0;
+  const ui = await installDashboard({
+    getBookings: async () => ++loads === 1 ? [pendingBooking] : [
+      { ...pendingBooking, status: 'completed' },
+      { ...pendingBooking, id: 'unrelated-reservation' },
+    ],
+    confirmBooking: async () => {},
+  });
+  try {
+    await act(async () => { ui.requests[0].complete(response('initial', 0)); });
+    const confirm = [...ui.host.querySelectorAll('button')].find((button) => button.textContent?.includes('Confirm Reservation'));
+    assert.ok(confirm);
+    await act(async () => { confirm.click(); });
+    let refreshing!: Promise<void>;
+    await act(async () => { refreshing = ui.refresh(); });
+    await act(async () => { ui.requests[1].complete(response('refreshed', 0)); await refreshing; });
+    assert.match(ui.host.querySelector('[data-mobile-reservation-summary]')?.textContent || '', /Pending1Approved0Completed1/);
+    assert.match(ui.host.textContent || '', /Booking unrelate/);
+    assert.doesNotMatch(ui.host.textContent || '', /Booking reservat/);
+  } finally { await ui.restore(); }
+});
+
+test('an older reservation refresh cannot overwrite a newer authoritative refresh', async () => {
+  const oldBookings = deferred<Booking[]>();
+  const newBookings = deferred<Booking[]>();
+  let loads = 0;
+  const ui = await installDashboard({
+    getBookings: () => ++loads === 1 ? Promise.resolve([pendingBooking]) : loads === 2 ? oldBookings.promise : newBookings.promise,
+    confirmBooking: async () => {},
+  });
+  try {
+    await act(async () => { ui.requests[0].complete(response('initial', 0)); });
+    let oldRefresh!: Promise<void>;
+    let newRefresh!: Promise<void>;
+    await act(async () => { oldRefresh = ui.refresh(); });
+    await act(async () => { newRefresh = ui.refresh(); });
+    await act(async () => {
+      newBookings.complete([{ ...pendingBooking, status: 'cancelled' }]);
+      ui.requests[2].complete(response('new', 0));
+      await newRefresh;
+    });
+    await act(async () => {
+      oldBookings.complete([pendingBooking]);
+      ui.requests[1].complete(response('old', 0));
+      await oldRefresh;
+    });
+    assert.doesNotMatch(ui.host.textContent || '', /Confirm Reservation/);
+    assert.match(ui.host.querySelector('[data-mobile-reservation-summary]')?.textContent || '', /Pending0Approved0Completed0Cancelled1/);
+  } finally { oldBookings.complete([]); newBookings.complete([]); await ui.restore(); }
+});
+
+test('a stale refresh error cannot erase a successful confirmation', async () => {
+  const staleBookings = deferred<Booking[]>();
+  let loads = 0;
+  const ui = await installDashboard({
+    getBookings: () => ++loads === 1 ? Promise.resolve([pendingBooking]) : staleBookings.promise.then(() => { throw new Error('Stale booking failure'); }),
+    confirmBooking: async () => {},
+  });
+  try {
+    await act(async () => { ui.requests[0].complete(response('initial', 0)); });
+    let refreshing!: Promise<void>;
+    await act(async () => { refreshing = ui.refresh(); });
+    const confirm = [...ui.host.querySelectorAll('button')].find((button) => button.textContent?.includes('Confirm Reservation'));
+    assert.ok(confirm);
+    await act(async () => { confirm.click(); });
+    await act(async () => {
+      staleBookings.complete([]);
+      ui.requests[1].complete(response('refreshed', 0));
+      await refreshing;
+    });
+    assert.doesNotMatch(ui.host.textContent || '', /Stale booking failure|Confirm Reservation/);
+    assert.match(ui.host.querySelector('[data-mobile-reservation-summary]')?.textContent || '', /Pending0Approved1/);
+  } finally { staleBookings.complete([]); await ui.restore(); }
 });
 
 test('Dashboard ignores stale errors after the current filter succeeds', async () => {
