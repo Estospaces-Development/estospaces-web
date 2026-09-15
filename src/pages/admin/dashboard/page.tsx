@@ -545,10 +545,11 @@ export default function AdminDashboard() {
                             Paid revenue excludes active Fast Track cases and unpaid bookings.
                         </p>
                     </div>
+                </div>
 
-                    <div
+                <div
                         id="recent-notifications"
-                        className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit"
+                        className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 lg:col-span-3"
                     >
                         <div className="mb-4 flex flex-col items-start gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                             <div className="min-w-0">
@@ -662,7 +663,6 @@ export default function AdminDashboard() {
                             </div>
                         )}
                     </div>
-                </div>
             </div>
         </div>
     );
