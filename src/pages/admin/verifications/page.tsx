@@ -339,19 +339,22 @@ function VerificationsContent() {
           {loading ? (
              <BrandLoadingScreen variant="section" label="Loading manager verifications..." />
           ) : filteredManagers.length > 0 ? (
-            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'grid grid-cols-1 gap-6'}>
+            <div
+              data-verification-view-mode={viewMode}
+              className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6' : 'grid grid-cols-1 gap-4 sm:gap-6'}
+            >
               {filteredManagers.map((manager) => {
                 const displayName = getManagerDisplayName(manager);
                 return (
                 <div
                   key={manager.id}
-                  className="group p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-100 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl"
+                  className={`group flex flex-col justify-between border border-transparent bg-gray-50/50 transition-all hover:border-gray-100 hover:bg-white hover:shadow-xl dark:bg-gray-900/50 dark:hover:border-gray-700 dark:hover:bg-gray-800 ${viewMode === 'grid' ? 'gap-4 rounded-2xl p-5' : 'gap-6 rounded-[2rem] p-8 md:flex-row md:items-center'}`}
                 >
-                  <div className="flex min-w-0 items-center gap-6">
+                  <div className={`flex min-w-0 items-center ${viewMode === 'grid' ? 'gap-4' : 'gap-6'}`}>
                     <Avatar
                       userId={manager.id}
                       name={displayName}
-                      size="xl"
+                      size={viewMode === 'grid' ? 'lg' : 'xl'}
                       shape="rounded"
                       fallbackClassName={manager.profile_type === 'broker' ? 'from-blue-500 to-indigo-600' : 'from-orange-500 to-amber-600'}
                     />
@@ -377,7 +380,7 @@ function VerificationsContent() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-8">
+                  <div className={`flex ${viewMode === 'grid' ? 'flex-col items-stretch gap-3' : 'items-center gap-8'}`}>
                     <div className="text-right hidden sm:block">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Submitted</p>
                       <p className="text-sm font-black text-gray-900 dark:text-white">
@@ -394,7 +397,7 @@ function VerificationsContent() {
                         setSearchParams(next);
                       }}
                       aria-label={`Review profile for ${displayName}`}
-                      className="px-10 py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2 group-hover:bg-orange-500 group-hover:text-white"
+                      className={`flex items-center gap-2 rounded-2xl bg-gray-900 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-105 active:scale-95 group-hover:bg-orange-500 group-hover:text-white dark:bg-white dark:text-gray-900 ${viewMode === 'grid' ? 'w-full justify-center px-4 py-3' : 'px-10 py-5'}`}
                     >
                       Review Profile <ArrowRight size={16} />
                     </button>
