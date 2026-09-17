@@ -145,9 +145,9 @@ test('discover map properties preserve coordinates for real map markers', () => 
 test('browse all keeps discovery scoped to the signed-in user market', () => {
     assert.match(userDashboardClient, /navigate\('\/user\/dashboard\/discover'\)/);
     assert.doesNotMatch(userDashboardClient, /const userPostcode = user\?\.postcode[\s\S]{0,220}Browse All Properties/);
-    assert.match(discoverPage, /searchService\.getPropertySections\(geoMarket\)/);
-    assert.match(discoverPage, /filterPropertiesForMarket\([\s\S]*geoMarket\)/);
-    assert.match(discoverPage, /countryCode: geoMarket/);
+    assert.match(discoverPage, /searchService\.getPropertySections\(searchMarket\)/);
+    assert.match(discoverPage, /filterPropertiesForMarket\([\s\S]*searchMarket\)/);
+    assert.match(discoverPage, /countryCode: searchMarket/);
 });
 
 test('user search keeps the results surface focused without popular-search clutter', () => {
