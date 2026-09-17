@@ -41,7 +41,16 @@ import {
 } from '@/lib/fastTrackRequestPending';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
+import {
+    createLead,
+    getBrokerRequestById,
+    getUserDocuments,
+    getUserLeads,
+    Lead,
+    type BrokerRequestRecord,
+    uploadDocument,
+    UserDocument,
+} from '@/services/leadsService';
 import { FastTrackCase, getFastTrackCases, requestFastTrack, updateFastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
@@ -150,6 +159,20 @@ export const getPropertyBrokerRequestQuery = (params: URLSearchParams) => {
     }
 
     return '';
+};
+
+export const isSelectedBrokerRequestProperty = (
+    request: Pick<BrokerRequestRecord, 'selected_property_id' | 'selected_property'> | null | undefined,
+    propertyId: string | undefined,
+): boolean => {
+    const normalizedPropertyId = propertyId?.trim().toLowerCase();
+    if (!normalizedPropertyId) {
+        return false;
+    }
+
+    const selectedPropertyId = request?.selected_property_id?.trim().toLowerCase()
+        || request?.selected_property?.id?.trim().toLowerCase();
+    return selectedPropertyId === normalizedPropertyId;
 };
 
 export type PropertyFastTrackLookupStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -1000,11 +1023,17 @@ const UserPropertyDetail = () => {
                 } else if (data) {
                     const role = String(user?.role || '').trim().toLowerCase();
                     if (role === 'user' && !isPropertyInMarket(data, geoMarket)) {
-                        setProperty(null);
-                        setError('This property is not available in your market.');
-                    } else {
-                        setProperty(data);
+                        const { data: brokerRequest } = brokerRequestQuery
+                            ? await getBrokerRequestById(brokerRequestQuery, { suppressErrorToast: true })
+                            : { data: null };
+                        if (cancelled) return;
+                        if (!isSelectedBrokerRequestProperty(brokerRequest, data.id)) {
+                            setProperty(null);
+                            setError('This property is not available in your market.');
+                            return;
+                        }
                     }
+                    setProperty(data);
                 } else {
                     setError('Property not found');
                 }
@@ -1017,7 +1046,7 @@ const UserPropertyDetail = () => {
 
         void fetchProperty();
         return () => { cancelled = true; };
-    }, [geoMarket, id, user?.role]);
+    }, [brokerRequestQuery, geoMarket, id, user?.role]);
 
     useEffect(() => {
         const role = String(user?.role || '').trim().toLowerCase();
