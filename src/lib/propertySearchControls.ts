@@ -223,6 +223,23 @@ export function inferSearchMarketFromText(value: string | null | undefined): Sup
   return null;
 }
 
+export function resolvePropertySearchMarket({
+  market,
+  location,
+  query,
+  fallback,
+}: {
+  market?: SupportedLaunchCountryCode | '';
+  location?: string | null;
+  query?: string | null;
+  fallback: SupportedLaunchCountryCode;
+}): SupportedLaunchCountryCode {
+  return market
+    || inferSearchMarketFromText(location)
+    || inferSearchMarketFromText(query)
+    || fallback;
+}
+
 export function buildBroaderPropertySearchAttempts(input: {
   market: SupportedLaunchCountryCode | '';
   location: string;

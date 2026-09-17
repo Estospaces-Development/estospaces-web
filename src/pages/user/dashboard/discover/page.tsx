@@ -35,6 +35,7 @@ import {
     normalizeRoomBoundInput,
     normalizeSearchQueryInput,
     readSearchUrlFilters,
+    resolvePropertySearchMarket,
 } from '@/lib/propertySearchControls';
 import {
     formatLaunchCurrencyForCountry,
@@ -381,9 +382,19 @@ function DiscoverContent() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
     const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
-    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationQuery);
+    const requestedMarket = useMemo(
+        () => readSearchUrlFilters(new URLSearchParams(searchParamSnapshot)).market,
+        [searchParamSnapshot],
+    );
+    const searchMarket = resolvePropertySearchMarket({
+        market: requestedMarket,
+        location: locationQuery,
+        query: searchQuery,
+        fallback: geoMarket,
+    });
+    const locationCodeLabel = getLaunchLocationCodeLabel(searchMarket, undefined, locationQuery);
     const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
-        countryCode: geoMarket,
+        countryCode: searchMarket,
     });
     const activeAdvancedFilterCount = [
         locationQuery,
@@ -427,7 +438,7 @@ function DiscoverContent() {
         setTotal(0);
 
         const loadGlobalFilters = async () => {
-            const options = await searchService.getFilters(geoMarket);
+            const options = await searchService.getFilters(searchMarket);
             if (isMounted) {
                 setGlobalFilterOptions(options);
             }
@@ -437,7 +448,7 @@ function DiscoverContent() {
         return () => {
             isMounted = false;
         };
-    }, [geoMarket]);
+    }, [searchMarket]);
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
@@ -466,7 +477,7 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections(geoMarket);
+            const result = await searchService.getPropertySections(searchMarket);
             if (requestId !== fetchRequestIdRef.current) {
                 return;
             }
@@ -482,7 +493,7 @@ function DiscoverContent() {
 
             const sectionProperties = filterPropertiesForMarket(dedupeSectionProperties(
                 result.data.flatMap((section) => section.properties),
-            ), geoMarket);
+            ), searchMarket);
             const filtered = filterSectionProperties(sectionProperties, {
                 activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
                 searchQuery,
@@ -493,7 +504,7 @@ function DiscoverContent() {
                 maxPrice: priceRange.max,
                 beds,
                 baths,
-                countryCode: geoMarket,
+                countryCode: searchMarket,
             });
             const sorted = sortSectionProperties(
                 filtered,
@@ -524,7 +535,7 @@ function DiscoverContent() {
                 setLoading(false);
             }
         }
-    }, [activeTab, baths, beds, currentPage, dashboardFilter, geoMarket, locationQuery, priceRange.max, priceRange.min, propertyType, searchQuery, sortBy, statusFilter]);
+    }, [activeTab, baths, beds, currentPage, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {

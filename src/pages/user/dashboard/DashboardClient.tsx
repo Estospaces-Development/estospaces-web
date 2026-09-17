@@ -44,6 +44,7 @@ import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/user
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
+import { inferSearchMarketFromText, serializeSearchMarketParam } from '@/lib/propertySearchControls';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import {
@@ -84,6 +85,7 @@ const dashboardSearchParamKeys = [
   'baths',
   'minBedrooms',
   'minBathrooms',
+  'market',
 ];
 
 const defaultDashboardSearchFilters: DashboardSearchFilters = {
@@ -211,6 +213,12 @@ const buildDiscoverParams = (
   }
   if (searchFilters.location.trim()) {
     params.set('location', searchFilters.location.trim());
+  }
+  const requestedMarket = inferSearchMarketFromText(
+    searchFilters.location.trim() || searchFilters.keyword.trim(),
+  );
+  if (requestedMarket) {
+    params.set('market', serializeSearchMarketParam(requestedMarket));
   }
   if (searchFilters.propertyType) {
     params.set('propertyType', searchFilters.propertyType);

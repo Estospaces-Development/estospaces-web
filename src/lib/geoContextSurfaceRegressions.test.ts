@@ -104,9 +104,11 @@ test("active user manager and admin flows avoid default launch money on property
   const managerContractsSource = readSource("pages/manager/contracts/page.tsx");
   const adminPropertiesSource = readSource("pages/admin/properties/page.tsx");
 
-  assert.match(discoverSource, /searchService\.getPropertySections\(geoMarket\)/);
+  assert.match(discoverSource, /resolvePropertySearchMarket/);
+  assert.match(discoverSource, /searchService\.getPropertySections\(searchMarket\)/);
   assert.match(discoverSource, /filterPropertiesForMarket\(dedupeSectionProperties/);
-  assert.match(discoverSource, /getLaunchLocationCodeLabel\(geoMarket/);
+  assert.match(discoverSource, /\), searchMarket\);/);
+  assert.match(discoverSource, /getLaunchLocationCodeLabel\(searchMarket/);
   assert.match(discoverSource, /formatDiscoveryCurrency/);
   const publicSearchSource = readSource("pages/user/search/page.tsx");
   const dashboardSource = readSource("pages/user/dashboard/DashboardClient.tsx");

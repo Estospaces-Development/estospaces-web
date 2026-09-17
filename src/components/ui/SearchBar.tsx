@@ -257,9 +257,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         }
         const trimmedKeyword = normalizeSearchQueryInput(rawKeyword);
         const submittedFilters = { ...nextFilters, keyword: trimmedKeyword };
-        const submittedMarket = nextFilters.location
-            ? inferSearchMarketFromText(nextFilters.location)
-            : null;
+        const submittedMarket = inferSearchMarketFromText(nextFilters.location || trimmedKeyword);
 
         const params = new URLSearchParams();
         if (trimmedKeyword) params.set('q', trimmedKeyword);

@@ -52,7 +52,7 @@ test('public search property type dropdown uses cleaned downward-opening options
 test('discover property type dropdown uses the shared global filter options', () => {
     assert.match(discoverSource, /import \{ buildPropertyTypeOptions \} from '@\/lib\/propertyTypeOptions';/);
     assert.match(discoverSource, /const \[globalFilterOptions, setGlobalFilterOptions\] = useState<FilterOptions \| null>\(null\);/);
-    assert.match(discoverSource, /const options = await searchService\.getFilters\(geoMarket\);/);
+    assert.match(discoverSource, /const options = await searchService\.getFilters\(searchMarket\);/);
     assert.match(discoverSource, /globalFilterOptions\?\.property_types\?\.length[\s\S]*\? globalFilterOptions\.property_types[\s\S]*: filterOptions\?\.property_types/);
     assert.match(discoverSource, /buildPropertyTypeOptions\(propertyTypes\)\.map/);
     assert.match(discoverSource, /discoverPropertyTypeOptions\.map\(\(option\) =>/);
@@ -62,7 +62,7 @@ test('discover property type dropdown uses the shared global filter options', ()
 test('market-specific filter requests clear old options and ignore stale responses', () => {
     assert.match(source, /let cancelled = false;[\s\S]*setFilterOptions\(null\);[\s\S]*getFilters\(searchMarket\)[\s\S]*if \(!cancelled\) setFilterOptions\(opts\);[\s\S]*cancelled = true;/);
     assert.match(publicSearchSource, /let cancelled = false;[\s\S]*setFilterOptions\(null\);[\s\S]*getFilters\(activeMarket\)[\s\S]*if \(!cancelled\) setFilterOptions\(opts\);[\s\S]*cancelled = true;/);
-    assert.match(discoverSource, /let isMounted = true;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*getFilters\(geoMarket\)[\s\S]*if \(isMounted\)[\s\S]*setGlobalFilterOptions\(options\);[\s\S]*isMounted = false;/);
+    assert.match(discoverSource, /let isMounted = true;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*getFilters\(searchMarket\)[\s\S]*if \(isMounted\)[\s\S]*setGlobalFilterOptions\(options\);[\s\S]*isMounted = false;/);
 });
 
 test('market-specific autocomplete ignores stale responses after the market changes', () => {
@@ -72,7 +72,7 @@ test('market-specific autocomplete ignores stale responses after the market chan
 
 test('Discover clears previous-market options and invalidates stale property requests', () => {
     assert.match(discoverSource, /fetchRequestIdRef\.current \+= 1;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*setFilterOptions\(null\);[\s\S]*setAllSectionProperties\(\[\]\);/);
-    assert.match(discoverSource, /const requestId = \+\+fetchRequestIdRef\.current;[\s\S]*getPropertySections\(geoMarket\);[\s\S]*requestId !== fetchRequestIdRef\.current/);
+    assert.match(discoverSource, /const requestId = \+\+fetchRequestIdRef\.current;[\s\S]*getPropertySections\(searchMarket\);[\s\S]*requestId !== fetchRequestIdRef\.current/);
     assert.match(discoverSource, /return \(\) => \{[\s\S]*fetchRequestIdRef\.current \+= 1;[\s\S]*clearTimeout\(timer\);/);
 });
 
@@ -107,9 +107,8 @@ test('user dashboard search passes active request location context into shared s
     assert.match(userDashboardSource, /<BrokerRequestWidget[\s\S]*onLocationContextChange=\{handleBrokerRequestLocationContextChange\}[\s\S]*preferredRequestId=\{activeJourney\?\.brokerRequestId \|\| \([\s\S]*activeBrokerRequest && shouldAutoResumeBrokerRequest\(activeBrokerRequest\)[\s\S]*\? activeBrokerRequest\.id[\s\S]*: null[\s\S]*\)\}[\s\S]*\/>/);
 });
 
-test('free-text property titles do not select a country market', () => {
-    assert.match(source, /const submittedMarket = nextFilters\.location[\s\S]*\? inferSearchMarketFromText\(nextFilters\.location\)[\s\S]*: null;/);
-    assert.doesNotMatch(source, /inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\)/);
+test('recognised city queries select their market without treating arbitrary property titles as locations', () => {
+    assert.match(source, /const submittedMarket = inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\);/);
     assert.doesNotMatch(source, /inferSearchMarketFromText\(nextFilters\.location\) \|\| searchMarket/);
 });
 
@@ -137,7 +136,8 @@ test('dashboard search rejects invalid keyword characters before searching or na
 });
 
 test('user dashboard search hands submitted filters to the canonical Discover page', () => {
-    assert.match(userDashboardSource, /const dashboardSearchParamKeys = \[[\s\S]*'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths'/);
+    assert.match(userDashboardSource, /const dashboardSearchParamKeys = \[[\s\S]*'q',[\s\S]*'location',[\s\S]*'propertyType',[\s\S]*'minPrice',[\s\S]*'maxPrice',[\s\S]*'beds',[\s\S]*'baths',[\s\S]*'market'/);
+    assert.match(userDashboardSource, /inferSearchMarketFromText\([\s\S]*searchFilters\.location\.trim\(\) \|\| searchFilters\.keyword\.trim\(\)[\s\S]*serializeSearchMarketParam\(requestedMarket\)/);
     assert.match(userDashboardSource, /const nextDashboardType = nextFilters\.listingType === 'rent'[\s\S]*selectedPropertyType;/);
     assert.match(userDashboardSource, /const params = buildDiscoverParams\(nextDashboardType, selectedFilters, nextFilters\);/);
     assert.match(userDashboardSource, /navigate\(`\/user\/dashboard\/discover\$\{queryString \? `\?\$\{queryString\}` : ''\}`\);/);
