@@ -1543,7 +1543,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                     }}
                                                 />
                                                 <div className="space-y-4 p-5">
-                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex flex-wrap items-center gap-2">
                                                                 <span className="inline-flex items-center rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -1555,13 +1555,13 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <p className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{selectedProperty.title}</p>
+                                                            <p className="mt-3 text-lg font-semibold leading-tight text-gray-900 dark:text-white sm:text-xl">{selectedProperty.title}</p>
                                                             <p className="mt-3 flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
                                                                 <MapPin size={15} className="mt-0.5 shrink-0 text-emerald-500 dark:text-emerald-300" />
                                                                 <span>{formatPropertyAddress(selectedProperty) || 'Address available on the property page'}</span>
                                                             </p>
                                                         </div>
-                                                        <div className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 text-left shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                                                        <div className="w-full rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 text-left shadow-sm sm:w-auto sm:shrink-0 dark:border-emerald-900/40 dark:bg-emerald-950/30">
                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">Locked price</p>
                                                             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
                                                                 {formatPropertyPrice(selectedProperty, geoMarket)}
