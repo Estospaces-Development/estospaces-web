@@ -16,6 +16,14 @@ test("Home Choices content can wrap without being squeezed by its deadline card"
   assert.match(source, /sm:w-auto sm:shrink-0 sm:text-right/);
 });
 
+test("selected broker homes keep badges, title, and locked price legible on narrow phones", () => {
+  const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
+
+  assert.match(source, /flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between/);
+  assert.match(source, /mt-3 text-lg font-semibold leading-tight text-gray-900 dark:text-white sm:text-xl/);
+  assert.match(source, /w-full rounded-2xl border border-emerald-200\/80 bg-white px-4 py-3 text-left shadow-sm sm:w-auto sm:shrink-0/);
+});
+
 test("matched agent requests use compact progressive disclosure on phones", () => {
   const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
 
