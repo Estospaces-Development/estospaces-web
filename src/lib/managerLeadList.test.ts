@@ -17,6 +17,21 @@ import {
   summarizeManagerLeads,
 } from "./managerLeadList";
 
+test('manager lead projection uses its offer deadline without changing the source request', () => {
+  const request = {
+    id: 'offer-clock', request_type: 'rent', location: 'Chennai',
+    status: 'submitted', dispatch_status: 'matching_wave_1',
+    response_deadline_at: '2026-09-15T12:10:00Z',
+    broker_offer_expires_at: '2026-09-15T12:01:30Z',
+  };
+  const lead = mapBrokerRequestOfferToManagerLead(request);
+  assert.equal(lead.response_deadline_at, request.broker_offer_expires_at);
+  assert.equal(lead.sla_deadline, request.broker_offer_expires_at);
+  assert.equal(request.response_deadline_at, '2026-09-15T12:10:00Z');
+  const legacyLead = mapBrokerRequestOfferToManagerLead({ ...request, broker_offer_expires_at: undefined });
+  assert.equal(legacyLead.response_deadline_at, request.response_deadline_at);
+});
+
 test("manager lead sorting supports newest, client, budget, and score order", () => {
   const leads = [
     {

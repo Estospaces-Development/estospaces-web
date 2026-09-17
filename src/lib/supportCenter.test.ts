@@ -185,7 +185,7 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 test('ticket creation refresh is silent so success is not followed by a contradictory load error', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
     assert.match(source, /await fetchTickets\(true\);[\s\S]*?toast\.success\('Support ticket created'\)/);
-    assert.match(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
+    assert.match(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current && fetchingRef\.current === request\) \{\s*toast\.error\(error\.message \|\| 'Failed to load support tickets'\)/);
 });
 
 test('support actions expose a visible pending state and avoid button-submit side effects', () => {
@@ -201,11 +201,26 @@ test('support actions expose a visible pending state and avoid button-submit sid
     assert.match(ticketListSource, /aria-current=\{active \? 'page' : undefined\}/);
 });
 
+test('resuming support always clears its pending state after the detail request settles or is already in flight', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);\s*return;/);
+    assert.match(source, /loadingTicketDetailsRef\.current\.delete\(ticketId\);\s*if \(!silent && supportCenterMountedRef\.current\) \{\s*setDetailLoading\(false\);\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);/);
+});
+
+test('selecting a support ticket scrolls directly to its loaded transcript', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+
+    assert.match(source, /const ticketTranscriptRef = useRef<HTMLDivElement>\(null\)/);
+    assert.match(source, /if \(!selectedTicketId \|\| selectedTicket\?\.id !== selectedTicketId\) \{\s*return;\s*\}\s*ticketTranscriptRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+    assert.match(source, /<div ref=\{ticketTranscriptRef\} className="min-w-0 space-y-5">/);
+});
+
 test('background support polling never surfaces repeated detail-load errors', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
 
     assert.match(source, /const loadingTicketDetailsRef = useRef\(new Set<string>\(\)\)/);
-    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*return;/);
+    assert.match(source, /if \(loadingTicketDetailsRef\.current\.has\(ticketId\)\) \{\s*setResumingTicketId\(\(current\) => current === ticketId \? null : current\);\s*return;/);
     assert.match(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{[\s\S]*?toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
     assert.doesNotMatch(source, /catch \(error: any\) \{\s*if \(!silent && supportCenterMountedRef\.current\) \{[\s\S]*?\}\s*toast\.error\(error\.message \|\| 'Failed to load support thread'\);/);
 });
@@ -215,7 +230,7 @@ test('support requests cannot restore a stale support deep link after route unmo
 
     assert.match(source, /const supportCenterMountedRef = useRef\(false\)/);
     assert.match(source, /return \(\) => \{\s*supportCenterMountedRef\.current = false;\s*detailRequestVersionRef\.current \+= 1;/);
-    assert.match(source, /await supportService\.getAllTickets[\s\S]*?if \(!supportCenterMountedRef\.current\) return;[\s\S]*?setSearchParams/);
+    assert.match(source, /await supportService\.getAllTickets[\s\S]*?if \(!supportCenterMountedRef\.current \|\| fetchingRef\.current !== request\) return;[\s\S]*?setSearchParams/);
     assert.match(source, /await supportService\.getTicket\(ticketId\);\s*if \(!supportCenterMountedRef\.current \|\| requestVersion !== detailRequestVersionRef\.current\) return;/);
 });
 

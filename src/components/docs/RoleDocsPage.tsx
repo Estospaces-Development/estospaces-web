@@ -319,7 +319,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                         value={query}
                                         onChange={(event) => setQuery(event.target.value)}
                                         placeholder={config.searchPlaceholder}
-                                        className="input-field h-12 rounded-2xl border-orange-100 bg-orange-50/70 pl-11 pr-28 focus:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/10 dark:bg-gray-900 dark:focus-visible:ring-offset-gray-950"
+                                        className="input-field h-12 rounded-2xl border-orange-100 bg-orange-50/70 !pl-11 pr-28 focus:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/10 dark:bg-gray-900 dark:focus-visible:ring-offset-gray-950"
                                     />
                                     {query ? (
                                         <button

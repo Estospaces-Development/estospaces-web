@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
   buildBroaderPropertySearchAttempts,
@@ -15,8 +17,14 @@ import {
   normalizeSearchQueryInput,
   normalizeSearchMarketParam,
   readSearchUrlFilters,
+  resolvePropertySearchMarket,
   serializeSearchMarketParam,
 } from './propertySearchControls';
+
+const root = process.cwd();
+const dashboardSource = readFileSync(resolve(root, 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
+const discoverSource = readFileSync(resolve(root, 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
+const searchBarSource = readFileSync(resolve(root, 'src/components/ui/SearchBar.tsx'), 'utf8');
 
 test('search market inference lets a submitted city override stale account geography', () => {
   assert.equal(inferSearchMarketFromText('Chennai'), 'IN');
@@ -34,6 +42,21 @@ test('search market inference lets a submitted city override stale account geogr
   assert.equal(inferSearchMarketFromText('Oxford Heights'), null);
   assert.equal(inferSearchMarketFromText('Cambridge Apartments'), null);
   assert.equal(inferSearchMarketFromText('luxury apartment'), null);
+});
+
+test('property search market keeps an explicit filter and otherwise scopes recognised city queries', () => {
+  assert.equal(resolvePropertySearchMarket({ market: 'IN', location: '', query: 'London', fallback: 'GB' }), 'IN');
+  assert.equal(resolvePropertySearchMarket({ market: '', location: '', query: 'Chennai', fallback: 'GB' }), 'IN');
+  assert.equal(resolvePropertySearchMarket({ market: '', location: 'Chennai', query: '', fallback: 'GB' }), 'IN');
+  assert.equal(resolvePropertySearchMarket({ market: '', location: '', query: 'Oxford Heights', fallback: 'IN' }), 'IN');
+});
+
+test('dashboard city searches carry their market through to Discover inventory filtering', () => {
+  assert.match(dashboardSource, /inferSearchMarketFromText\([\s\S]*searchFilters\.location\.trim\(\) \|\| searchFilters\.keyword\.trim\(\)[\s\S]*serializeSearchMarketParam\(requestedMarket\)/);
+  assert.match(searchBarSource, /const submittedMarket = inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\);/);
+  assert.match(discoverSource, /const searchMarket = resolvePropertySearchMarket\([\s\S]*market: requestedMarket,[\s\S]*query: searchQuery,[\s\S]*fallback: geoMarket,/);
+  assert.match(discoverSource, /getPropertySections\(searchMarket\)/);
+  assert.match(discoverSource, /filterPropertiesForMarket\(dedupeSectionProperties\([\s\S]*\), searchMarket\)/);
 });
 
 test('broader search never removes an explicitly selected location', () => {

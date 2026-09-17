@@ -111,10 +111,28 @@ test('admin dashboard snapshot includes booking revenue and active listing count
     const snapshot = buildAdminDashboardSnapshot(analytics);
 
     assert.equal(snapshot.find((item) => item.label === 'Total Bookings')?.value, '6');
-    assert.equal(snapshot.find((item) => item.label === 'Revenue')?.value, '\u20b91,25,000');
+    assert.equal(snapshot.find((item) => item.label === 'Paid revenue')?.value, '\u20b91,25,000');
     assert.equal(snapshot.find((item) => item.label === 'Active Listings')?.value, '8');
+});
+
+test('admin dashboard snapshot uses the actionable verification queue count when supplied', () => {
+    const snapshot = buildAdminDashboardSnapshot(analytics, { pendingVerifications: 5 });
+
+    assert.equal(snapshot.find((item) => item.label === 'Pending Verifications')?.value, '5');
+});
+
+test('admin dashboard snapshot does not present an unavailable verification queue as zero', () => {
+    const snapshot = buildAdminDashboardSnapshot(analytics, { pendingVerifications: null });
+
+    assert.equal(snapshot.find((item) => item.label === 'Pending Verifications')?.value, '—');
 });
 
 test('admin currency formatting remains readable for missing revenue', () => {
     assert.equal(formatAdminCurrency(undefined), '\u20b90');
+});
+
+test('admin dashboard distinguishes paid revenue from active booking work', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/admin/dashboard/page.tsx'), 'utf8');
+
+    assert.match(source, /Paid revenue excludes active Fast Track cases and unpaid bookings\./);
 });

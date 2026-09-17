@@ -81,6 +81,35 @@ test('keeps legitimate customer conversations and links', () => {
     })), true);
 });
 
+test('keeps property and case enquiries when their display title resembles a QA record', () => {
+    for (const context of [
+        { property_id: 'property-1' },
+        { fast_track_case_id: 'case-1' },
+    ]) {
+        const linked = conversation({ metadata: {
+            ...context,
+            property_title: 'QA trace 2026-08-30T10-22-33',
+        } });
+        assert.equal(isUserVisibleConversation(linked), true);
+        assert.deepEqual(mergeUserVisibleConversations('user-1', [linked]).map(item => item.id), [linked.id]);
+        clearAuthorizedConversations();
+        rememberAuthorizedConversation('user-1', linked, 1_000);
+        assert.deepEqual(mergeUserVisibleConversations('user-1', [], 2_000).map(item => item.id), [linked.id]);
+        clearAuthorizedConversations();
+    }
+});
+
+test('property links do not expose explicitly marked internal conversations', () => {
+    for (const marker of [{ is_test: true }, { is_system: true }, { qa_test: false }]) {
+        assert.equal(isUserVisibleConversation(conversation({
+            metadata: { property_id: 'property-1', ...marker },
+        })), false);
+    }
+    assert.equal(isUserVisibleConversation(conversation({
+        metadata: { property_id: '  ', property_title: 'QA trace 2026-08-30T10-22-33' },
+    })), false);
+});
+
 test('keeps a newly authorized direct conversation while the list endpoint catches up', () => {
     clearAuthorizedConversations();
     const newlyCreated = conversation({ id: 'new-conversation', title: 'New enquiry' });

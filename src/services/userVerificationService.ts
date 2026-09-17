@@ -148,9 +148,12 @@ export const countActionableUserVerifications = (records: UserVerificationInfo[]
     records.filter((record) => getUserVerificationWorkflowStatus(record) === 'review').length
 );
 
-export const getAdminPendingVerificationsCount = async (): Promise<number> => {
-    const { data, error: _error } = await getPendingUserVerifications('admin', { suppressErrorToast: true });
-    return countActionableUserVerifications(data || []);
+export const getAdminPendingVerificationsCount = async (): Promise<{ data: number | null; error: string | null }> => {
+    const { data, error } = await getPendingUserVerifications('admin', { suppressErrorToast: true });
+    if (error) {
+        return { data: null, error };
+    }
+    return { data: countActionableUserVerifications(data), error: null };
 };
 
 export const getVerificationLevelColor = (

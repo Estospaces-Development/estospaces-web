@@ -84,11 +84,13 @@ test('admin lead refresh updates the global card and filtered queue without stal
             : { success: false, message: 'Obsolete request failed' }) });
           return;
         }
-        const total = url.searchParams.get('search') ? 1 : active;
+        const includesClosed = !url.searchParams.get('status');
+        const total = url.searchParams.get('search') ? 1 : active + (includesClosed ? 2 : 0);
         const page = Number(url.searchParams.get('page'));
         result.pagination = { total, page, limit: 10 };
         result.data = Array.from({ length: Math.max(0, Math.min(10, total - (page - 1) * 10)) }, (_, i) => ({
           id: `lead-${page}-${i}`, lead_number: `LD-${page}-${i}`, name: 'Regression buyer', status: 'pending_broker_response', stage: 'matching', created_at: '2026-09-09T00:00:00Z', broker_id: 'broker-test',
+          ...(includesClosed && i === 0 ? { status: 'New Lead', closed_at: '2026-09-10T00:00:00Z' } : {}),
         }));
       }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
@@ -156,7 +158,7 @@ test('admin lead refresh updates the global card and filtered queue without stal
     newer.release();
     await (await newerFinished).finished();
     await card.getByText(String(active), { exact: true }).waitFor();
-    await queue.getByText('No open leads ready for reassignment', { exact: true }).first().waitFor();
+    await queue.getByText('No leads match your current filters', { exact: true }).first().waitFor();
     assert.equal(await queue.locator('[data-mobile-table="cards"] article').count(), 0);
     await queue.getByRole('textbox', { name: 'Search reassignment leads' }).fill('latest');
     await queue.getByText(/Showing 1-1 of 1/).waitFor();
@@ -174,8 +176,18 @@ test('admin lead refresh updates the global card and filtered queue without stal
     await page.reload({ waitUntil: 'domcontentloaded' });
     await queue.getByText(`Showing 1-${active} of ${active} leads`, { exact: true }).waitFor();
     await card.getByText(String(active), { exact: true }).waitFor();
+    await queue.getByRole('combobox', { name: 'Filter reassignment leads' }).selectOption('all');
+    await queue.getByText(`Showing 1-${active + 2} of ${active + 2} leads`, { exact: true }).waitFor({ timeout: 5000 });
+    await card.getByText(String(active), { exact: true }).waitFor();
     for (const width of [283, 1440]) {
       await page.setViewportSize({ width, height: 642 });
+      const renderedRows = width === 283 ? queue.locator('[data-mobile-table="cards"] article') : queue.locator('tbody tr');
+      assert.equal(await renderedRows.count(), active + 2, 'All leads must render every server-paginated row');
+      const closedAction = renderedRows.first().getByRole('button', { name: /reassign/i });
+      assert.equal(await closedAction.isDisabled(), true, 'Showing a closed row never enables reassignment');
+      assert.equal(await closedAction.getAttribute('title'), 'Closed leads cannot be reassigned.');
+      assert.equal(await renderedRows.first().getByRole('combobox').isDisabled(), true);
+      await renderedRows.first().getByText('Closed lead. Reassignment unavailable.', { exact: true }).waitFor();
       for (const theme of ['dark', 'light']) {
         await page.getByRole('button', { name: `Switch to ${theme} mode`, exact: true }).click();
         await page.waitForFunction(expected => document.documentElement.classList.contains('dark') === (expected === 'dark'), theme);
@@ -231,6 +243,12 @@ test('admin lead refresh updates the global card and filtered queue without stal
         await page.locator('#forced-light-contrast-fixture').evaluate(el => el.remove());
       }
     }
+    await queue.getByRole('textbox', { name: 'Search reassignment leads' }).fill('closed');
+    await queue.getByText('Showing 1-1 of 1 leads', { exact: true }).waitFor();
+    assert.equal(await queue.locator('tbody tr').count(), 1, 'A closed-only result is not an empty queue');
+    await queue.getByRole('textbox', { name: 'Search reassignment leads' }).fill('');
+    await queue.getByRole('combobox', { name: 'Filter reassignment leads' }).selectOption('open');
+    await queue.getByText(`Showing 1-${active} of ${active} leads`, { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     assert.deepEqual(writes, [], 'Regression must not mutate live or fixture records');
     await context.close();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, CircleHelp, LifeBuoy, RefreshCw, Ticket } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -167,11 +167,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
     // Guard against duplicate / concurrent fetches that fire when filters change
     // (every `fetchTickets` identity change re-triggers the load useEffect). This
     // also prevents multiple "Request timed out" toasts when the API is slow.
-    const fetchingRef = useRef(false);
+    const fetchingRef = useRef<symbol | null>(null);
     const loadingTicketDetailsRef = useRef(new Set<string>());
     const detailRequestVersionRef = useRef(0);
     const supportCenterMountedRef = useRef(false);
     const composerHeadingRef = useRef<HTMLHeadingElement>(null);
+    const ticketTranscriptRef = useRef<HTMLDivElement>(null);
 
     const handleStartNewTicket = useCallback(() => {
         setSearchParams(new URLSearchParams(), { replace: true });
@@ -229,13 +230,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
     const fetchTickets = useCallback(async (silent = false) => {
         if (fetchingRef.current) return;
-        fetchingRef.current = true;
+        const request = Symbol('ticket-list-request');
+        fetchingRef.current = request;
         if (!silent) setLoading(true);
         try {
             const data = isAdmin
                 ? await supportService.getAllTickets({ limit: 100 })
                 : await supportService.getTickets({ limit: 100 });
-            if (!supportCenterMountedRef.current) return;
+            if (!supportCenterMountedRef.current || fetchingRef.current !== request) return;
 
             setAllTickets(data);
             const visibleTickets = data.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
@@ -269,17 +271,26 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 }, { replace: true });
             }
         } catch (error: any) {
-            if (!silent && supportCenterMountedRef.current) {
+            if (!silent && supportCenterMountedRef.current && fetchingRef.current === request) {
                 toast.error(error.message || 'Failed to load support tickets');
             }
         } finally {
-            fetchingRef.current = false;
-            if (!silent && supportCenterMountedRef.current) setLoading(false);
+            if (fetchingRef.current === request) {
+                fetchingRef.current = null;
+                if (!silent && supportCenterMountedRef.current) setLoading(false);
+            }
         }
     }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
 
+    // Navigation and filter changes retire the old list request before it can
+    // restore its captured ticket selection or overwrite the new queue.
+    useLayoutEffect(() => () => {
+        fetchingRef.current = null;
+    }, [fetchTickets]);
+
     const loadDetail = useCallback(async (ticketId: string, silent = false) => {
         if (loadingTicketDetailsRef.current.has(ticketId)) {
+            setResumingTicketId((current) => current === ticketId ? null : current);
             return;
         }
 
@@ -304,7 +315,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
             }
         } finally {
             loadingTicketDetailsRef.current.delete(ticketId);
-            if (!silent && supportCenterMountedRef.current) setDetailLoading(false);
+            if (!silent && supportCenterMountedRef.current) {
+                setDetailLoading(false);
+                setResumingTicketId((current) => current === ticketId ? null : current);
+            }
         }
     }, [toast]);
 
@@ -348,6 +362,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
         setReplyAttachments([]);
         setReplyDraftId('');
     }, [selectedTicketId]);
+
+    useEffect(() => {
+        if (!selectedTicketId || selectedTicket?.id !== selectedTicketId) {
+            return;
+        }
+
+        ticketTranscriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [selectedTicket?.id, selectedTicketId]);
 
     useEffect(() => {
         if (resumingTicketId && selectedTicket?.id === resumingTicketId && !detailLoading) {
@@ -673,7 +695,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     )}
                 </div>
 
-                <div className="min-w-0 space-y-5">
+                <div ref={ticketTranscriptRef} className="min-w-0 space-y-5">
                     {!isAdmin && !selectedTicket && (
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                             <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 ref={composerHeadingRef} tabIndex={-1} className="text-2xl font-black text-gray-950 outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:text-white dark:focus-visible:ring-offset-gray-900">Open a support ticket</h2></div>

@@ -225,6 +225,25 @@ const formatRequirementsPreview = (value?: string | null) => {
 
 const normalizePostcode = (value?: string | null) => normalizeLaunchLocationCode(value);
 
+export const formatBrokerRequestLocationCodeInput = (value?: string | null): string => {
+    const rawValue = String(value || '').toUpperCase().replace(/[^A-Z0-9\s]/g, '');
+    const compactValue = rawValue.replace(/\s+/g, '');
+
+    if (!compactValue) {
+        return '';
+    }
+
+    if (/^\d+$/.test(compactValue)) {
+        return compactValue.slice(0, 6);
+    }
+
+    if (/\s/.test(rawValue)) {
+        return rawValue.replace(/\s+/g, ' ').slice(0, 8);
+    }
+
+    return compactValue.slice(0, 7);
+};
+
 const formatLaunchBrokerLocationCode = (value?: string | null) => {
     const normalized = normalizePostcode(value);
     if (!normalized || !isValidLaunchLocationCode(normalized)) {
@@ -1871,7 +1890,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                             type="text"
                             value={locationPostcode}
                             onChange={(e) => {
-                                const nextValue = normalizeLaunchLocationCode(e.target.value);
+                                const nextValue = formatBrokerRequestLocationCodeInput(e.target.value);
                                 setLocationPostcode(nextValue);
                                 if (postcodeError) {
                                     const trimmedNextValue = normalizePostcode(nextValue);

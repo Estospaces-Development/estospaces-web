@@ -25,6 +25,14 @@ test('admin platform snapshot uses plain-language copy without an internal API p
         adminDashboardSource.indexOf('id="recent-notifications"'),
     );
 
-    assert.match(snapshot, /Live platform data\./);
+    assert.match(snapshot, /Paid revenue excludes active Fast Track cases and unpaid bookings\./);
     assert.doesNotMatch(snapshot, /\/api\/|<code>/);
+});
+
+test('admin notifications span the dashboard grid instead of extending the sidebar', () => {
+    const notificationStart = adminDashboardSource.indexOf('id="recent-notifications"');
+    const notificationMarkup = adminDashboardSource.slice(notificationStart, notificationStart + 500);
+
+    assert.ok(notificationStart > adminDashboardSource.indexOf('{/* Platform Snapshot */}'));
+    assert.match(notificationMarkup, /lg:col-span-3/);
 });

@@ -6,11 +6,8 @@ import { useProperties, type ListingType, type PriceInfo } from '@/contexts/Prop
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import PropertyMediaImage from './PropertyMediaImage';
-import {
-    formatLaunchCurrencyForCountry,
-    formatLaunchPropertyText,
-    normalizeLaunchCurrencyText,
-} from '@/lib/launchLocale';
+import { formatLaunchPropertyText } from '@/lib/launchLocale';
+import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import {
     getManagerPropertyLocation,
@@ -74,52 +71,13 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const draftNeedsArea = property.status.trim().toLowerCase() === 'draft' && size <= 0;
     const description = property.description?.trim() || '';
 
-    const formatPrice = (price?: PriceInfo | number | string) => {
-        const isRentalListing =
-            property.listingType === 'rent' ||
-            property.listing_type === 'rent' ||
-            property.type?.toLowerCase() === 'rent';
-        const formatPropertyAmount = (amount: number, currencyCode?: string | null) => (
-            formatLaunchCurrencyForCountry(amount, {
-                countryCode: property.countryCode
-                    || property.country_code
-                    || property.country
-                    || property.location?.countryCode
-                    || property.location?.country,
-                countryName: property.country || property.location?.country,
-                currencyCode: currencyCode || property.currency,
-            })
-        );
-
-        if (property.priceString) {
-            const normalized = normalizeLaunchCurrencyText(property.priceString);
-            return isRentalListing ? `${normalized}/month` : normalized;
-        }
-
-        if (typeof price === 'object' && price !== null && 'amount' in price) {
-            const formatted = formatPropertyAmount(price.amount, price.currency);
-            return isRentalListing ? `${formatted}/month` : formatted;
-        }
-
-        if (typeof price === 'number') {
-            const formatted = formatPropertyAmount(price);
-            return isRentalListing ? `${formatted}/month` : formatted;
-        }
-
-        if (typeof price === 'string' && price.trim()) {
-            return normalizeLaunchCurrencyText(price);
-        }
-
-        return null;
-    };
-
     const imageUrl = getPrimaryPropertyImage(property);
     const statusConfig = getManagerPropertyStatusBadge(property.status);
     const inventoryCaption = formatPropertyInventoryCaption(
         property.dimensions?.totalFloors ?? property.total_floors,
         property.dimensions?.occupiedUnits ?? property.occupied_units,
     );
-    const formattedPrice = formatPrice(property.price);
+    const formattedPrice = formatManagerPropertyPrice(property);
     const canSharePublicly = isPropertyPubliclyShareable(property.status);
 
     return (
@@ -160,10 +118,10 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
             </div>
 
             <div className="p-4">
-                <div className="mb-2 flex flex-col items-start gap-1.5 min-[360px]:flex-row min-[360px]:justify-between min-[360px]:gap-2">
-                    <h2 className="line-clamp-2 min-w-0 break-words text-base font-bold leading-tight text-gray-900 dark:text-white min-[360px]:line-clamp-none min-[360px]:flex-1 min-[360px]:text-lg">{title}</h2>
+                <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5">
+                    <h2 className="line-clamp-2 w-full min-w-0 break-words text-base font-bold leading-tight text-gray-900 dark:text-white min-[360px]:text-lg">{title}</h2>
                     {formattedPrice && (
-                        <p className="self-start whitespace-nowrap font-display text-base font-bold text-orange-600 dark:text-orange-500 min-[360px]:shrink-0 min-[360px]:text-lg">
+                        <p className="max-w-full self-start break-words font-display text-base font-bold text-orange-600 dark:text-orange-500 min-[360px]:text-lg">
                             {formattedPrice}
                         </p>
                     )}
