@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { FastTrackCase } from '../services/fastTrackService';
+import { PAYMENTS_ENABLED } from './launchFlags';
 import {
     resolveFastTrackLinkedJourney,
     resolveFastTrackPrimaryLaneLabel,
@@ -60,7 +61,7 @@ const buyCase: FastTrackCase = {
     journeyStage: 'offer_review',
 };
 
-test('resolveFastTrackLinkedJourney hides inactive payment and invoice workspace records from rent journey copy', () => {
+test('resolveFastTrackLinkedJourney follows the payment feature state for rent finance records', () => {
     const linked = resolveFastTrackLinkedJourney(rentCase, {
         applications: [
             {
@@ -138,14 +139,20 @@ test('resolveFastTrackLinkedJourney hides inactive payment and invoice workspace
     assert.equal(linked.application?.id, 'app-1');
     assert.equal(linked.viewing?.id, 'viewing-1');
     assert.equal(linked.contract?.id, 'contract-1');
-    assert.equal(linked.payments.length, 0);
-    assert.equal(linked.invoices.length, 0);
-    assert.doesNotMatch(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
-    assert.doesNotMatch(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
-    assert.doesNotMatch(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+    assert.equal(linked.payments.length, PAYMENTS_ENABLED ? 1 : 0);
+    assert.equal(linked.invoices.length, PAYMENTS_ENABLED ? 1 : 0);
+    if (PAYMENTS_ENABLED) {
+        assert.match(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
+        assert.match(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
+        assert.match(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+    } else {
+        assert.doesNotMatch(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
+        assert.doesNotMatch(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
+        assert.doesNotMatch(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+    }
 });
 
-test('resolveFastTrackLinkedJourney rewrites inactive finance backend stages to launch-safe tenancy copy', () => {
+test('resolveFastTrackLinkedJourney preserves or rewrites finance backend stages by feature state', () => {
     const linked = resolveFastTrackLinkedJourney({
         ...rentCase,
         liveStage: 'deposit_and_first_rent',
@@ -167,9 +174,15 @@ test('resolveFastTrackLinkedJourney rewrites inactive finance backend stages to 
     });
 
     assert.equal(linked.liveStage, 'deposit_and_first_rent');
-    assert.doesNotMatch(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
-    assert.doesNotMatch(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
-    assert.doesNotMatch(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+    if (PAYMENTS_ENABLED) {
+        assert.match(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
+        assert.match(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
+        assert.match(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+    } else {
+        assert.doesNotMatch(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
+        assert.doesNotMatch(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
+        assert.doesNotMatch(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+    }
 });
 
 test('resolveFastTrackLinkedJourney prefers backend journey-state copy, blockers, and deadlines when available', () => {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NOTIFICATION_TYPES } from '@/services/notificationsService';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import {
     WORKSPACE_SYNC_TAGS,
     WorkspaceSyncBus,
@@ -32,7 +33,7 @@ test('normalizeNotificationToWorkspaceSyncEvent maps property workflow notificat
     assert.ok(event.tags.includes(WORKSPACE_SYNC_TAGS.MANAGER_ANALYTICS));
 });
 
-test('normalizeNotificationToWorkspaceSyncEvent routes inactive billing notifications through contracts only', () => {
+test('normalizeNotificationToWorkspaceSyncEvent follows payment workspace availability', () => {
     const paymentEvent = normalizeNotificationToWorkspaceSyncEvent({
         id: 'notif-payment-1',
         type: NOTIFICATION_TYPES.PAYMENT_RECEIVED,
@@ -45,12 +46,12 @@ test('normalizeNotificationToWorkspaceSyncEvent routes inactive billing notifica
     assert.ok(paymentEvent);
     assert.equal(paymentEvent.ids?.invoiceId, 'invoice-9');
     assert.ok(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.CONTRACTS));
-    assert.equal(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS), false);
-    assert.equal(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.BILLING), false);
+    assert.equal(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS), PAYMENTS_ENABLED);
+    assert.equal(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.BILLING), PAYMENTS_ENABLED);
 
     const paymentPathTags = resolveWorkspaceSyncTagsFromPath('/user/dashboard/payments?invoice=invoice-9');
-    assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS), false);
-    assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.BILLING), false);
+    assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS), PAYMENTS_ENABLED);
+    assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.BILLING), PAYMENTS_ENABLED);
 });
 
 test('broker fast-track notifications trigger manager dashboard refresh tags', () => {
