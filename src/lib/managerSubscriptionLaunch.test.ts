@@ -14,6 +14,7 @@ test('manager subscription checkout is authenticated, consented, and verified', 
     assert.match(service, /\/api\/v1\/manager\/subscriptions\/checkouts/);
     assert.match(service, /recurring_consent: boolean/);
     assert.match(page, /recurring_consent: true/);
+    assert.match(page, /consent_version: offer\.terms_version/);
     assert.match(page, /crypto\.randomUUID/);
     assert.match(page, /verifyManagerSubscriptionCheckout/);
     assert.match(page, /subscription_id: checkout\.checkout\.provider_subscription_id/);

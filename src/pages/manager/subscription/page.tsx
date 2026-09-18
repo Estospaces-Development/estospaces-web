@@ -18,8 +18,6 @@ declare global {
     }
 }
 
-const CONSENT_VERSION = 'manager-subscription-v2';
-
 function loadRazorpayScript() {
     if (window.Razorpay) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
@@ -85,7 +83,7 @@ export default function ManagerSubscriptionPage() {
                 plan_version_id: offer.id,
                 idempotency_key: `web-${crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`}`,
                 terms_digest: offer.terms_digest,
-                consent_version: CONSENT_VERSION,
+                consent_version: offer.terms_version,
                 recurring_consent: true,
             });
             await loadRazorpayScript();
