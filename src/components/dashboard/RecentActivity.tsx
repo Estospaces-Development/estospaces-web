@@ -31,7 +31,7 @@ const RecentActivity = () => {
 
     const getActivityPath = (activity: Activity): string | null => {
         if (activity.type === 'New Lead' && activity.leadId) {
-            return `/manager/leads/${activity.leadId}`;
+            return `/manager/leads?search=${encodeURIComponent(activity.leadId)}`;
         }
         if (activity.propertyId && (activity.type === 'Listing Published' || activity.type === 'Property Updated')) {
             return `/manager/dashboard/properties/${activity.propertyId}`;

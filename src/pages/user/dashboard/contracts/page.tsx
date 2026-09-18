@@ -69,6 +69,7 @@ import {
 } from "@/lib/userPropertyPortfolio";
 import { paginateItems } from "@/lib/pagination";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
+import { filterContractsWorkspace } from "@/lib/contractsWorkspaceSearch";
 
 const USER_PROPERTIES_PAGE_SIZE = 8;
 const USER_CONTRACTS_PAGE_SIZE = 8;
@@ -395,13 +396,7 @@ export default function ContractsPage() {
     [portfolioItems],
   );
 
-  const filtered = contracts
-    .filter(
-      (c) =>
-        (c.contract_type?.toLowerCase() || "").includes(
-          searchQuery.toLowerCase(),
-        ) || (c.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()),
-    )
+  const filtered = filterContractsWorkspace(contracts, searchQuery)
     .sort((left, right) => {
       if (!focusedContract) {
         return 0;
