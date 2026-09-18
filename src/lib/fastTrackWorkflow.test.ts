@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { PAYMENTS_ENABLED } from './launchFlags';
 import {
     buildCaseDocumentsFromVerification,
     buildFastTrackDocumentItems,
@@ -892,7 +893,7 @@ test('live fast-track step follows linked viewing, rent contract, and payment re
                 },
             },
         ),
-        'completed',
+        PAYMENTS_ENABLED ? 'ready_for_contract' : 'completed',
     );
 
     assert.equal(

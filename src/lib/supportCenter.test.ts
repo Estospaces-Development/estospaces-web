@@ -12,6 +12,7 @@ import {
     resolveSupportComposerCategory,
     shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import type { SupportTicketSummary } from '@/services/messagesService';
 
 const tickets: SupportTicketSummary[] = [
@@ -236,8 +237,8 @@ test('support requests cannot restore a stale support deep link after route unmo
 
 test('support category normalization maps UI-only labels to backend-safe values', () => {
     assert.equal(normalizeSupportTicketCategory('Buying Help'), 'general inquiry');
-    assert.equal(normalizeSupportTicketCategory('Billing'), 'contracts');
-    assert.equal(normalizeSupportTicketCategory('Payments'), 'contracts');
+    assert.equal(normalizeSupportTicketCategory('Billing'), PAYMENTS_ENABLED ? 'payments' : 'contracts');
+    assert.equal(normalizeSupportTicketCategory('Payments'), PAYMENTS_ENABLED ? 'payments' : 'contracts');
     assert.equal(normalizeSupportTicketCategory('Technical Issue'), 'technical issue');
 });
 
@@ -252,14 +253,14 @@ test('support composer resolves backend category values to the nearest visible l
     );
 });
 
-test('support composer resolves finance URL aliases to the visible contracts label', () => {
+test('support composer resolves finance URL aliases to the visible payment label when enabled', () => {
     assert.equal(
         resolveSupportComposerCategory(
             'billing',
             ['General Inquiry', 'Payments', 'Contracts', 'Technical Issue'],
             'General Inquiry',
         ),
-        'Contracts',
+        PAYMENTS_ENABLED ? 'Payments' : 'Contracts',
     );
 
     assert.equal(
@@ -268,14 +269,15 @@ test('support composer resolves finance URL aliases to the visible contracts lab
             ['General Inquiry', 'Payments', 'Contracts', 'Technical Issue'],
             'General Inquiry',
         ),
-        'Contracts',
+        PAYMENTS_ENABLED ? 'Payments' : 'Contracts',
     );
 });
 
-test('support category labels hide inactive payment and invoice workspace copy', () => {
-    assert.equal(getLaunchSafeSupportCategoryLabel('Payments'), 'Contracts');
-    assert.equal(getLaunchSafeSupportCategoryLabel('billing'), 'Contracts');
-    assert.equal(getLaunchSafeSupportCategoryLabel('Invoices'), 'Contracts');
+test('support category labels follow payment workspace availability', () => {
+    const expected = PAYMENTS_ENABLED ? 'Payments' : 'Contracts';
+    assert.equal(getLaunchSafeSupportCategoryLabel('Payments'), expected);
+    assert.equal(getLaunchSafeSupportCategoryLabel('billing'), expected);
+    assert.equal(getLaunchSafeSupportCategoryLabel('Invoices'), expected);
     assert.equal(getLaunchSafeSupportCategoryLabel('Technical Issue'), 'Technical Issue');
 });
 

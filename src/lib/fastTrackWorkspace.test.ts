@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import type { FastTrackCase } from '@/services/fastTrackService';
+import { PAYMENTS_ENABLED } from './launchFlags';
 
 import {
     buildFastTrackDocumentDraftStorageKey,
@@ -447,7 +448,10 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
         stage: 'agreement',
         agreement: { status: 'sent', paymentStatus: 'requested', amountDue: 1200 },
     });
-    assert.equal(describeFastTrackWorkspaceFocus(agreementCase, 'manager'), 'Publish the agreement');
+    assert.equal(
+        describeFastTrackWorkspaceFocus(agreementCase, 'manager'),
+        PAYMENTS_ENABLED ? 'Confirm payment and move to handover' : 'Publish the agreement',
+    );
 
     const completedCase = buildCase({ workspaceFinalStatus: 'completed' });
     assert.equal(describeFastTrackWorkspaceFocus(completedCase, 'admin'), 'Case finished');
@@ -769,7 +773,7 @@ test('stage availability follows the exact Fast Track business events', () => {
         decision: { mode: 'rent', status: 'approved' },
         agreement: { status: 'accepted', paymentStatus: 'requested' },
     });
-    assert.equal(isFastTrackStageUnlocked(paymentOutstanding, 'handover'), true);
+    assert.equal(isFastTrackStageUnlocked(paymentOutstanding, 'handover'), !PAYMENTS_ENABLED);
 
     const completed = buildCase({ workspaceFinalStatus: 'completed' });
     assert.equal(isFastTrackStageUnlocked(completed, 'handover'), true);

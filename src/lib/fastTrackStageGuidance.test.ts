@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { PAYMENTS_ENABLED } from './launchFlags';
 import {
     getPurchaseWorkspaceLabel,
     hasPendingRentFinanceTasks,
@@ -31,7 +32,7 @@ test('viewing completed fast-track guidance keeps completed buy journeys inside 
     });
 });
 
-test('ready for contract rent guidance ignores inactive payment workspace blockers', () => {
+test('ready for contract rent guidance follows payment workspace availability', () => {
     const guidance = resolveFastTrackStageGuidance({
         currentStep: 'ready_for_contract',
         journeyType: 'rent',
@@ -52,8 +53,13 @@ test('ready for contract rent guidance ignores inactive payment workspace blocke
 
     assert.equal(guidance?.target, 'fast_track');
     assert.equal(guidance?.actionLabel, 'Continue in fast-track workspace');
-    assert.doesNotMatch(guidance?.title || '', /deposit|first-rent|payment|invoice|billing/i);
-    assert.doesNotMatch(guidance?.description || '', /deposit|first-rent|payment|invoice|billing/i);
+    if (PAYMENTS_ENABLED) {
+        assert.match(guidance?.title || '', /deposit|first-rent|payment|invoice|billing/i);
+        assert.match(guidance?.description || '', /deposit|first-rent|payment|invoice|billing/i);
+    } else {
+        assert.doesNotMatch(guidance?.title || '', /deposit|first-rent|payment|invoice|billing/i);
+        assert.doesNotMatch(guidance?.description || '', /deposit|first-rent|payment|invoice|billing/i);
+    }
 });
 
 test('purchase workspace label now points to the linked purchase details surface', () => {
@@ -62,7 +68,7 @@ test('purchase workspace label now points to the linked purchase details surface
     assert.equal(getPurchaseWorkspaceLabel({ saleProgression: null, liveStage: 'offer' } as any), 'Open linked purchase details');
 });
 
-test('pending rent finance task detection ignores rent blockers while payments are disabled', () => {
+test('pending rent finance task detection follows payment availability', () => {
     assert.equal(hasPendingRentFinanceTasks({
         payments: [
             { payment_type: 'security_deposit', status: 'pending' } as any,
@@ -74,7 +80,7 @@ test('pending rent finance task detection ignores rent blockers while payments a
         primaryHeadline: '',
         saleProgression: null,
         viewing: null,
-    }), false);
+    }), PAYMENTS_ENABLED);
 
     assert.equal(hasPendingRentFinanceTasks({
         payments: [
