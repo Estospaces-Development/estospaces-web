@@ -1,2 +1,2 @@
-export const PAYMENTS_ENABLED = false;
+export const PAYMENTS_ENABLED = true;
 export const VIRTUAL_TOUR_ENABLED = false;
