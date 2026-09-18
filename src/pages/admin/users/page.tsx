@@ -24,7 +24,7 @@ import Avatar from '@/components/ui/Avatar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getAuthPath } from '@/lib/authUtils';
 import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
-import { deduplicateAdminBrokers } from '@/lib/adminBrokerOptions';
+import { buildAdminBrokerDisplayLabels, deduplicateAdminBrokers } from '@/lib/adminBrokerOptions';
 
 export type AdminUsersSortOption = 'newest' | 'oldest' | 'name_asc' | 'email_asc' | 'status';
 export type AdminLeadSortOption = 'newest' | 'oldest' | 'lead_number' | 'status';
@@ -426,9 +426,10 @@ function UserManagementContent() {
 
     const selectableBrokers = useMemo(() => deduplicateAdminBrokers(adminBrokers), [adminBrokers]);
 
-    const brokerNameById = useMemo(() => {
-        return new Map(selectableBrokers.map((broker) => [broker.user_id, getAdminBrokerDisplayName(broker)]));
-    }, [selectableBrokers]);
+    const brokerNameById = useMemo(
+        () => buildAdminBrokerDisplayLabels(selectableBrokers),
+        [selectableBrokers],
+    );
 
     const leadTotalItems = leadPagination?.total ?? adminLeads.length;
     const leadTotalPages = Math.max(1, Math.ceil(leadTotalItems / ADMIN_LEAD_QUEUE_PAGE_SIZE));
@@ -709,7 +710,7 @@ function UserManagementContent() {
                                     className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                                 >
                                     <option value="">Choose broker</option>
-                                    {selectableBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{getAdminBrokerDisplayName(broker)}</option>)}
+                                    {selectableBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{brokerNameById.get(broker.user_id) || getAdminBrokerDisplayName(broker)}</option>)}
                                 </select>
                                 {rowError && <p role="alert" className="mt-2 break-words text-xs font-semibold text-red-600">{rowError}</p>}
                                 <button
@@ -794,7 +795,7 @@ function UserManagementContent() {
                                                     <option value="">Choose broker</option>
                                                     {selectableBrokers.map((broker) => (
                                                         <option key={broker.user_id} value={broker.user_id}>
-                                                            {getAdminBrokerDisplayName(broker)}
+                                                            {brokerNameById.get(broker.user_id) || getAdminBrokerDisplayName(broker)}
                                                         </option>
                                                     ))}
                                                 </select>
