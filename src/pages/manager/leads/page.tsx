@@ -372,6 +372,7 @@ export default function ManagerLeadsPage() {
 
         return visibleSourceLeads.filter((lead) => {
             const haystack = [
+                lead.id,
                 lead.lead_number,
                 getLeadTitle(lead),
                 getLeadAddress(lead),

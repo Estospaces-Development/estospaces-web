@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   createVirtualStorageCategory,
+  deleteVirtualStorageCategory,
   declineVirtualStorageSave,
   getVirtualStorageCategories,
   getVirtualStorageDocuments,
@@ -32,6 +33,7 @@ test("virtual storage service uses the core virtual-storage routes", async () =>
   try {
     await getVirtualStorageCategories();
     await createVirtualStorageCategory({ name: "School admissions" });
+    await deleteVirtualStorageCategory("cat-1");
     await getVirtualStorageDocuments();
     await saveDocumentToVirtualStorage("doc-1", { category_id: "cat-1" });
     await declineVirtualStorageSave("doc-1");
@@ -50,18 +52,23 @@ test("virtual storage service uses the core virtual-storage routes", async () =>
   );
   assert.equal(
     requests[2].url,
+    "http://localhost:8080/api/v1/virtual-storage/categories/cat-1",
+  );
+  assert.equal(requests[2].method, "DELETE");
+  assert.equal(
+    requests[3].url,
     "http://localhost:8080/api/v1/virtual-storage/documents",
   );
   assert.equal(
-    requests[3].url,
+    requests[4].url,
     "http://localhost:8080/api/v1/virtual-storage/documents/doc-1/save",
   );
   assert.equal(
-    requests[3].body,
+    requests[4].body,
     JSON.stringify({ category_id: "cat-1" }),
   );
   assert.equal(
-    requests[4].url,
+    requests[5].url,
     "http://localhost:8080/api/v1/virtual-storage/documents/doc-1/decline-save",
   );
 });

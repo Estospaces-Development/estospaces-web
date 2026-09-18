@@ -24,6 +24,7 @@ import Avatar from '@/components/ui/Avatar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getAuthPath } from '@/lib/authUtils';
 import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
+import { deduplicateAdminBrokers } from '@/lib/adminBrokerOptions';
 
 export type AdminUsersSortOption = 'newest' | 'oldest' | 'name_asc' | 'email_asc' | 'status';
 export type AdminLeadSortOption = 'newest' | 'oldest' | 'lead_number' | 'status';
@@ -423,9 +424,11 @@ function UserManagementContent() {
         fetchUsers();
     };
 
+    const selectableBrokers = useMemo(() => deduplicateAdminBrokers(adminBrokers), [adminBrokers]);
+
     const brokerNameById = useMemo(() => {
-        return new Map(adminBrokers.map((broker) => [broker.user_id, getAdminBrokerDisplayName(broker)]));
-    }, [adminBrokers]);
+        return new Map(selectableBrokers.map((broker) => [broker.user_id, getAdminBrokerDisplayName(broker)]));
+    }, [selectableBrokers]);
 
     const leadTotalItems = leadPagination?.total ?? adminLeads.length;
     const leadTotalPages = Math.max(1, Math.ceil(leadTotalItems / ADMIN_LEAD_QUEUE_PAGE_SIZE));
@@ -679,7 +682,7 @@ function UserManagementContent() {
                         const rowError = leadReassignErrors[lead.id];
                         const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
                         const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
-                        const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, adminBrokers.length, isBusy);
+                        const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, selectableBrokers.length, isBusy);
                         const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
 
                         return (
@@ -706,7 +709,7 @@ function UserManagementContent() {
                                     className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                                 >
                                     <option value="">Choose broker</option>
-                                    {adminBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{getAdminBrokerDisplayName(broker)}</option>)}
+                                    {selectableBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{getAdminBrokerDisplayName(broker)}</option>)}
                                 </select>
                                 {rowError && <p role="alert" className="mt-2 break-words text-xs font-semibold text-red-600">{rowError}</p>}
                                 <button
@@ -757,7 +760,7 @@ function UserManagementContent() {
                                     const rowError = leadReassignErrors[lead.id];
                                     const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
                                     const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
-                                    const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, adminBrokers.length, isBusy);
+                                    const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, selectableBrokers.length, isBusy);
                                     const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
 
                                     return (
@@ -789,7 +792,7 @@ function UserManagementContent() {
                                                     className="w-full min-w-64 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                                                 >
                                                     <option value="">Choose broker</option>
-                                                    {adminBrokers.map((broker) => (
+                                                    {selectableBrokers.map((broker) => (
                                                         <option key={broker.user_id} value={broker.user_id}>
                                                             {getAdminBrokerDisplayName(broker)}
                                                         </option>
