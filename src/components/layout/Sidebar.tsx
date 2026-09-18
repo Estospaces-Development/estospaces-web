@@ -21,6 +21,7 @@ import {
   UserCircle,
   BookOpen,
   AlertCircle,
+  CreditCard,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -80,6 +81,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain: _useSubdomain = false }: Side
     { icon: FileText, label: "Applications", path: "/manager/applications" },
     { icon: FileText, label: "Contracts", path: "/manager/contracts" },
     { icon: Calendar, label: "Appointments", path: "/manager/appointments" },
+    { icon: CreditCard, label: "Subscription", path: "/manager/subscription" },
     { icon: MessageSquare, label: "Messages", path: "/manager/messages" },
     { icon: BarChart3, label: "Analytics", path: "/manager/analytics" },
   ];

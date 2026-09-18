@@ -193,7 +193,7 @@ const NotificationDropdown = ({ appearance = 'surface' }: NotificationDropdownPr
                 aria-label={notificationButtonLabel}
                 aria-expanded={isOpen}
                 aria-haspopup="dialog"
-                aria-controls={isOpen ? 'notification-dropdown-panel' : undefined}
+                aria-controls="notification-dropdown-panel"
                 title={hasUnreadNotifications ? `${unreadCount} unread notifications` : 'Notifications'}
             >
                 <Bell size={19} aria-hidden="true" />

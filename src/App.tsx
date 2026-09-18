@@ -126,8 +126,9 @@ const ManagerNotifications = lazyPage(() => import('./pages/manager/notification
 const ManagerProfile = lazyPage(() => import('./pages/manager/profile/page'));
 const ManagerUserVerifications = lazyPage(() => import('./pages/manager/user-verifications/page'));
 const ManagerVerification = lazyPage(() => import('./pages/manager/verification/page'));
-// Phase 2: billing and payment collection remain in source, but are not exposed in the active launch route table.
-// const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
+// Payment collection is protected by the manager verification boundary and backend JWT checks.
+const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
+const ManagerSubscription = lazyPage(() => import('./pages/manager/subscription/page'));
 
 // Lazy loaded pages - User
 const UserDashboard = lazyPage(() => import('./pages/user/dashboard/page'));
@@ -148,8 +149,8 @@ const UserHelp = lazyPage(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazyPage(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazyPage(() => import('./pages/user/dashboard/notifications/page'));
 const UserOverseas = lazyPage(() => import('./pages/user/dashboard/overseas/page'));
-// Phase 2: payments remain in source, but are not exposed in the active launch route table.
-// const UserPayments = lazyPage(() => import('./pages/user/dashboard/payments/page'));
+// User payment history is read-only and remains behind the authenticated dashboard.
+const UserPayments = lazyPage(() => import('./pages/user/dashboard/payments/page'));
 const UserReviews = lazyPage(() => import('./pages/user/dashboard/reviews/page'));
 const UserSettingsDash = lazyPage(() => import('./pages/user/dashboard/settings/page'));
 const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page'));
@@ -294,7 +295,8 @@ const App: React.FC = () => {
             <Route path="case-files" element={<ManagerCaseFiles />} />
             <Route path="contracts" element={<VerifiedManagerRoute><ManagerContracts /></VerifiedManagerRoute>} />
             <Route path="docs" element={<ManagerDocs />} />
-            <Route path="billing/*" element={<Navigate to="/manager/contracts" replace />} />
+            <Route path="billing/*" element={<ManagerBilling />} />
+            <Route path="subscription" element={<VerifiedManagerRoute><ManagerSubscription /></VerifiedManagerRoute>} />
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<ManagerCommunity />} />
             <Route path="fast-track" element={<VerifiedManagerRoute><ManagerFastTrack /></VerifiedManagerRoute>} />
@@ -322,7 +324,7 @@ const App: React.FC = () => {
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
             <Route path="dashboard/overseas" element={<UserOverseas />} />
-            <Route path="dashboard/payments/*" element={<Navigate to="/user/dashboard/contracts" replace />} />
+            <Route path="dashboard/payments/*" element={<UserPayments />} />
             <Route path="dashboard/profile" element={<UserProfile />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
             <Route path="dashboard/saved" element={<UserSaved />} />

@@ -35,6 +35,7 @@ import { getFastTrackCases, type FastTrackCase } from "@/services/fastTrackServi
 import { uploadDocument, type UserDocument } from "@/services/leadsService";
 import {
   createVirtualStorageCategory,
+  deleteVirtualStorageCategory,
   declineVirtualStorageSave,
   getVirtualStorageCategories,
   getVirtualStorageDocuments,
@@ -248,15 +249,21 @@ export function UserVirtualStoragePageContent({
   });
   const [selectedCategoryId, setSelectedCategoryId] = useState(DEFAULT_CATEGORIES[0].id);
   const [categoryName, setCategoryName] = useState("");
+  const [pendingCategoryRemovalId, setPendingCategoryRemovalId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentPage, setDocumentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedCategoryIdRef = useRef(selectedCategoryId);
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const geoMarket = useUserGeoMarket(currentUser);
   const documentGuidance = getCountryDocumentGuidance(geoMarket);
+
+  useEffect(() => {
+    selectedCategoryIdRef.current = selectedCategoryId;
+  }, [selectedCategoryId]);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId) || categories[0],
@@ -272,6 +279,7 @@ export function UserVirtualStoragePageContent({
     [documentPage, storedDocumentGroups],
   );
   const activeDocumentCount = storedDocumentGroups.length;
+  const isVaultMutationPending = savingKey !== null;
   const sortedFastTrackCases = useMemo(
     () => sortFastTrackWorkspaceCases(fastTrackCases),
     [fastTrackCases],
@@ -342,6 +350,29 @@ export function UserVirtualStoragePageContent({
     setSelectedCategoryId(result.data.id);
     setCategoryName("");
     setStatusMessage("Category created.");
+  };
+
+  const handleDeleteCategory = async (category: VirtualStorageCategory) => {
+    const categoryName = formatVirtualStorageCategoryName(category);
+    setSavingKey(`category-remove:${category.id}`);
+    setErrorMessage("");
+    const result = await deleteVirtualStorageCategory(category.id);
+    setSavingKey(null);
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
+    }
+
+    setCategories((previous) => previous.filter((item) => item.id !== category.id));
+    if (selectedCategoryIdRef.current === category.id) {
+      setSelectedCategoryId(DEFAULT_CATEGORIES[0].id);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+    setPendingCategoryRemovalId(null);
+    setStatusMessage(`${categoryName} category removed.`);
   };
 
   const handleUpload = async () => {
@@ -590,21 +621,53 @@ export function UserVirtualStoragePageContent({
               <h2 className="text-lg font-semibold">Categories</h2>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  aria-pressed={selectedCategoryId === category.id}
-                  onClick={() => setSelectedCategoryId(category.id)}
-                  className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                    selectedCategoryId === category.id
-                      ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
-                      : "border-gray-200 text-gray-600 hover:border-orange-200 hover:text-orange-600 dark:border-zinc-700 dark:text-gray-300"
-                  }`}
-                >
-                  {formatVirtualStorageCategoryName(category)}
-                </button>
-              ))}
+              {categories.map((category) => {
+                const categoryName = formatVirtualStorageCategoryName(category);
+                const canRemoveCategory = category.source === "user";
+                const removalIsPending = pendingCategoryRemovalId === category.id;
+                const isRemoving = savingKey === `category-remove:${category.id}`;
+
+                return (
+                  <div key={category.id} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-pressed={selectedCategoryId === category.id}
+                      onClick={() => setSelectedCategoryId(category.id)}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        selectedCategoryId === category.id
+                          ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
+                          : "border-gray-200 text-gray-600 hover:border-orange-200 hover:text-orange-600 dark:border-zinc-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {categoryName}
+                    </button>
+                    {canRemoveCategory && (
+                      <button
+                        type="button"
+                        aria-label={`Remove ${categoryName} category`}
+                        title={`Remove ${categoryName}`}
+                        disabled={isVaultMutationPending}
+                        onClick={() => setPendingCategoryRemovalId(category.id)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-300 dark:hover:border-red-500/40 dark:hover:bg-red-500/10"
+                      >
+                        <X className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    )}
+                    {removalIsPending && (
+                      <div role="group" aria-label={`Confirm removal of ${categoryName} category`} className="basis-full rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                        <span className="block">Remove this empty category?</span>
+                        <div className="mt-2 flex items-center gap-3">
+                          <button type="button" onClick={() => setPendingCategoryRemovalId(null)} className="font-semibold underline">Cancel</button>
+                          <button type="button" disabled={isVaultMutationPending} onClick={() => void handleDeleteCategory(category)} className="inline-flex items-center gap-1 font-semibold underline disabled:opacity-60">
+                            {isRemoving && <ActionSpinner className="h-3 w-3" />}
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
@@ -625,14 +688,14 @@ export function UserVirtualStoragePageContent({
                 <input
                   aria-label="New custom category name"
                   value={categoryName}
-                  disabled={!customUnlocked || savingKey === "category"}
+                  disabled={!customUnlocked || isVaultMutationPending}
                   onChange={(event) => setCategoryName(event.target.value)}
                   className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-black dark:text-white"
                   placeholder="Category name"
                 />
                 <button
                   type="button"
-                  disabled={!customUnlocked || savingKey === "category"}
+                  disabled={!customUnlocked || isVaultMutationPending}
                   onClick={() => void handleCreateCategory()}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -685,7 +748,7 @@ export function UserVirtualStoragePageContent({
               <button
                 type="button"
                 onClick={() => void handleUpload()}
-                disabled={!selectedFile || savingKey === "upload"}
+                disabled={!selectedFile || isVaultMutationPending}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingKey === "upload" ? <ActionSpinner className="h-4 w-4" /> : <Upload className="h-4 w-4" />}

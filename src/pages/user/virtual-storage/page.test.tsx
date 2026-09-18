@@ -156,6 +156,12 @@ test("virtual storage category labels use consistent title case", () => {
   );
 });
 
+test("virtual storage blocks overlapping category and upload mutations", () => {
+  assert.match(virtualStoragePageSource, /const isVaultMutationPending = savingKey !== null/);
+  assert.match(virtualStoragePageSource, /disabled=\{isVaultMutationPending\}/);
+  assert.match(virtualStoragePageSource, /disabled=\{!selectedFile \|\| isVaultMutationPending\}/);
+});
+
 test("virtual storage file picker exposes complete empty and selected states", () => {
   const browserWindow = new Window({ url: "https://estospaces.test/user/dashboard/virtual-storage" });
   const globals = globalThis as typeof globalThis & Record<string, unknown>;

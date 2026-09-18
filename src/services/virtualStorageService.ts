@@ -80,6 +80,20 @@ export const createVirtualStorageCategory = async (
   }
 };
 
+export const deleteVirtualStorageCategory = async (
+  categoryId: string,
+): Promise<{ error: string | null }> => {
+  try {
+    await apiFetch<void>(
+      `${CORE_URL()}/api/v1/virtual-storage/categories/${encodeURIComponent(categoryId)}`,
+      { method: "DELETE" },
+    );
+    return { error: null };
+  } catch (error: any) {
+    return { error: getErrorMessage(error) };
+  }
+};
+
 export const getVirtualStorageDocuments = async (): Promise<{
   data: VirtualStorageDocumentsResponse | null;
   error: string | null;
