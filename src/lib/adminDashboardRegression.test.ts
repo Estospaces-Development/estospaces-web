@@ -36,3 +36,16 @@ test('admin notifications span the dashboard grid instead of extending the sideb
     assert.ok(notificationStart > adminDashboardSource.indexOf('{/* Platform Snapshot */}'));
     assert.match(notificationMarkup, /lg:col-span-3/);
 });
+
+test('admin dashboard combines actionable user and manager verification queues', () => {
+    const pendingQueueLoader = adminDashboardSource.slice(
+        adminDashboardSource.indexOf('const loadPendingVerifications'),
+        adminDashboardSource.indexOf('useEffect(() =>', adminDashboardSource.indexOf('const loadPendingVerifications')),
+    );
+
+    assert.match(adminDashboardSource, /getPendingManagerVerificationCount/);
+    assert.match(pendingQueueLoader, /Promise\.all/);
+    assert.match(pendingQueueLoader, /getAdminPendingVerificationsCount\(\)/);
+    assert.match(pendingQueueLoader, /data: users\.data \+ managers\.data/);
+    assert.match(adminDashboardSource, /manager reviews/);
+});
