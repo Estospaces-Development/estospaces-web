@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { getAdminPendingVerificationsCount } from '@/services/userVerificationService';
+import { getPendingManagerVerificationCount } from '@/services/managerVerificationService';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { buildAdminDashboardSnapshot, getAdminActiveListings, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
@@ -46,6 +47,13 @@ const snapshotIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?
     users: Users,
     zap: Shield,
 };
+
+interface PendingVerificationQueueCount {
+    data: number | null;
+    userCount: number | null;
+    managerCount: number | null;
+    error: string | null;
+}
 
 const formatNotificationTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -134,6 +142,8 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [recentNotificationSearch, setRecentNotificationSearch] = useState('');
     const [pendingVerificationsCount, setPendingVerificationsCount] = useState<number | null>(null);
+    const [pendingUserVerificationsCount, setPendingUserVerificationsCount] = useState<number | null>(null);
+    const [pendingManagerVerificationsCount, setPendingManagerVerificationsCount] = useState<number | null>(null);
     const [pendingVerificationsError, setPendingVerificationsError] = useState<string | null>(null);
     const {
         notifications,
@@ -172,11 +182,32 @@ export default function AdminDashboard() {
     }, [fetchAnalytics]);
 
     const loadPendingVerifications = useCallback(async () => {
-        return getAdminPendingVerificationsCount();
+        const [users, managers] = await Promise.all([
+            getAdminPendingVerificationsCount(),
+            getPendingManagerVerificationCount(),
+        ]);
+
+        if (users.error || managers.error || users.data === null || managers.data === null) {
+            return {
+                data: null,
+                userCount: null,
+                managerCount: null,
+                error: users.error || managers.error || 'Verification queue unavailable',
+            } satisfies PendingVerificationQueueCount;
+        }
+
+        return {
+            data: users.data + managers.data,
+            userCount: users.data,
+            managerCount: managers.data,
+            error: null,
+        } satisfies PendingVerificationQueueCount;
     }, []);
 
-    const applyPendingVerifications = useCallback((result: Awaited<ReturnType<typeof getAdminPendingVerificationsCount>>) => {
+    const applyPendingVerifications = useCallback((result: PendingVerificationQueueCount) => {
         setPendingVerificationsCount(result.data);
+        setPendingUserVerificationsCount(result.userCount);
+        setPendingManagerVerificationsCount(result.managerCount);
         setPendingVerificationsError(result.error);
     }, []);
 
@@ -349,7 +380,9 @@ export default function AdminDashboard() {
                             <span className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{stats.pendingVerifications ?? '—'}</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">
-                            {pendingVerificationsError ? 'Verification queue unavailable' : 'Awaiting admin review'}
+                            {pendingVerificationsError
+                                ? 'Verification queue unavailable'
+                                : `${pendingUserVerificationsCount ?? 0} user · ${pendingManagerVerificationsCount ?? 0} manager reviews`}
                         </p>
                     </div>
                 </div>

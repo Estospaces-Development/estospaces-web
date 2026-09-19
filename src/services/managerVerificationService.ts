@@ -527,6 +527,15 @@ export const getManagers = async (status?: string, page = 1, limit = 50): Promis
     }
 };
 
+export const getPendingManagerVerificationCount = async (): Promise<{ data: number | null; error: string | null }> => {
+    try {
+        const response = await fetchManagersPage('pending', 1, 1);
+        return { data: response.pagination?.total ?? response.data?.length ?? 0, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
 export const getManagerVerificationSummary = async (userId: string): Promise<{ data: ManagerVerificationSummary | null; error: string | null }> => {
     try {
         const [profileRes, documents] = await Promise.all([
