@@ -68,6 +68,7 @@ import {
   type Property as ServiceProperty,
 } from "@/services/propertyService";
 import {
+  formatPropertyLocationMismatch,
   resolvePropertyLocation,
   getUserGeolocation,
 } from "@/services/locationService";
@@ -1460,7 +1461,7 @@ export default function AddPropertyPage() {
         return;
       }
       if (resolution.kind === "mismatch") {
-        const mismatchMessage = `The entered ${resolution.field} does not match ${formData.postalCode}. It resolves to ${resolution.resolved}.`;
+        const mismatchMessage = formatPropertyLocationMismatch(formData.postalCode, resolution);
         setErrors((previous) => ({ ...previous, [resolution.field]: mismatchMessage }));
         focusFirstErrorField({ [resolution.field]: mismatchMessage });
         showToast(mismatchMessage, "error");

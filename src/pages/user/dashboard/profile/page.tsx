@@ -30,7 +30,7 @@ import { resolveMediaUrl } from '@/lib/mediaUrls';
 import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
-    normalizeLaunchLocationCode,
+    sanitizeLaunchLocationCodeInput,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -115,7 +115,7 @@ export default function ProfilePage() {
             return;
         }
 
-        setFormData(prev => ({ ...prev, [name]: name === 'postcode' ? normalizeLaunchLocationCode(value) : value }));
+        setFormData(prev => ({ ...prev, [name]: name === 'postcode' ? sanitizeLaunchLocationCodeInput(value) : value }));
         setSaveSuccess(false);
         if (name === 'fullName') {
             setProfileValidationError('');

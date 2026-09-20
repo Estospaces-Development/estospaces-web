@@ -21,6 +21,7 @@ import {
     getLaunchLocationCodePlaceholder,
     isValidLaunchLocationCodeForCountry,
     normalizeLaunchLocationCode,
+    sanitizeLaunchLocationCodeInput,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -418,7 +419,7 @@ const NearbyAgenciesList = () => {
                                 type="text"
                                 value={postcodeInput}
                                 onChange={(event) => {
-                                    setPostcodeInput(normalizeLaunchLocationCode(event.target.value));
+                                    setPostcodeInput(sanitizeLaunchLocationCodeInput(event.target.value));
                                     if (searchError) {
                                         setSearchError(null);
                                     }

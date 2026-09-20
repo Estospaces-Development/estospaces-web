@@ -16,7 +16,17 @@ import {
   isValidLaunchLocationCodeForCountry,
   normalizeLaunchLocationCodeErrorMessage,
   normalizeLaunchCurrencyText,
+  sanitizeLaunchLocationCodeInput,
 } from '@/lib/launchLocale';
+
+test('location-code input preserves a readable postcode space while typing', () => {
+  assert.equal(sanitizeLaunchLocationCodeInput('PR1 '), 'PR1 ');
+  assert.equal(sanitizeLaunchLocationCodeInput('pr1  5jq'), 'PR1 5JQ');
+  assert.equal(sanitizeLaunchLocationCodeInput('PR1 5JQ!'), 'PR1 5JQ');
+  assert.equal(sanitizeLaunchLocationCodeInput('600 001'), '600001');
+  assert.equal(sanitizeLaunchLocationCodeInput('6000012'), '600001');
+  assert.equal(sanitizeLaunchLocationCodeInput('SW1A1AAX'), 'SW1A1AA');
+});
 
 test('launch locale formats India currency and preserves India plus UK display data', () => {
   assert.equal(formatLaunchCurrency(125000), '\u20b91,25,000');

@@ -1,7 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getCoordinatesFromAddress, resolvePropertyLocation } from "./locationService";
+import { formatPropertyLocationMismatch, getCoordinatesFromAddress, resolvePropertyLocation } from "./locationService";
+
+test('property-location mismatch explains the postcode and both administrative values', () => {
+  assert.equal(
+    formatPropertyLocationMismatch('pr1 5jq', {
+      kind: 'mismatch',
+      field: 'state',
+      expected: 'North West England',
+      resolved: 'North West',
+    }),
+    'PR1 5JQ resolves to Region “North West”, but the selected Region is “North West England”. Choose the matching region or enter a postcode for the selected region.',
+  );
+});
+
+test('property-location mismatch uses India-specific state and PIN code labels', () => {
+  assert.equal(
+    formatPropertyLocationMismatch('600001', {
+      kind: 'mismatch',
+      field: 'state',
+      expected: 'Karnataka',
+      resolved: 'Tamil Nadu',
+    }),
+    '600001 resolves to State / Union Territory “Tamil Nadu”, but the selected State / Union Territory is “Karnataka”. Choose the matching state / union territory or enter a PIN code for the selected state / union territory.',
+  );
+});
 
 test('property lookup rejects a postcode from a different selected country before contacting a provider', async () => {
   const originalFetch = globalThis.fetch;

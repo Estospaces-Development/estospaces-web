@@ -18,6 +18,12 @@ test('broker request postcode input preserves the standard UK separator while ty
   assert.equal(formatBrokerRequestLocationCodeInput('600 001'), '600001');
 });
 
+test('nearby-agent postcode search preserves a readable UK separator while typing', () => {
+  // @ts-ignore - source assertion only
+  const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, 'NearbyAgenciesList.tsx'), 'utf8');
+  assert.match(source, /setPostcodeInput\(sanitizeLaunchLocationCodeInput\(event\.target\.value\)\)/);
+});
+
 // ── #316: broker name is clickable and links to messaging conversation ──
 
 test('[SCENARIO 1 - happy] nearby broker name is clickable and navigates to messaging', () => {

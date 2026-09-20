@@ -193,6 +193,29 @@ export function normalizeLaunchLocationCode(value?: string | null): string {
   return compact.replace(/[^A-Z0-9]/g, "").slice(0, 7);
 }
 
+/** Keeps a postcode readable while it is being entered; validation uses the compact form. */
+export function sanitizeLaunchLocationCodeInput(value?: string | null): string {
+  const readable = String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart();
+  const compact = readable.replace(/\s/g, "");
+  if (/^\d*$/.test(compact)) {
+    return compact.slice(0, 6);
+  }
+
+  const maximumCharacters = 7;
+  let acceptedCharacters = 0;
+
+  const sanitized = readable
+    .replace(/[A-Z0-9]/g, (character) => (
+      acceptedCharacters++ < maximumCharacters ? character : ""
+    ));
+
+  return compact.length < maximumCharacters ? sanitized : sanitized.trimEnd();
+}
+
 export function isValidLaunchLocationCode(value?: string | null): boolean {
   const normalized = normalizeLaunchLocationCode(value);
   return isValidLaunchPinCode(normalized) || UK_POSTCODE_PATTERN.test(normalized);
