@@ -184,19 +184,12 @@ test('manager property create form supports India and UK from user country conte
   assert.match(managerPropertyFormPage, /resolveDefaultCountryForUser\(user\)/);
 });
 
-test('manager property submit button is disabled until required fields are complete', () => {
+test('manager property submit button highlights incomplete required fields', () => {
   assert.match(managerPropertyFormPage, /const\s+fullFormErrors\s*=\s*validateAllFields\(\)/);
   assert.match(managerPropertyFormPage, /const\s+hasFullFormValidationErrors\s*=\s*fullFormErrorCount\s*>\s*0/);
-  assert.match(
-    managerPropertyFormPage,
-    /Boolean\(submissionBlocker\)\s*\|\|\s*hasFullFormValidationErrors/,
-  );
-  assert.match(
-    managerPropertyFormPage,
-    /Complete all required property details before submitting\./,
-  );
+  assert.doesNotMatch(managerPropertyFormPage, /Boolean\(submissionBlocker\)\s*\|\|\s*hasFullFormValidationErrors/);
   assert.match(managerPropertyFormPage, /\? "Complete the required fields"/);
-  assert.match(managerPropertyFormPage, /The submit action stays disabled until they are corrected\./);
+  assert.match(managerPropertyFormPage, /Select Submit for Approval to highlight the first field that needs attention\./);
 });
 
 test('manager property numeric requirements are visible before advancing', () => {

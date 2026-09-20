@@ -412,7 +412,9 @@ export const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => 
         naea_member: Boolean(data.naea_member),
         rics_member: Boolean(data.rics_member),
         verification_status: mapVerificationStatus(data.verification_status),
-        agency_verification_status: mapVerificationStatus(data.agency_verification_status),
+        agency_verification_status: data.agency_verification_status
+            ? mapVerificationStatus(data.agency_verification_status)
+            : undefined,
         agency_verification_reason: data.agency_verification_reason || undefined,
         rejection_reason: data.verification_status === 'rejected' ? data.admin_notes || undefined : undefined,
         revision_notes: data.admin_notes || undefined,

@@ -2237,15 +2237,13 @@ export default function AddPropertyPage() {
   const submissionBlockerId = "manager-property-submission-blocker";
   const primaryActionDescription =
     isSubmissionAction &&
-    (managerVerificationLoading || submissionBlocker || hasFullFormValidationErrors)
+    (managerVerificationLoading || submissionBlocker)
       ? submissionBlockerId
       : undefined;
   const primaryActionDisabled =
     saving ||
     (isSubmissionAction &&
-      (managerVerificationLoading ||
-        Boolean(submissionBlocker) ||
-        hasFullFormValidationErrors));
+      (managerVerificationLoading || Boolean(submissionBlocker)));
   const primaryButtonLabel =
     mode === "edit"
       ? isEditSubmission
@@ -2329,11 +2327,7 @@ export default function AddPropertyPage() {
     saving,
     submissionBlocker:
       isSubmissionAction && !managerVerificationLoading
-        ? submissionBlocker || (
-          hasFullFormValidationErrors
-            ? "Complete all required property details before submitting."
-            : null
-        )
+        ? submissionBlocker
         : null,
   });
 
@@ -3895,7 +3889,7 @@ export default function AddPropertyPage() {
                     : "mt-1 text-sm text-green-700 dark:text-green-300"}
                   >
                     {hasFullFormValidationErrors
-                      ? `${fullFormErrorCount} required ${fullFormErrorCount === 1 ? "field is" : "fields are"} still incomplete. The submit action stays disabled until they are corrected.`
+                      ? `${fullFormErrorCount} required ${fullFormErrorCount === 1 ? "field is" : "fields are"} still incomplete. Select Submit for Approval to highlight the first field that needs attention.`
                       : mode === "edit"
                       ? isEditSubmission
                         ? "Review your changes and submit the listing for admin approval when ready. You can still save it as draft if more work is needed."

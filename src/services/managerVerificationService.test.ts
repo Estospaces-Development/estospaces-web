@@ -140,3 +140,14 @@ test('manager profile mapping preserves intentional empty values after an update
   assert.equal(profile.cmp_provider, '');
   assert.equal(profile.cmp_certificate_url, '');
 });
+
+test('manager profile mapping leaves an absent agency verification optional', () => {
+  const profile = mapManagerProfile({
+    user_id: 'manager-1',
+    profile_type: 'broker',
+    verification_status: 'approved',
+  });
+
+  assert.equal(profile.verification_status, 'approved');
+  assert.equal(profile.agency_verification_status, undefined);
+});
