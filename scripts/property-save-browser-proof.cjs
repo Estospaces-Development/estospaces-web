@@ -73,7 +73,9 @@ for (const width of [283, 1280]) {
         const save = page.getByRole('button', { name: /^Save Draft$/i }).first();
         await save.click();
         if (failFirst) {
-          await page.getByText(/Failed to save draft:/).waitFor();
+          // A failed save must remain visible in the form itself, not only in
+          // the temporary toast notification.
+          await page.getByText('Property needs attention', { exact: true }).waitFor();
           assert.equal(await save.isDisabled(), false, 'Failed saves must permit retry');
           await save.click();
         }
