@@ -122,6 +122,10 @@ test('mobile submit keeps required-field feedback below the workspace header', a
     const page = await context.newPage();
     await page.goto(`${baseUrl}/manager/dashboard/properties/add`, { waitUntil: 'domcontentloaded' });
     const submit = page.getByRole('button', { name: /^Submit for Approval$/i }).first();
+    await page.waitForFunction(() => (
+      [...document.querySelectorAll('button')]
+        .some((button) => button.textContent?.trim() === 'Submit for Approval' && !button.disabled)
+    ));
     assert.equal(
       await submit.isDisabled(),
       false,
