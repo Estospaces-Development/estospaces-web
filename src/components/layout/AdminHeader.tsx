@@ -16,6 +16,7 @@ const ADMIN_PAGES = [
     { label: ADMIN_FEATURE_LABELS.users, path: '/admin/users' },
     { label: 'Verifications', path: '/admin/verifications' },
     { label: ADMIN_FEATURE_LABELS.listings, path: '/admin/properties' },
+    { label: 'Subscriptions', path: '/admin/subscriptions' },
     { label: 'Fast Track', path: '/admin/fast-track' },
     { label: 'Help & Support', path: '/admin/help' },
     { label: 'Reviews', path: '/admin/reviews' },
@@ -40,6 +41,7 @@ export const getAdminPageTitles = (pathname: string) => {
     else if (pathname.includes('/users')) full = ADMIN_FEATURE_LABELS.users;
     else if (pathname.includes('/verifications')) full = 'Verifications';
     else if (pathname.includes('/properties')) full = ADMIN_FEATURE_LABELS.listings;
+    else if (pathname.includes('/subscriptions')) full = 'Subscriptions';
     else if (pathname.includes('/chat') || pathname.includes('/help')) full = 'Help & Support';
     else if (pathname.includes('/reviews')) full = 'Reviews';
     else if (pathname.includes('/research')) full = 'Observational Research';
