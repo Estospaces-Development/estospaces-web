@@ -339,3 +339,16 @@ test('property resolution never treats an arbitrary UK region as the selected ci
     }), { kind: 'mismatch', field: 'city', expected: 'North West', resolved: 'Preston' });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('property resolution accepts Preston in the North West England catalogue region', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: {
+    latitude: 53.761599, longitude: -2.683707, postcode: 'PR1 5JQ',
+    admin_district: 'Preston', region: 'North West', country: 'England',
+  } }));
+  try {
+    assert.deepEqual(await resolvePropertyLocation({
+      postalCode: 'PR15JQ', countryCode: 'GB', city: 'Preston', state: 'North West England',
+    }), { kind: 'resolved', latitude: 53.761599, longitude: -2.683707 });
+  } finally { globalThis.fetch = originalFetch; }
+});
