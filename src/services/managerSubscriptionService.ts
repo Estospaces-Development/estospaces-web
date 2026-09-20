@@ -21,7 +21,13 @@ export interface ManagerPlanOffer {
     terms_version: string;
     terms_text: string;
     terms_digest: string;
+    tax_minor?: number;
 }
+
+// Accepted historical snapshots can predate per-image/case limits and inclusive tax.
+export type AcceptedSubscriptionTerms = Pick<ManagerPlanOffer,
+    'id' | 'code' | 'amount_minor' | 'currency' | 'billing_period' | 'billing_interval' | 'total_cycles' | 'terms_version' | 'terms_text'>
+    & { tax_minor?: number; tax_inclusive?: boolean };
 
 export interface SubscriptionCheckout {
     id: string;
@@ -36,13 +42,15 @@ export interface ManagerSubscriptionSummary {
     mode: 'test' | 'live';
     checkout?: SubscriptionCheckout | null;
     subscription?: { status: string; current_end?: number; paid_count?: number } | null;
+    cancellation?: { status: 'requesting' | 'reconciliation_required' | 'failed' | 'confirmed'; confirmed_at?: string } | null;
     paid_period?: { billing_start?: string; billing_end?: string } | null;
     new_paid_actions_available: boolean;
+    new_checkouts_paused?: boolean;
 }
 
 export interface StartCheckoutResponse {
     checkout: SubscriptionCheckout;
-    terms: ManagerPlanOffer;
+    terms: AcceptedSubscriptionTerms;
     key_id: string;
 }
 
@@ -52,6 +60,22 @@ export function getManagerSubscriptionOffers() {
 
 export function getManagerSubscriptionSummary() {
     return apiFetch<{ account: ManagerSubscriptionSummary; key_id: string }>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/`);
+}
+
+export function getManagerSubscriptionCheckout(checkoutId: string) {
+    return apiFetch<StartCheckoutResponse>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts/${encodeURIComponent(checkoutId)}`);
+}
+
+export function recoverManagerSubscriptionCheckout(checkoutId: string) {
+    return apiFetch<StartCheckoutResponse>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts/${encodeURIComponent(checkoutId)}/recover`, { method: 'POST' });
+}
+
+export function reconcileManagerSubscriptionCheckout(checkoutId: string) {
+    return apiFetch<NonNullable<ManagerSubscriptionSummary['subscription']>>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts/${encodeURIComponent(checkoutId)}/reconcile`, { method: 'POST' });
+}
+
+export function cancelManagerSubscriptionCheckout(checkoutId: string) {
+    return apiFetch<NonNullable<ManagerSubscriptionSummary['cancellation']>>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts/${encodeURIComponent(checkoutId)}/cancel`, { method: 'POST' });
 }
 
 export function startManagerSubscriptionCheckout(input: {
