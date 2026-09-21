@@ -17,7 +17,7 @@ test("saved page exposes tab state and stable button behavior", () => {
 
 test("saved-property sorting exposes a visible dropdown affordance", () => {
   assert.match(savedPage, /import \{[\s\S]*ChevronDown/);
-  assert.match(savedPage, /<ChevronDown[\s\S]*aria-hidden="true"/);
+  assert.match(savedPage, /<ChevronDown[\s\S]*z-10[\s\S]*aria-hidden="true"/);
   assert.match(savedPage, /<select[\s\S]*aria-label="Sort saved properties"/);
 });
 

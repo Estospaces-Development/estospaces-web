@@ -276,7 +276,7 @@ function PropertiesTab({
                 <label className="relative block">
                     <span className="sr-only">Sort saved properties</span>
                     <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                     <select
                         value={sortBy}
                         onChange={(event) => onSortChange(event.target.value as SavedPropertySortOption)}
