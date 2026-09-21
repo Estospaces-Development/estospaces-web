@@ -16,6 +16,7 @@ import {
     Zap,
     User,
     ClipboardList,
+    CreditCard,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -51,6 +52,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
         { icon: Users, label: ADMIN_FEATURE_LABELS.users, path: '/admin/users' },
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
         { icon: Building2, label: ADMIN_FEATURE_LABELS.listings, path: '/admin/properties' },
+        { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
         { icon: Zap, label: 'Fast Track', path: '/admin/fast-track' },
         { icon: MessageSquare, label: 'Help & Support', path: '/admin/help' },
         { icon: Star, label: 'Reviews', path: '/admin/reviews' },

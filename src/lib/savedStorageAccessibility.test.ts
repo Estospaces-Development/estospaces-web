@@ -15,6 +15,12 @@ test("saved page exposes tab state and stable button behavior", () => {
   assert.match(savedPage, /onRemoveFromSaved=\{\(event\) => onRemove\(event, property\.id\)\}/);
 });
 
+test("saved-property sorting exposes a visible dropdown affordance", () => {
+  assert.match(savedPage, /import \{[\s\S]*ChevronDown/);
+  assert.match(savedPage, /<ChevronDown[\s\S]*z-10[\s\S]*aria-hidden="true"/);
+  assert.match(savedPage, /<select[\s\S]*aria-label="Sort saved properties"/);
+});
+
 test("saved page renders one remove action per saved card", () => {
   assert.match(propertyCard, /showSaveAction\?:\s*boolean/);
   assert.match(propertyCard, /showSaveAction\s*=\s*false/);

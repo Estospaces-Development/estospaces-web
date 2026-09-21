@@ -68,6 +68,7 @@ import {
   type Property as ServiceProperty,
 } from "@/services/propertyService";
 import {
+  formatPropertyLocationMismatch,
   resolvePropertyLocation,
   getUserGeolocation,
 } from "@/services/locationService";
@@ -1460,7 +1461,7 @@ export default function AddPropertyPage() {
         return;
       }
       if (resolution.kind === "mismatch") {
-        const mismatchMessage = `The entered ${resolution.field} does not match ${formData.postalCode}. It resolves to ${resolution.resolved}.`;
+        const mismatchMessage = formatPropertyLocationMismatch(formData.postalCode, resolution);
         setErrors((previous) => ({ ...previous, [resolution.field]: mismatchMessage }));
         focusFirstErrorField({ [resolution.field]: mismatchMessage });
         showToast(mismatchMessage, "error");
@@ -2236,15 +2237,13 @@ export default function AddPropertyPage() {
   const submissionBlockerId = "manager-property-submission-blocker";
   const primaryActionDescription =
     isSubmissionAction &&
-    (managerVerificationLoading || submissionBlocker || hasFullFormValidationErrors)
+    (managerVerificationLoading || submissionBlocker)
       ? submissionBlockerId
       : undefined;
   const primaryActionDisabled =
     saving ||
     (isSubmissionAction &&
-      (managerVerificationLoading ||
-        Boolean(submissionBlocker) ||
-        hasFullFormValidationErrors));
+      (managerVerificationLoading || Boolean(submissionBlocker)));
   const primaryButtonLabel =
     mode === "edit"
       ? isEditSubmission
@@ -2328,11 +2327,7 @@ export default function AddPropertyPage() {
     saving,
     submissionBlocker:
       isSubmissionAction && !managerVerificationLoading
-        ? submissionBlocker || (
-          hasFullFormValidationErrors
-            ? "Complete all required property details before submitting."
-            : null
-        )
+        ? submissionBlocker
         : null,
   });
 
@@ -2365,6 +2360,27 @@ export default function AddPropertyPage() {
                 <AlertCircle className="w-4 h-4" />
                 You have unsaved changes
               </p>
+            )}
+            {toast.visible && toast.type === "error" && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
+              >
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">Property needs attention</p>
+                  <p className="mt-1 leading-5">{toast.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={hideToast}
+                  className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-red-800 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 dark:text-red-100 dark:hover:bg-red-500/20"
+                  aria-label="Dismiss property error"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             )}
             {isSubmissionAction &&
               (managerVerificationLoading || submissionBlocker) && (
@@ -3873,7 +3889,7 @@ export default function AddPropertyPage() {
                     : "mt-1 text-sm text-green-700 dark:text-green-300"}
                   >
                     {hasFullFormValidationErrors
-                      ? `${fullFormErrorCount} required ${fullFormErrorCount === 1 ? "field is" : "fields are"} still incomplete. The submit action stays disabled until they are corrected.`
+                      ? `${fullFormErrorCount} required ${fullFormErrorCount === 1 ? "field is" : "fields are"} still incomplete. Select Submit for Approval to highlight the first field that needs attention.`
                       : mode === "edit"
                       ? isEditSubmission
                         ? "Review your changes and submit the listing for admin approval when ready. You can still save it as draft if more work is needed."
@@ -4017,14 +4033,16 @@ export default function AddPropertyPage() {
       )}
 
       {/* Toast Notification */}
-      <Toast
-        id={toast.id}
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.visible}
-        onClose={hideToast}
-        duration={3000}
-      />
+      <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem+0.75rem)] z-[60] flex justify-center sm:inset-x-auto sm:right-4 sm:top-[calc(env(safe-area-inset-top)+5rem)]">
+        <Toast
+          id={toast.id}
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.visible}
+          onClose={hideToast}
+          duration={3000}
+        />
+      </div>
     </div>
   );
 }

@@ -43,7 +43,6 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
     createLead,
-    getBrokerRequestById,
     getUserDocuments,
     getUserLeads,
     Lead,
@@ -102,8 +101,6 @@ export {
     buildPropertyFastTrackStartRequest,
     mapFastTrackPropertyType,
 } from '@/lib/propertyFastTrackRequest';
-import { isPropertyInMarket } from '@/lib/propertyMarket';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -851,7 +848,6 @@ const UserPropertyDetail = () => {
     const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
-    const geoMarket = useUserGeoMarket(user);
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
@@ -1021,18 +1017,6 @@ const UserPropertyDetail = () => {
                 if (apiError) {
                     setError(apiError);
                 } else if (data) {
-                    const role = String(user?.role || '').trim().toLowerCase();
-                    if (role === 'user' && !isPropertyInMarket(data, geoMarket)) {
-                        const { data: brokerRequest } = brokerRequestQuery
-                            ? await getBrokerRequestById(brokerRequestQuery, { suppressErrorToast: true })
-                            : { data: null };
-                        if (cancelled) return;
-                        if (!isSelectedBrokerRequestProperty(brokerRequest, data.id)) {
-                            setProperty(null);
-                            setError('This property is not available in your market.');
-                            return;
-                        }
-                    }
                     setProperty(data);
                 } else {
                     setError('Property not found');
@@ -1046,7 +1030,7 @@ const UserPropertyDetail = () => {
 
         void fetchProperty();
         return () => { cancelled = true; };
-    }, [brokerRequestQuery, geoMarket, id, user?.role]);
+    }, [id]);
 
     useEffect(() => {
         const role = String(user?.role || '').trim().toLowerCase();

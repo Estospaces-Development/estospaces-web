@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, RefreshCw, Eye, ArrowRight, TrendingUp, Zap, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ManagerDocument, ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
-import { getManagerDocumentTypeName, isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
+import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
+import { getMissingManagerVerificationProfileFields } from '@/lib/managerVerificationProfileRequirements';
 import { getDocumentAccessUrl, openDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     getMissingVerificationBundleFileKeys,
@@ -113,24 +114,21 @@ export default function VerificationPage() {
             return [];
         }
 
-        const missing: string[] = [];
-        const companyName = (managerProfile.company_name || '').trim().toLowerCase();
-        const licenseNumber = (managerProfile.company_registration_number || managerProfile.license_number || '').trim();
-
-        if (!companyName || isPlaceholderManagerCompanyName(managerProfile.company_name)) {
-            missing.push('company name');
-        }
-        if (!(managerProfile.business_phone || '').trim()) {
-            missing.push('business phone');
-        }
-        if (!(managerProfile.company_address || '').trim()) {
-            missing.push('company address');
-        }
-        if (!licenseNumber) {
-            missing.push(managerProfile.profile_type === 'company' ? 'company registration number' : 'broker license number');
-        }
-
-        return missing;
+        return getMissingManagerVerificationProfileFields({
+            profileType: managerProfile.profile_type,
+            companyName: managerProfile.company_name || '',
+            businessPhone: managerProfile.business_phone || '',
+            companyAddress: managerProfile.company_address || '',
+            licenseNumber: managerProfile.company_registration_number || managerProfile.license_number || '',
+            branchName: managerProfile.branch_name || '',
+            registeredOfficeAddress: managerProfile.registered_office_address || '',
+            complaintsContact: managerProfile.complaints_contact || '',
+            redressSchemeName: managerProfile.redress_scheme_name || '',
+            redressMembershipNumber: managerProfile.redress_membership_number || '',
+            cmpProvider: managerProfile.cmp_provider || '',
+            cmpCertificateUrl: managerProfile.cmp_certificate_url || '',
+            hasClientMoney: managerProfile.has_client_money,
+        }).map(({ label }) => label.toLowerCase());
     }, [managerProfile]);
     const profileNeedsCompletion = missingProfileFields.length > 0;
     const effectiveVerificationStatus = profileNeedsCompletion && verificationStatus === 'approved'

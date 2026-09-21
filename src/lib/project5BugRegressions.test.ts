@@ -109,6 +109,8 @@ test('discover map view uses the real nearby map with satellite controls', () =>
     assert.match(discoverPage, /NearbyPropertiesMap/);
     assert.doesNotMatch(discoverPage, /StableDiscoveryMap/);
     assert.match(discoverPage, /toDiscoverNearbyMapProperties/);
+    assert.match(discoverPage, /const matchingProperties = useMemo/);
+    assert.match(discoverPage, /properties=\{mapProperties\}/);
 });
 
 test('discover map properties preserve coordinates for real map markers', () => {

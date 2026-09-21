@@ -73,7 +73,9 @@ for (const width of [283, 1280]) {
         const save = page.getByRole('button', { name: /^Save Draft$/i }).first();
         await save.click();
         if (failFirst) {
-          await page.getByText(/Failed to save draft:/).waitFor();
+          // A failed save must remain visible in the form itself, not only in
+          // the temporary toast notification.
+          await page.getByText('Property needs attention', { exact: true }).waitFor();
           assert.equal(await save.isDisabled(), false, 'Failed saves must permit retry');
           await save.click();
         }
@@ -96,3 +98,45 @@ for (const width of [283, 1280]) {
     });
   }
 }
+
+test('mobile submit keeps required-field feedback below the workspace header', async () => {
+  const context = await browser.newContext({ viewport: { width: 283, height: 642 } });
+  try {
+    await context.addInitScript(() => {
+      sessionStorage.setItem('esto_session_token', 'local-regression-token');
+      const user = JSON.stringify({ id: 'manager-local-regression', email: 'manager.local@example.test', name: 'Local Regression Manager', role: 'manager', isAuthenticated: true });
+      localStorage.setItem('esto_user', user);
+      localStorage.setItem('esto_user:manager', user);
+      localStorage.setItem('estospaces_cookie_consent', 'rejected');
+    });
+    await context.route('**/api/**', async (route) => {
+      const servicePath = new URL(route.request().url()).pathname.replace(/^\/__dev_proxy\/[^/]+/, '');
+      if (servicePath === '/api/v1/auth/me') {
+        await route.fulfill(json({ id: 'manager-local-regression', email: 'manager.local@example.test', first_name: 'Local', last_name: 'Manager', role: 'manager' }));
+      } else if (servicePath === '/api/v1/brokers/profile') {
+        await route.fulfill(json({ id: 'broker-local-regression', user_id: 'manager-local-regression', profile_type: 'broker', verification_status: 'approved', company_name: 'Local Estates', business_phone: '01234567890', company_address: '1 Test Street', company_reg_number: 'LIC-123', branch_name: 'Test Branch', registered_office_address: '1 Test Street', complaints_contact: 'support@example.test', redress_scheme_name: 'Test Scheme', redress_membership_number: 'TEST-1' }));
+      } else {
+        await route.fulfill(json([]));
+      }
+    });
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}/manager/dashboard/properties/add`, { waitUntil: 'domcontentloaded' });
+    const submit = page.getByRole('button', { name: /^Submit for Approval$/i }).first();
+    await page.waitForFunction(() => (
+      [...document.querySelectorAll('button')]
+        .some((button) => button.textContent?.trim() === 'Submit for Approval' && !button.disabled)
+    ));
+    assert.equal(
+      await submit.isDisabled(),
+      false,
+      `Incomplete fields must be explained after submit, not hidden behind a disabled button. describedby=${await submit.getAttribute('aria-describedby')}`,
+    );
+    await submit.click();
+    const formAlert = page.getByRole('alert').filter({ hasText: 'Property needs attention' });
+    await formAlert.waitFor();
+    const bounds = await formAlert.boundingBox();
+    assert.ok(bounds && bounds.y >= 0 && bounds.y < 642, 'The persistent property error must be visible in the 283px mobile viewport');
+  } finally {
+    await context.close();
+  }
+});

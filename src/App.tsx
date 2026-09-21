@@ -103,6 +103,7 @@ const AdminUsers = lazyPage(() => import('./pages/admin/users/page'));
 const AdminVerifications = lazyPage(() => import('./pages/admin/verifications/page'));
 const AdminReviews = lazyPage(() => import('./pages/admin/reviews/page'));
 const AdminProfile = lazyPage(() => import('./pages/admin/profile/page'));
+const AdminSubscriptions = lazyPage(() => import('./pages/admin/subscriptions/page'));
 
 // Lazy loaded pages - Manager
 const ManagerDashboard = lazyPage(() => import('./pages/manager/dashboard/page'));
@@ -270,6 +271,7 @@ const App: React.FC = () => {
             <Route path="help" element={<AdminHelp />} />
             <Route path="fast-track" element={<AdminFastTrack />} />
             <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="properties" element={<AdminProperties />} />
             <Route path="properties/:id" element={<AdminPropertyDetail />} />
             <Route path="research" element={<AdminResearch />} />

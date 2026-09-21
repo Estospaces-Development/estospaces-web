@@ -118,7 +118,7 @@ test("active user manager and admin flows avoid default launch money on property
   assert.match(publicSearchSource, /filterPropertiesForMarket\(result\.data \|\| \[\], activeMarket\)/);
   assert.match(dashboardSource, /countryCode: geoMarket/);
   assert.match(dashboardSource, /filterPropertiesForMarket\(candidates, geoMarket\)/);
-  assert.match(userPropertyDetailSource, /!isPropertyInMarket\(data, geoMarket\)/);
+  assert.doesNotMatch(userPropertyDetailSource, /isPropertyInMarket/);
   assert.match(publicSearchSource, /inferredGeoMarket \|\| fallbackGeoMarket/);
   assert.match(publicSearchSource, /currency === 'GBP'/);
   assert.match(publicSearchSource, /Min Price \(\{currencySymbol\}\)/);

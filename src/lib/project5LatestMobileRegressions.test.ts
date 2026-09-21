@@ -24,6 +24,16 @@ test("selected broker homes keep badges, title, and locked price legible on narr
   assert.match(source, /w-full rounded-2xl border border-emerald-200\/80 bg-white px-4 py-3 text-left shadow-sm sm:w-auto sm:shrink-0/);
 });
 
+test("shared home choices keep the title and rent price legible on narrow phones", () => {
+  const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
+
+  assert.match(source, /flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between/);
+  assert.match(source, /min-w-0 w-full sm:flex-1/);
+  assert.match(source, /break-words text-xl font-semibold leading-tight/);
+  assert.match(source, /w-full rounded-2xl border border-orange-200\/80 bg-orange-50 px-4 py-3 text-left sm:w-auto sm:shrink-0/);
+  assert.match(source, /property\.listing_type === 'rent'.*\/mo/);
+});
+
 test("matched agent requests use compact progressive disclosure on phones", () => {
   const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
 

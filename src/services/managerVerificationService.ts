@@ -412,7 +412,9 @@ export const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => 
         naea_member: Boolean(data.naea_member),
         rics_member: Boolean(data.rics_member),
         verification_status: mapVerificationStatus(data.verification_status),
-        agency_verification_status: mapVerificationStatus(data.agency_verification_status),
+        agency_verification_status: data.agency_verification_status
+            ? mapVerificationStatus(data.agency_verification_status)
+            : undefined,
         agency_verification_reason: data.agency_verification_reason || undefined,
         rejection_reason: data.verification_status === 'rejected' ? data.admin_notes || undefined : undefined,
         revision_notes: data.admin_notes || undefined,
@@ -524,6 +526,15 @@ export const getManagers = async (status?: string, page = 1, limit = 50): Promis
         return { data: profiles, total, error: null };
     } catch (error: any) {
         return { data: [], total: 0, error: getErrorMessage(error) };
+    }
+};
+
+export const getPendingManagerVerificationCount = async (): Promise<{ data: number | null; error: string | null }> => {
+    try {
+        const response = await fetchManagersPage('pending', 1, 1);
+        return { data: response.pagination?.total ?? response.data?.length ?? 0, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 

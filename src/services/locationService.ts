@@ -54,6 +54,20 @@ export type PropertyLocationResolution =
     }
     | { kind: 'unavailable' };
 
+export const formatPropertyLocationMismatch = (
+    postalCode: string,
+    resolution: Extract<PropertyLocationResolution, { kind: 'mismatch' }>,
+): string => {
+    const normalizedPostcode = validateLocationCode(postalCode) || postalCode.trim().toUpperCase();
+    const isIndianPin = /^\d{6}$/.test(normalizedPostcode);
+    const fieldLabel = resolution.field === 'city'
+        ? 'City'
+        : isIndianPin ? 'State / Union Territory' : 'Region';
+    const locationCodeLabel = isIndianPin ? 'PIN code' : 'postcode';
+
+    return `${normalizedPostcode} resolves to ${fieldLabel} “${resolution.resolved}”, but the selected ${fieldLabel} is “${resolution.expected}”. Choose the matching ${fieldLabel.toLowerCase()} or enter a ${locationCodeLabel} for the selected ${fieldLabel.toLowerCase()}.`;
+};
+
 type GeolocationPolicyDocument = Document & {
     permissionsPolicy?: {
         allowsFeature?: (feature: string) => boolean;

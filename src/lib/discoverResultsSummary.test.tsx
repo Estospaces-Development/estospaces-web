@@ -10,7 +10,7 @@ const source = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/dis
 const section = source.match(/<section\s+aria-labelledby="discover-results-heading"[\s\S]*?<\/section>/)?.[0];
 assert.ok(section, 'Render the real discovery result-summary markup');
 const compiled = ts.transpileModule(
-    `const render = (loading, error, total, paginatedProperties, viewMode) => (${section});`,
+    `const render = (loading, error, total, paginatedProperties, viewMode, mapProperties = paginatedProperties) => (${section});`,
     { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
 const render = new Function('React', `${compiled}\nreturn render;`)(React) as (
@@ -51,5 +51,5 @@ test('successful discovery preserves singular, plural, page counts and view labe
     assert.match(summary(false, null, 1, 1), /1 home found/);
     assert.match(summary(false, null, 53, 12), /53 homes found/);
     assert.match(summary(false, null, 53, 12), /Showing 12 on this page in card view/);
-    assert.match(summary(false, null, 53, 12, 'map'), /Showing 12 on this page in map view/);
+    assert.match(summary(false, null, 53, 12, 'map'), /Showing 12 matching homes on the map/);
 });

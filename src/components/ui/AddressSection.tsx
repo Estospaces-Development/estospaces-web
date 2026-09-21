@@ -18,7 +18,7 @@ import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
     LAUNCH_COUNTRY_CODE,
-    normalizeLaunchLocationCode,
+    sanitizeLaunchLocationCodeInput,
     UK_COUNTRY_CODE,
 } from '@/lib/launchLocale';
 
@@ -467,7 +467,7 @@ const AddressSection = ({
 
     // Handler for launch location code.
     const handlePostalCodeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const postalCode = normalizeLaunchLocationCode(e.target.value);
+        const postalCode = sanitizeLaunchLocationCodeInput(e.target.value);
         const detectedCountryCode = getLaunchCountryFromLocationCode(postalCode);
         const detectedCountry = detectedCountryCode
             ? countries.find((country) => country.code.toUpperCase() === detectedCountryCode)
@@ -520,7 +520,7 @@ const AddressSection = ({
             stateCode: '',
             cityId: '',
             cityName: '',
-            postalCode: normalizeLaunchLocationCode(value.postalCode),
+            postalCode: sanitizeLaunchLocationCodeInput(value.postalCode),
         });
     }, [countries, onChange, value]);
 

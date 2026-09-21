@@ -565,8 +565,31 @@ function DiscoverContent() {
         return () => clearTimeout(timer);
     }, [allSectionProperties, searchQuery]);
 
-    // The backend now handles all filtering and pagination natively.
-    const filteredProperties = properties;
+    // Cards are paginated, but a map must use every matching result so a
+    // coordinate-bearing home is not hidden merely because it is on another page.
+    const matchingProperties = useMemo(() => {
+        const filtered = filterSectionProperties(allSectionProperties, {
+            activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
+            searchQuery,
+            locationQuery,
+            statusFilter,
+            propertyType,
+            minPrice: priceRange.min,
+            maxPrice: priceRange.max,
+            beds,
+            baths,
+            countryCode: searchMarket,
+        });
+        return sortSectionProperties(
+            filtered,
+            sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
+            dashboardFilter,
+        );
+    }, [activeTab, allSectionProperties, baths, beds, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
+    const mapProperties = useMemo(
+        () => toDiscoverNearbyMapProperties(matchingProperties),
+        [matchingProperties],
+    );
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
@@ -592,7 +615,9 @@ function DiscoverContent() {
         ? 'Loading discovery properties.'
         : error
             ? error
-            : `${paginatedProperties.length} of ${total} discovery properties shown in ${viewMode} view sorted by ${sortBy} from property sections.`;
+            : viewMode === 'map'
+                ? `${mapProperties.length} matching discovery properties shown on the map sorted by ${sortBy}.`
+                : `${paginatedProperties.length} of ${total} discovery properties shown in card view sorted by ${sortBy} from property sections.`;
 
     useEffect(() => {
         const nextPath = buildDiscoverPath(DISCOVER_PATH, discoverReturnSearch);
@@ -664,7 +689,7 @@ function DiscoverContent() {
     }, [fastTrackStatusByProperty, user?.id]);
 
     const submitFastTrackRequestFromDiscover = useCallback(async (propertyReference: { id: string }) => {
-        const property = filteredProperties.find((item) => item.id === propertyReference.id);
+        const property = matchingProperties.find((item) => item.id === propertyReference.id);
         if (!property || !user?.id) {
             toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
             return false;
@@ -729,17 +754,17 @@ function DiscoverContent() {
         } finally {
             fastTrackRequestsInFlightRef.current.delete(property.id);
         }
-    }, [filteredProperties, getDisplayName, publishWorkspaceSync, toast, user?.id]);
+    }, [getDisplayName, matchingProperties, publishWorkspaceSync, toast, user?.id]);
 
     const requestFastTrackFromDiscover = useCallback((propertyReference: { id: string }) => {
-        const property = filteredProperties.find((item) => item.id === propertyReference.id);
+        const property = matchingProperties.find((item) => item.id === propertyReference.id);
         if (!property || !user?.id) {
             toast.error('Unable to prepare this Fast Track request. Please refresh and try again.');
             return;
         }
 
         setFastTrackConfirmationProperty(property);
-    }, [filteredProperties, toast, user?.id]);
+    }, [matchingProperties, toast, user?.id]);
 
     const confirmFastTrackFromDiscover = useCallback(async () => {
         if (!fastTrackConfirmationProperty) {
@@ -1121,8 +1146,10 @@ function DiscoverContent() {
                                 ? 'Updating your search results.'
                                 : error
                                     ? 'We could not load these homes. Please try again.'
-                                    : paginatedProperties.length > 0
-                                        ? `Showing ${paginatedProperties.length} on this page in ${viewMode === 'map' ? 'map' : 'card'} view.`
+                                    : viewMode === 'map' && mapProperties.length > 0
+                                        ? `Showing ${mapProperties.length} matching homes on the map.`
+                                        : paginatedProperties.length > 0
+                                            ? `Showing ${paginatedProperties.length} on this page in card view.`
                                         : 'Adjust your search to find the right home.'}
                         </p>
                     </div>
@@ -1133,7 +1160,7 @@ function DiscoverContent() {
                 {viewMode === 'map' ? (
                     <div className="h-[min(72vh,720px)] min-h-[520px] overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <NearbyPropertiesMap
-                            properties={toDiscoverNearbyMapProperties(filteredProperties)}
+                            properties={mapProperties}
                             onPropertyClick={openPropertyFromDiscover}
                             onOpenWorkspace={openPropertyFromDiscover}
                             onStartFastTrack={requestFastTrackFromDiscover}
