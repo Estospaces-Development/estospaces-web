@@ -101,7 +101,6 @@ export {
     buildPropertyFastTrackStartRequest,
     mapFastTrackPropertyType,
 } from '@/lib/propertyFastTrackRequest';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -849,7 +848,6 @@ const UserPropertyDetail = () => {
     const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
-    const geoMarket = useUserGeoMarket(user);
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
     const publishWorkspaceSync = usePublishWorkspaceSync();
 

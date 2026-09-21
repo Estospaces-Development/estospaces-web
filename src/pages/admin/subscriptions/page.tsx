@@ -84,7 +84,7 @@ export default function AdminSubscriptionsPage() {
     const grants = useQuery({ queryKey: queryKeys.grants(), queryFn: getAdminPilotGrants });
     const catalogReady = plans.isSuccess && Array.isArray(plans.data);
     const catalogState = getCatalogReadState(catalogReady, plans.isError);
-    const catalogPlans = catalogReady ? plans.data : [];
+    const catalogPlans = useMemo(() => catalogReady ? plans.data : [], [catalogReady, plans.data]);
     const nextVersion = useMemo(() => Math.max(0, ...catalogPlans.filter((plan) => plan.code === planCode).map((plan) => plan.version)) + 1, [catalogPlans, planCode]);
     const profile = planDetails[planCode];
 

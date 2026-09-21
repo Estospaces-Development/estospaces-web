@@ -591,9 +591,6 @@ function DiscoverContent() {
         [matchingProperties],
     );
 
-    // The backend now handles card pagination natively.
-    const filteredProperties = properties;
-
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
     const discoverReturnSearch = useMemo(() => buildDiscoverSearchParams({
