@@ -11,7 +11,6 @@ import { Window } from 'happy-dom';
 import ts from 'typescript';
 
 import type { Property } from '@/services/propertyService';
-import type { BrokerRequestRecord } from '@/services/leadsService';
 import type { GeoMarketCode } from '@/lib/geoMarket';
 
 type Result = { data: Property | null; error: string | null };
@@ -41,10 +40,6 @@ const mountPage = async (
     }
     let market = initialMarket;
     const requests: Array<{ id: string; resolve: (value: Result) => void; reject: (error: Error) => void }> = [];
-    const brokerRequests: Array<{
-        id: string;
-        resolve: (value: { data: BrokerRequestRecord | null; error: string | null }) => void;
-    }> = [];
     const recordedViews: string[] = [];
     const user = { id: 'qa-user-fixture', role: 'user', name: 'QA User' };
     const noop = () => undefined;
@@ -60,7 +55,6 @@ const mountPage = async (
             recordPropertyView: async (id: string) => { recordedViews.push(id); return { recorded: true }; },
         },
         '@/services/leadsService': {
-            getBrokerRequestById: (id: string) => new Promise((resolveResult) => brokerRequests.push({ id, resolve: resolveResult })),
             createLead: async () => ({ data: null, error: null }),
             getUserDocuments: async () => ({ data: [], error: null }),
             getUserLeads: async () => ({ data: [], error: null }),
@@ -100,13 +94,8 @@ const mountPage = async (
     try { await act(async () => root.render(tree())); } catch (error) { await cleanup(); throw error; }
     return {
         requests, recordedViews, container, cleanup,
-        setMarket: async (next: GeoMarketCode) => { market = next; await act(async () => root.render(tree())); },
         navigate: async (id: string) => { await act(async () => navigate(`/user/properties/${id}`)); },
         complete: async (index: number, result: Result) => { await act(async () => requests[index].resolve(result)); },
-        brokerRequests,
-        completeBrokerRequest: async (index: number, result: { data: BrokerRequestRecord | null; error: string | null }) => {
-            await act(async () => brokerRequests[index].resolve(result));
-        },
         fail: async (index: number) => { await act(async () => requests[index].reject(new Error('Network failure'))); },
     };
 };
@@ -124,45 +113,21 @@ test('property page replaces an earlier not-found error after navigating to a va
     } finally { await page.cleanup(); }
 });
 
-test('resolved user market can recover the same property without disabling country filtering', async () => {
+test('a published property remains available when the browser market differs from its country', async () => {
     const page = await mountPage('IN');
     try {
         await page.complete(0, { data: property('first'), error: null });
-        assert.match(page.container.textContent, /not available in your market/);
-        assert.doesNotMatch(page.container.textContent, /Home first/);
-        await page.setMarket('GB');
-        await page.complete(1, { data: property('first'), error: null });
         assert.match(page.container.textContent, /Home first/);
         assert.doesNotMatch(page.container.textContent, /not available in your market/);
     } finally { await page.cleanup(); }
 });
 
-test('a user can open the exact home selected through their broker request across markets', async () => {
+test('a user can open a published home from a broker request across markets', async () => {
     const page = await mountPage('IN', '/user/properties/first?broker-request=request-1');
     try {
         await page.complete(0, { data: property('first'), error: null });
-        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-        assert.deepEqual(page.brokerRequests.map(({ id }) => id), ['request-1']);
-        await page.completeBrokerRequest(0, {
-            data: { selected_property_id: 'first' } as BrokerRequestRecord,
-            error: null,
-        });
         assert.match(page.container.textContent, /Home first/);
         assert.doesNotMatch(page.container.textContent, /not available in your market/);
-    } finally { await page.cleanup(); }
-});
-
-test('a broker request cannot unlock a different cross-market property', async () => {
-    const page = await mountPage('IN', '/user/properties/first?broker-request=request-1');
-    try {
-        await page.complete(0, { data: property('first'), error: null });
-        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-        await page.completeBrokerRequest(0, {
-            data: { selected_property_id: 'different-property' } as BrokerRequestRecord,
-            error: null,
-        });
-        assert.match(page.container.textContent, /not available in your market/);
-        assert.doesNotMatch(page.container.textContent, /Home first/);
     } finally { await page.cleanup(); }
 });
 

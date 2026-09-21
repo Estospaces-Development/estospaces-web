@@ -1645,8 +1645,8 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                                     }}
                                                                 />
                                                                 <div className="space-y-4 p-5">
-                                                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                                                        <div className="min-w-0 flex-1">
+                                                                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                                        <div className="min-w-0 w-full sm:flex-1">
                                                                             <div className="flex flex-wrap items-center gap-2">
                                                                                 <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-600 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300">
                                                                                     Option {share.rank}
@@ -1662,12 +1662,13 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                                                     </span>
                                                                                 )}
                                                                             </div>
-                                                                            <p className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{property.title}</p>
+                                                                            <p className="mt-3 break-words text-xl font-semibold leading-tight text-gray-900 dark:text-white">{property.title}</p>
                                                                         </div>
-                                                                        <div className="rounded-2xl border border-orange-200/80 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20">
+                                                                        <div className="w-full rounded-2xl border border-orange-200/80 bg-orange-50 px-4 py-3 text-left sm:w-auto sm:shrink-0 dark:border-orange-900/30 dark:bg-orange-950/20">
                                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">Guide price</p>
                                                                             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
                                                                                 {formatPropertyPrice(property, geoMarket)}
+                                                                                {property.listing_type === 'rent' ? <span className="ml-1 text-sm font-medium text-gray-600 dark:text-gray-300">/mo</span> : null}
                                                                             </p>
                                                                         </div>
                                                                     </div>

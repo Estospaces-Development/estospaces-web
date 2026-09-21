@@ -22,6 +22,7 @@ test('nearby-agent postcode search preserves a readable UK separator while typin
   // @ts-ignore - source assertion only
   const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, 'NearbyAgenciesList.tsx'), 'utf8');
   assert.match(source, /setPostcodeInput\(sanitizeLaunchLocationCodeInput\(event\.target\.value\)\)/);
+  assert.match(source, /if \(manualPostcode \|\| isSearchOpen\) \{/);
 });
 
 // ── #316: broker name is clickable and links to messaging conversation ──

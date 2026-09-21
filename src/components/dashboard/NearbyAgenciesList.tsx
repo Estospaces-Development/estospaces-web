@@ -172,14 +172,14 @@ const NearbyAgenciesList = () => {
     }, [loadActiveRequest]);
 
     useEffect(() => {
-        if (manualPostcode) {
+        if (manualPostcode || isSearchOpen) {
             return;
         }
 
         if (!postcodeInput.trim() || normalizeLocationCode(postcodeInput) === normalizeLocationCode(liveRequestPostcode)) {
             setPostcodeInput(liveRequestPostcode);
         }
-    }, [liveRequestPostcode, manualPostcode, postcodeInput]);
+    }, [isSearchOpen, liveRequestPostcode, manualPostcode, postcodeInput]);
 
     useEffect(() => {
         const fetchBrokers = async () => {
