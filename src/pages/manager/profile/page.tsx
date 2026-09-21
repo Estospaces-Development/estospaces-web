@@ -12,6 +12,7 @@ import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 import { resolveMediaUrl } from '@/lib/mediaUrls';
 import { buildManagerProfileSyncPayload } from '@/lib/managerProfileSync';
+import { normalizeManagerBranchNameInput } from '@/lib/managerProfileInput';
 import {
     getMissingManagerVerificationProfileFields,
     type ManagerVerificationProfileField,
@@ -181,7 +182,7 @@ export default function ManagerProfilePage() {
             }
 
             if (e.target.name === 'branchName') {
-                return formatLaunchPropertyText(e.target.value, '');
+                return normalizeManagerBranchNameInput(e.target.value);
             }
 
             if (e.target.name === 'serviceAreas' || e.target.name === 'dispatchPincodes') {
