@@ -30,8 +30,9 @@ test('manager profile makes save-blocking fields visibly required', () => {
 test('manager profile keeps Save actionable so validation failures are visible', () => {
     assert.match(source, /const saveDisabled = isLoading\s*\|\| uploadingImage\s*\|\| removingAvatar;/);
     assert.match(source, /showToast\(validationMessage, \{ type: 'error' \}\)/);
-    assert.match(source, /!formData\.companyAddress\.trim\(\) \? \(managerProfile\?\.profile_type/);
-    assert.doesNotMatch(source, /!registeredOfficeAddressTrimmed/);
+    assert.match(source, /const missingVerificationProfileFields = getMissingManagerVerificationProfileFields\(/);
+    assert.match(source, /\.\.\.missingVerificationProfileFields\.map\(\(\{ label \}\) => label\)/);
+    assert.match(source, /nextFieldErrors\[field\] = `\$\{label\} is required\.`;/);
 });
 
 test('manager profile treats persisted empty values as authoritative', () => {
