@@ -12,6 +12,10 @@ import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 import { resolveMediaUrl } from '@/lib/mediaUrls';
 import { buildManagerProfileSyncPayload } from '@/lib/managerProfileSync';
+import {
+    getMissingManagerVerificationProfileFields,
+    type ManagerVerificationProfileField,
+} from '@/lib/managerVerificationProfileRequirements';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
     formatLaunchLocationCode,
@@ -28,7 +32,21 @@ const MANAGER_PHONE_MAX_LENGTH = 20;
 const MANAGER_LICENSE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._/-]*$/;
 const MANAGER_PHONE_PATTERN = /^\+?[-0-9 ()]{7,20}$/;
 
-type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'phone' | 'businessPhone' | 'licenseNumber' | 'companyAddress' | 'registeredOfficeAddress', string>>;
+type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'phone' | ManagerVerificationProfileField, string>>;
+
+const managerVerificationProfileFieldNames = new Set<ManagerVerificationProfileField>([
+    'companyName',
+    'businessPhone',
+    'companyAddress',
+    'licenseNumber',
+    'branchName',
+    'registeredOfficeAddress',
+    'complaintsContact',
+    'redressSchemeName',
+    'redressMembershipNumber',
+    'cmpProvider',
+    'cmpCertificateUrl',
+]);
 
 const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
     const raw = String(value || '').trim();
@@ -179,8 +197,13 @@ export default function ManagerProfilePage() {
         }));
         setIsSaved(false);
         setSaveError('');
-        if (e.target.name === 'firstName' || e.target.name === 'lastName' || e.target.name === 'licenseNumber') {
+        if (e.target.name === 'firstName' || e.target.name === 'lastName') {
             setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));
+        }
+
+        const managerProfileField = e.target.name as ManagerVerificationProfileField;
+        if (managerVerificationProfileFieldNames.has(managerProfileField)) {
+            setFieldErrors(prev => ({ ...prev, [managerProfileField]: undefined }));
         }
 
         if (e.target.name === 'companyAddress') {
@@ -284,18 +307,26 @@ export default function ManagerProfilePage() {
         if (businessPhoneTrimmed && !MANAGER_PHONE_PATTERN.test(businessPhoneTrimmed)) {
             nextFieldErrors.businessPhone = 'Enter a valid phone number (7-20 digits, spaces, hyphens, parentheses, optional + prefix)';
         }
-        if (!formData.licenseNumber.trim()) {
-            nextFieldErrors.licenseNumber = managerProfile?.profile_type === 'company'
-                ? 'Company registration number is required'
-                : 'Broker license number is required';
-        } else if (!MANAGER_LICENSE_PATTERN.test(formData.licenseNumber)) {
-            nextFieldErrors.licenseNumber = 'License number must start with a letter or number and contain only letters, numbers, spaces, dots, slashes, hyphens, and underscores';
+        const missingVerificationProfileFields = getMissingManagerVerificationProfileFields({
+            profileType: managerProfile?.profile_type,
+            companyName: formData.companyName,
+            businessPhone: formData.businessPhone,
+            companyAddress: formData.companyAddress,
+            licenseNumber: formData.licenseNumber,
+            branchName: formData.branchName,
+            registeredOfficeAddress: formData.registeredOfficeAddress,
+            complaintsContact: formData.complaintsContact,
+            redressSchemeName: formData.redressSchemeName,
+            redressMembershipNumber: formData.redressMembershipNumber,
+            cmpProvider: formData.cmpProvider,
+            cmpCertificateUrl: formData.cmpCertificateUrl,
+            hasClientMoney: managerProfile?.has_client_money,
+        });
+        for (const { field, label } of missingVerificationProfileFields) {
+            nextFieldErrors[field] = `${label} is required.`;
         }
-        const companyAddressTrimmed = formData.companyAddress.trim();
-        if (!companyAddressTrimmed) {
-            nextFieldErrors.companyAddress = managerProfile?.profile_type === 'company'
-                ? 'Company address is required'
-                : 'Office address is required';
+        if (formData.licenseNumber.trim() && !MANAGER_LICENSE_PATTERN.test(formData.licenseNumber)) {
+            nextFieldErrors.licenseNumber = 'License number must start with a letter or number and contain only letters, numbers, spaces, dots, slashes, hyphens, and underscores';
         }
         if (Object.keys(nextFieldErrors).length > 0) {
             setFieldErrors(nextFieldErrors);
@@ -425,11 +456,25 @@ export default function ManagerProfilePage() {
 
     const inputClass = "w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
     const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
+    const missingVerificationProfileFields = getMissingManagerVerificationProfileFields({
+        profileType: managerProfile?.profile_type,
+        companyName: formData.companyName,
+        businessPhone: formData.businessPhone,
+        companyAddress: formData.companyAddress,
+        licenseNumber: formData.licenseNumber,
+        branchName: formData.branchName,
+        registeredOfficeAddress: formData.registeredOfficeAddress,
+        complaintsContact: formData.complaintsContact,
+        redressSchemeName: formData.redressSchemeName,
+        redressMembershipNumber: formData.redressMembershipNumber,
+        cmpProvider: formData.cmpProvider,
+        cmpCertificateUrl: formData.cmpCertificateUrl,
+        hasClientMoney: managerProfile?.has_client_money,
+    });
     const missingRequiredFields = [
         !formData.firstName.trim() ? 'First name' : '',
         !formData.lastName.trim() ? 'Last name' : '',
-        !formData.licenseNumber.trim() ? (managerProfile?.profile_type === 'company' ? 'Company registration number' : 'Broker license number') : '',
-        !formData.companyAddress.trim() ? (managerProfile?.profile_type === 'company' ? 'Company address' : 'Office address') : '',
+        ...missingVerificationProfileFields.map(({ label }) => label),
     ].filter(Boolean);
     const saveDisabledReason = missingRequiredFields.length > 0
         ? `Complete required fields: ${missingRequiredFields.join(', ')}.`
@@ -723,10 +768,11 @@ export default function ManagerProfilePage() {
                                         </div>
                                     </div>
                                     <div>
-                                        <label htmlFor="manager-business-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Phone</label>
+                                        <label htmlFor="manager-business-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Business Phone</RequiredFieldLabel></label>
                                         <div className="relative">
                                             <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                             <input id="manager-business-phone" type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange}
+                                                required
                                                 maxLength={MANAGER_PHONE_MAX_LENGTH}
                                                 placeholder="+91 44 0000 0000"
                                                 className={iconInputClass} />
@@ -738,8 +784,9 @@ export default function ManagerProfilePage() {
                                         </div>
                                     </div>
                                     <div>
-                                        <label htmlFor="manager-branch-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Branch Name</label>
+                                        <label htmlFor="manager-branch-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Branch Name</RequiredFieldLabel></label>
                                         <input id="manager-branch-name" type="text" name="branchName" value={formData.branchName} onChange={handleChange}
+                                            required
                                             placeholder="Chennai Branch"
                                             className={inputClass} />
                                     </div>
@@ -805,10 +852,11 @@ export default function ManagerProfilePage() {
                                 </div>
 
                                 <div>
-                                    <label htmlFor="manager-registered-office-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registered Office Address</label>
+                                    <label htmlFor="manager-registered-office-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Registered Office Address</RequiredFieldLabel></label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
                                         <textarea id="manager-registered-office-address" name="registeredOfficeAddress" value={formData.registeredOfficeAddress} onChange={handleChange} rows={2}
+                                            required
                                             placeholder="Registered office or branch legal address"
                                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     </div>
@@ -816,37 +864,46 @@ export default function ManagerProfilePage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="manager-complaints-contact" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Complaints Contact</label>
+                                        <label htmlFor="manager-complaints-contact" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Complaints Contact</RequiredFieldLabel></label>
                                         <div className="relative">
                                             <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                             <input id="manager-complaints-contact" type="text" name="complaintsContact" value={formData.complaintsContact} onChange={handleChange}
+                                            required
                                             placeholder="complaints@agency.in"
                                             className={iconInputClass} />
                                         </div>
                                     </div>
                                     <div>
-                                        <label htmlFor="manager-redress-scheme" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Scheme</label>
+                                        <label htmlFor="manager-redress-scheme" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Redress Scheme</RequiredFieldLabel></label>
                                         <input id="manager-redress-scheme" type="text" name="redressSchemeName" value={formData.redressSchemeName} onChange={handleChange}
+                                            required
                                             placeholder="The Property Ombudsman"
                                             className={inputClass} />
                                     </div>
                                     <div>
-                                        <label htmlFor="manager-redress-membership-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Membership Number</label>
+                                        <label htmlFor="manager-redress-membership-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Redress Membership Number</RequiredFieldLabel></label>
                                         <input id="manager-redress-membership-number" type="text" name="redressMembershipNumber" value={formData.redressMembershipNumber} onChange={handleChange}
+                                            required
                                             placeholder="TPO-123456"
                                             className={inputClass} />
                                     </div>
                                     <div>
-                                        <label htmlFor="manager-cmp-provider" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Provider</label>
+                                        <label htmlFor="manager-cmp-provider" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                            {managerProfile?.has_client_money ? <RequiredFieldLabel>CMP Provider</RequiredFieldLabel> : 'CMP Provider'}
+                                        </label>
                                         <input id="manager-cmp-provider" type="text" name="cmpProvider" value={formData.cmpProvider} onChange={handleChange}
+                                            required={managerProfile?.has_client_money}
                                             placeholder="Client money protection provider"
                                             className={inputClass} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label htmlFor="manager-cmp-certificate-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Certificate URL</label>
+                                    <label htmlFor="manager-cmp-certificate-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                        {managerProfile?.has_client_money ? <RequiredFieldLabel>CMP Certificate URL</RequiredFieldLabel> : 'CMP Certificate URL'}
+                                    </label>
                                     <input id="manager-cmp-certificate-url" type="url" name="cmpCertificateUrl" value={formData.cmpCertificateUrl} onChange={handleChange}
+                                        required={managerProfile?.has_client_money}
                                         placeholder="https://..."
                                         className={inputClass} />
                                 </div>
