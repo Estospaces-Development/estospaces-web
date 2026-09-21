@@ -3,14 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './globals.css';
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ToastProvider } from "@/contexts/ToastContext";
-import { SavedPropertiesProvider } from "@/contexts/SavedPropertiesContext";
-import { ApplicationsProvider } from "@/contexts/ApplicationsContext";
-import { UserProfileSummaryProvider } from "@/contexts/UserProfileSummaryContext";
-import { WorkspaceSyncProvider } from "@/contexts/WorkspaceSyncContext";
+import AppProviders from '@/components/providers/AppProviders';
 import { BrowserRouter } from 'react-router-dom';
-
-import ProductAnalyticsProvider from '@/components/analytics/ProductAnalyticsProvider';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', (event) => {
@@ -25,19 +19,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <ProductAnalyticsProvider>
-          <WorkspaceSyncProvider>
-            <UserProfileSummaryProvider>
-              <SavedPropertiesProvider>
-                <ApplicationsProvider>
-                  <ToastProvider>
-                    <App />
-                  </ToastProvider>
-                </ApplicationsProvider>
-              </SavedPropertiesProvider>
-            </UserProfileSummaryProvider>
-          </WorkspaceSyncProvider>
-        </ProductAnalyticsProvider>
+        <AppProviders>
+          <App />
+        </AppProviders>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

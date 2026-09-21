@@ -3,7 +3,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
+import AppProviders from '@/components/providers/AppProviders';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { getCatalogReadState } from './page';
 
 const pageDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -15,6 +21,20 @@ test('admin subscription route is discoverable from the admin shell', () => {
     assert.match(source('App.tsx'), /path="subscriptions"/);
     assert.match(source('components/layout/AdminSidebar.tsx'), /label: 'Subscriptions', path: '\/admin\/subscriptions'/);
     assert.match(source('components/layout/AdminHeader.tsx'), /label: 'Subscriptions', path: '\/admin\/subscriptions'/);
+});
+
+test('admin subscription queries run inside the application query client', () => {
+    const main = source('main.tsx');
+    const QueryClientConsumer = () => createElement('span', null, useQueryClient() ? 'query-client-ready' : 'missing-query-client');
+    const rendered = renderToStaticMarkup(
+        createElement(
+            MemoryRouter,
+            null,
+            createElement(AuthProvider, null, createElement(AppProviders, null, createElement(QueryClientConsumer))),
+        ),
+    );
+    assert.match(rendered, /query-client-ready/);
+    assert.match(main, /<AppProviders>[\s\S]*<App \/>[\s\S]*<\/AppProviders>/);
 });
 
 test('admin reviews the immutable catalog record before it can approve a plan', () => {
