@@ -26,7 +26,7 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /img-src 'self' data: blob: https: http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/);
   assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
-  assert.match(viteConfigSource, /frame-src .*https:\/\/js\.stripe\.com/);
+  assert.doesNotMatch(viteConfigSource, /stripe/i);
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(viteConfigSource, /media-src 'self' blob: http: https:/);
   assert.match(viteConfigSource, /connect-src 'self' http: https: ws: wss:/);
@@ -41,7 +41,7 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /microphone=\(\)/);
   assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
-  assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/js\.stripe\.com/);
+  assert.doesNotMatch(nginxSecurityHeadersSource, /stripe/i);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
@@ -56,7 +56,8 @@ test('production security headers allow signed and blob backed document previews
 test('gcp dev auth routes serve the SPA with noindex headers', () => {
   assert.match(gcpDevNginxSource, /location = \/login \{/);
   assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
-  assert.match(gcpDevNginxSource, /return 308 \/login\//);
+  assert.doesNotMatch(gcpDevNginxSource, /return 30[1278] \/login\/?/);
+  assert.match(gcpDevNginxSource, /location = \/login \{[\s\S]*?rewrite \^ \/index\.html last;/);
   assert.match(gcpDevNginxSource, /location ~ \^\/\(login\|register\|forgot-password\|reset-password\|verify-email\)\/\?\$ \{/);
   assert.match(gcpDevNginxSource, /add_header X-Robots-Tag "noindex, nofollow, noarchive" always;/);
   assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
