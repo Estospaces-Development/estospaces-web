@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import { getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage } from '@/lib/managerSubscriptionReadiness';
 import { useToast } from '@/contexts/ToastContext';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
 import {
@@ -41,7 +42,7 @@ export default function ManagerSubscriptionPage() {
             const [offerResult, summaryResult] = await Promise.allSettled([getManagerSubscriptionOffers(), getManagerSubscriptionSummary()]);
             if (version !== loadVersion.current) return;
             if (offerResult.status === 'fulfilled') setOffers(offerResult.value);
-            else { setOffers([]); setOffersError('New plans are unavailable. You can still manage an existing subscription below.'); }
+            else { setOffers([]); setOffersError(getSubscriptionOffersErrorMessage(offerResult.reason)); }
             if (summaryResult.status === 'rejected') {
                 setSummary(null);
                 setAcceptedCheckout(null);
@@ -156,6 +157,7 @@ export default function ManagerSubscriptionPage() {
 
     const busy = busyPlan !== null || loading;
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
+    const access = getSubscriptionAccessPresentation(summary?.entitlement);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12 dark:bg-gray-950">
@@ -164,6 +166,16 @@ export default function ManagerSubscriptionPage() {
                     <div><p className="text-xs font-black uppercase tracking-[0.25em] text-orange-600">Manager plans</p><h1 className="mt-2 text-3xl font-black text-gray-900 dark:text-white">Choose your Estospaces plan</h1><p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Prices include applicable taxes. A monthly plan unlocks your published-property, Fast Track and support limits.</p></div>
                     <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold dark:border-gray-700 disabled:opacity-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
                 </div>
+                {access ? <section aria-label="Your current access" className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">Your current access</p>
+                    <h2 className="mt-2 text-xl font-black text-gray-900 dark:text-white">{access.title}</h2>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{access.detail}</p>
+                    <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Published properties</dt><dd className="mt-1 text-lg font-black text-gray-900 dark:text-white">{access.publishedProperties}</dd></div>
+                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Active Fast Track cases</dt><dd className="mt-1 text-lg font-black text-gray-900 dark:text-white">{access.activeFastTrackCases}</dd></div>
+                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Support</dt><dd className="mt-1 text-lg font-black capitalize text-gray-900 dark:text-white">{access.support}</dd></div>
+                    </dl>
+                </section> : null}
                 {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${new Date(summary.paid_period.billing_end).toLocaleString()}.` : ''}</div> : null}
                 {activeCheckout ? <section aria-label="Current subscription" className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
                     <h2 className="font-bold">Current subscription</h2>
@@ -180,6 +192,7 @@ export default function ManagerSubscriptionPage() {
                 </section> : null}
                 {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{error}</div> : null}
                 {offersError ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">{offersError}</p> : null}
+                {!loading && !error && !offersError && offers.length === 0 ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">No paid plans are currently available for your billing country. Contact support or refresh later. Any existing subscription can still be managed above.</p> : null}
                 {summary?.new_checkouts_paused ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">New subscriptions are temporarily paused. You can still manage an existing subscription.</p> : null}
 {loading ? <BrandLoadingScreen label="Loading subscription plans..." /> : <div className="grid gap-6 lg:grid-cols-2">{offers.map((offer) => <article key={offer.id} className={`rounded-3xl border bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 ${offer.featured ? 'border-orange-400 ring-2 ring-orange-100 dark:ring-orange-950/40' : ''}`}><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">{offer.code}</p><h2 className="mt-2 text-3xl font-black text-gray-900 dark:text-white">{formatPlanPrice(offer)}<span className="text-base font-semibold text-gray-500"> / month</span></h2></div>{offer.featured ? <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-700">Featured</span> : null}</div><div className="mt-6 grid gap-3 text-sm text-gray-700 dark:text-gray-200"><p><strong>{offer.published_property_limit}</strong> published properties</p><p><strong>{offer.active_case_limit}</strong> active Fast Track cases</p><p><strong>{offer.support_level === 'dedicated' ? 'Dedicated' : 'Standard'}</strong> support</p><p><strong>{offer.image_upload_limit_bytes / 1_000_000} MB</strong> per property image</p></div><p className="mt-5 text-xs leading-5 text-gray-500 dark:text-gray-400">{offer.terms_text}</p><button type="button" disabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent} onClick={() => void start(offer)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50">{busyPlan === offer.id ? <ActionSpinner size="sm" aria-hidden /> : <CreditCard className="h-4 w-4" />} Continue to secure payment</button></article>)}</div>}
                 <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" checked={recurringConsent} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label>

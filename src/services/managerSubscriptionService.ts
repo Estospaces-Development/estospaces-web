@@ -38,8 +38,24 @@ export interface SubscriptionCheckout {
     status: string;
 }
 
+export interface ManagerSubscriptionResourceLimit {
+    kind: 'finite' | 'unlimited';
+    value?: number;
+}
+
+export interface ManagerSubscriptionEntitlement {
+    state: 'free_active' | 'paid_active' | 'pilot_active' | 'expired';
+    source: 'free' | 'paid' | 'pilot';
+    ends_at?: string;
+    reason: string;
+    published_property_limit: ManagerSubscriptionResourceLimit;
+    active_case_limit: ManagerSubscriptionResourceLimit;
+    support_level: 'basic' | 'standard' | 'dedicated';
+}
+
 export interface ManagerSubscriptionSummary {
     mode: 'test' | 'live';
+    entitlement?: ManagerSubscriptionEntitlement | null;
     checkout?: SubscriptionCheckout | null;
     subscription?: { status: string; current_end?: number; paid_count?: number } | null;
     cancellation?: { status: 'requesting' | 'reconciliation_required' | 'failed' | 'confirmed'; confirmed_at?: string } | null;
