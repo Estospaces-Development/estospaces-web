@@ -13,10 +13,12 @@ import { formatMapPropertyPrice } from '@/lib/mapCurrency';
 import { STANDARD_MAP_TILE_LAYER } from '@/lib/mapTiles';
 import {
     calculateMapDistanceKm,
+    getNearbyMapDefaultView,
     getNearbyMapEmptyState,
     hasValidMapCoordinates,
     hasVerifiedPropertyMapCoordinates,
     selectDashboardNearbyProperties,
+    shouldRenderNearbyMap,
 } from '@/lib/nearbyMap';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
@@ -101,10 +103,12 @@ function MapAutoFit({
     userLocation,
     properties,
     fitSignal,
+    fallbackView,
 }: {
     userLocation: UserLocation | null;
     properties: Property[];
     fitSignal: number;
+    fallbackView: ReturnType<typeof getNearbyMapDefaultView>;
 }) {
     const map = useMap();
 
@@ -128,7 +132,7 @@ function MapAutoFit({
             });
 
             if (points.length === 0) {
-                map.setView([20.5937, 78.9629], 5);
+                map.setView(fallbackView.center, fallbackView.zoom);
                 return;
             }
 
@@ -156,7 +160,7 @@ function MapAutoFit({
         } catch (err) {
             console.warn('[MapAutoFit] transient error:', err);
         }
-    }, [fitSignal, map, properties, userLocation]);
+    }, [fallbackView, fitSignal, map, properties, userLocation]);
 
     // Re-apply the bounds fit on every meaningful data change.
     useEffect(() => {
@@ -268,6 +272,7 @@ const NearbyPropertiesMap = ({
     const selectedFastTrackStatus = selectedProperty && getFastTrackRequestStatus
         ? getFastTrackRequestStatus(selectedProperty.id)
         : 'idle';
+    const fallbackView = useMemo(() => getNearbyMapDefaultView(geoMarket), [geoMarket]);
     const mapKey = useMemo(() => [
         userLocation?.latitude ?? 'none',
         userLocation?.longitude ?? 'none',
@@ -295,7 +300,7 @@ const NearbyPropertiesMap = ({
         }
 
         if (points.length === 0) {
-            return { center: [20.5937, 78.9629] as [number, number], zoom: 5 };
+            return fallbackView;
         }
 
         if (points.length === 1) {
@@ -305,12 +310,18 @@ const NearbyPropertiesMap = ({
         const bounds = L.latLngBounds(points);
         const center = bounds.getCenter();
         return { center: [center.lat, center.lng] as [number, number], zoom: 12 };
-    }, [propertiesWithCoords, userLocation]);
+    }, [fallbackView, propertiesWithCoords, userLocation]);
 
     const hasMapData = Boolean(
         hasValidMapCoordinates(userLocation) || propertiesWithCoords.length > 0,
     );
     const emptyState = getNearbyMapEmptyState(properties, compact, locationCodeLabel);
+    const shouldRenderMap = shouldRenderNearbyMap({
+        hasCoordinates: hasMapData,
+        compact,
+        matchingPropertyCount: properties.length,
+    });
+    const showUnlocatedResultsNotice = !hasMapData && !compact && properties.length > 0;
 
     const getMarkerColor = (category?: string) => {
         switch (category) {
@@ -355,7 +366,7 @@ const NearbyPropertiesMap = ({
         });
     };
 
-    if (!hasMapData) {
+    if (!shouldRenderMap) {
         return (
             <div className={`relative h-full w-full overflow-hidden rounded-lg ${compact ? 'bg-gradient-to-br from-white via-orange-50/35 to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950' : 'bg-white dark:bg-gray-800'}`}>
                 <div className={`flex h-full w-full ${compact ? 'items-start justify-start p-6 text-left sm:p-8' : 'items-center justify-center p-8 text-center'}`}>
@@ -417,7 +428,7 @@ const NearbyPropertiesMap = ({
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
-                <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} />
+                <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} fallbackView={fallbackView} />
                 {mapStyle === 'standard' ? (
                     <TileLayer
                         attribution={STANDARD_MAP_TILE_LAYER.attribution}
@@ -499,6 +510,24 @@ const NearbyPropertiesMap = ({
                     );
                 })}
             </MapContainer>
+
+            {showUnlocatedResultsNotice ? (
+                <div className="absolute left-4 right-4 top-[4.5rem] z-[1000] flex justify-center" role="status" aria-live="polite">
+                    <div className="max-w-lg rounded-2xl bg-white/95 px-4 py-3 text-left shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/95">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{emptyState.title}</p>
+                        <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">{emptyState.description}</p>
+                        {emptyState.action === 'open-property' && emptyState.actionLabel && properties[0] ? (
+                            <button
+                                type="button"
+                                onClick={() => handleOpenWorkspace(properties[0])}
+                                className="pointer-events-auto mt-3 inline-flex min-h-11 items-center rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
+                            >
+                                {emptyState.actionLabel}
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            ) : null}
 
             <div className={`absolute z-[1000] ${compact ? 'inset-x-2 top-2 sm:inset-x-auto sm:left-4 sm:top-4' : 'left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3'}`}>
                 <div className={`rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>

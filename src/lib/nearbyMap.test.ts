@@ -4,10 +4,12 @@ import assert from 'node:assert/strict';
 import {
     calculateMapDistanceKm,
     getDashboardMapHeightClass,
+    getNearbyMapDefaultView,
     getNearbyMapEmptyState,
     hasValidMapCoordinates,
     loadCompleteMapCandidates,
     selectDashboardNearbyProperties,
+    shouldRenderNearbyMap,
 } from './nearbyMap';
 
 test('reserves enough mobile height for the empty-map action', () => {
@@ -31,6 +33,14 @@ test('explains missing verified pins instead of asking for a location already se
             actionLabel: 'Open matching home',
         },
     );
+});
+
+test('keeps the Discover basemap visible for matching homes without placing unverified pins', () => {
+    assert.deepEqual(getNearbyMapDefaultView('GB'), { center: [54.5, -3], zoom: 5 });
+    assert.deepEqual(getNearbyMapDefaultView('IN'), { center: [20.5937, 78.9629], zoom: 5 });
+    assert.equal(shouldRenderNearbyMap({ hasCoordinates: false, compact: false, matchingPropertyCount: 12 }), true);
+    assert.equal(shouldRenderNearbyMap({ hasCoordinates: false, compact: false, matchingPropertyCount: 0 }), false);
+    assert.equal(shouldRenderNearbyMap({ hasCoordinates: false, compact: true, matchingPropertyCount: 12 }), false);
 });
 
 test('keeps location guidance for the compact dashboard map without results', () => {
