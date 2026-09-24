@@ -54,7 +54,9 @@ test('property search market keeps an explicit filter and otherwise scopes recog
 test('dashboard city searches carry their market through to Discover inventory filtering', () => {
   assert.match(dashboardSource, /inferSearchMarketFromText\([\s\S]*searchFilters\.location\.trim\(\) \|\| searchFilters\.keyword\.trim\(\)[\s\S]*serializeSearchMarketParam\(requestedMarket\)/);
   assert.match(searchBarSource, /const submittedMarket = inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\);/);
-  assert.match(discoverSource, /const searchMarket = resolvePropertySearchMarket\([\s\S]*market: requestedMarket,[\s\S]*query: searchQuery,[\s\S]*fallback: geoMarket,/);
+  assert.match(discoverSource, /const searchMarket = resolvePropertySearchMarket\([\s\S]*market: preferredSearchDefaults\.market \|\| requestedMarket,[\s\S]*query: searchQuery,[\s\S]*fallback: geoMarket,/);
+  assert.match(discoverSource, /usePreferredSearchDefaults\(user\?\.id\)/);
+  assert.match(discoverSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)/);
   assert.match(discoverSource, /getPropertySections\(searchMarket\)/);
   assert.match(discoverSource, /filterPropertiesForMarket\(dedupeSectionProperties\([\s\S]*\), searchMarket\)/);
 });

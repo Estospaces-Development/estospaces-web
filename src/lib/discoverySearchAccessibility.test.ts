@@ -85,7 +85,7 @@ test("user search keeps settled results stable while refreshed requests are in f
   assert.match(searchPage, /const \[hasLoadedSearch, setHasLoadedSearch\] = useState\(false\);/);
   assert.match(searchPage, /const latestSearchRequestRef = useRef\(0\);/);
   assert.match(searchPage, /if \(requestId !== latestSearchRequestRef\.current\) \{/);
-  assert.match(searchPage, /const isInitialSearchLoading = loading && !hasLoadedSearch;/);
+  assert.match(searchPage, /const isInitialSearchLoading = \(loading && !hasLoadedSearch\)\s*\|\| \(isAuthenticated && !preferredSearchDefaults\.failed && !preferredSearchDefaults\.ready\)/);
   assert.match(searchPage, /\{isInitialSearchLoading \? '\.\.\.' : total\}/);
   assert.match(searchPage, /\{isInitialSearchLoading \? \(/);
   assert.match(searchPage, /Refreshing search results\./);

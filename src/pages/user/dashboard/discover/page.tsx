@@ -46,6 +46,7 @@ import {
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import {
@@ -316,6 +317,7 @@ function DiscoverContent() {
     }
     const initialSearchParams = initialSearchParamsRef.current;
     const { user, getDisplayName } = useAuth();
+    const preferredSearchDefaults = usePreferredSearchDefaults(user?.id);
     const toast = useToast();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const { activeTab, setActiveTab } = usePropertyFilter();
@@ -381,13 +383,18 @@ function DiscoverContent() {
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
-    const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
+    const geoMarket = useUserGeoMarket(user, {
+        countryCode: preferredSearchDefaults.market || undefined,
+        locationCode: preferredSearchDefaults.market
+            ? preferredSearchDefaults.location || undefined
+            : locationQuery || searchParams.get('postcode'),
+    });
     const requestedMarket = useMemo(
         () => readSearchUrlFilters(new URLSearchParams(searchParamSnapshot)).market,
         [searchParamSnapshot],
     );
     const searchMarket = resolvePropertySearchMarket({
-        market: requestedMarket,
+        market: preferredSearchDefaults.market || requestedMarket,
         location: locationQuery,
         query: searchQuery,
         fallback: geoMarket,
@@ -406,6 +413,12 @@ function DiscoverContent() {
         sortBy !== 'relevance' ? sortBy : '',
     ].filter(Boolean).length;
     const discoverPropertyTypeOptions = useMemo(() => {
+        if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
+            return buildPropertyTypeOptions([]).map((option) => (
+                option.value === '' ? { ...option, value: 'all' } : option
+            ));
+        }
+
         const propertyTypes =
             globalFilterOptions?.property_types?.length
                 ? globalFilterOptions.property_types
@@ -414,7 +427,7 @@ function DiscoverContent() {
         return buildPropertyTypeOptions(propertyTypes).map((option) => (
             option.value === '' ? { ...option, value: 'all' } : option
         ));
-    }, [filterOptions?.property_types, globalFilterOptions?.property_types]);
+    }, [filterOptions?.property_types, globalFilterOptions?.property_types, preferredSearchDefaults.failed, preferredSearchDefaults.ready]);
 
     // Initialize filters from URL/Context
     useEffect(() => {
@@ -429,6 +442,11 @@ function DiscoverContent() {
     }, [searchParamSnapshot, setActiveTab]);
 
     useEffect(() => {
+        if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
+            fetchRequestIdRef.current += 1;
+            return;
+        }
+
         let isMounted = true;
         fetchRequestIdRef.current += 1;
         setGlobalFilterOptions(null);
@@ -448,7 +466,7 @@ function DiscoverContent() {
         return () => {
             isMounted = false;
         };
-    }, [searchMarket]);
+    }, [preferredSearchDefaults.failed, preferredSearchDefaults.ready, searchMarket]);
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
@@ -473,6 +491,18 @@ function DiscoverContent() {
     }, [searchParamSnapshot]);
 
     const fetchData = useCallback(async () => {
+        if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
+            fetchRequestIdRef.current += 1;
+            setProperties([]);
+            setAllSectionProperties([]);
+            setTotal(0);
+            setError(preferredSearchDefaults.failed
+                ? 'Could not load your saved search location. Please refresh and try again.'
+                : null);
+            setLoading(!preferredSearchDefaults.failed);
+            return;
+        }
+
         const requestId = ++fetchRequestIdRef.current;
         setLoading(true);
         setError(null);
@@ -535,7 +565,7 @@ function DiscoverContent() {
                 setLoading(false);
             }
         }
-    }, [activeTab, baths, beds, currentPage, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
+    }, [activeTab, baths, beds, currentPage, dashboardFilter, locationQuery, preferredSearchDefaults.failed, preferredSearchDefaults.ready, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
 
     // Refetch when dependencies change
     useEffect(() => {
@@ -568,6 +598,10 @@ function DiscoverContent() {
     // Cards are paginated, but a map must use every matching result so a
     // coordinate-bearing home is not hidden merely because it is on another page.
     const matchingProperties = useMemo(() => {
+        if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
+            return [];
+        }
+
         const filtered = filterSectionProperties(allSectionProperties, {
             activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
             searchQuery,
@@ -585,14 +619,15 @@ function DiscoverContent() {
             sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
             dashboardFilter,
         );
-    }, [activeTab, allSectionProperties, baths, beds, dashboardFilter, locationQuery, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
+    }, [activeTab, allSectionProperties, baths, beds, dashboardFilter, locationQuery, preferredSearchDefaults.failed, preferredSearchDefaults.ready, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
     const mapProperties = useMemo(
         () => toDiscoverNearbyMapProperties(matchingProperties),
         [matchingProperties],
     );
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
-    const paginatedProperties = properties; // Backend paginates for us
+    const paginatedProperties = preferredSearchDefaults.ready && !preferredSearchDefaults.failed ? properties : []; // Backend paginates for us
+    const visibleFilterOptions = preferredSearchDefaults.ready && !preferredSearchDefaults.failed ? filterOptions : null;
     const discoverReturnSearch = useMemo(() => buildDiscoverSearchParams({
         query: searchQuery,
         location: locationQuery,
@@ -1005,10 +1040,10 @@ function DiscoverContent() {
                                     id="discover-min-price"
                                     type="number"
                                     aria-label="Min Price"
-                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatDiscoveryCurrency(filterOptions.price_range.min)}` : "Min"}
+                                    placeholder={visibleFilterOptions?.price_range?.min ? `Min: ${formatDiscoveryCurrency(visibleFilterOptions.price_range.min)}` : "Min"}
                                     value={priceRange.min}
                                     min={0}
-                                    max={priceRange.max || filterOptions?.price_range?.max}
+                                    max={priceRange.max || visibleFilterOptions?.price_range?.max}
                                     onChange={(e) => {
                                         setFilterInputMessage(getPriceBoundAdjustmentMessage(e.target.value));
                                         setPriceRange({ ...priceRange, min: normalizePriceBoundInput(e.target.value) });
@@ -1024,10 +1059,10 @@ function DiscoverContent() {
                                     id="discover-max-price"
                                     type="number"
                                     aria-label="Max Price"
-                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatDiscoveryCurrency(filterOptions.price_range.max)}` : "Max"}
+                                    placeholder={visibleFilterOptions?.price_range?.max ? `Max: ${formatDiscoveryCurrency(visibleFilterOptions.price_range.max)}` : "Max"}
                                     value={priceRange.max}
                                     min={0}
-                                    max={filterOptions?.price_range?.max}
+                                    max={visibleFilterOptions?.price_range?.max}
                                     onChange={(e) => {
                                         setFilterInputMessage(getPriceBoundAdjustmentMessage(e.target.value));
                                         setPriceRange({ ...priceRange, max: normalizePriceBoundInput(e.target.value) });

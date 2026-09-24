@@ -52,6 +52,7 @@ import {
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 
@@ -83,6 +84,7 @@ const PropertySearch = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated, user } = useAuth();
+    const preferredSearchDefaults = usePreferredSearchDefaults(isAuthenticated ? user?.id : null);
     const loginPath = getLoginPath();
     const { error: showToastError } = useToast();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
@@ -126,7 +128,10 @@ const PropertySearch = () => {
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
     const userGeoMarket = useUserGeoMarket(user, {
-        locationCode: location || user?.postcode,
+        countryCode: preferredSearchDefaults.market || undefined,
+        locationCode: preferredSearchDefaults.market
+            ? preferredSearchDefaults.location || undefined
+            : location || user?.postcode,
     });
     const fallbackGeoMarket = useUserGeoMarket(undefined, {
         countryCode: market || undefined,
@@ -352,6 +357,18 @@ const PropertySearch = () => {
         const requestId = latestSearchRequestRef.current + 1;
         latestSearchRequestRef.current = requestId;
 
+        if (isAuthenticated && (!preferredSearchDefaults.ready || preferredSearchDefaults.failed)) {
+            setProperties([]);
+            setTotal(0);
+            setError(preferredSearchDefaults.failed
+                ? 'Could not load your saved search location. Please refresh and try again.'
+                : null);
+            setFallbackNotice('');
+            setHasLoadedSearch(preferredSearchDefaults.failed);
+            setLoading(!preferredSearchDefaults.failed);
+            return;
+        }
+
         if (queryValidationMessage) {
             setLoading(false);
             setError(null);
@@ -435,7 +452,7 @@ const PropertySearch = () => {
                 setHasLoadedSearch(true);
             }
         }
-    }, [activeMarket, query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
+    }, [activeMarket, isAuthenticated, preferredSearchDefaults.failed, preferredSearchDefaults.ready, query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Deduplicate and memoize displayed properties to prevent duplicate cards
     const displayedProperties = useMemo(() => {
@@ -633,7 +650,8 @@ const PropertySearch = () => {
     const friendlySearchError = error && /request header fields too large/i.test(error)
         ? 'Your browser session has stale search data. Refresh this page and try again.'
         : error;
-    const isInitialSearchLoading = loading && !hasLoadedSearch;
+    const isInitialSearchLoading = (loading && !hasLoadedSearch)
+        || (isAuthenticated && !preferredSearchDefaults.failed && !preferredSearchDefaults.ready);
 
     return (
         <div className="mx-auto w-full max-w-7xl space-y-5 overflow-x-hidden px-3 pb-20 pt-4 sm:space-y-6 sm:px-6 sm:pt-5 lg:px-8 animate-in fade-in duration-500">
