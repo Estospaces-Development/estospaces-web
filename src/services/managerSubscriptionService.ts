@@ -2,21 +2,24 @@ import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 
 const PAYMENT_URL = () => getServiceUrl('payment');
 
-export interface ManagerPlanOffer {
-    id: string;
+export interface ManagerPlanPreview {
     code: 'pro' | 'growth';
-    version: number;
-    amount_minor: number;
-    currency: 'INR' | 'GBP';
-    billing_period: 'monthly';
-    billing_interval: number;
-    total_cycles: number;
     published_property_limit: number;
     active_case_limit: number;
     image_upload_limit_bytes: number;
     support_level: 'standard' | 'dedicated';
     featured: boolean;
     lead_delivery_policy: string;
+}
+
+export interface ManagerPlanOffer extends ManagerPlanPreview {
+    id: string;
+    version: number;
+    amount_minor: number;
+    currency: 'INR' | 'GBP';
+    billing_period: 'monthly';
+    billing_interval: number;
+    total_cycles: number;
     tax_inclusive: boolean;
     terms_version: string;
     terms_text: string;
@@ -72,6 +75,10 @@ export interface StartCheckoutResponse {
 
 export function getManagerSubscriptionOffers() {
     return apiFetch<ManagerPlanOffer[]>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/offers`);
+}
+
+export function getManagerSubscriptionPlanPreviews() {
+    return apiFetch<ManagerPlanPreview[]>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/plan-previews`);
 }
 
 export function getManagerSubscriptionSummary() {
