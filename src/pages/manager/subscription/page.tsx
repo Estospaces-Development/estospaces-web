@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
-import ActionSpinner from '@/components/ui/ActionSpinner';
+import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useToast } from '@/contexts/ToastContext';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
@@ -9,12 +9,14 @@ import {
     cancelManagerSubscriptionCheckout,
     getManagerSubscriptionCheckout,
     getManagerSubscriptionOffers,
+    getManagerSubscriptionPlanPreviews,
     getManagerSubscriptionSummary,
     reconcileManagerSubscriptionCheckout,
     recoverManagerSubscriptionCheckout,
     startManagerSubscriptionCheckout,
     verifyManagerSubscriptionCheckout,
     type ManagerPlanOffer,
+    type ManagerPlanPreview,
     type ManagerSubscriptionSummary,
     type StartCheckoutResponse,
 } from '@/services/managerSubscriptionService';
@@ -22,6 +24,7 @@ import { getMyManagerBillingProfile } from '@/services/managerBillingProfileServ
 export default function ManagerSubscriptionPage() {
     const toast = useToast();
     const [offers, setOffers] = useState<ManagerPlanOffer[]>([]);
+    const [planPreviews, setPlanPreviews] = useState<ManagerPlanPreview[]>([]);
     const [summary, setSummary] = useState<ManagerSubscriptionSummary | null>(null);
     const [billingProfile, setBillingProfile] = useState<BillingProfileLookup>({ kind: 'unavailable' });
     const [loading, setLoading] = useState(true);
@@ -29,6 +32,7 @@ export default function ManagerSubscriptionPage() {
     const [recurringConsent, setRecurringConsent] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [offersError, setOffersError] = useState<string | null>(null);
+    const [previewError, setPreviewError] = useState(false);
     const [acceptedCheckout, setAcceptedCheckout] = useState<StartCheckoutResponse | null>(null);
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [pendingProof, setPendingProof] = useState<{ checkoutId: string; proof: SubscriptionPaymentProof } | null>(null);
@@ -40,12 +44,18 @@ export default function ManagerSubscriptionPage() {
         setLoading(true);
         setError(null);
         setOffersError(null);
+        setPreviewError(false);
         setBillingProfile({ kind: 'unavailable' });
         try {
-            const [offerResult, summaryResult] = await Promise.allSettled([
-                getManagerSubscriptionOffers(), getManagerSubscriptionSummary(),
+            const [offerResult, previewResult, summaryResult] = await Promise.allSettled([
+                getManagerSubscriptionOffers(), getManagerSubscriptionPlanPreviews(), getManagerSubscriptionSummary(),
             ]);
             if (version !== loadVersion.current) return;
+            if (previewResult.status === 'fulfilled') setPlanPreviews(previewResult.value);
+            else {
+                setPlanPreviews([]);
+                setPreviewError(true);
+            }
             if (offerResult.status === 'fulfilled') setOffers(offerResult.value);
             else {
                 setOffers([]);
@@ -174,12 +184,13 @@ export default function ManagerSubscriptionPage() {
     const busy = busyPlan !== null || loading;
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
     const access = getSubscriptionAccessPresentation(summary?.entitlement);
+    const plansToShow: (ManagerPlanOffer | ManagerPlanPreview)[] = offers.length > 0 ? offers : planPreviews;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12 dark:bg-gray-950">
             <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div><p className="text-xs font-black uppercase tracking-[0.25em] text-orange-600">Manager plans</p><h1 className="mt-2 text-3xl font-black text-gray-900 dark:text-white">Choose your Estospaces plan</h1><p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Prices include applicable taxes. A monthly plan unlocks your published-property, Fast Track and support limits.</p></div>
+                    <div><h1 className="text-3xl font-black text-gray-900 dark:text-white">Choose your Estospaces plan</h1><p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Compare published-property limits, Fast Track capacity and support. {offers.length > 0 ? 'Displayed monthly prices include applicable taxes.' : 'Local prices and payment are shown only when your billing country is verified and supported.'}</p></div>
                     <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold dark:border-gray-700 disabled:opacity-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
                 </div>
                 {access ? <section aria-label="Your current access" className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -209,11 +220,20 @@ export default function ManagerSubscriptionPage() {
                 </section> : null}
                 {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{error}</div> : null}
                 {offersError ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">{offersError}</p> : null}
-                {!loading && !error && !offersError && offers.length === 0 ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">No paid plans are currently available for your billing country. Contact support or refresh later. Any existing subscription can still be managed above.</p> : null}
+                {!loading && plansToShow.length === 0 && previewError ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Plan descriptions could not be loaded. Refresh to try again; your existing access is unchanged.</p> : null}
+                {!loading && !error && plansToShow.length === 0 && !previewError ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">No approved plans are currently available to compare. Contact support or refresh later. Any existing subscription can still be managed above.</p> : null}
                 {summary?.new_checkouts_paused ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">New subscriptions are temporarily paused. You can still manage an existing subscription.</p> : null}
-{loading ? <BrandLoadingScreen label="Loading subscription plans..." /> : <div className="grid gap-6 lg:grid-cols-2">{offers.map((offer) => <article key={offer.id} className={`rounded-3xl border bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 ${offer.featured ? 'border-orange-400 ring-2 ring-orange-100 dark:ring-orange-950/40' : ''}`}><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">{offer.code}</p><h2 className="mt-2 text-3xl font-black text-gray-900 dark:text-white">{formatPlanPrice(offer)}<span className="text-base font-semibold text-gray-500"> / month</span></h2></div>{offer.featured ? <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-700">Featured</span> : null}</div><div className="mt-6 grid gap-3 text-sm text-gray-700 dark:text-gray-200"><p><strong>{offer.published_property_limit}</strong> published properties</p><p><strong>{offer.active_case_limit}</strong> active Fast Track cases</p><p><strong>{offer.support_level === 'dedicated' ? 'Dedicated' : 'Standard'}</strong> support</p><p><strong>{offer.image_upload_limit_bytes / 1_000_000} MB</strong> per property image</p></div><p className="mt-5 text-xs leading-5 text-gray-500 dark:text-gray-400">{offer.terms_text}</p><button type="button" disabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent} onClick={() => void start(offer)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50">{busyPlan === offer.id ? <ActionSpinner size="sm" aria-hidden /> : <CreditCard className="h-4 w-4" />} Continue to secure payment</button></article>)}</div>}
-                <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" checked={recurringConsent} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label>
-                <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-500 dark:text-gray-400"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div>
+                {loading ? <BrandLoadingScreen label="Loading subscription plans..." /> : plansToShow.length > 0 ? <section aria-label="Compare manager plans" className="grid gap-6 lg:grid-cols-2">
+                    {plansToShow.map((plan) => <ManagerSubscriptionPlanCard
+                        key={'id' in plan ? plan.id : plan.code}
+                        plan={plan}
+                        checkoutDisabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent}
+                        busy={'id' in plan && busyPlan === plan.id}
+                        onStart={(offer) => void start(offer)}
+                    />)}
+                </section> : null}
+                {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" checked={recurringConsent} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
+                {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
             </div>
         </div>
     );

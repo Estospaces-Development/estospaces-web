@@ -105,6 +105,7 @@ test('offer failures keep checkout blocked and existing subscriptions manageable
     assert.match(page, /Boolean\(offersError\)/);
     assert.match(page, /getManagerSubscriptionSummary\(\)/);
     assert.match(page, /Cancel subscription \/ renewal/);
-    assert.match(page, /!loading && !error && !offersError && offers.length === 0/);
-    assert.match(page, /No paid plans are currently available for your billing country/);
+    assert.match(page, /checkoutDisabled=\{busy \|\| Boolean\(error\) \|\| Boolean\(offersError\)/);
+    assert.match(page, /plansToShow\.length === 0 && !previewError/);
+    assert.match(page, /No approved plans are currently available to compare/);
 });
