@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { ApiRequestError, apiFetch } from './apiUtils';
-import { getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage } from './managerSubscriptionReadiness';
+import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage } from './managerSubscriptionReadiness';
 
 test('account entitlement is shown as the authoritative Free-plan access', () => {
     assert.deepEqual(getSubscriptionAccessPresentation({
@@ -56,9 +56,9 @@ test('billing-market API errors retain their code and give a safe next step', as
         await assert.rejects(apiFetch('https://example.test/offers'), (error: unknown) => {
             assert.ok(error instanceof ApiRequestError);
             assert.equal(error.code, 'billing_market_unavailable');
-            assert.match(getSubscriptionOffersErrorMessage(error), /Contact support to check your billing country/);
-            assert.match(getSubscriptionOffersErrorMessage(error), /existing subscription/);
-            assert.doesNotMatch(getSubscriptionOffersErrorMessage(error), /private upstream/);
+            assert.match(getSubscriptionOffersErrorMessage(error, { kind: 'missing' }), /has not been verified for paid plans/);
+            assert.match(getSubscriptionOffersErrorMessage(error, { kind: 'missing' }), /existing subscription/);
+            assert.doesNotMatch(getSubscriptionOffersErrorMessage(error, { kind: 'missing' }), /private upstream/);
             return true;
         });
     } finally {
@@ -73,15 +73,32 @@ test('other failures do not incorrectly diagnose billing country or expose raw e
         new ApiRequestError('private', 'private', 409, undefined, undefined, 'unknown_code'),
         null,
     ]) {
-        const message = getSubscriptionOffersErrorMessage(error);
+        const message = getSubscriptionOffersErrorMessage(error, { kind: 'unavailable' });
         assert.match(message, /refresh to retry/);
         assert.doesNotMatch(message, /billing country|private/);
     }
 });
 
+test('billing profile lookup distinguishes an absent profile from a failed read', () => {
+    assert.deepEqual(classifyBillingProfileLookup({ status: 'rejected', reason: new ApiRequestError('missing', 'missing', 404) }), { kind: 'missing' });
+    assert.deepEqual(classifyBillingProfileLookup({ status: 'rejected', reason: new ApiRequestError('private', 'private', 503) }), { kind: 'unavailable' });
+});
+
+test('billing-market failures do not blame country when Core confirms India', () => {
+    const error = new ApiRequestError('private', 'private', 409, undefined, undefined, 'billing_market_unavailable');
+    const message = getSubscriptionOffersErrorMessage(error, { kind: 'loaded', profile: {
+        market: 'IN', verification_status: 'verified', verification_source: 'admin_document_review',
+        verified_at: '2026-09-25T00:00:00Z', effective_at: '2026-09-25T00:00:00Z', profile_version: 1,
+    } });
+    assert.match(message, /verified as India/);
+    assert.match(message, /payment availability/);
+    assert.doesNotMatch(message, /could not confirm.*billing country|private/i);
+});
+
 test('offer failures keep checkout blocked and existing subscriptions manageable', () => {
     const page = readFileSync(new URL('../pages/manager/subscription/page.tsx', import.meta.url), 'utf8');
-    assert.match(page, /getSubscriptionOffersErrorMessage\(offerResult.reason\)/);
+    assert.match(page, /getSubscriptionOffersErrorMessage\(offerResult.reason, billingLookup\)/);
+    assert.match(page, /getMyManagerBillingProfile\(\)/);
     assert.match(page, /getSubscriptionAccessPresentation\(summary\?\.entitlement\)/);
     assert.match(page, /aria-label="Your current access"/);
     assert.match(page, /setOffers\(\[\]\)/);

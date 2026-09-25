@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
-import { getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage } from '@/lib/managerSubscriptionReadiness';
+import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useToast } from '@/contexts/ToastContext';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
 import {
@@ -18,10 +18,12 @@ import {
     type ManagerSubscriptionSummary,
     type StartCheckoutResponse,
 } from '@/services/managerSubscriptionService';
+import { getMyManagerBillingProfile } from '@/services/managerBillingProfileService';
 export default function ManagerSubscriptionPage() {
     const toast = useToast();
     const [offers, setOffers] = useState<ManagerPlanOffer[]>([]);
     const [summary, setSummary] = useState<ManagerSubscriptionSummary | null>(null);
+    const [billingProfile, setBillingProfile] = useState<BillingProfileLookup>({ kind: 'unavailable' });
     const [loading, setLoading] = useState(true);
     const [busyPlan, setBusyPlan] = useState<string | null>(null);
     const [recurringConsent, setRecurringConsent] = useState(false);
@@ -38,11 +40,25 @@ export default function ManagerSubscriptionPage() {
         setLoading(true);
         setError(null);
         setOffersError(null);
+        setBillingProfile({ kind: 'unavailable' });
         try {
-            const [offerResult, summaryResult] = await Promise.allSettled([getManagerSubscriptionOffers(), getManagerSubscriptionSummary()]);
+            const [offerResult, summaryResult] = await Promise.allSettled([
+                getManagerSubscriptionOffers(), getManagerSubscriptionSummary(),
+            ]);
             if (version !== loadVersion.current) return;
             if (offerResult.status === 'fulfilled') setOffers(offerResult.value);
-            else { setOffers([]); setOffersError(getSubscriptionOffersErrorMessage(offerResult.reason)); }
+            else {
+                setOffers([]);
+                setOffersError(getSubscriptionOffersErrorMessage(offerResult.reason, { kind: 'unavailable' }));
+                if (isBillingMarketUnavailable(offerResult.reason)) {
+                    void Promise.allSettled([getMyManagerBillingProfile()]).then(([result]) => {
+                        if (version !== loadVersion.current) return;
+                        const billingLookup = classifyBillingProfileLookup(result);
+                        setBillingProfile(billingLookup);
+                        setOffersError(getSubscriptionOffersErrorMessage(offerResult.reason, billingLookup));
+                    });
+                }
+            }
             if (summaryResult.status === 'rejected') {
                 setSummary(null);
                 setAcceptedCheckout(null);
@@ -176,6 +192,7 @@ export default function ManagerSubscriptionPage() {
                         <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Support</dt><dd className="mt-1 text-lg font-black capitalize text-gray-900 dark:text-white">{access.support}</dd></div>
                     </dl>
                 </section> : null}
+                {!loading && billingProfile.kind === 'loaded' ? <p role="status" className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">Billing country for paid plans: <strong>{billingProfile.profile.market === 'IN' ? 'India' : 'United Kingdom'}</strong> ({billingProfile.profile.verification_status.replaceAll('_', ' ')}). This is separate from manager identity verification.</p> : null}
                 {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${new Date(summary.paid_period.billing_end).toLocaleString()}.` : ''}</div> : null}
                 {activeCheckout ? <section aria-label="Current subscription" className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
                     <h2 className="font-bold">Current subscription</h2>
