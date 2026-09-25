@@ -18,3 +18,8 @@ test('plan benefits remain visible without checkout offers while payment consent
     assert.match(card, /Local price and checkout unavailable for this account/);
     assert.match(card, /\{offer \? <>[\s\S]*Continue to secure payment[\s\S]*: <p/);
 });
+
+test('unverified billing notice and refresh control retain readable dark-mode text', () => {
+    assert.match(source, /onClick=\{\(\) => void load\(\)\} className="[^"]*dark:text-gray-100/);
+    assert.match(source, /offersError \? <p role="status" className="[^"]*dark:bg-gray-900 dark:text-gray-200/);
+});

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
+import { orderManagerPlans } from './managerPlanOrder';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useToast } from '@/contexts/ToastContext';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
@@ -184,23 +185,23 @@ export default function ManagerSubscriptionPage() {
     const busy = busyPlan !== null || loading;
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
     const access = getSubscriptionAccessPresentation(summary?.entitlement);
-    const plansToShow: (ManagerPlanOffer | ManagerPlanPreview)[] = offers.length > 0 ? offers : planPreviews;
+    const plansToShow: (ManagerPlanOffer | ManagerPlanPreview)[] = orderManagerPlans(offers.length > 0 ? offers : planPreviews);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12 dark:bg-gray-950">
             <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div><h1 className="text-3xl font-black text-gray-900 dark:text-white">Choose your Estospaces plan</h1><p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Compare published-property limits, Fast Track capacity and support. {offers.length > 0 ? 'Displayed monthly prices include applicable taxes.' : 'Local prices and payment are shown only when your billing country is verified and supported.'}</p></div>
-                    <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold dark:border-gray-700 disabled:opacity-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
+                    <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:text-gray-100 disabled:opacity-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
                 </div>
                 {access ? <section aria-label="Your current access" className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">Your current access</p>
                     <h2 className="mt-2 text-xl font-black text-gray-900 dark:text-white">{access.title}</h2>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{access.detail}</p>
                     <dl className="mt-5 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Published properties</dt><dd className="mt-1 text-lg font-black text-gray-900 dark:text-white">{access.publishedProperties}</dd></div>
-                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Active Fast Track cases</dt><dd className="mt-1 text-lg font-black text-gray-900 dark:text-white">{access.activeFastTrackCases}</dd></div>
-                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500">Support</dt><dd className="mt-1 text-lg font-black capitalize text-gray-900 dark:text-white">{access.support}</dd></div>
+                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500 dark:text-gray-300">Published properties</dt><dd className="mt-1 text-lg font-black text-gray-900 dark:text-white">{access.publishedProperties}</dd></div>
+                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500 dark:text-gray-300">Active Fast Track cases</dt><dd className="mt-1 text-lg font-black text-gray-900 dark:text-white">{access.activeFastTrackCases}</dd></div>
+                        <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500 dark:text-gray-300">Support</dt><dd className="mt-1 text-lg font-black capitalize text-gray-900 dark:text-white">{access.support}</dd></div>
                     </dl>
                 </section> : null}
                 {!loading && billingProfile.kind === 'loaded' ? <p role="status" className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">Billing country for paid plans: <strong>{billingProfile.profile.market === 'IN' ? 'India' : 'United Kingdom'}</strong> ({billingProfile.profile.verification_status.replaceAll('_', ' ')}). This is separate from manager identity verification.</p> : null}
@@ -219,10 +220,10 @@ export default function ManagerSubscriptionPage() {
                     {confirmCancel ? <div className="mt-4 rounded-xl border p-4"><p>Stop this subscription’s future charges? Any verified paid-through access remains until its end date. Cancelling does not delete your documents or ongoing cases.</p><div className="mt-3 flex flex-wrap gap-3"><button disabled={busy} type="button" onClick={() => void cancel()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Confirm cancellation</button><button disabled={busy} type="button" onClick={() => setConfirmCancel(false)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Keep subscription</button></div></div> : null}
                 </section> : null}
                 {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{error}</div> : null}
-                {offersError ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">{offersError}</p> : null}
+                {offersError ? <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">{offersError}</p> : null}
                 {!loading && plansToShow.length === 0 && previewError ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Plan descriptions could not be loaded. Refresh to try again; your existing access is unchanged.</p> : null}
-                {!loading && !error && plansToShow.length === 0 && !previewError ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">No approved plans are currently available to compare. Contact support or refresh later. Any existing subscription can still be managed above.</p> : null}
-                {summary?.new_checkouts_paused ? <p role="status" className="mb-4 rounded-xl border p-4 text-sm">New subscriptions are temporarily paused. You can still manage an existing subscription.</p> : null}
+                {!loading && !error && plansToShow.length === 0 && !previewError ? <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">No approved plans are currently available to compare. Contact support or refresh later. Any existing subscription can still be managed above.</p> : null}
+                {summary?.new_checkouts_paused ? <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">New subscriptions are temporarily paused. You can still manage an existing subscription.</p> : null}
                 {loading ? <BrandLoadingScreen label="Loading subscription plans..." /> : plansToShow.length > 0 ? <section aria-label="Compare manager plans" className="grid gap-6 lg:grid-cols-2">
                     {plansToShow.map((plan) => <ManagerSubscriptionPlanCard
                         key={'id' in plan ? plan.id : plan.code}
