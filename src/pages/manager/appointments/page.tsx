@@ -775,11 +775,21 @@ export default function ManagerAppointmentsPage() {
                                                     )}
                                                     disabled={isBusy || Boolean(completionBlockReason)}
                                                     title={completionBlockReason || undefined}
+                                                    aria-describedby={completionBlockReason ? `appointment-completion-hint-${appointment.id}` : undefined}
                                                     className="rounded-2xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30"
                                                 >
                                                     Mark Completed
                                                 </button>
                                             )}
+                                            {!isWorkflowLocked && appointment.status === 'confirmed' && completionBlockReason ? (
+                                                <p
+                                                    id={`appointment-completion-hint-${appointment.id}`}
+                                                    data-appointment-completion-hint
+                                                    className="w-full text-xs font-medium text-amber-700 dark:text-amber-300"
+                                                >
+                                                    {completionBlockReason}
+                                                </p>
+                                            ) : null}
 
                                             {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button

@@ -102,4 +102,7 @@ test("manager Mark Completed is disabled while the linked Fast Track awaits docu
   assert.match(source, /getFastTrackViewingCompletionBlockReason\(findLinkedFastTrackCase\(fastTrackCases, \{/);
   assert.match(source, /disabled=\{isBusy \|\| Boolean\(completionBlockReason\)\}/);
   assert.match(source, /title=\{completionBlockReason \|\| undefined\}/);
+  assert.match(source, /data-appointment-completion-hint/);
+  assert.match(source, /aria-describedby=\{completionBlockReason \? `appointment-completion-hint-\$\{appointment\.id\}` : undefined\}/);
+  assert.match(source, /\{completionBlockReason\}\s*<\/p>/);
 });

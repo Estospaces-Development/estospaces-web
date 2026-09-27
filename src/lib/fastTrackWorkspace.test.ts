@@ -25,6 +25,7 @@ import {
     FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
     FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE,
+    FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE,
     getFastTrackDocumentItemPermissions,
     getFastTrackDocumentRowPresentation,
     getFastTrackViewingCompletionBlockReason,
@@ -1202,4 +1203,9 @@ test('linked appointment completion is blocked until Fast Track documents are ap
     assert.equal(getFastTrackViewingCompletionBlockReason(withItems(approvedItems)), null);
     assert.equal(getFastTrackViewingCompletionBlockReason(withItems(pendingItems, 'cancelled')), null);
     assert.equal(getFastTrackViewingCompletionBlockReason(null), null);
+    assert.doesNotMatch(FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE, /\bboth\b|\btwo\b/i);
+    assert.equal(
+        getFastTrackViewingCompletionBlockReason({ ...withItems(pendingItems), finalStatus: 'expired' }),
+        FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE,
+    );
 });

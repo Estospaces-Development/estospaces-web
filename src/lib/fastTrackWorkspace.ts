@@ -563,12 +563,15 @@ export const getFastTrackDocumentItemPermissions = (
 };
 
 export const FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE =
-    'Approve both Fast Track documents before marking this viewing completed.';
+    'Approve the required Fast Track documents before marking this viewing completed.';
+export const FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE =
+    'This Fast Track has expired and is closed, so its viewing cannot be completed here.';
 
 // A linked appointment cannot be completed while its active Fast Track still
-// has unapproved documents; booking-service refuses the completion.
+// has unapproved documents; booking-service refuses the completion (and
+// reports an expired case as closed).
 export const getFastTrackViewingCompletionBlockReason = (
-    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'documents'> | null | undefined,
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'documents'> & Partial<Pick<FastTrackCase, 'finalStatus'>> | null | undefined,
 ) => {
     if (!fastTrackCase || fastTrackCase.workspaceFinalStatus !== 'active') {
         return null;
@@ -577,7 +580,12 @@ export const getFastTrackViewingCompletionBlockReason = (
     const allApproved = items.length > 0
         ? items.every((item) => item.status === 'approved')
         : Boolean(fastTrackCase.documents?.allApproved);
-    return allApproved ? null : FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE;
+    if (allApproved) {
+        return null;
+    }
+    return fastTrackCase.finalStatus === 'expired'
+        ? FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE
+        : FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE;
 };
 
 // Copy and note-field visibility for one document row, by what the viewer can
