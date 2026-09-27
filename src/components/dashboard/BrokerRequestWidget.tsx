@@ -45,6 +45,7 @@ import {
     formatRequestTypeLabel,
     getDispatchWorkspaceSummary,
     getMatchedExperienceSteps,
+    resolveDispatchWorkspaceHeaderCopy,
 } from '@/lib/brokerDispatchPresentation';
 import { getBrokerRequestCopy } from '@/lib/userJourneyCopy';
 import {
@@ -1099,7 +1100,6 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
     const requestIsExpired = activeRequest?.dispatch_status === 'expired' || activeRequest?.status === 'expired';
     const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
-    const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
     const sharedProperties = useMemo(
         () => activeRequest?.property_shares || [],
@@ -1149,6 +1149,10 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
     const matchedExperienceSteps = requestIsMatched && activeRequest
         ? getMatchedExperienceSteps(activeRequest, selectedHomeJourneyState)
         : [];
+    const dispatchWorkspaceHeader = resolveDispatchWorkspaceHeaderCopy(
+        getDispatchWorkspaceSummary(activeRequest, selectedHomeJourneyState),
+        activeRequest,
+    );
     const lockedRequestActionLabel = resolveSelectedHomeFastTrackActionLabel({
         linkedCaseId: activeRequest?.selected_fast_track_case_id,
         existingCase: existingSelectedHomeJourney,
@@ -1285,10 +1289,10 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                 <span className="hidden sm:inline">{brokerCopy.activeRequestEyebrow}</span>
                             </p>
                             <h3 className="mt-1 text-sm font-medium leading-tight text-gray-900 dark:text-white sm:mt-2 sm:text-lg sm:font-semibold">
-                                {dispatchWorkspaceSummary.title}
+                                {dispatchWorkspaceHeader.title}
                             </h3>
                             <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-gray-600 dark:text-gray-300 sm:line-clamp-none sm:text-sm">
-                                {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
+                                {dispatchWorkspaceHeader.subtitle}
                             </p>
                         </div>
                         <div className={`w-fit max-w-full rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:shrink-0 sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
@@ -1841,7 +1845,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                 </button>
                                 <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                                     <UserCheck size={14} />
-                                    {activeRequest?.next_action || dispatchWorkspaceSummary.helper}
+                                    {dispatchWorkspaceHeader.helper}
                                 </div>
                             </div>
                         </>

@@ -164,6 +164,15 @@ test('raw closed backend statuses map to a closed or completed journey, never a 
     ['cancelled', 'closed', 'View closed 24-hour journey'],
     ['completed', 'completed', 'View completed 24-hour journey'],
   ];
+  // The booking service never sends these. Like the service's own
+  // normalisation, the mapper treats an unrecognised status as active, so a
+  // "withdrawn -> closed" row cannot be produced through the mapper.
+  for (const rawStatus of ['withdrawn', 'unknown']) {
+    await withFetch(workspaceCase({ final_status: rawStatus }), async () => {
+      const result = await getFastTrackCaseById('case-1');
+      assert.equal(result.data?.workspaceFinalStatus, 'active', rawStatus);
+    });
+  }
   for (const [rawStatus, state, actionLabel] of expectations) {
     await withFetch(workspaceCase({ final_status: rawStatus, broker_request_id: 'request-1' }), async () => {
       const result = await getFastTrackCaseById('case-1');

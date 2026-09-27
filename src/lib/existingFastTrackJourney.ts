@@ -196,12 +196,25 @@ export const resolveSelectedHomeJourneyState = ({
     return linkedCaseId ? 'loading' : 'none';
 };
 
+/**
+ * Whether the journey state must replace core's request status_reason /
+ * next_action, which describe the request, not the linked case, and can read
+ * as live after the case has finished (or before its status has loaded).
+ */
+export const selectedHomeJourneyOverridesRequestCopy = (state: SelectedHomeJourneyState) => (
+    state === 'completed' || state === 'closed' || state === 'loading'
+);
+
 /** Selected-home card copy that never presents a finished journey as live. */
 export const getSelectedHomeJourneyCopy = (state: SelectedHomeJourneyState, propertyTitle?: string | null) => {
     const home = propertyTitle?.trim() || 'Your chosen home';
+    const homeInSentence = home === 'Your chosen home' ? 'your chosen home' : home;
     switch (state) {
         case 'completed':
             return {
+                headerTitle: 'Journey complete',
+                headerSubtitle: `The 24-hour journey for ${homeInSentence} is complete.`,
+                headerHelper: 'View the completed journey from your chosen home.',
                 cardTitle: 'Your 24-hour journey for this home is complete',
                 cardDescription: 'Open your chosen home or view the completed journey.',
                 stepTitle: 'Journey complete',
@@ -209,6 +222,9 @@ export const getSelectedHomeJourneyCopy = (state: SelectedHomeJourneyState, prop
             };
         case 'closed':
             return {
+                headerTitle: 'Journey closed',
+                headerSubtitle: `The 24-hour journey for ${homeInSentence} was closed and is no longer active.`,
+                headerHelper: 'View the closed journey from your chosen home.',
                 cardTitle: 'Your 24-hour journey for this home was closed',
                 cardDescription: 'Open your chosen home or view the closed journey. It is no longer active.',
                 stepTitle: 'Journey closed',
@@ -216,6 +232,9 @@ export const getSelectedHomeJourneyCopy = (state: SelectedHomeJourneyState, prop
             };
         case 'loading':
             return {
+                headerTitle: 'Home selected',
+                headerSubtitle: `${home} is linked to a 24-hour journey.`,
+                headerHelper: 'Open your chosen home or its linked 24-hour journey.',
                 cardTitle: 'Your chosen home',
                 cardDescription: 'Open your chosen home or its linked 24-hour journey.',
                 stepTitle: 'Home selected',
@@ -223,6 +242,11 @@ export const getSelectedHomeJourneyCopy = (state: SelectedHomeJourneyState, prop
             };
         case 'none':
             return {
+                headerTitle: 'Home selected',
+                headerSubtitle: propertyTitle?.trim()
+                    ? `${propertyTitle.trim()} is ready for your 24-hour journey`
+                    : 'Your chosen home is ready for the 24-hour journey.',
+                headerHelper: 'Continue with your chosen home.',
                 cardTitle: 'Your chosen home is ready',
                 cardDescription: 'Open your chosen home to request your 24-hour journey.',
                 stepTitle: 'Home selected',
@@ -230,6 +254,11 @@ export const getSelectedHomeJourneyCopy = (state: SelectedHomeJourneyState, prop
             };
         default:
             return {
+                headerTitle: 'Home selected',
+                headerSubtitle: propertyTitle?.trim()
+                    ? `${propertyTitle.trim()} is ready for your 24-hour journey`
+                    : 'Your chosen home is ready for the 24-hour journey.',
+                headerHelper: 'Continue with your chosen home.',
                 cardTitle: 'Your chosen home is ready',
                 cardDescription: 'Open your chosen home or continue your existing 24-hour journey.',
                 stepTitle: 'Home selected',

@@ -141,6 +141,11 @@ test('user entry points render the existing-journey state', () => {
     assert.match(widget, /selectedHomeJourneyCopy\.cardTitle/);
     assert.match(widget, /selectedHomeJourneyCopy\.cardDescription/);
     assert.match(widget, /getMatchedExperienceSteps\(activeRequest, selectedHomeJourneyState\)/);
+    assert.match(widget, /getDispatchWorkspaceSummary\(activeRequest, selectedHomeJourneyState\)/);
+    assert.match(widget, /\{dispatchWorkspaceHeader\.subtitle\}/);
+    assert.match(widget, /\{dispatchWorkspaceHeader\.helper\}/);
+    assert.doesNotMatch(widget, /activeRequest\?\.status_reason \|\|/);
+    assert.doesNotMatch(widget, /activeRequest\?\.next_action \|\|/);
     const workspace = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspace.tsx'), 'utf8');
     assert.match(workspace, /return role === 'user' \? 'Deadline passed' : 'Overdue';/);
     assert.doesNotMatch(workspace, /'Needs attention'/);
@@ -168,6 +173,8 @@ test('linked closed cases are described as finished, never as a live journey (ve
     const closedCases = [
         { name: 'completed', overrides: { workspaceFinalStatus: 'completed', finalStatus: 'completed', stage: 'handover' }, state: 'completed', label: 'Completed', action: 'View completed 24-hour journey', notice: 'This 24-hour journey is complete.' },
         { name: 'cancelled', overrides: { workspaceFinalStatus: 'cancelled', finalStatus: 'rejected' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
+        // Direct (not via the mapper): an unrecognised non-active state fails closed.
+        { name: 'unrecognised non-active state', overrides: { workspaceFinalStatus: 'withdrawn', finalStatus: 'withdrawn' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
         { name: 'rejected (legacy)', overrides: { workspaceFinalStatus: undefined, finalStatus: 'rejected' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
     ];
     for (const item of closedCases) {
