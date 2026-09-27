@@ -64,6 +64,12 @@ export interface ManagerProfile {
     arla_member: boolean;
     naea_member: boolean;
     rics_member: boolean;
+    /**
+     * Stored values that the display mapping above normalises away. Core
+     * compares against these when deciding whether a save needs re-verification.
+     */
+    persisted_company_name?: string;
+    persisted_has_client_money?: boolean;
     verification_status: VerificationStatus;
     agency_verification_status?: VerificationStatus;
     agency_verification_reason?: string;
@@ -411,6 +417,8 @@ export const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => 
         arla_member: Boolean(data.arla_member),
         naea_member: Boolean(data.naea_member),
         rics_member: Boolean(data.rics_member),
+        persisted_company_name: typeof data.company_name === 'string' ? data.company_name : '',
+        persisted_has_client_money: Boolean(data.has_client_money),
         verification_status: mapVerificationStatus(data.verification_status),
         agency_verification_status: data.agency_verification_status
             ? mapVerificationStatus(data.agency_verification_status)
