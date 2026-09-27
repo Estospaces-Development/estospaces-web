@@ -18,6 +18,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { useToast } from '@/contexts/ToastContext';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
 import {
@@ -544,7 +545,7 @@ export default function PropertyDetailPage() {
                                         {amenities.map((amenity) => (
                                             <div key={amenity} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                 <CheckCircle size={16} className="text-orange-600" />
-                                                <span className="capitalize text-sm">{amenity}</span>
+                                                <span className="text-sm">{formatAmenityLabel(amenity)}</span>
                                             </div>
                                         ))}
                                     </div>

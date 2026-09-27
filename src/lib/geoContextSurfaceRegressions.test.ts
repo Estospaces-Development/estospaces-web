@@ -139,9 +139,11 @@ test("active user manager and admin flows avoid default launch money on property
   assert.match(publicSearchSource, /Min Price \(\{currencySymbol\}\)/);
   assert.match(publicSearchSource, /Max Price \(\{currencySymbol\}\)/);
 
-  for (const source of [brokerRequestSource, brokerResponseSource, timelineSource, savedSource, managerContractsSource, adminPropertiesSource]) {
+  for (const source of [brokerRequestSource, brokerResponseSource, timelineSource, savedSource, managerContractsSource]) {
     assert.match(source, /formatLaunchCurrencyForCountry/);
   }
+  // Admin properties uses the shared country-aware helper, which wraps formatLaunchCurrencyForCountry.
+  assert.match(adminPropertiesSource, /formatManagerPropertyPrice\(\{[\s\S]*?country: propertyRecord\.country,[\s\S]*?location: property\.location,/);
 
   assert.match(fastTrackSource, /formatLaunchCurrencyForCountry\(selectedCase\.agreement\.amountDue/);
   assert.match(managerAddSource, /resolveCountryCurrency\(property\.location\?\.countryCode \|\| ""\)/);

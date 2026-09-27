@@ -21,7 +21,12 @@ export const formatManagerPropertyPrice = (property: ManagerPropertyPriceInput):
     if (property.priceString) {
         formatted = normalizeLaunchCurrencyText(property.priceString);
     } else if (typeof price === 'number' || (typeof price === 'object' && price !== null)) {
-        formatted = formatLaunchCurrencyForCountry(typeof price === 'number' ? price : price.amount, {
+        const amount = typeof price === 'number' ? price : price.amount;
+        // An unset price is stored as 0; never show it as a real amount.
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return null;
+        }
+        formatted = formatLaunchCurrencyForCountry(amount, {
             countryCode: property.countryCode || property.country_code || property.country
                 || location?.countryCode || location?.country,
             countryName: property.country || location?.country,
@@ -33,7 +38,8 @@ export const formatManagerPropertyPrice = (property: ManagerPropertyPriceInput):
 
     const isRental = property.listingType === 'rent' || property.listing_type === 'rent'
         || property.type?.toLowerCase() === 'rent';
-    return formatted && isRental && !/\/month$/i.test(formatted.trim())
+    // Only real amounts get a period, never fallbacks such as "POA".
+    return formatted && isRental && /\d/.test(formatted) && !/\/month$/i.test(formatted.trim())
         ? `${formatted}/month`
         : formatted;
 };

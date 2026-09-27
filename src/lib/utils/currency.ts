@@ -72,9 +72,10 @@ export function formatCurrency(
   if (amount === null || amount === undefined) return '';
 
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  const fractionDigits = Math.abs(Math.round(amount * 100) % 100) === 0 ? 0 : 2;
   const formatted = new Intl.NumberFormat('en-GB', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(amount);
 
   if (showCode) {
