@@ -90,6 +90,7 @@ import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { sanitizeInternalReturnPath } from '@/lib/authUtils';
 import {
     buildGuestLoginNavigation,
+    clearPendingGuestAction,
     consumePendingGuestAction,
     isPendingGuestActionForProperty,
     storePendingGuestAction,
@@ -1006,11 +1007,13 @@ const UserPropertyDetail = () => {
         ? location.state
         : null) as { backTo?: string; backLabel?: string; backState?: unknown } | null;
     const fallbackBackTarget = getPropertyDetailFallbackBackTarget(fastTrackQuery, user);
-    const backLabel = navigationState?.backLabel || 'Back';
+    // Router state is caller-controlled; only a validated internal path may be followed.
+    const safeBackTo = sanitizeInternalReturnPath(navigationState?.backTo);
+    const backLabel = (safeBackTo && navigationState?.backLabel) || 'Back';
 
     const handleBackNavigation = () => {
-        if (navigationState?.backTo) {
-            navigate(navigationState.backTo, { state: navigationState.backState });
+        if (safeBackTo) {
+            navigate(safeBackTo, { state: navigationState?.backState });
             return;
         }
 
@@ -1787,14 +1790,18 @@ const UserPropertyDetail = () => {
             return true;
         }
 
-        if (pendingActionType && property?.id) {
-            storePendingGuestAction(window.sessionStorage, {
+        // Only the latest guest intent is kept; an action without a type clears it.
+        const pendingActionNonce = pendingActionType && property?.id
+            ? storePendingGuestAction(window.sessionStorage, {
                 type: pendingActionType,
                 origin: 'property',
                 propertyId: property.id,
-            });
+            }, location)
+            : null;
+        if (!pendingActionNonce) {
+            clearPendingGuestAction(window.sessionStorage);
         }
-        const loginNavigation = buildGuestLoginNavigation(location);
+        const loginNavigation = buildGuestLoginNavigation(location, pendingActionNonce);
         toast.error('Please sign in to continue.');
         navigate(loginNavigation.to, { state: loginNavigation.state });
         return false;
@@ -2038,12 +2045,13 @@ const UserPropertyDetail = () => {
         }
         const pendingAction = consumePendingGuestAction(
             window.sessionStorage,
+            location,
             (action) => action.origin === 'property' && isPendingGuestActionForProperty(action, property.id),
         );
         if (pendingAction) {
             setResumedGuestAction(pendingAction);
         }
-    }, [isSeekerAccount, property?.id]);
+    }, [isSeekerAccount, location, property?.id]);
 
     useEffect(() => {
         if (!resumedGuestAction || !property || !isPendingGuestActionForProperty(resumedGuestAction, property.id)) {

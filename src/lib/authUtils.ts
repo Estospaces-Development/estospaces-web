@@ -156,6 +156,14 @@ export interface AuthRedirectLocationLike {
 
 const RETURN_PATH_BASE_ORIGIN = 'https://return-path.invalid';
 const PUBLIC_SEARCH_RETURN_PATH = '/search';
+export const MAX_RETURN_PATH_LENGTH = 2048;
+const PENDING_ACTION_NONCE_PATTERN = /^[A-Za-z0-9-]{16,64}$/;
+
+// A path that begins with "//" or "/\" is protocol-relative once handed to the
+// browser, so it must never leave the sanitizer, before or after normalisation.
+const isProtocolRelativePath = (value: string) => (
+    value.length >= 2 && value[0] === '/' && (value[1] === '/' || value[1] === '\\')
+);
 
 const hasForbiddenReturnPathCharacter = (value: string) => {
     for (let index = 0; index < value.length; index += 1) {
@@ -180,8 +188,9 @@ export function sanitizeInternalReturnPath(value: unknown): string | null {
 
     const candidate = value.trim();
     if (
-        !candidate.startsWith('/')
-        || candidate.startsWith('//')
+        candidate.length > MAX_RETURN_PATH_LENGTH
+        || !candidate.startsWith('/')
+        || isProtocolRelativePath(candidate)
         || hasForbiddenReturnPathCharacter(candidate)
     ) {
         return null;
@@ -194,11 +203,20 @@ export function sanitizeInternalReturnPath(value: unknown): string | null {
         return null;
     }
 
-    if (parsed.origin !== RETURN_PATH_BASE_ORIGIN || isAuthRoutePath(parsed.pathname)) {
+    // Dot segments ("/.//x", "/%2e%2e//x", "/search/..//x") collapse during
+    // parsing, so the protocol-relative check is repeated on the normalised form.
+    const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (
+        parsed.origin !== RETURN_PATH_BASE_ORIGIN
+        || isProtocolRelativePath(parsed.pathname)
+        || isProtocolRelativePath(normalized)
+        || normalized.length > MAX_RETURN_PATH_LENGTH
+        || isAuthRoutePath(parsed.pathname)
+    ) {
         return null;
     }
 
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return normalized;
 }
 
 function toSanitizedReturnLocation(value: unknown): AuthRedirectLocationLike | null {
@@ -246,27 +264,41 @@ export function resolveLoginReturnLocation(
 }
 
 export interface ReturnNavigationState {
-    backTo: string;
+    backTo?: string;
     backLabel?: string;
+    pendingActionNonce?: string;
+}
+
+export function sanitizePendingActionNonce(value: unknown): string | undefined {
+    return typeof value === 'string' && PENDING_ACTION_NONCE_PATTERN.test(value) ? value : undefined;
 }
 
 /**
  * Carries a validated "Back" target (for example the originating search query)
- * through the login handoff. Anything that is not an internal path is dropped.
+ * and the guest pending-action nonce through the login handoff. Anything that
+ * is not an internal path or a well-formed nonce is dropped.
  */
 export function sanitizeReturnNavigationState(value: unknown): ReturnNavigationState | undefined {
     if (!value || typeof value !== 'object') {
         return undefined;
     }
 
-    const candidate = value as { backTo?: unknown; backLabel?: unknown };
+    const candidate = value as { backTo?: unknown; backLabel?: unknown; pendingActionNonce?: unknown };
+    const result: ReturnNavigationState = {};
     const backTo = sanitizeInternalReturnPath(candidate.backTo);
-    if (!backTo) {
-        return undefined;
+    if (backTo) {
+        result.backTo = backTo;
+        const backLabel = typeof candidate.backLabel === 'string' ? candidate.backLabel.trim().slice(0, 60) : '';
+        if (backLabel) {
+            result.backLabel = backLabel;
+        }
+    }
+    const pendingActionNonce = sanitizePendingActionNonce(candidate.pendingActionNonce);
+    if (pendingActionNonce) {
+        result.pendingActionNonce = pendingActionNonce;
     }
 
-    const backLabel = typeof candidate.backLabel === 'string' ? candidate.backLabel.trim().slice(0, 60) : '';
-    return backLabel ? { backTo, backLabel } : { backTo };
+    return Object.keys(result).length > 0 ? result : undefined;
 }
 
 export function resolveLoginReturnNavigationState(routerState: unknown): ReturnNavigationState | undefined {

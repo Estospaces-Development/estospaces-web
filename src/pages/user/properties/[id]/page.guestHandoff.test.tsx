@@ -27,6 +27,15 @@ const compiled = ts.transpileModule(readFileSync(pagePath, 'utf8'), {
         esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 
+const HANDOFF_NONCE = '01234567-89ab-4cde-8f01-23456789abcd';
+const pendingDetailSave = (overrides: Record<string, unknown> = {}) => ({
+    type: 'save', origin: 'property', propertyId: 'first', nonce: HANDOFF_NONCE,
+    returnPath: '/user/properties/first', createdAt: Date.now(), ...overrides,
+});
+const handoffEntry = (nonce: string = HANDOFF_NONCE, pathname = '/user/properties/first') => ({
+    pathname, search: '', state: { backTo: '/search?page=2', backLabel: 'Back to Search', pendingActionNonce: nonce },
+});
+
 const mountPage = async ({
     user,
     initialEntry = { pathname: '/user/properties/first', search: '', state: undefined as unknown },
@@ -146,16 +155,17 @@ test('guest Save on property detail goes to login with the property return path 
         const landed = page.seen.at(-1);
         assert.ok(landed);
         assert.match(landed.pathname, /^\/login\/?$/);
-        assert.deepEqual((landed.state as { from: unknown }).from, {
-            pathname: '/user/properties/first',
-            search: '',
-            hash: '',
-            state: { backTo: '/search?page=2&sort=price_asc', backLabel: 'Back to Search' },
-        });
         const stored = JSON.parse(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY) || '{}');
         assert.equal(stored.type, 'save');
         assert.equal(stored.origin, 'property');
         assert.equal(stored.propertyId, 'first');
+        assert.equal(stored.returnPath, '/user/properties/first');
+        assert.deepEqual((landed.state as { from: unknown }).from, {
+            pathname: '/user/properties/first',
+            search: '',
+            hash: '',
+            state: { backTo: '/search?page=2&sort=price_asc', backLabel: 'Back to Search', pendingActionNonce: stored.nonce },
+        });
         assert.deepEqual(page.saveCalls, []);
     } finally { await page.cleanup(); }
 });
@@ -163,7 +173,8 @@ test('guest Save on property detail goes to login with the property return path 
 test('a signed-in seeker returning to the property runs the pending save exactly once', async () => {
     const page = await mountPage({
         user: { id: 'qa-user', role: 'user', name: 'QA User' },
-        pendingAction: { type: 'save', origin: 'property', propertyId: 'first', createdAt: Date.now() },
+        initialEntry: handoffEntry(),
+        pendingAction: pendingDetailSave(),
     });
     try {
         await page.complete(0, { data: property('first'), error: null });
@@ -178,7 +189,8 @@ test('a signed-in seeker returning to the property runs the pending save exactly
 test('a pending save for a different property is discarded, not run', async () => {
     const page = await mountPage({
         user: { id: 'qa-user', role: 'user', name: 'QA User' },
-        pendingAction: { type: 'save', origin: 'property', propertyId: 'other', createdAt: Date.now() },
+        initialEntry: handoffEntry(),
+        pendingAction: pendingDetailSave({ propertyId: 'other' }),
     });
     try {
         await page.complete(0, { data: property('first'), error: null });
@@ -191,7 +203,8 @@ test('a pending save for a different property is discarded, not run', async () =
 test('a pending guest save is not run for a manager account', async () => {
     const page = await mountPage({
         user: { id: 'qa-manager', role: 'manager', name: 'QA Manager' },
-        pendingAction: { type: 'save', origin: 'property', propertyId: 'first', createdAt: Date.now() },
+        initialEntry: handoffEntry(),
+        pendingAction: pendingDetailSave(),
     });
     try {
         await page.complete(0, { data: property('first'), error: null });
@@ -266,5 +279,66 @@ test('guest in-app Back from a property opened on search page two restores that 
         await page.click(/^Back to Search$/);
         assert.equal(page.seen.at(-1)?.pathname, '/search');
         assert.equal(page.seen.at(-1)?.search, '?page=2&sort=price_asc');
+    } finally { await page.cleanup(); }
+});
+
+test('a different seeker opening the property without the handoff nonce does not get the guest save', async () => {
+    const page = await mountPage({
+        user: { id: 'qa-user-b', role: 'user', name: 'QA User B' },
+        pendingAction: pendingDetailSave(),
+    });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        await page.settle();
+        assert.deepEqual(page.saveCalls, []);
+        assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+    } finally { await page.cleanup(); }
+});
+
+test('a mismatched nonce does not run the pending save', async () => {
+    const page = await mountPage({
+        user: { id: 'qa-user', role: 'user', name: 'QA User' },
+        initialEntry: handoffEntry('ffffffff-ffff-4fff-8fff-ffffffffffff'),
+        pendingAction: pendingDetailSave(),
+    });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        await page.settle();
+        assert.deepEqual(page.saveCalls, []);
+        assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+    } finally { await page.cleanup(); }
+});
+
+test('a guest protected action without a pending type clears any stored action', async () => {
+    const page = await mountPage({
+        user: null,
+        pendingAction: pendingDetailSave(),
+    });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        const rentalForm = Array.from(page.container.querySelectorAll('form'))
+            .find((form) => !String(form.getAttribute('class') || '').includes('scroll-mt-24'));
+        assert.ok(rentalForm, 'rental application form is rendered for a rental listing');
+        await act(async () => {
+            rentalForm.dispatchEvent(new page.window.Event('submit', { bubbles: true, cancelable: true }));
+        });
+        assert.match(page.seen.at(-1)?.pathname || '', /^\/login\/?$/);
+        assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+        const from = (page.seen.at(-1)?.state as { from: { state?: { pendingActionNonce?: string } } }).from;
+        assert.equal(from.state?.pendingActionNonce, undefined);
+    } finally { await page.cleanup(); }
+});
+
+test('a guest Back target that dot-normalises to another origin is ignored', async () => {
+    const page = await mountPage({
+        user: null,
+        initialEntry: { pathname: '/user/properties/first', search: '', state: { backTo: '/search/..//evil.example', backLabel: 'Back to Search' } },
+    });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        assert.doesNotMatch(page.container.textContent || '', /Back to Search/);
+        await page.click(/^Back$/);
+        assert.equal(page.seen.at(-1)?.pathname, '/search');
+        assert.equal(page.seen.at(-1)?.search, '');
     } finally { await page.cleanup(); }
 });

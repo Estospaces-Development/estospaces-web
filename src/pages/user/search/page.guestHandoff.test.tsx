@@ -26,13 +26,21 @@ const result = {
     city: 'Chennai', postcode: '600001', country: 'IN',
 };
 
+const HANDOFF_NONCE = '01234567-89ab-4cde-8f01-23456789abcd';
+const pendingSearchSave = (overrides: Record<string, unknown> = {}) => ({
+    type: 'save', origin: 'search', propertyId: 'page-two-home', nonce: HANDOFF_NONCE,
+    returnPath: '/search?sort=price_asc&page=2', createdAt: Date.now(), ...overrides,
+});
+
 const mountSearch = async ({
     user,
     initialSearch = '?sort=price_asc&page=2',
+    initialState,
     pendingAction,
 }: {
     user: { id: string; role: string } | null;
     initialSearch?: string;
+    initialState?: unknown;
     pendingAction?: Record<string, unknown>;
 }) => {
     const window = new Window({ url: `https://estospaces.test/search${initialSearch}` });
@@ -88,7 +96,7 @@ const mountSearch = async ({
         seen.push({ pathname: location.pathname, search: location.search, state: location.state });
         return <p>Landed on {location.pathname}</p>;
     };
-    const tree = () => <MemoryRouter initialEntries={[`/search${initialSearch}`]}>
+    const tree = () => <MemoryRouter initialEntries={[{ pathname: '/search', search: initialSearch, state: initialState }]}>
         <Routes>
             <Route path="/search" element={<module.exports.default />} />
             <Route path="/login/" element={<LocationProbe />} />
@@ -138,11 +146,14 @@ test('guest Save on a search card goes to login with the search return path inst
             pathname: '/search',
             search: '?sort=price_asc&page=2',
             hash: '',
+            state: { pendingActionNonce: JSON.parse(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY) || '{}').nonce },
         });
         const stored = JSON.parse(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY) || '{}');
         assert.equal(stored.type, 'save');
         assert.equal(stored.origin, 'search');
         assert.equal(stored.propertyId, 'page-two-home');
+        assert.equal(stored.returnPath, '/search?sort=price_asc&page=2');
+        assert.match(stored.nonce, /^[A-Za-z0-9-]{16,64}$/);
     } finally { await page.cleanup(); }
 });
 
@@ -159,7 +170,8 @@ test('search cards open property detail with the originating search as the back 
 test('a signed-in seeker returning to search completes the pending card save once', async () => {
     const page = await mountSearch({
         user: { id: 'qa-user', role: 'user' },
-        pendingAction: { type: 'save', origin: 'search', propertyId: 'page-two-home', createdAt: Date.now() },
+        initialState: { pendingActionNonce: HANDOFF_NONCE },
+        pendingAction: pendingSearchSave(),
     });
     try {
         await page.settle();
@@ -167,4 +179,31 @@ test('a signed-in seeker returning to search completes the pending card save onc
         assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
         assert.match(page.container.textContent || '', /now in your saved properties/);
     } finally { await page.cleanup(); }
+});
+
+test('a different seeker opening search without the handoff nonce does not get the guest save', async () => {
+    const page = await mountSearch({
+        user: { id: 'qa-user-b', role: 'user' },
+        pendingAction: pendingSearchSave(),
+    });
+    try {
+        await page.settle();
+        assert.deepEqual(page.saveCalls, []);
+        assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+        assert.doesNotMatch(page.container.textContent || '', /now in your saved properties/);
+    } finally { await page.cleanup(); }
+});
+
+test('a mismatched nonce or a different search path does not run the guest save', async () => {
+    for (const scenario of [
+        { initialState: { pendingActionNonce: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }, initialSearch: '?sort=price_asc&page=2' },
+        { initialState: { pendingActionNonce: HANDOFF_NONCE }, initialSearch: '?sort=price_asc&page=3' },
+    ]) {
+        const page = await mountSearch({ user: { id: 'qa-user', role: 'user' }, pendingAction: pendingSearchSave(), ...scenario });
+        try {
+            await page.settle();
+            assert.deepEqual(page.saveCalls, [], JSON.stringify(scenario));
+            assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+        } finally { await page.cleanup(); }
+    }
 });

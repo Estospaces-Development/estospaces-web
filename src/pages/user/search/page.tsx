@@ -624,6 +624,9 @@ const PropertySearch = () => {
 
     const isSeekerAccount = isAuthenticated && String(user?.role || '').trim().toLowerCase() === 'user';
     const resumedGuestSaveRef = useRef(false);
+    // The location this page was entered with; the post-login handoff nonce
+    // arrives here, before the page normalises its own URL parameters.
+    const entryLocationRef = useRef(routerLocation);
     useEffect(() => {
         if (!isSeekerAccount || resumedGuestSaveRef.current) {
             return;
@@ -631,6 +634,7 @@ const PropertySearch = () => {
         resumedGuestSaveRef.current = true;
         const pendingAction = consumePendingGuestAction(
             window.sessionStorage,
+            entryLocationRef.current,
             (action) => action.origin === 'search' && action.type === 'save',
         );
         if (!pendingAction) {
@@ -654,8 +658,12 @@ const PropertySearch = () => {
         }
 
         if (!isAuthenticated) {
-            storePendingGuestAction(window.sessionStorage, { type: 'save', origin: 'search', propertyId: property.id });
-            const loginNavigation = buildGuestLoginNavigation(routerLocation);
+            const pendingActionNonce = storePendingGuestAction(
+                window.sessionStorage,
+                { type: 'save', origin: 'search', propertyId: property.id },
+                routerLocation,
+            );
+            const loginNavigation = buildGuestLoginNavigation(routerLocation, pendingActionNonce);
             navigate(loginNavigation.to, { state: loginNavigation.state });
             return;
         }

@@ -10,6 +10,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Window } from 'happy-dom';
 import ts from 'typescript';
 
+import { PENDING_GUEST_ACTION_STORAGE_KEY } from '@/lib/pendingGuestAction';
+
 type SeenLocation = { pathname: string; search: string; state: unknown };
 
 const pagePath = fileURLToPath(new URL('./page.tsx', import.meta.url));
@@ -18,15 +20,23 @@ const compiled = ts.transpileModule(readFileSync(pagePath, 'utf8'), {
         esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 
-const continueAfterLogin = async (role: string, entry: { pathname: string; search?: string; state?: unknown }) => {
+const continueAfterLogin = async (
+    role: string,
+    entry: { pathname: string; search?: string; state?: unknown },
+    pendingAction?: Record<string, unknown>,
+) => {
     const window = new Window({ url: `http://localhost:3000${entry.pathname}${entry.search || ''}` });
     const globals = { window, document: window.document, navigator: window.navigator,
-        HTMLElement: window.HTMLElement, Node: window.Node, IS_REACT_ACT_ENVIRONMENT: true };
+        HTMLElement: window.HTMLElement, Node: window.Node, sessionStorage: window.sessionStorage,
+        IS_REACT_ACT_ENVIRONMENT: true };
     const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
     for (const [key, value] of Object.entries(globals)) {
         Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
     }
     const seen: SeenLocation[] = [];
+    if (pendingAction) {
+        window.sessionStorage.setItem(PENDING_GUEST_ACTION_STORAGE_KEY, JSON.stringify(pendingAction));
+    }
     const require = createRequire(import.meta.url);
     const boundaries: Record<string, unknown> = {
         '@/contexts/AuthContext': {
@@ -65,7 +75,9 @@ const continueAfterLogin = async (role: string, entry: { pathname: string; searc
             .find((candidate) => /Continue to Dashboard/.test(candidate.textContent || ''));
         assert.ok(button);
         await act(async () => { (button as unknown as HTMLButtonElement).click(); });
-        return seen.at(-1);
+        return Object.assign({}, seen.at(-1), {
+            storedAction: window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY),
+        });
     } finally {
         await act(async () => root.unmount());
         await window.happyDOM.abort();
@@ -112,4 +124,48 @@ test('login does not send a manager to a public seeker return path', async () =>
         state: { from: { pathname: '/user/properties/prop-1', search: '', hash: '' } },
     });
     assert.equal(landed?.pathname, '/manager/dashboard');
+});
+
+const HANDOFF_NONCE = '01234567-89ab-4cde-8f01-23456789abcd';
+const pendingAction = {
+    type: 'save', origin: 'property', propertyId: 'prop-1', nonce: HANDOFF_NONCE,
+    returnPath: '/user/properties/prop-1', createdAt: Date.now(),
+};
+const handoffState = { from: {
+    pathname: '/user/properties/prop-1', search: '', hash: '',
+    state: { backTo: '/search?page=2', pendingActionNonce: HANDOFF_NONCE },
+} };
+
+test('a seeker completing the guest handoff keeps the pending action and receives its nonce', async () => {
+    const landed = await continueAfterLogin('user', { pathname: '/login', state: handoffState }, pendingAction);
+    assert.equal(landed?.pathname, '/user/properties/prop-1');
+    assert.deepEqual(landed?.state, { backTo: '/search?page=2', pendingActionNonce: HANDOFF_NONCE });
+    assert.ok(landed?.storedAction, 'pending action is left for the property page to consume');
+});
+
+test('a manager login through the guest handoff clears the pending action and drops the nonce', async () => {
+    const landed = await continueAfterLogin('manager', { pathname: '/login', state: handoffState }, pendingAction);
+    assert.equal(landed?.pathname, '/manager/dashboard');
+    assert.equal(landed?.storedAction, null);
+    assert.equal(landed?.state, null);
+});
+
+test('an admin login clears the pending action', async () => {
+    const landed = await continueAfterLogin('admin', { pathname: '/login', state: handoffState }, pendingAction);
+    assert.equal(landed?.storedAction, null);
+});
+
+test('a different user signing in without the handoff clears the pending action', async () => {
+    const landed = await continueAfterLogin('user', { pathname: '/login' }, pendingAction);
+    assert.equal(landed?.pathname, '/user/dashboard');
+    assert.equal(landed?.storedAction, null);
+});
+
+test('a seeker login returning to a protected deep link clears the pending action', async () => {
+    const landed = await continueAfterLogin('user', {
+        pathname: '/login',
+        state: { from: { pathname: '/user/dashboard/fast-track', search: '', hash: '' } },
+    }, pendingAction);
+    assert.equal(landed?.pathname, '/user/dashboard/fast-track');
+    assert.equal(landed?.storedAction, null);
 });
