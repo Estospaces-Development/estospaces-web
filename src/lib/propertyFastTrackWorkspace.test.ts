@@ -212,8 +212,11 @@ test("property detail waits for the manager to create a Fast Track case", () => 
 test("matched broker request asks the manager to start Fast Track", () => {
   const source = readFileSync(resolve(process.cwd(), "src/components/dashboard/BrokerRequestWidget.tsx"), "utf8");
 
-  assert.match(source, /Request fast-track for selected home/);
+  const actionLabelSource = readFileSync(resolve(process.cwd(), "src/lib/existingFastTrackJourney.ts"), "utf8");
+  assert.match(source, /resolveSelectedHomeFastTrackActionLabel\(/);
+  assert.match(actionLabelSource, /Request fast-track for selected home/);
   assert.doesNotMatch(source, /Start fast-track with selected home/);
+  assert.doesNotMatch(actionLabelSource, /Start fast-track with selected home/);
   assert.match(source, /Home selected\. Open it when you are ready to request Fast Track from your manager\./);
   assert.doesNotMatch(source, /requestFastTrack/);
   assert.doesNotMatch(source, /writeFastTrackRequestPending/);
@@ -228,4 +231,14 @@ test("dashboard map prevents wrapped world copies and exposes only a Fast Track 
   assert.equal((source.match(/\bnoWrap\b/g) || []).length, 2);
   assert.match(source, />\s*Request fast-track\s*</);
   assert.doesNotMatch(source, />\s*Open fast-track\s*</);
+});
+
+test("property panel says Deadline passed for a live case past its window", () => {
+  const labels = resolvePropertyFastTrackPanelLabels(
+    null,
+    [],
+    { workspaceFinalStatus: "active", finalStatus: "in_progress", stage: "viewing", hoursRemaining: 0 } as any,
+  );
+  assert.equal(labels.deadline, "Deadline passed");
+  assert.doesNotMatch(labels.deadline, /Needs attention/);
 });

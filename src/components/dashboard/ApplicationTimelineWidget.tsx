@@ -20,6 +20,8 @@ import {
     type TimelinePropertyContext,
 } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import { describeRequestEntryJourney, findRequestEntryJourney } from '@/lib/existingFastTrackJourney';
+import { getFastTrackCases } from '@/services/fastTrackService';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
@@ -82,6 +84,8 @@ interface ApplicationItem {
     stats?: { views: number; inquiries: number; saved: number };
     primaryActionPath?: string;
     primaryActionLabel?: string;
+    /** Existing-journey summary for a request linked to a (possibly reused) Fast Track case. */
+    primaryActionSummary?: string;
     requestedLabel?: string;
 }
 
@@ -282,14 +286,17 @@ const ApplicationTimelineWidget = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes, contractsRes] = await Promise.all([
+                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes, contractsRes, fastTrackCasesRes] = await Promise.all([
                     getApplications({ suppressErrorToast: true }),
                     getUserBrokerRequests({ suppressErrorToast: true }),
                     getUserProperties({ limit: 50 }),
                     getSaleProgressions({ suppressErrorToast: true }),
                     getViewings({ suppressErrorToast: true }).catch(() => []),
                     getContracts().catch(() => []),
+                    // Only used to describe linked cases; never blocks the timeline.
+                    getFastTrackCases({ suppressErrorToast: true }).catch(() => ({ data: null, error: null })),
                 ]);
+                const fastTrackCases = fastTrackCasesRes.data || [];
 
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
                 const contracts = Array.isArray(contractsRes) ? contractsRes : [];
@@ -446,6 +453,12 @@ const ApplicationTimelineWidget = () => {
                 )
                     .map((request) => {
                         const summary = getBrokerRequestTrackingSummary(request);
+                        const linkedCase = request.selected_fast_track_case_id
+                            ? findRequestEntryJourney(fastTrackCases, { linkedCaseId: request.selected_fast_track_case_id })
+                            : null;
+                        const linkedJourney = linkedCase
+                            ? describeRequestEntryJourney(linkedCase, { brokerRequestId: request.id })
+                            : null;
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                         const requestTimeline: TimelineEventType[] = [
                             {
@@ -523,10 +536,11 @@ const ApplicationTimelineWidget = () => {
                                 ? `/user/dashboard/fast-track?case=${request.selected_fast_track_case_id}`
                                 : buildBrokerRequestWorkspacePath(request.id),
                             primaryActionLabel: request.selected_fast_track_case_id
-                                ? 'Continue 24-hour journey'
+                                ? linkedJourney?.actionLabel || 'Open linked 24-hour journey'
                                 : request.matched_broker
                                     ? 'Open agent request'
                                     : 'Track agent request',
+                            primaryActionSummary: linkedJourney?.text,
                         };
                     });
 
@@ -1119,6 +1133,11 @@ const ApplicationTimelineWidget = () => {
                                             >
                                                 {item.primaryActionLabel || 'View Property'} <ExternalLink size={14} />
                                             </button>
+                                            {item.primaryActionSummary ? (
+                                                <p className="text-xs leading-5 text-gray-600 dark:text-gray-300 sm:self-center" data-testid="existing-fast-track-journey-summary">
+                                                    {item.primaryActionSummary}
+                                                </p>
+                                            ) : null}
                                             {item.source !== 'broker_request' && (
                                                 <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
                                             )}

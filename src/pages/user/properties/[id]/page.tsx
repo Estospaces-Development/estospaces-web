@@ -67,6 +67,7 @@ import {
     isActiveFastTrackCase,
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
+import { describeExistingFastTrackJourney } from '@/lib/existingFastTrackJourney';
 import {
     resolvePropertyFastTrackSummaryDocuments,
     resolvePropertyFastTrackPanelLabels,
@@ -1256,6 +1257,12 @@ const UserPropertyDetail = () => {
     ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
     const propertyFastTrackCase = activeFastTrackCase?.propertyId === property?.id ? activeFastTrackCase : null;
     const hasActiveFastTrackJourney = isActiveFastTrackCase(propertyFastTrackCase);
+    const existingFastTrackJourney = hasActiveFastTrackJourney && propertyFastTrackCase
+        ? describeExistingFastTrackJourney(propertyFastTrackCase, {
+            brokerRequestId: brokerRequestQuery || undefined,
+            leadId: activeLead?.id,
+        })
+        : null;
     const isFastTrackApprovalPending = Boolean(fastTrackRequestPending) && !hasActiveFastTrackJourney;
     const fastTrackCtaState = resolvePropertyFastTrackCtaState({
         isAuthenticated: Boolean(user),
@@ -1276,7 +1283,7 @@ const UserPropertyDetail = () => {
     const fastTrackSidebarActionLabel = isFastTrackApprovalPending
         ? 'Fast Track requested'
         : fastTrackCtaState === 'continue'
-        ? 'Continue 24-hour journey'
+        ? 'Continue existing 24-hour journey'
         : fastTrackCtaState === 'retry'
             ? 'Check fast-track status'
             : fastTrackCtaState === 'checking'
@@ -1285,7 +1292,7 @@ const UserPropertyDetail = () => {
     const fastTrackPrimaryActionLabel = isFastTrackApprovalPending
         ? 'Waiting for manager approval'
         : fastTrackCtaState === 'continue'
-        ? 'Continue Fast Track'
+        ? 'Continue existing Fast Track'
         : fastTrackCtaState === 'retry'
             ? 'Check Fast Track Status'
             : fastTrackCtaState === 'checking'
@@ -1299,7 +1306,7 @@ const UserPropertyDetail = () => {
     const fastTrackConciergeActionLabel = isFastTrackApprovalPending
         ? 'Waiting for manager approval'
         : fastTrackCtaState === 'continue'
-        ? 'Continue your fast-track workspace'
+        ? 'Continue your existing fast-track workspace'
         : fastTrackCtaState === 'retry'
             ? 'Check your fast-track status'
             : fastTrackCtaState === 'checking'
@@ -2007,7 +2014,7 @@ const UserPropertyDetail = () => {
                 if (recoveredWorkspace.fastTrackCase) {
                     openFastTrackDashboard(recoveredWorkspace.fastTrackCase);
                 }
-                toast.success('Your live fast-track journey is already active for this property.');
+                toast.success('You already have an existing fast-track journey for this property. Opening it now; no new 24-hour clock has started.');
             } else {
                 toast.error(message);
             }
@@ -2536,6 +2543,11 @@ const UserPropertyDetail = () => {
                                             {isFastTrackCtaBusy ? <ActionSpinner size={15} className="" /> : <Upload size={15} />}
                                             <span>{isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackSidebarActionLabel}</span>
                                         </button>
+                                        {existingFastTrackJourney ? (
+                                            <p className="mt-2 text-[11px] leading-4 text-gray-600 dark:text-gray-300" data-testid="existing-fast-track-journey-summary">
+                                                {existingFastTrackJourney.summary}
+                                            </p>
+                                        ) : null}
                                     </div>
                                     <p className="mt-3 line-clamp-3 max-w-2xl text-[13px] leading-5 text-gray-500 dark:text-gray-400 sm:mt-4 sm:line-clamp-none sm:text-sm sm:leading-7">
                                         {propertyHeroSummary}
@@ -3036,6 +3048,13 @@ const UserPropertyDetail = () => {
                                 {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
                             </button>
                         </div>
+                        {existingFastTrackJourney ? (
+                            <div className="mt-4 rounded-[1.35rem] border border-orange-200 bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100" role="status">
+                                <p className="font-semibold">{existingFastTrackJourney.heading}</p>
+                                <p>{existingFastTrackJourney.summary}</p>
+                                <p className="mt-1 text-orange-800 dark:text-orange-200">{existingFastTrackJourney.notice}</p>
+                            </div>
+                        ) : null}
                         <div className="mt-4 rounded-[1.35rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
                             Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
                         </div>
@@ -3281,6 +3300,7 @@ const UserPropertyDetail = () => {
                 propertyAddress={propertyAddress || locationLabel}
                 lead={activeLead}
                 fastTrackCase={activeFastTrackCase}
+                existingJourney={existingFastTrackJourney}
                 userDocuments={userDocuments}
                 isRefreshing={isFastTrackPanelLoading}
                 uploadingType={uploadingFastTrackDocumentType}
