@@ -280,3 +280,27 @@ test('a refused chat attachment does not open anything', async () => {
     assert.equal(popup.location.href, '');
     assert.equal(closed, true);
 });
+
+test('direct conversation upsert sends the broker request scope only when one is given', async () => {
+    const originalFetch = globalThis.fetch;
+    const bodies: Array<Record<string, any>> = [];
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body || '{}')));
+        return new Response(JSON.stringify({ success: true, data: { id: 'conversation-1', type: 'direct' } }), {
+            status: 201, headers: { 'Content-Type': 'application/json' },
+        });
+    }) as typeof fetch;
+
+    try {
+        await upsertDirectConversation('manager-1', {
+            brokerRequestId: '6ab09306-fea4-467e-9e52-f77266a3ca63',
+            propertyTitle: 'Rent request',
+        });
+        await upsertDirectConversation('manager-1', { propertyId: 'property-1' });
+        assert.equal(bodies[0].context.broker_request_id, '6ab09306-fea4-467e-9e52-f77266a3ca63');
+        assert.equal(bodies[0].context.property_title, 'Rent request');
+        assert.equal('broker_request_id' in bodies[1].context, false, 'unscoped callers keep the legacy payload');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

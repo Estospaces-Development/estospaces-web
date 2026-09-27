@@ -51,6 +51,8 @@ interface Conversation {
     propertyAddress: string | null;
     propertyImage: string | null;
     propertyPrice: number | null;
+    /** Agent request this direct thread is scoped to, when there is one. */
+    brokerRequestId?: string | null;
     isArchived: boolean;
     isMuted: boolean;
     lastActivity: string;
@@ -374,6 +376,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             propertyAddress: backendConversation.property_address || metadata?.property_address || metadata?.propertyAddress || null,
             propertyImage: backendConversation.property_image || metadata?.property_image || metadata?.propertyImage || null,
             propertyPrice: backendConversation.property_price ?? metadata?.property_price ?? metadata?.propertyPrice ?? null,
+            brokerRequestId: backendConversation.broker_request_id || metadata?.broker_request_id || null,
             isArchived: backendConversation.is_archived ?? existingConversation?.isArchived ?? false,
             isMuted: backendConversation.is_muted ?? existingConversation?.isMuted ?? false,
             lastActivity: backendConversation.updated_at,

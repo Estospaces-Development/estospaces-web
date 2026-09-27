@@ -53,6 +53,7 @@ export interface Conversation {
     listing_type?: string;
     property_price?: number;
     fast_track_case_id?: string;
+    broker_request_id?: string;
 }
 
 export interface SupportRequesterContext {
@@ -139,6 +140,8 @@ export interface ConversationContext {
     listingType?: string | null;
     propertyPrice?: number | null;
     fastTrackCaseId?: string | null;
+    /** Scopes a direct thread to one agent request. */
+    brokerRequestId?: string | null;
     senderName?: string;
     senderEmail?: string;
     senderPhone?: string;
@@ -159,6 +162,7 @@ const mapConversationContext = (context?: ConversationContext) => (
             listing_type: context.listingType,
             property_price: context.propertyPrice,
             fast_track_case_id: context.fastTrackCaseId,
+            broker_request_id: context.brokerRequestId || undefined,
             sender_name: context.senderName,
             sender_email: context.senderEmail,
             sender_phone: context.senderPhone,
