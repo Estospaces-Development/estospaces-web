@@ -106,6 +106,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
+import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -4149,7 +4150,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const selectedCaseSubtitle = selectedCase
         ? role === 'user'
-            ? `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`
+            ? [
+                `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`,
+                formatJourneyStartedLabel(selectedCase.submittedAt),
+            ].filter(Boolean).join(' · ')
             : `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
         : '';
     const workspaceStatusMessage = recoveredCaseLink

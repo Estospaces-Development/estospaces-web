@@ -20,7 +20,7 @@ import {
     type TimelinePropertyContext,
 } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
-import { describeExistingFastTrackJourney, findRequestEntryJourney } from '@/lib/existingFastTrackJourney';
+import { describeRequestEntryJourney, findRequestEntryJourney } from '@/lib/existingFastTrackJourney';
 import { getFastTrackCases } from '@/services/fastTrackService';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
@@ -453,6 +453,12 @@ const ApplicationTimelineWidget = () => {
                 )
                     .map((request) => {
                         const summary = getBrokerRequestTrackingSummary(request);
+                        const linkedCase = request.selected_fast_track_case_id
+                            ? findRequestEntryJourney(fastTrackCases, { linkedCaseId: request.selected_fast_track_case_id })
+                            : null;
+                        const linkedJourney = linkedCase
+                            ? describeRequestEntryJourney(linkedCase, { brokerRequestId: request.id })
+                            : null;
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                         const requestTimeline: TimelineEventType[] = [
                             {
@@ -530,18 +536,11 @@ const ApplicationTimelineWidget = () => {
                                 ? `/user/dashboard/fast-track?case=${request.selected_fast_track_case_id}`
                                 : buildBrokerRequestWorkspacePath(request.id),
                             primaryActionLabel: request.selected_fast_track_case_id
-                                ? 'Continue existing 24-hour journey'
+                                ? linkedJourney?.actionLabel || 'Open linked 24-hour journey'
                                 : request.matched_broker
                                     ? 'Open agent request'
                                     : 'Track agent request',
-                            primaryActionSummary: (() => {
-                                const linkedCase = request.selected_fast_track_case_id
-                                    ? findRequestEntryJourney(fastTrackCases, { linkedCaseId: request.selected_fast_track_case_id })
-                                    : null;
-                                if (!linkedCase) return undefined;
-                                const journey = describeExistingFastTrackJourney(linkedCase, { brokerRequestId: request.id });
-                                return `${journey.summary}. ${journey.notice}`;
-                            })(),
+                            primaryActionSummary: linkedJourney?.text,
                         };
                     });
 

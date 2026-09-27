@@ -128,17 +128,72 @@ export const findRequestEntryJourney = <T extends Pick<JourneyCase, 'caseId' | '
     return findActiveJourneyForProperty(cases, propertyId);
 };
 
+export type RequestEntryJourneyState = 'active' | 'completed' | 'closed';
+
+export interface RequestEntryJourneyDescription {
+    state: RequestEntryJourneyState;
+    actionLabel: string;
+    summary: string;
+    notice: string;
+    /** Summary and notice as one sentence for compact surfaces. */
+    text: string;
+}
+
+/**
+ * Describes the case a request entry point leads to, whatever its status.
+ * Only an active case (including a legacy "expired" one, which the booking
+ * service still treats as active and continues) gets the existing-journey copy
+ * and the "no new 24-hour clock" notice. Completed and cancelled/rejected
+ * cases are described as finished, because a request keeps its
+ * selected_fast_track_case_id after the case closes.
+ */
+export const describeRequestEntryJourney = (
+    caseItem: JourneyCase,
+    context: ExistingJourneyContext = {},
+    now: number = Date.now(),
+): RequestEntryJourneyDescription => {
+    if (isActiveJourney(caseItem)) {
+        const journey = describeExistingFastTrackJourney(caseItem, context, now);
+        return {
+            state: 'active',
+            actionLabel: 'Continue existing 24-hour journey',
+            summary: journey.summary,
+            notice: journey.notice,
+            text: `${journey.summary}. ${journey.notice}`,
+        };
+    }
+    const completed = caseItem.workspaceFinalStatus === 'completed' || caseItem.finalStatus === 'completed';
+    const statusLabel = completed ? 'Completed' : 'Closed';
+    const summary = [formatJourneyStartedLabel(caseItem.submittedAt), statusLabel, describeJourneyLink(caseItem, context)]
+        .filter(Boolean)
+        .join(' · ');
+    const notice = completed
+        ? 'This 24-hour journey is complete.'
+        : 'This 24-hour journey was closed and is no longer active.';
+    return {
+        state: completed ? 'completed' : 'closed',
+        actionLabel: completed ? 'View completed 24-hour journey' : 'View closed 24-hour journey',
+        summary,
+        notice,
+        text: `${summary}. ${notice}`,
+    };
+};
+
 export const resolveSelectedHomeFastTrackActionLabel = ({
     linkedCaseId,
     existingCase,
+    entryJourney,
     hasSelectedProperty,
 }: {
     linkedCaseId?: string | null;
     existingCase?: unknown;
+    entryJourney?: Pick<RequestEntryJourneyDescription, 'actionLabel'> | null;
     hasSelectedProperty: boolean;
 }) => {
-    // A linked case is always an existing journey, possibly an older reused one.
-    if (linkedCaseId || existingCase) return 'Continue existing 24-hour journey';
+    if (entryJourney) return entryJourney.actionLabel;
+    // Linked case not loaded yet (or lookup failed): do not guess its status.
+    if (linkedCaseId) return 'Open linked 24-hour journey';
+    if (existingCase) return 'Continue existing 24-hour journey';
     if (hasSelectedProperty) return 'Request fast-track for selected home';
     return 'Open matched agent request';
 };

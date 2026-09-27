@@ -34,7 +34,7 @@ import {
 import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import {
-    describeExistingFastTrackJourney,
+    describeRequestEntryJourney,
     findRequestEntryJourney,
     resolveSelectedHomeFastTrackActionLabel,
 } from '@/lib/existingFastTrackJourney';
@@ -1138,11 +1138,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
         ? findRequestEntryJourney(existingJourneyCases, { linkedCaseId: linkedFastTrackCaseId, propertyId: selectedPropertyId })
         : null;
     const existingSelectedHomeJourneySummary = existingSelectedHomeJourney
-        ? describeExistingFastTrackJourney(existingSelectedHomeJourney, { brokerRequestId: activeRequest?.id })
+        ? describeRequestEntryJourney(existingSelectedHomeJourney, { brokerRequestId: activeRequest?.id })
         : null;
     const lockedRequestActionLabel = resolveSelectedHomeFastTrackActionLabel({
         linkedCaseId: activeRequest?.selected_fast_track_case_id,
         existingCase: existingSelectedHomeJourney,
+        entryJourney: existingSelectedHomeJourneySummary,
         hasSelectedProperty: Boolean(selectedProperty),
     });
     const visibleSharedProperties = useMemo(() => {
@@ -1618,12 +1619,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                                 onClick={() => navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`)}
                                                                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                                             >
-                                                                Continue existing 24-hour journey
+                                                                {existingSelectedHomeJourneySummary?.actionLabel || 'Open linked 24-hour journey'}
                                                             </button>
                                                         )}
                                                         {existingSelectedHomeJourneySummary ? (
                                                             <p className="text-xs leading-5 text-gray-600 dark:text-gray-300" data-testid="existing-fast-track-journey-card-summary">
-                                                                {existingSelectedHomeJourneySummary.summary}. {existingSelectedHomeJourneySummary.notice}
+                                                                {existingSelectedHomeJourneySummary.text}
                                                             </p>
                                                         ) : null}
                                                     </div>
@@ -2077,7 +2078,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
 
                 {requestReplacementLocked && existingSelectedHomeJourneySummary ? (
                     <p className="text-center text-xs text-gray-600 dark:text-gray-300" data-testid="existing-fast-track-journey-summary">
-                        {existingSelectedHomeJourneySummary.notice} {existingSelectedHomeJourneySummary.summary}.
+                        {existingSelectedHomeJourneySummary.text}
                     </p>
                 ) : null}
 

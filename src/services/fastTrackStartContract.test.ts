@@ -148,3 +148,11 @@ test('reuse detection prefers the server flag and falls back to case age', () =>
   assert.equal(isReusedFastTrackStart({}, { submittedAt: '2026-09-27T11:58:00Z' }, now), false);
   assert.equal(isReusedFastTrackStart({}, { submittedAt: '' }, now), false);
 });
+
+test('legacy expired final status maps to an active case, as the backend still reuses it', async () => {
+  await withFetch(workspaceCase({ final_status: 'expired' }), async () => {
+    const result = await getFastTrackCaseById('case-1');
+    assert.equal(result.data?.workspaceFinalStatus, 'active');
+    assert.equal(result.data?.finalStatus, 'in_progress');
+  });
+});

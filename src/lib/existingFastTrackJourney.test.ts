@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 import {
     describeExistingFastTrackJourney,
+    describeRequestEntryJourney,
     findActiveJourneyForProperty,
     findRequestEntryJourney,
     formatJourneyStartedLabel,
@@ -98,8 +99,19 @@ test('selected-home CTA says continue when the user already has an active case f
     assert.equal(findActiveJourneyForProperty(cases, null), null);
 
     assert.equal(resolveSelectedHomeFastTrackActionLabel({ existingCase: existing, hasSelectedProperty: true }), 'Continue existing 24-hour journey');
-    assert.equal(resolveSelectedHomeFastTrackActionLabel({ linkedCaseId: 'case-1', existingCase: existing, hasSelectedProperty: true }), 'Continue existing 24-hour journey');
-    assert.equal(resolveSelectedHomeFastTrackActionLabel({ linkedCaseId: 'case-1', hasSelectedProperty: true }), 'Continue existing 24-hour journey');
+    // A linked case whose status is not loaded yet gets a neutral label.
+    assert.equal(resolveSelectedHomeFastTrackActionLabel({ linkedCaseId: 'case-1', hasSelectedProperty: true }), 'Open linked 24-hour journey');
+    assert.equal(resolveSelectedHomeFastTrackActionLabel({
+        linkedCaseId: 'case-1',
+        existingCase: existing,
+        entryJourney: describeRequestEntryJourney(existing!, {}, NOW),
+        hasSelectedProperty: true,
+    }), 'Continue existing 24-hour journey');
+    assert.equal(resolveSelectedHomeFastTrackActionLabel({
+        linkedCaseId: 'case-1',
+        entryJourney: { actionLabel: 'View completed 24-hour journey' },
+        hasSelectedProperty: true,
+    }), 'View completed 24-hour journey');
     assert.equal(resolveSelectedHomeFastTrackActionLabel({ existingCase: null, hasSelectedProperty: true }), 'Request fast-track for selected home');
     assert.equal(resolveSelectedHomeFastTrackActionLabel({ hasSelectedProperty: false }), 'Open matched agent request');
 });
@@ -110,13 +122,15 @@ test('user entry points render the existing-journey state', () => {
     const modal = readFileSync(resolve(root, 'src/components/dashboard/PropertyFastTrackModal.tsx'), 'utf8');
     const timeline = readFileSync(resolve(root, 'src/components/dashboard/ApplicationTimelineWidget.tsx'), 'utf8');
 
-    assert.match(widget, /existingSelectedHomeJourneySummary\.notice/);
+    assert.match(widget, /existingSelectedHomeJourneySummary\.text/);
+    assert.match(widget, /describeRequestEntryJourney\(existingSelectedHomeJourney/);
     assert.match(widget, /&case=\$\{existingSelectedHomeJourney\.caseId\}/);
     assert.match(modal, /existingJourney\.notice/);
     assert.match(modal, /existingJourney\.summary/);
     assert.match(modal, /Continue your existing journey for this home\./);
     assert.match(modal, /return existingJourney\.timingLabel/);
-    assert.match(timeline, /Continue existing 24-hour journey/);
+    assert.match(timeline, /linkedJourney\?\.actionLabel \|\| 'Open linked 24-hour journey'/);
+    assert.match(timeline, /primaryActionSummary: linkedJourney\?\.text/);
     assert.match(timeline, /findRequestEntryJourney\(fastTrackCases, \{ linkedCaseId: request\.selected_fast_track_case_id \}\)/);
     assert.match(timeline, /item\.primaryActionSummary/);
     assert.match(widget, /findRequestEntryJourney\(existingJourneyCases, \{ linkedCaseId: linkedFastTrackCaseId, propertyId: selectedPropertyId \}\)/);
@@ -143,4 +157,46 @@ test('request linked to a reused older case resolves that case and describes it 
 
     assert.equal(findRequestEntryJourney(cases, { linkedCaseId: 'case-unknown', propertyId: 'property-selected' }), null);
     assert.equal(findRequestEntryJourney(cases, { propertyId: 'property-other' })?.caseId, 'case-new-home');
+});
+
+test('linked closed cases are described as finished, never as a live journey (verifier F-1)', () => {
+    const closedCases = [
+        { name: 'completed', overrides: { workspaceFinalStatus: 'completed', finalStatus: 'completed', stage: 'handover' }, state: 'completed', label: 'Completed', action: 'View completed 24-hour journey', notice: 'This 24-hour journey is complete.' },
+        { name: 'cancelled', overrides: { workspaceFinalStatus: 'cancelled', finalStatus: 'rejected' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
+        { name: 'rejected (legacy)', overrides: { workspaceFinalStatus: undefined, finalStatus: 'rejected' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
+        { name: 'withdrawn/unknown', overrides: { workspaceFinalStatus: 'withdrawn', finalStatus: 'withdrawn' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
+    ];
+    for (const item of closedCases) {
+        const linked = findRequestEntryJourney([julyCase({ brokerRequestId: 'request-september', ...item.overrides })], { linkedCaseId: 'case-95979976' });
+        assert.ok(linked, `${item.name}: the linked case is still found so its state can be shown`);
+        const described = describeRequestEntryJourney(linked, { brokerRequestId: 'request-september' }, NOW);
+        assert.equal(described.state, item.state, item.name);
+        assert.equal(described.actionLabel, item.action, item.name);
+        assert.equal(described.summary, `Started 2 Jul 2026 · ${item.label} · Linked to this agent request`, item.name);
+        assert.equal(described.notice, item.notice, item.name);
+        assert.doesNotMatch(described.text, /no new 24-hour clock|existing journey|In progress|Deadline passed|stage/i, item.name);
+    }
+});
+
+test('an expired case the backend still treats as active reads as a continuable journey past its deadline', () => {
+    // The mapper turns final_status "expired" into workspaceFinalStatus "active"
+    // (see fastTrackStartContract.test.ts), matching the backend, which reuses it.
+    const described = describeRequestEntryJourney(julyCase({ overdue: true }), { brokerRequestId: 'request-september' }, NOW);
+    assert.equal(described.state, 'active');
+    assert.equal(described.actionLabel, 'Continue existing 24-hour journey');
+    assert.match(described.summary, /Deadline passed/);
+    assert.match(described.notice, /deadline has passed and no new 24-hour clock has started/);
+});
+
+test('property fallback never returns a closed case, but a linked lookup does', () => {
+    const completed = julyCase({ workspaceFinalStatus: 'completed', finalStatus: 'completed' });
+    assert.equal(findRequestEntryJourney([completed], { propertyId: 'property-selected' }), null);
+    assert.equal(findRequestEntryJourney([completed], { linkedCaseId: 'case-95979976' })?.caseId, 'case-95979976');
+});
+
+test('user workspace masthead subtitle carries the start date (verifier F-2)', () => {
+    const workspace = readFileSync(resolve(process.cwd(), 'src/components/fast-track/FastTrackWorkspace.tsx'), 'utf8');
+    assert.match(workspace, /import \{ formatJourneyStartedLabel \} from '@\/lib\/existingFastTrackJourney';/);
+    assert.match(workspace, /this home in one guided journey\.`,\s*formatJourneyStartedLabel\(selectedCase\.submittedAt\),\s*\]\.filter\(Boolean\)\.join\(' · '\)/);
+    assert.match(workspace, /subtitle=\{selectedCaseSubtitle\}/);
 });

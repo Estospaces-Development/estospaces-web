@@ -232,3 +232,13 @@ test("dashboard map prevents wrapped world copies and exposes only a Fast Track 
   assert.match(source, />\s*Request fast-track\s*</);
   assert.doesNotMatch(source, />\s*Open fast-track\s*</);
 });
+
+test("property panel says Deadline passed for a live case past its window", () => {
+  const labels = resolvePropertyFastTrackPanelLabels(
+    null,
+    [],
+    { workspaceFinalStatus: "active", finalStatus: "in_progress", stage: "viewing", hoursRemaining: 0 } as any,
+  );
+  assert.equal(labels.deadline, "Deadline passed");
+  assert.doesNotMatch(labels.deadline, /Needs attention/);
+});
