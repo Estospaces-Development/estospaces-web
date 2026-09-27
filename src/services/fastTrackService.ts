@@ -130,34 +130,41 @@ export interface FastTrackActivityEntry {
   createdAt: string;
 }
 
-interface BackendFastTrackWorkspaceCase {
+interface BackendFastTrackCaseIdentity {
+  property_id?: string;
+  property_title?: string;
+  property_type?: string;
+  property_country?: string;
+  listing_type?: "rent" | "sale" | "lease" | string;
+  journey_type?: "rent" | "sale" | string;
+  client_id?: string;
+  client_name?: string;
+  manager_id?: string;
+  lead_id?: string;
+  broker_request_id?: string;
+  started_from?: string;
+  submitted_at?: string;
+  expires_at?: string;
+  hours_remaining?: number;
+  overdue?: boolean;
+}
+
+// The workspace shape carries identity and timing in `header`. Some older
+// booking-service start/reuse responses returned the stored case without a
+// header, so the same fields are also read from the top level as a fallback.
+export interface BackendFastTrackWorkspaceCase extends BackendFastTrackCaseIdentity {
   id: string;
   case_id?: string;
   application_id?: string;
   viewing_id?: string;
   contract_id?: string;
   payment_id?: string;
-  header: {
-    property_id: string;
-    property_title: string;
-    property_type: string;
-    property_country?: string;
-    listing_type?: "rent" | "sale" | "lease" | string;
-    journey_type?: "rent" | "sale" | string;
-    client_id: string;
-    client_name: string;
-    manager_id?: string;
-    lead_id?: string;
-    broker_request_id?: string;
-    started_from?: string;
-    submitted_at: string;
-    expires_at?: string;
-    hours_remaining?: number;
-    overdue?: boolean;
-  };
-  stage: FastTrackStage;
-  final_status: FastTrackFinalStatus;
-  documents: {
+  header?: BackendFastTrackCaseIdentity;
+  reused?: boolean;
+  requested_lead_id?: string;
+  stage?: FastTrackStage;
+  final_status?: FastTrackFinalStatus | string;
+  documents?: {
     items?: Array<{
       id: string;
       label: string;
@@ -181,7 +188,7 @@ interface BackendFastTrackWorkspaceCase {
     all_approved?: boolean;
     note?: string;
   };
-  viewing: {
+  viewing?: {
     status?: string;
     scheduled_at?: string;
     note?: string;
@@ -189,7 +196,7 @@ interface BackendFastTrackWorkspaceCase {
     requested_change_at?: string;
     confirmed_by_user?: boolean;
   };
-  decision: {
+  decision?: {
     mode?: "rent" | "sale" | string;
     status?: string;
     amount?: number;
@@ -198,7 +205,7 @@ interface BackendFastTrackWorkspaceCase {
     decided_at?: string;
     decided_by?: string;
   };
-  agreement: {
+  agreement?: {
     status?: string;
     payment_status?: string;
     amount_due?: number;
@@ -206,7 +213,7 @@ interface BackendFastTrackWorkspaceCase {
     sent_at?: string;
     accepted_at?: string;
   };
-  handover: {
+  handover?: {
     status?: string;
     note?: string;
     ready_at?: string;
@@ -364,7 +371,10 @@ const normalizeWorkspaceFinalStatus = (
   switch (String(value || "").trim().toLowerCase()) {
     case "completed":
       return "completed";
+    // Same mapping as the booking service: "rejected" is a closed case and
+    // "expired" stays active because the service still continues it.
     case "cancelled":
+    case "rejected":
       return "cancelled";
     default:
       return "active";
@@ -550,6 +560,7 @@ const deriveStatusReason = (
 const mapBackendToFrontend = (
   raw: BackendFastTrackWorkspaceCase,
 ): FastTrackCase => {
+  const header: BackendFastTrackCaseIdentity = { ...raw, ...(raw.header || {}) };
   const workspaceFinalStatus = normalizeWorkspaceFinalStatus(raw.final_status);
   const stage = workspaceFinalStatus === "completed" ? "handover" : normalizeStage(raw.stage);
   const items = (raw.documents?.items || []).map((item) => ({
@@ -573,21 +584,21 @@ const mapBackendToFrontend = (
   }));
   const identityItem = items.find((item) => item.id === "identity");
   const addressItem = items.find((item) => item.id === "address");
-  const journeyMode = normalizeJourneyMode(raw.header?.journey_type || raw.header?.listing_type);
+  const journeyMode = normalizeJourneyMode(header.journey_type || header.listing_type);
   const documentPhase = deriveDocumentPhase(stage, items);
   const handoverStatus = workspaceFinalStatus === "completed"
     ? "completed"
     : raw.handover?.status || "pending";
-  const submittedAt = raw.header.submitted_at;
-  const expiresAt = raw.header.expires_at;
-  const rawHoursRemaining = Number(raw.header.hours_remaining);
+  const submittedAt = header.submitted_at;
+  const expiresAt = header.expires_at;
+  const rawHoursRemaining = Number(header.hours_remaining);
   const timingCase = {
     finalStatus: toLegacyFinalStatus(workspaceFinalStatus),
     workspaceFinalStatus,
     submittedAt,
     expiresAt,
     hoursRemaining: Number.isFinite(rawHoursRemaining) ? rawHoursRemaining : undefined,
-    overdue: raw.header.overdue,
+    overdue: header.overdue,
   };
   const hoursRemaining = workspaceFinalStatus === "completed"
     ? 0
@@ -601,24 +612,24 @@ const mapBackendToFrontend = (
   return {
     id: raw.id,
     caseId: raw.case_id || raw.id,
-    propertyId: raw.header.property_id,
-    propertyTitle: raw.header.property_title,
-    propertyType: raw.header.property_type,
-    propertyCountry: raw.header.property_country,
-    clientId: raw.header.client_id,
-    clientName: raw.header.client_name,
+    propertyId: header.property_id || "",
+    propertyTitle: header.property_title || "",
+    propertyType: header.property_type || "",
+    propertyCountry: header.property_country,
+    clientId: header.client_id || "",
+    clientName: header.client_name || "",
     applicationId: raw.application_id,
     viewingId: raw.viewing_id,
     contractId: raw.contract_id,
     paymentId: raw.payment_id,
-    managerId: raw.header.manager_id || undefined,
-    leadId: raw.header.lead_id || undefined,
-    brokerRequestId: raw.header.broker_request_id || undefined,
-    listingType: normalizeListingType(raw.header.listing_type),
+    managerId: header.manager_id || undefined,
+    leadId: header.lead_id || undefined,
+    brokerRequestId: header.broker_request_id || undefined,
+    listingType: normalizeListingType(header.listing_type),
     journeyMode,
     journeyType: journeyMode === "sale" ? "buy" : "rent",
-    startedFrom: raw.header.started_from,
-    submittedAt,
+    startedFrom: header.started_from,
+    submittedAt: submittedAt || "",
     expiresAt,
     hoursRemaining,
     overdue,
@@ -718,10 +729,42 @@ export const getFastTrackCaseById = async (
   }
 };
 
+// A case submitted this long before the start request cannot be the case the
+// request just created, even allowing for client/server clock skew.
+const FAST_TRACK_REUSE_SUBMITTED_BEFORE_MS = 5 * 60 * 1000;
+
+/**
+ * Decides whether a start response returned an existing case. Newer booking
+ * services send `reused`; older ones return 201 for both paths, so the case
+ * age is used as a fallback to keep the result truthful in either deploy order.
+ */
+export const isReusedFastTrackStart = (
+  raw: Pick<BackendFastTrackWorkspaceCase, "reused">,
+  mapped: Pick<FastTrackCase, "submittedAt">,
+  requestStartedAt: number,
+): boolean => {
+  if (typeof raw.reused === "boolean") {
+    return raw.reused;
+  }
+  const submittedAt = Date.parse(mapped.submittedAt || "");
+  return Number.isFinite(submittedAt)
+    && submittedAt < requestStartedAt - FAST_TRACK_REUSE_SUBMITTED_BEFORE_MS;
+};
+
+export interface FastTrackStartResult {
+  data: FastTrackCase | null;
+  error: string | null;
+  /** True when the server returned an existing active case instead of creating one. */
+  reused: boolean;
+  /** Lead named by the request when the reused case stays linked to a different lead. */
+  requestedLeadId?: string;
+}
+
 export const createFastTrackCase = async (
   req: CreateFastTrackRequest,
   options: ServiceRequestOptions = {},
-): Promise<{ data: FastTrackCase | null; error: string | null }> => {
+): Promise<FastTrackStartResult> => {
+  const requestStartedAt = Date.now();
   try {
     const result = await apiFetch<BackendFastTrackWorkspaceCase>(
       `${BOOKING_URL()}/api/v1/fast-track`,
@@ -731,9 +774,15 @@ export const createFastTrackCase = async (
         ...options,
       },
     );
-    return { data: result ? mapBackendToFrontend(result) : null, error: null };
+    if (!result) {
+      return { data: null, error: null, reused: false };
+    }
+    const data = mapBackendToFrontend(result);
+    const reused = isReusedFastTrackStart(result, data, requestStartedAt);
+    const requestedLeadId = reused ? result.requested_lead_id || undefined : undefined;
+    return { data, error: null, reused, requestedLeadId };
   } catch (error: any) {
-    return { data: null, error: getErrorMessage(error) };
+    return { data: null, error: getErrorMessage(error), reused: false };
   }
 };
 

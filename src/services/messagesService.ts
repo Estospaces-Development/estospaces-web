@@ -304,12 +304,30 @@ export async function updateTicketStatus(
 }
 
 export async function getSupportAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
-    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${attachmentId}/access-url`, {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${encodeURIComponent(attachmentId)}/access-url`, {
+        suppressErrorToast: true,
+    });
+}
+
+export type AttachmentAccessUrlLoader = (attachmentId: string) => Promise<{ access_url: string; expires_at: string }>;
+
+// Chat attachments are private: the messaging service checks conversation
+// membership and returns a short-lived signed URL.
+export async function getConversationAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/attachments/${encodeURIComponent(attachmentId)}/access-url`, {
         suppressErrorToast: true,
     });
 }
 
 export async function openSupportAttachment(attachmentId: string): Promise<void> {
+    return openAttachmentWithAccessUrl(attachmentId, getSupportAttachmentAccessUrl);
+}
+
+export async function openConversationAttachment(attachmentId: string): Promise<void> {
+    return openAttachmentWithAccessUrl(attachmentId, getConversationAttachmentAccessUrl);
+}
+
+async function openAttachmentWithAccessUrl(attachmentId: string, loadAccessUrl: AttachmentAccessUrlLoader): Promise<void> {
     const reservedWindow = typeof window === 'undefined' ? null : window.open('about:blank', '_blank');
     if (reservedWindow) {
         reservedWindow.opener = null;
@@ -322,7 +340,7 @@ export async function openSupportAttachment(attachmentId: string): Promise<void>
     }
 
     try {
-        const data = await getSupportAttachmentAccessUrl(attachmentId);
+        const data = await loadAccessUrl(attachmentId);
         if (!data.access_url) {
             throw new Error('Attachment access URL is unavailable.');
         }
@@ -362,4 +380,6 @@ export const messagesService = {
     updateTicketStatus,
     getSupportAttachmentAccessUrl,
     openSupportAttachment,
+    getConversationAttachmentAccessUrl,
+    openConversationAttachment,
 };

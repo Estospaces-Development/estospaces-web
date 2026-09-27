@@ -335,7 +335,8 @@ export default function ViewingsPage() {
                     viewing.propertyTitle,
                     viewing.property_id,
                     viewing.date,
-                    normalizedReason
+                    normalizedReason,
+                    viewing.id,
                 );
             }
             publishWorkspaceSync({

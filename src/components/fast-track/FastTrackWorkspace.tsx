@@ -109,6 +109,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
+import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -263,7 +264,7 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
         return role === 'user' ? '24 hours' : '24h window';
     }
     if (hoursRemaining <= 0) {
-        return role === 'user' ? 'Needs attention' : 'Overdue';
+        return role === 'user' ? 'Deadline passed' : 'Overdue';
     }
     return `${hoursRemaining}h left`;
 };
@@ -1889,8 +1890,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        setViewingDate(selectedCase.viewing.scheduledAt ? selectedCase.viewing.scheduledAt.slice(0, 10) : '');
-        setViewingTime(selectedCase.viewing.scheduledAt ? selectedCase.viewing.scheduledAt.slice(11, 16) : '');
+        setViewingDate(formatFastTrackDocumentRequestInputValue(selectedCase.viewing.scheduledAt).slice(0, 10));
+        setViewingTime(formatFastTrackDocumentRequestInputValue(selectedCase.viewing.scheduledAt).slice(11, 16));
         setViewingNote(selectedCase.viewing.note || '');
         setDecisionAmount(selectedCase.decision.amount ? String(selectedCase.decision.amount) : '');
         setDecisionNote(selectedCase.decision.note || '');
@@ -4181,7 +4182,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const selectedCaseSubtitle = selectedCase
         ? role === 'user'
-            ? `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`
+            ? [
+                `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`,
+                formatJourneyStartedLabel(selectedCase.submittedAt),
+            ].filter(Boolean).join(' · ')
             : `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
         : '';
     const workspaceStatusMessage = recoveredCaseLink

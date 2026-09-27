@@ -7,7 +7,7 @@ import { Navigate } from 'react-router-dom';
 export default function StartupRedirect() {
     const { isAuthenticated, loading, user } = useAuth();
 
-    if (shouldAwaitSessionResolution(loading, isAuthenticated)) {
+    if (shouldAwaitSessionResolution(loading)) {
         return <BrandLoadingScreen label="Opening your workspace..." />;
     }
 
