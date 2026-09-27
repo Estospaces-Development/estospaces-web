@@ -5,7 +5,9 @@ import { getManagerWorkspaceAction } from '@/lib/brokerDispatchPresentation';
 import { getManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
 import {
     findRequestContextCase,
+    findRequestContextCaseMatch,
     getFastTrackStartSuccessMessage,
+    getRequestContextCaseHeading,
     isReusableFastTrackCase,
     leadMatchesRequestContext,
 } from '@/lib/manualFastTrackStart';
@@ -96,4 +98,23 @@ test('start feedback distinguishes a reused case from a new one (QA-MB-20260925-
         getFastTrackStartSuccessMessage({ reused: true, requestedLeadId: 'lead-new' }),
         /stays linked to its original lead/,
     );
+});
+
+test('shortcut banner wording follows how the case matched (verifier F8)', () => {
+    const cases = [
+        activeCase({ id: 'case-request', brokerRequestId: 'request-1', clientId: 'user-9' }),
+        activeCase({ id: 'case-lead', leadId: 'lead-1', clientId: 'user-8' }),
+        activeCase({ id: 'case-pair' }),
+    ];
+    assert.equal(findRequestContextCaseMatch(cases, { brokerRequestId: 'request-1' })?.matchedBy, 'broker_request');
+    assert.equal(findRequestContextCaseMatch(cases, { brokerRequestId: 'request-x', leadId: 'lead-1' })?.matchedBy, 'lead');
+    const pair = findRequestContextCaseMatch(cases, { brokerRequestId: 'request-x', clientId: 'user-1', propertyId: 'property-1' });
+    assert.equal(pair?.matchedBy, 'client_property');
+    assert.equal(pair?.caseItem.id, 'case-pair');
+
+    assert.equal(getRequestContextCaseHeading('broker_request'), 'This request already has an active 24-hour case');
+    assert.match(getRequestContextCaseHeading('lead'), /^This lead already has/);
+    const pairHeading = getRequestContextCaseHeading('client_property');
+    assert.doesNotMatch(pairHeading, /This request/);
+    assert.match(pairHeading, /client already has an active 24-hour case for this property/);
 });

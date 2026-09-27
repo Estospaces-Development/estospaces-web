@@ -32,6 +32,12 @@ import {
     LeadBrokerSummary,
 } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import {
+    describeExistingFastTrackJourney,
+    findActiveJourneyForProperty,
+    resolveSelectedHomeFastTrackActionLabel,
+} from '@/lib/existingFastTrackJourney';
 import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import {
     formatRequestTypeLabel,
@@ -986,7 +992,8 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
         }
 
         if (selectedProperty) {
-            navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}`);
+            const existingCaseQuery = existingSelectedHomeJourney ? `&case=${existingSelectedHomeJourney.caseId}` : '';
+            navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}${existingCaseQuery}`);
             return;
         }
 
@@ -1105,11 +1112,37 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
     const selectedProperty = activeRequest?.selected_property
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
-    const lockedRequestActionLabel = activeRequest?.selected_fast_track_case_id
-        ? 'Continue in fast-track'
-        : selectedProperty
-            ? 'Request fast-track for selected home'
-            : 'Open matched agent request';
+    const selectedPropertyId = selectedProperty?.id || activeRequest?.selected_property_id || null;
+    const shouldLookUpExistingJourney = Boolean(
+        requestIsMatched && selectedPropertyId && !activeRequest?.selected_fast_track_case_id,
+    );
+    const [existingJourneyCases, setExistingJourneyCases] = useState<FastTrackCase[]>([]);
+    useEffect(() => {
+        if (!shouldLookUpExistingJourney) {
+            setExistingJourneyCases([]);
+            return;
+        }
+        let cancelled = false;
+        // The booking service reuses the user's active case for this home, so
+        // the CTA must say "continue" rather than imply a new 24-hour request.
+        void getFastTrackCases({ suppressErrorToast: true }).then((result) => {
+            if (!cancelled) setExistingJourneyCases(result.data || []);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [shouldLookUpExistingJourney, selectedPropertyId]);
+    const existingSelectedHomeJourney = shouldLookUpExistingJourney
+        ? findActiveJourneyForProperty(existingJourneyCases, selectedPropertyId)
+        : null;
+    const existingSelectedHomeJourneySummary = existingSelectedHomeJourney
+        ? describeExistingFastTrackJourney(existingSelectedHomeJourney, { brokerRequestId: activeRequest?.id })
+        : null;
+    const lockedRequestActionLabel = resolveSelectedHomeFastTrackActionLabel({
+        linkedCaseId: activeRequest?.selected_fast_track_case_id,
+        existingCase: existingSelectedHomeJourney,
+        hasSelectedProperty: Boolean(selectedProperty),
+    });
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
         const filtered = availableSharedProperties.filter((share) => {
@@ -2034,6 +2067,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                 ? brokerCopy.requestFormActionAgain
                                 : brokerCopy.requestFormAction}
                 </button>
+
+                {requestReplacementLocked && existingSelectedHomeJourneySummary ? (
+                    <p className="text-center text-xs text-gray-600 dark:text-gray-300" data-testid="existing-fast-track-journey-summary">
+                        {existingSelectedHomeJourneySummary.notice} {existingSelectedHomeJourneySummary.summary}.
+                    </p>
+                ) : null}
 
                 <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
                     {brokerCopy.requestFormHelper}

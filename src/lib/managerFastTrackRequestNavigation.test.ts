@@ -64,7 +64,9 @@ test('manager dashboard passes structured request context into a start-capable F
   assert.match(dashboard, /setIsManualFastTrackOpen\(true\)/);
   assert.doesNotMatch(modal, /setSearchQuery\(initialSearch/);
   assert.match(modal, /leadMatchesRequestContext\(lead, requestContext\)/);
-  assert.match(modal, /findRequestContextCase\(existingCases, requestContext\)/);
+  assert.match(modal, /findRequestContextCaseMatch\(existingCases, requestContext\)/);
+  assert.match(modal, /getRequestContextCaseHeading\(/);
+  assert.doesNotMatch(modal, />\s*This request already has an active 24-hour case\s*</);
   assert.match(modal, /Open existing case/);
   assert.match(modal, /lead\.id,/);
   assert.match(modal, /handleCreateCase\(lead, activeCase\)/);

@@ -17,8 +17,9 @@ import { getBrokerLeads, type Lead } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import type { ManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
 import {
-    findRequestContextCase,
+    findRequestContextCaseMatch,
     getFastTrackStartSuccessMessage,
+    getRequestContextCaseHeading,
     hasManagerFastTrackRequestContext,
     isReusableFastTrackCase,
     leadMatchesRequestContext,
@@ -165,10 +166,11 @@ export default function ManualFastTrackModal({
             }));
     }, [activeCaseByLeadKey, leads]);
 
-    const requestContextCase = useMemo(
-        () => findRequestContextCase(existingCases, requestContext),
+    const requestContextMatch = useMemo(
+        () => findRequestContextCaseMatch(existingCases, requestContext),
         [existingCases, requestContext],
     );
+    const requestContextCase = requestContextMatch?.caseItem || null;
 
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -341,7 +343,7 @@ export default function ManualFastTrackModal({
                     >
                         <div>
                             <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                                This request already has an active 24-hour case
+                                {getRequestContextCaseHeading(requestContextMatch?.matchedBy || 'client_property')}
                             </p>
                             <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
                                 {requestContextCase.propertyTitle || 'Selected property'} for {requestContextCase.clientName || 'this client'} · Case {requestContextCase.caseId}

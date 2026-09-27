@@ -318,8 +318,12 @@ test("property detail does not advertise direct broker outreach", () => {
 
 test("property detail fast-track CTA resumes active broker-request journeys instead of advertising a new start", () => {
   assert.match(propertyDetailSource, /const hasActiveFastTrackJourney = isActiveFastTrackCase\(propertyFastTrackCase\);/);
-  assert.match(propertyDetailSource, /Continue 24-hour journey/);
-  assert.match(propertyDetailSource, /Continue Fast Track/);
+  assert.match(propertyDetailSource, /Continue existing 24-hour journey/);
+  assert.match(propertyDetailSource, /Continue existing Fast Track/);
+  assert.match(propertyDetailSource, /describeExistingFastTrackJourney\(propertyFastTrackCase/);
+  assert.match(propertyDetailSource, /existingJourney=\{existingFastTrackJourney\}/);
+  assert.match(propertyDetailSource, /existingFastTrackJourney\.notice/);
+  assert.match(propertyDetailSource, /existing fast-track journey for this property\. Opening it now; no new 24-hour clock has started\./);
   assert.match(propertyDetailSource, /fastTrackConciergeActionLabel/);
   assert.doesNotMatch(propertyDetailSource, /activeFastTrackCase\?\.workspaceFinalStatus === 'active' \|\| activeFastTrackCase\?\.finalStatus === 'in_progress'/);
 });

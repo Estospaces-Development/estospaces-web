@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { FastTrackCase, FastTrackStage } from '@/services/fastTrackService';
 import { Lead, UserDocument } from '@/services/leadsService';
+import type { ExistingFastTrackJourneySummary } from '@/lib/existingFastTrackJourney';
 
 type UploadType = 'identity' | 'address';
 
@@ -23,6 +24,8 @@ interface PropertyFastTrackModalProps {
     propertyAddress: string;
     lead: Lead | null;
     fastTrackCase: FastTrackCase | null;
+    /** Set when the case is the user's existing journey for this home. */
+    existingJourney?: ExistingFastTrackJourneySummary | null;
     userDocuments: UserDocument[];
     isRefreshing: boolean;
     uploadingType: UploadType | null;
@@ -58,7 +61,10 @@ const isCaseBeyondSelected = (fastTrackCase: FastTrackCase | null): boolean => {
     return stage !== 'selected';
 };
 
-const formatCountdown = (fastTrackCase: FastTrackCase | null) => {
+const formatCountdown = (fastTrackCase: FastTrackCase | null, existingJourney?: ExistingFastTrackJourneySummary | null) => {
+    if (existingJourney) {
+        return existingJourney.timingLabel;
+    }
     if (isCaseBeyondSelected(fastTrackCase)) {
         return 'In progress';
     }
@@ -106,6 +112,7 @@ const PropertyFastTrackModal = ({
     propertyTitle,
     propertyAddress,
     fastTrackCase,
+    existingJourney = null,
     isRefreshing,
     onClose,
     onOpenDashboard,
@@ -169,8 +176,19 @@ const PropertyFastTrackModal = ({
                         </div>
 
                         <h2 id="property-fast-track-modal-title" className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-gray-900 dark:text-white xl:text-[3.1rem] xl:leading-[1.05]">
-                            Keep the whole journey in one clean workspace.
+                            {existingJourney ? 'Continue your existing journey for this home.' : 'Keep the whole journey in one clean workspace.'}
                         </h2>
+                        {existingJourney ? (
+                            <div
+                                role="status"
+                                data-testid="existing-fast-track-journey"
+                                className="mt-5 max-w-3xl rounded-[24px] border border-orange-200 bg-orange-50 px-5 py-4 text-sm leading-6 text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100"
+                            >
+                                <p className="font-semibold">{existingJourney.heading}</p>
+                                <p>{existingJourney.summary}</p>
+                                <p className="mt-1 text-orange-800 dark:text-orange-200">{existingJourney.notice}</p>
+                            </div>
+                        ) : null}
                         <p className="mt-4 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300">
                             Open the live case to handle files, viewing, decision, agreement, and handover on one page.
                             No extra workflow screens. No message detours. No compliance-heavy checklist language.
@@ -183,7 +201,7 @@ const PropertyFastTrackModal = ({
                                     24h window
                                 </div>
                                 <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
-                                    {formatCountdown(fastTrackCase)}
+                                    {formatCountdown(fastTrackCase, existingJourney)}
                                 </p>
                                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                     The active case stays visible in one place until completion.
@@ -282,7 +300,7 @@ const PropertyFastTrackModal = ({
                                     className="inline-flex items-center justify-center gap-2 rounded-[18px] bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
                                 >
                                     <ArrowUpRight size={16} />
-                                    Open fast-track workspace
+                                    {existingJourney ? 'Open existing fast-track workspace' : 'Open fast-track workspace'}
                                 </button>
                                 <button
                                     type="button"

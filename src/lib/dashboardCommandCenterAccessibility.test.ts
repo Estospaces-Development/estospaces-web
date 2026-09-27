@@ -30,7 +30,9 @@ test('matched broker requests lock replacement but keep a separate new-request p
   assert.ok(brokerRequestWidget.includes("Your agent match is locked. Continue with this property agent or start another request separately."));
   assert.ok(brokerRequestWidget.includes("type={requestReplacementLocked ? 'button' : 'submit'}"));
   assert.ok(brokerRequestWidget.includes('onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}'));
-  assert.ok(brokerRequestWidget.includes('Open matched agent request'));
+  // The locked-match label is resolved in one place so it can reflect an existing journey.
+  assert.ok(brokerRequestWidget.includes('resolveSelectedHomeFastTrackActionLabel({'));
+  assert.ok(readSource('src/lib/existingFastTrackJourney.ts').includes("return 'Open matched agent request';"));
   assert.ok(brokerRequestWidget.includes('navigate(buildBrokerRequestWorkspacePath(activeRequest.id));'));
   assert.ok(brokerRequestWidget.includes('const handleStartAnotherRequest = useCallback(() => {'));
   assert.ok(brokerRequestWidget.includes('onClick={handleStartAnotherRequest}'));

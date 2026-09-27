@@ -18,28 +18,52 @@ export const hasManagerFastTrackRequestContext = (context?: ManagerFastTrackRequ
     context && (context.brokerRequestId || context.leadId || context.clientId || context.propertyId),
 );
 
-/** Finds the active case that a dashboard or notification shortcut refers to. */
-export const findRequestContextCase = <T extends StartCase>(
+export type RequestContextCaseMatch = 'broker_request' | 'lead' | 'client_property';
+
+/** Finds the active case that a dashboard or notification shortcut refers to, and how it matched. */
+export const findRequestContextCaseMatch = <T extends StartCase>(
     cases: T[],
     context?: ManagerFastTrackRequestContext | null,
-): T | null => {
+): { caseItem: T; matchedBy: RequestContextCaseMatch } | null => {
     if (!hasManagerFastTrackRequestContext(context)) return null;
     const active = cases.filter(isReusableFastTrackCase);
     const byBrokerRequest = context.brokerRequestId
         ? active.find((caseItem) => caseItem.brokerRequestId === context.brokerRequestId)
         : undefined;
-    if (byBrokerRequest) return byBrokerRequest;
+    if (byBrokerRequest) return { caseItem: byBrokerRequest, matchedBy: 'broker_request' };
     const byLead = context.leadId
         ? active.find((caseItem) => caseItem.leadId === context.leadId)
         : undefined;
-    if (byLead) return byLead;
+    if (byLead) return { caseItem: byLead, matchedBy: 'lead' };
     // Same key the booking service uses to reuse a case.
     if (context.clientId && context.propertyId) {
-        return active.find((caseItem) => (
+        const byPair = active.find((caseItem) => (
             caseItem.clientId === context.clientId && caseItem.propertyId === context.propertyId
-        )) || null;
+        ));
+        if (byPair) return { caseItem: byPair, matchedBy: 'client_property' };
     }
     return null;
+};
+
+export const findRequestContextCase = <T extends StartCase>(
+    cases: T[],
+    context?: ManagerFastTrackRequestContext | null,
+): T | null => findRequestContextCaseMatch(cases, context)?.caseItem || null;
+
+/**
+ * Banner heading for a resolved shortcut case. A client+property match is not
+ * proof the case belongs to this request, so it is described as the client's
+ * existing case for the property instead.
+ */
+export const getRequestContextCaseHeading = (matchedBy: RequestContextCaseMatch) => {
+    switch (matchedBy) {
+        case 'broker_request':
+            return 'This request already has an active 24-hour case';
+        case 'lead':
+            return 'This lead already has an active 24-hour case';
+        default:
+            return 'This client already has an active 24-hour case for this property';
+    }
 };
 
 export const leadMatchesRequestContext = (

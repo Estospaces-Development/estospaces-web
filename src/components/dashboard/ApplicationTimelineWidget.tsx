@@ -523,7 +523,7 @@ const ApplicationTimelineWidget = () => {
                                 ? `/user/dashboard/fast-track?case=${request.selected_fast_track_case_id}`
                                 : buildBrokerRequestWorkspacePath(request.id),
                             primaryActionLabel: request.selected_fast_track_case_id
-                                ? 'Continue 24-hour journey'
+                                ? 'Continue existing 24-hour journey'
                                 : request.matched_broker
                                     ? 'Open agent request'
                                     : 'Track agent request',
