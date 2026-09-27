@@ -67,7 +67,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
             let attachments: MessageAttachment[] = [];
             if (pendingFiles.length > 0) {
                 const uploadedFiles = await Promise.all(
-                    pendingFiles.map((file) => uploadMediaFile(file, 'message', conversationId, file.name)),
+                    pendingFiles.map((file) => uploadMediaFile(file, 'message', conversationId, file.name, false)),
                 );
 
                 attachments = uploadedFiles.map((uploadedFile) => ({

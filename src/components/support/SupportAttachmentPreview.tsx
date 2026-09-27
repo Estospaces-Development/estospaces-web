@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import { Download, FileText, Image as ImageIcon } from 'lucide-react';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
-import { getSupportAttachmentAccessUrl, type MessageAttachment } from '@/services/messagesService';
+import {
+    getSupportAttachmentAccessUrl,
+    type AttachmentAccessUrlLoader,
+    type MessageAttachment,
+} from '@/services/messagesService';
 
 interface SupportAttachmentPreviewProps {
     attachment: MessageAttachment;
     emphasized?: boolean;
     onOpenAttachment?: (attachmentId: string) => void;
+    getAccessUrl?: AttachmentAccessUrlLoader;
 }
 
 export const isSupportImageAttachment = (
@@ -23,6 +28,7 @@ export function SupportAttachmentPreview({
     attachment,
     emphasized = false,
     onOpenAttachment,
+    getAccessUrl = getSupportAttachmentAccessUrl,
 }: SupportAttachmentPreviewProps) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewFailed, setPreviewFailed] = useState(false);
@@ -40,7 +46,7 @@ export function SupportAttachmentPreview({
         setPreviewUrl(null);
         setPreviewFailed(false);
 
-        void getSupportAttachmentAccessUrl(attachment.id)
+        void getAccessUrl(attachment.id)
             .then((response) => {
                 if (!active) return;
                 if (!response.access_url) {
@@ -56,7 +62,7 @@ export function SupportAttachmentPreview({
         return () => {
             active = false;
         };
-    }, [attachment.id, isImage]);
+    }, [attachment.id, getAccessUrl, isImage]);
 
     const buttonTone = emphasized
         ? 'bg-white/20 text-white hover:bg-white/25'
@@ -68,6 +74,7 @@ export function SupportAttachmentPreview({
                 type="button"
                 onClick={() => attachment.id && onOpenAttachment?.(attachment.id)}
                 disabled={!canOpen}
+                aria-label={`Download ${attachment.file_name}`}
                 className={`inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold transition ${buttonTone} disabled:cursor-not-allowed disabled:opacity-70`}
             >
                 <FileText className="h-4 w-4 shrink-0" />
