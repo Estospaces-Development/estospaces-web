@@ -10,6 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { formatLaunchPropertyLocation, getLaunchLocationCodeLabel } from '@/lib/launchLocale';
 import { formatMapPropertyPrice } from '@/lib/mapCurrency';
+import { isListingClosedForNewJourneys } from '@/lib/propertyAvailability';
 import { STANDARD_MAP_TILE_LAYER } from '@/lib/mapTiles';
 import {
     calculateMapDistanceKm,
@@ -47,6 +48,7 @@ interface Property {
     bathrooms?: number;
     distance?: number | null;
     category?: string;
+    status?: string;
 }
 
 interface NearbyPropertiesMapProps {
@@ -496,13 +498,15 @@ const NearbyPropertiesMap = ({
                                         >
                                             Open property
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleStartFastTrack(property)}
-                                            className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
-                                        >
-                                            Request fast-track
-                                        </button>
+                                        {!isListingClosedForNewJourneys(property.status) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleStartFastTrack(property)}
+                                                className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
+                                            >
+                                                Request fast-track
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </Popup>
@@ -646,6 +650,7 @@ const NearbyPropertiesMap = ({
                         >
                             Open property
                         </button>
+                        {!isListingClosedForNewJourneys(selectedProperty.status) && (
                         <button
                             type="button"
                             data-nearby-open-fast-track
@@ -659,6 +664,7 @@ const NearbyPropertiesMap = ({
                                     ? 'Fast Track requested'
                                     : 'Request fast-track'}
                         </button>
+                        )}
                     </div>
                 </div>
             ) : null}

@@ -61,12 +61,14 @@ export function getAdminUserSortControlLabel(): string {
     return 'Sort users';
 }
 
+// The user registry search filters users only; lead reassignment has its own
+// independent search field (QA-MB-20260923-01-012).
 export function getAdminUsersGlobalSearchLabel(): string {
-    return 'Search users and lead reassignment leads';
+    return 'Search users';
 }
 
 export function getAdminUsersGlobalSearchPlaceholder(): string {
-    return 'Search users and leads...';
+    return 'Search users...';
 }
 
 export function getAdminUsersRegistryTableScrollLabel(): string {
@@ -505,11 +507,8 @@ function UserManagementContent() {
     };
 
     const handleUserSearchChange = (value: string) => {
-        const normalizedValue = normalizeAdminUserSearchInput(value);
         setCurrentPage(1);
-        setLeadPage(1);
-        setSearchQuery(normalizedValue);
-        setLeadSearchQuery(normalizedValue);
+        setSearchQuery(normalizeAdminUserSearchInput(value));
     };
 
     const handleRoleTabChange = (tab: string) => {

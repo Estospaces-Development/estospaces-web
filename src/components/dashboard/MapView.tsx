@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { getVerifiedPropertyMapCoordinates } from '@/lib/mapCoordinates';
+import { isListingClosedForNewJourneys } from '@/lib/propertyAvailability';
 
 // Fix for Leaflet marker icons
 import 'leaflet/dist/leaflet.css';
@@ -223,18 +224,20 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
                                     >
                                         Open property
                                     </button>
-                                    <button
-                                        className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
-                                        onClick={() => {
-                                            if (onStartFastTrack) {
-                                                onStartFastTrack(house);
-                                                return;
-                                            }
-                                            navigate(`/user/properties/${house.id}?fast-track=1`);
-                                        }}
-                                    >
-                                        Request fast-track
-                                    </button>
+                                    {!isListingClosedForNewJourneys(house.status) && (
+                                        <button
+                                            className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
+                                            onClick={() => {
+                                                if (onStartFastTrack) {
+                                                    onStartFastTrack(house);
+                                                    return;
+                                                }
+                                                navigate(`/user/properties/${house.id}?fast-track=1`);
+                                            }}
+                                        >
+                                            Request fast-track
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </Popup>

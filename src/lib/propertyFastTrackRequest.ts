@@ -1,3 +1,4 @@
+import { getListingJourneyAvailability } from '@/lib/propertyAvailability';
 import { createLead } from '@/services/leadsService';
 import {
     requestFastTrack,
@@ -13,6 +14,7 @@ export interface FastTrackRequestProperty {
     listing_type?: string;
     country?: string;
     manager_id?: string;
+    status?: string;
 }
 
 interface FastTrackRequestLead {
@@ -99,6 +101,10 @@ export const requestDirectPropertyFastTrack = async ({
 }) => {
     if (!mapFastTrackPropertyType(property.listing_type)) {
         throw new Error('Fast Track is not available for short-term listings yet.');
+    }
+    const availability = getListingJourneyAvailability(property.status);
+    if (availability.isClosed) {
+        throw new Error(availability.message);
     }
 
     const leadResult = await dependencies.createLead(property.id);

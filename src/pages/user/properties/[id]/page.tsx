@@ -103,6 +103,7 @@ import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/
 import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
+import { getListingJourneyAvailability } from '@/lib/propertyAvailability';
 import {
     buildPropertyFastTrackStartRequest,
     mapFastTrackPropertyType,
@@ -1264,6 +1265,11 @@ const UserPropertyDetail = () => {
         })
         : null;
     const isFastTrackApprovalPending = Boolean(fastTrackRequestPending) && !hasActiveFastTrackJourney;
+    // Sold/let listings stay readable but must not start new journeys; an
+    // already-active Fast Track case can still be opened.
+    const listingAvailability = getListingJourneyAvailability(property?.status);
+    const isNewJourneyBlocked = listingAvailability.isClosed && !hasActiveFastTrackJourney;
+    const closedFastTrackActionLabel = `${listingAvailability.label}: Fast Track closed`;
     const fastTrackCtaState = resolvePropertyFastTrackCtaState({
         isAuthenticated: Boolean(user),
         propertyId: property?.id,
@@ -1274,13 +1280,16 @@ const UserPropertyDetail = () => {
     const isFastTrackLookupPending = fastTrackCtaState === 'checking';
     const {
         isBusy: isFastTrackCtaBusy,
-        isDisabled: isFastTrackCtaDisabled,
+        isDisabled: isFastTrackRequestControlDisabled,
     } = resolveFastTrackRequestControlState({
         isStarting: isStartingFastTrack,
         isLookupPending: isFastTrackLookupPending,
         isApprovalPending: isFastTrackApprovalPending,
     });
-    const fastTrackSidebarActionLabel = isFastTrackApprovalPending
+    const isFastTrackCtaDisabled = isFastTrackRequestControlDisabled || isNewJourneyBlocked;
+    const fastTrackSidebarActionLabel = isNewJourneyBlocked
+        ? closedFastTrackActionLabel
+        : isFastTrackApprovalPending
         ? 'Fast Track requested'
         : fastTrackCtaState === 'continue'
         ? 'Continue existing 24-hour journey'
@@ -1289,7 +1298,9 @@ const UserPropertyDetail = () => {
             : fastTrackCtaState === 'checking'
                 ? 'Checking fast-track status...'
                 : '24-hour fast track';
-    const fastTrackPrimaryActionLabel = isFastTrackApprovalPending
+    const fastTrackPrimaryActionLabel = isNewJourneyBlocked
+        ? closedFastTrackActionLabel
+        : isFastTrackApprovalPending
         ? 'Waiting for manager approval'
         : fastTrackCtaState === 'continue'
         ? 'Continue existing Fast Track'
@@ -2026,6 +2037,10 @@ const UserPropertyDetail = () => {
 
     const handleFastTrackEntryAction = (trigger: HTMLButtonElement) => {
         fastTrackTriggerRef.current = trigger;
+        if (isNewJourneyBlocked) {
+            toast.info(listingAvailability.message);
+            return;
+        }
         if (
             fastTrackCtaState === 'start'
             && user
@@ -2086,6 +2101,12 @@ const UserPropertyDetail = () => {
             return;
         }
 
+        if (isNewJourneyBlocked) {
+            setResumedGuestAction(null);
+            toast.info(listingAvailability.message);
+            return;
+        }
+
         if (resumedGuestAction.type === 'enquire') {
             setResumedGuestAction(null);
             toast.success('You are signed in. Choose a time to send your viewing request.');
@@ -2116,7 +2137,7 @@ const UserPropertyDetail = () => {
             return;
         }
         toast.error('You are signed in, but Fast Track is not available to request right now. Use the Fast Track button to try again.');
-    }, [fastTrackCtaState, isFastTrackApprovalPending, isFastTrackCtaDisabled, isPropertySaved, property, resumedGuestAction, saveProperty, toast]);
+    }, [fastTrackCtaState, isFastTrackApprovalPending, isFastTrackCtaDisabled, isNewJourneyBlocked, isPropertySaved, listingAvailability.message, property, resumedGuestAction, saveProperty, toast]);
 
     const handleOpenConversation = async () => {
         if (!property || !ensureAuthenticated()) {
@@ -2168,6 +2189,10 @@ const UserPropertyDetail = () => {
 
     const handleSubmitRentalApplication = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (listingAvailability.isClosed) {
+            toast.error(listingAvailability.message);
+            return;
+        }
         if (!property || !ensureAuthenticated()) {
             return;
         }
@@ -2264,6 +2289,10 @@ const UserPropertyDetail = () => {
     const handleScheduleViewing = async (event: React.FormEvent) => {
         event.preventDefault();
 
+        if (listingAvailability.isClosed) {
+            toast.error(listingAvailability.message);
+            return;
+        }
         if (!property || !ensureAuthenticated('enquire')) {
             return;
         }
@@ -2986,11 +3015,15 @@ const UserPropertyDetail = () => {
                     <div className="overflow-hidden rounded-[2.2rem] border border-stone-200/80 bg-white/95 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.32)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92 md:p-7">
                         <div className="rounded-[1.8rem] border border-stone-200/80 bg-[#f8f3eb] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing concierge</p>
-                            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Interested in this property?</h3>
-                            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                Request manager-approved Fast Track or send a polished viewing request without leaving the page.
+                            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                                {listingAvailability.isClosed ? `${listingAvailability.label}: no longer available` : 'Interested in this property?'}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300" role={listingAvailability.isClosed ? 'status' : undefined}>
+                                {listingAvailability.isClosed
+                                    ? listingAvailability.message
+                                    : 'Request manager-approved Fast Track or send a polished viewing request without leaving the page.'}
                             </p>
-                            <div className="mt-5 grid gap-2.5">
+                            <div className={listingAvailability.isClosed ? 'hidden' : 'mt-5 grid gap-2.5'}>
                                 {conciergeHighlights.map((item) => {
                                     const Icon = item.icon;
                                     const isResponseAction = item.label === 'Response window';
@@ -3039,14 +3072,16 @@ const UserPropertyDetail = () => {
                             >
                                 {isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackPrimaryActionLabel}
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => openFastTrackDashboard()}
-                                disabled={!hasActiveFastTrackJourney}
-                                className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
-                            >
-                                {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
-                            </button>
+                            {!isNewJourneyBlocked && (
+                                <button
+                                    type="button"
+                                    onClick={() => openFastTrackDashboard()}
+                                    disabled={!hasActiveFastTrackJourney}
+                                    className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                                >
+                                    {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
+                                </button>
+                            )}
                         </div>
                         {existingFastTrackJourney ? (
                             <div className="mt-4 rounded-[1.35rem] border border-orange-200 bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100" role="status">
@@ -3059,7 +3094,7 @@ const UserPropertyDetail = () => {
                             Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
                         </div>
 
-                        {property.listing_type === 'rent' && (
+                        {property.listing_type === 'rent' && !listingAvailability.isClosed && (
                             <div className="mt-5">
                                 <RentalApplicationEntryCard
                                     minimumMoveInDate={minimumRentalApplicationMoveInDate}
@@ -3073,6 +3108,7 @@ const UserPropertyDetail = () => {
                             </div>
                         )}
 
+                        {!listingAvailability.isClosed && (
                         <form ref={viewingFormRef} onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full scroll-mt-24 overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
                             <div className="border-b border-stone-200/80 px-5 py-5 dark:border-zinc-800 md:px-6 md:py-6">
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -3271,6 +3307,7 @@ const UserPropertyDetail = () => {
                                 </div>
                             </div>
                         </form>
+                        )}
 
                         <div className="mt-8 border-t border-stone-200/80 pt-7 dark:border-zinc-800">
                             <div className="flex items-center gap-4 rounded-[1.4rem] border border-stone-200/80 bg-stone-50 px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
