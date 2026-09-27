@@ -38,7 +38,7 @@ interface AuthContextType {
     error: string | null;
     login: (email: string, password: string) => Promise<{ success: boolean; role?: string; error?: string }>;
     register: (
-        name: string,
+        names: RegistrationNames,
         email: string,
         password: string,
         role: string,
@@ -128,14 +128,18 @@ const buildFullName = (
     return getEmailPrefix(fallbackEmail);
 };
 
-export const splitRegistrationName = (name: string) => {
-    const normalizedName = name.trim().replace(/\s+/g, ' ');
-    const nameParts = normalizedName ? normalizedName.split(' ') : [];
-    const first_name = nameParts[0] || '';
-    const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+export interface RegistrationNames {
+    firstName: string;
+    lastName: string;
+}
 
-    return { first_name, last_name };
-};
+// First and last name are sent exactly as entered (trimmed, inner whitespace
+// collapsed). Joining and re-splitting them would move the second word of a
+// multi-word first name into the last name, and let a blank last name through.
+export const normalizeRegistrationNames = ({ firstName, lastName }: RegistrationNames) => ({
+    first_name: String(firstName || '').trim().replace(/\s+/g, ' '),
+    last_name: String(lastName || '').trim().replace(/\s+/g, ' '),
+});
 
 export const resolveVerificationEmailSent = (payload: unknown): boolean => {
     if (!payload || typeof payload !== 'object') {
@@ -546,7 +550,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
 };
 
     const register = useCallback(async (
-        name: string,
+        names: RegistrationNames,
         email: string,
         password: string,
         role: string,
@@ -554,7 +558,12 @@ const sanitizeRegistrationError = (err: unknown): string => {
     ) => {
         setError(null);
         try {
-            const { first_name, last_name } = splitRegistrationName(name);
+            const { first_name, last_name } = normalizeRegistrationNames(names);
+            if (!first_name || !last_name) {
+                const message = !first_name ? 'First name is required.' : 'Last name is required.';
+                setError(message);
+                return { success: false, error: message };
+            }
 
             const payload: Record<string, any> = {
                 first_name,

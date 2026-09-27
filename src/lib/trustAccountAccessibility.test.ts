@@ -23,8 +23,10 @@ test('user account forms connect visible labels to editable inputs', () => {
   const profile = readSource('src/pages/user/dashboard/profile/page.tsx');
   const settings = readSource('src/pages/user/dashboard/settings/page.tsx');
 
-  assert.match(profile, /htmlFor="user-full-name"/);
-  assert.match(profile, /id="user-full-name"/);
+  assert.match(profile, /htmlFor="user-first-name"/);
+  assert.match(profile, /id="user-first-name"/);
+  assert.match(profile, /htmlFor="user-last-name"/);
+  assert.match(profile, /id="user-last-name"/);
   assert.match(profile, /htmlFor="user-phone-number"/);
   assert.match(profile, /id="user-phone-number"/);
   assert.match(profile, /htmlFor="user-postcode"/);
