@@ -493,6 +493,14 @@ export interface Pagination {
   totalPages: number;
 }
 
+export interface PropertyByIdResult {
+  data: Property | null;
+  /** Backend `manager_id`, used to confirm manager ownership. */
+  ownerId: string | null;
+  error: string | null;
+  status?: number;
+}
+
 interface PropertyContextType {
   properties: Property[];
   filteredProperties: Property[];
@@ -515,8 +523,12 @@ interface PropertyContextType {
   ) => Promise<Property | null>;
   deleteProperty: (id: string) => Promise<void>;
   deleteProperties: (ids: string[]) => Promise<void>;
-  duplicateProperty: (id: string) => Promise<Property | null>;
+  /** `source` is used when the property is not on the loaded inventory page. */
+  duplicateProperty: (id: string, source?: Property) => Promise<Property | null>;
+  /** Only searches the currently loaded inventory page. */
   getProperty: (id: string) => Property | undefined;
+  /** Authoritative single-property read, independent of list pagination. */
+  fetchPropertyById: (id: string) => Promise<PropertyByIdResult>;
   uploadImages: (entityId: string, files: File[]) => Promise<string[]>;
   uploadVideos: (entityId: string, files: File[]) => Promise<string[]>;
 
@@ -1223,8 +1235,10 @@ export const PropertyProvider = ({
             setLoading(false);
           }
         },
-        duplicateProperty: async (id: string) => {
-          const propertyToDuplicate = properties.find((p) => p.id === id);
+        duplicateProperty: async (id: string, source?: Property) => {
+          const propertyToDuplicate =
+            properties.find((p) => p.id === id) ||
+            (source?.id === id ? source : undefined);
           if (!propertyToDuplicate) return null;
 
           setLoading(true);
@@ -1265,6 +1279,19 @@ export const PropertyProvider = ({
           }
         },
         getProperty: (id) => properties.find((p) => p.id === id),
+        fetchPropertyById: async (id: string) => {
+          // Manager views must reflect the latest owner/admin changes.
+          propertyService.invalidatePropertyDetailCache(id);
+          const { data, error, status } = await propertyService.getPropertyById(id, {
+            suppressErrorToast: true,
+          });
+          return {
+            data: data && !error ? mapServiceToContextProperty(data) : null,
+            ownerId: data?.manager_id?.trim() || null,
+            error,
+            status,
+          };
+        },
         uploadImages: async (entityId, files) => {
           return uploadPropertyMedia(entityId, files);
         },
