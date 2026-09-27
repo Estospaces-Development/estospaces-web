@@ -164,25 +164,47 @@ export const describeFastTrackCompanionSummary = (fastTrackCase: FastTrackCase) 
   fastTrackCase.nextAction ||
   `This linked case is currently in ${describeFastTrackStageLabel(fastTrackCase).toLowerCase()}.`;
 
+const USER_VIEWING_RESPONSE_ACTIONS = new Set(["confirm_viewing", "request_viewing_change"]);
+
+// Mirrors the booking-service prerequisites for the user's viewing responses:
+// the case must be open, in the viewing stage, and hold a scheduled slot
+// (cancelled appointments reset the slot to pending on the server).
 export const getFastTrackViewingResponseConflictMessage = (
-  fastTrackCase: Pick<FastTrackCase, "viewing">,
+  fastTrackCase: Pick<FastTrackCase, "viewing"> & Partial<Pick<FastTrackCase, "stage" | "workspaceFinalStatus">>,
   action: string,
   now = Date.now(),
 ) => {
+  if (!USER_VIEWING_RESPONSE_ACTIONS.has(action)) {
+    return null;
+  }
+
   const hasPendingChange = Boolean(fastTrackCase.viewing.requestedChange?.trim());
   const isConfirmed = Boolean(fastTrackCase.viewing.confirmedByUser);
+  const viewingStatus = String(fastTrackCase.viewing.status || "").trim().toLowerCase();
   const scheduledAt = Date.parse(String(fastTrackCase.viewing.scheduledAt || ""));
 
-  if (action === "confirm_viewing" && Number.isFinite(scheduledAt) && scheduledAt < now) {
-    return "This viewing time has passed. Ask the manager to schedule a new slot.";
+  if (fastTrackCase.workspaceFinalStatus && fastTrackCase.workspaceFinalStatus !== "active") {
+    return "This Fast Track is closed. Viewing responses are no longer available.";
+  }
+
+  if (fastTrackCase.stage && fastTrackCase.stage !== "viewing") {
+    return "The viewing step is not open for this Fast Track right now.";
+  }
+
+  if (action === "request_viewing_change" && hasPendingChange) {
+    return "A change request is already pending. Wait for the manager to reschedule before sending another request.";
   }
 
   if (action === "confirm_viewing" && hasPendingChange) {
     return "A change request is already pending. Wait for the manager to reschedule before confirming this slot.";
   }
 
-  if (action === "request_viewing_change" && hasPendingChange) {
-    return "A change request is already pending. Wait for the manager to reschedule before sending another request.";
+  if (viewingStatus !== "scheduled" || !Number.isFinite(scheduledAt)) {
+    return "No viewing slot has been set yet. The manager will schedule one here.";
+  }
+
+  if (action === "confirm_viewing" && scheduledAt <= now) {
+    return "This viewing time has passed. Ask the manager to schedule a new slot.";
   }
 
   if (action === "request_viewing_change" && isConfirmed) {
