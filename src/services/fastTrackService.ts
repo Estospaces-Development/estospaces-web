@@ -371,7 +371,10 @@ const normalizeWorkspaceFinalStatus = (
   switch (String(value || "").trim().toLowerCase()) {
     case "completed":
       return "completed";
+    // Same mapping as the booking service: "rejected" is a closed case and
+    // "expired" stays active because the service still continues it.
     case "cancelled":
+    case "rejected":
       return "cancelled";
     default:
       return "active";

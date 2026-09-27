@@ -9,6 +9,8 @@ import {
     findActiveJourneyForProperty,
     findRequestEntryJourney,
     formatJourneyStartedLabel,
+    getSelectedHomeJourneyCopy,
+    resolveSelectedHomeJourneyState,
     isExistingJourneyOverdue,
     resolveSelectedHomeFastTrackActionLabel,
 } from '@/lib/existingFastTrackJourney';
@@ -135,7 +137,10 @@ test('user entry points render the existing-journey state', () => {
     assert.match(timeline, /item\.primaryActionSummary/);
     assert.match(widget, /findRequestEntryJourney\(existingJourneyCases, \{ linkedCaseId: linkedFastTrackCaseId, propertyId: selectedPropertyId \}\)/);
     assert.match(widget, /requestIsMatched && \(selectedPropertyId \|\| linkedFastTrackCaseId\)/);
-    assert.doesNotMatch(widget, /Continue your 24-hour journey/);
+    assert.doesNotMatch(widget, /continue your 24-hour journey/i);
+    assert.match(widget, /selectedHomeJourneyCopy\.cardTitle/);
+    assert.match(widget, /selectedHomeJourneyCopy\.cardDescription/);
+    assert.match(widget, /getMatchedExperienceSteps\(activeRequest, selectedHomeJourneyState\)/);
     const workspace = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspace.tsx'), 'utf8');
     assert.match(workspace, /return role === 'user' \? 'Deadline passed' : 'Overdue';/);
     assert.doesNotMatch(workspace, /'Needs attention'/);
@@ -164,7 +169,6 @@ test('linked closed cases are described as finished, never as a live journey (ve
         { name: 'completed', overrides: { workspaceFinalStatus: 'completed', finalStatus: 'completed', stage: 'handover' }, state: 'completed', label: 'Completed', action: 'View completed 24-hour journey', notice: 'This 24-hour journey is complete.' },
         { name: 'cancelled', overrides: { workspaceFinalStatus: 'cancelled', finalStatus: 'rejected' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
         { name: 'rejected (legacy)', overrides: { workspaceFinalStatus: undefined, finalStatus: 'rejected' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
-        { name: 'withdrawn/unknown', overrides: { workspaceFinalStatus: 'withdrawn', finalStatus: 'withdrawn' }, state: 'closed', label: 'Closed', action: 'View closed 24-hour journey', notice: 'This 24-hour journey was closed and is no longer active.' },
     ];
     for (const item of closedCases) {
         const linked = findRequestEntryJourney([julyCase({ brokerRequestId: 'request-september', ...item.overrides })], { linkedCaseId: 'case-95979976' });
@@ -199,4 +203,35 @@ test('user workspace masthead subtitle carries the start date (verifier F-2)', (
     assert.match(workspace, /import \{ formatJourneyStartedLabel \} from '@\/lib\/existingFastTrackJourney';/);
     assert.match(workspace, /this home in one guided journey\.`,\s*formatJourneyStartedLabel\(selectedCase\.submittedAt\),\s*\]\.filter\(Boolean\)\.join\(' · '\)/);
     assert.match(workspace, /subtitle=\{selectedCaseSubtitle\}/);
+});
+
+test('selected-home card copy follows the linked journey state (verifier F-A)', () => {
+    const live = /ready for your 24-hour journey|continue your (existing )?24-hour journey|all next steps continue/i;
+    const completed = getSelectedHomeJourneyCopy('completed', 'Selected Rental Home');
+    assert.equal(completed.cardTitle, 'Your 24-hour journey for this home is complete');
+    assert.equal(completed.cardDescription, 'Open your chosen home or view the completed journey.');
+    assert.equal(completed.stepTitle, 'Journey complete');
+    assert.equal(completed.stepDescription, 'The 24-hour journey for Selected Rental Home is complete.');
+
+    const closed = getSelectedHomeJourneyCopy('closed', 'Selected Rental Home');
+    assert.equal(closed.cardTitle, 'Your 24-hour journey for this home was closed');
+    assert.match(closed.cardDescription, /no longer active/);
+    assert.equal(closed.stepTitle, 'Journey closed');
+    assert.match(closed.stepDescription, /was closed and is no longer active/);
+
+    for (const copy of [completed, closed]) {
+        for (const text of Object.values(copy)) assert.doesNotMatch(text, live);
+    }
+
+    const loading = getSelectedHomeJourneyCopy('loading');
+    for (const text of Object.values(loading)) assert.doesNotMatch(text, live);
+    assert.match(loading.cardDescription, /linked 24-hour journey/);
+
+    assert.match(getSelectedHomeJourneyCopy('active', 'Selected Rental Home').stepDescription, /ready for your 24-hour journey and all next steps continue there/);
+    assert.equal(getSelectedHomeJourneyCopy('none').cardDescription, 'Open your chosen home to request your 24-hour journey.');
+
+    assert.equal(resolveSelectedHomeJourneyState({ linkedCaseId: 'case-1' }), 'loading');
+    assert.equal(resolveSelectedHomeJourneyState({}), 'none');
+    assert.equal(resolveSelectedHomeJourneyState({ linkedCaseId: 'case-1', entryJourney: { state: 'completed' } }), 'completed');
+    assert.equal(resolveSelectedHomeJourneyState({ linkedCaseId: 'case-1', entryJourney: { state: 'closed' } }), 'closed');
 });

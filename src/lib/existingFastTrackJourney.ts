@@ -179,6 +179,67 @@ export const describeRequestEntryJourney = (
     };
 };
 
+/**
+ * State of the journey behind a selected home: no case yet, a linked case whose
+ * status is still loading, or a described case (active / completed / closed).
+ */
+export type SelectedHomeJourneyState = 'none' | 'loading' | RequestEntryJourneyState;
+
+export const resolveSelectedHomeJourneyState = ({
+    linkedCaseId,
+    entryJourney,
+}: {
+    linkedCaseId?: string | null;
+    entryJourney?: Pick<RequestEntryJourneyDescription, 'state'> | null;
+}): SelectedHomeJourneyState => {
+    if (entryJourney) return entryJourney.state;
+    return linkedCaseId ? 'loading' : 'none';
+};
+
+/** Selected-home card copy that never presents a finished journey as live. */
+export const getSelectedHomeJourneyCopy = (state: SelectedHomeJourneyState, propertyTitle?: string | null) => {
+    const home = propertyTitle?.trim() || 'Your chosen home';
+    switch (state) {
+        case 'completed':
+            return {
+                cardTitle: 'Your 24-hour journey for this home is complete',
+                cardDescription: 'Open your chosen home or view the completed journey.',
+                stepTitle: 'Journey complete',
+                stepDescription: `The 24-hour journey for ${home === 'Your chosen home' ? 'your chosen home' : home} is complete.`,
+            };
+        case 'closed':
+            return {
+                cardTitle: 'Your 24-hour journey for this home was closed',
+                cardDescription: 'Open your chosen home or view the closed journey. It is no longer active.',
+                stepTitle: 'Journey closed',
+                stepDescription: `The 24-hour journey for ${home === 'Your chosen home' ? 'your chosen home' : home} was closed and is no longer active.`,
+            };
+        case 'loading':
+            return {
+                cardTitle: 'Your chosen home',
+                cardDescription: 'Open your chosen home or its linked 24-hour journey.',
+                stepTitle: 'Home selected',
+                stepDescription: `${home} is linked to a 24-hour journey.`,
+            };
+        case 'none':
+            return {
+                cardTitle: 'Your chosen home is ready',
+                cardDescription: 'Open your chosen home to request your 24-hour journey.',
+                stepTitle: 'Home selected',
+                stepDescription: `${home} is ready for your 24-hour journey.`,
+            };
+        default:
+            return {
+                cardTitle: 'Your chosen home is ready',
+                cardDescription: 'Open your chosen home or continue your existing 24-hour journey.',
+                stepTitle: 'Home selected',
+                stepDescription: propertyTitle?.trim()
+                    ? `${propertyTitle.trim()} is ready for your 24-hour journey and all next steps continue there.`
+                    : 'Your chosen home is ready for your 24-hour journey.',
+            };
+    }
+};
+
 export const resolveSelectedHomeFastTrackActionLabel = ({
     linkedCaseId,
     existingCase,

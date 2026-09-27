@@ -36,7 +36,9 @@ import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackServi
 import {
     describeRequestEntryJourney,
     findRequestEntryJourney,
+    getSelectedHomeJourneyCopy,
     resolveSelectedHomeFastTrackActionLabel,
+    resolveSelectedHomeJourneyState,
 } from '@/lib/existingFastTrackJourney';
 import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
 import {
@@ -1099,7 +1101,6 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
     const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
-    const matchedExperienceSteps = requestIsMatched && activeRequest ? getMatchedExperienceSteps(activeRequest) : [];
     const sharedProperties = useMemo(
         () => activeRequest?.property_shares || [],
         [activeRequest?.property_shares],
@@ -1140,6 +1141,14 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
     const existingSelectedHomeJourneySummary = existingSelectedHomeJourney
         ? describeRequestEntryJourney(existingSelectedHomeJourney, { brokerRequestId: activeRequest?.id })
         : null;
+    const selectedHomeJourneyState = resolveSelectedHomeJourneyState({
+        linkedCaseId: linkedFastTrackCaseId,
+        entryJourney: existingSelectedHomeJourneySummary,
+    });
+    const selectedHomeJourneyCopy = getSelectedHomeJourneyCopy(selectedHomeJourneyState, selectedProperty?.title);
+    const matchedExperienceSteps = requestIsMatched && activeRequest
+        ? getMatchedExperienceSteps(activeRequest, selectedHomeJourneyState)
+        : [];
     const lockedRequestActionLabel = resolveSelectedHomeFastTrackActionLabel({
         linkedCaseId: activeRequest?.selected_fast_track_case_id,
         existingCase: existingSelectedHomeJourney,
@@ -1539,7 +1548,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                 <p className="break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">{brokerCopy.homeChoicesLabel}</p>
                                                 <p className="mt-2 break-words text-sm font-semibold text-gray-900 dark:text-white">
                                                     {selectedProperty
-                                                        ? 'Your chosen home is ready'
+                                                        ? selectedHomeJourneyCopy.cardTitle
                                                         : availableSharedProperties.length > 0
                                                             ? `${availableSharedProperties.length} home choice${availableSharedProperties.length === 1 ? '' : 's'} ready to review`
                                                             : staleSharedPropertiesCount > 0
@@ -1548,7 +1557,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                 </p>
                                                 <p className="mt-2 break-words text-sm text-gray-600 dark:text-gray-300">
                                                     {selectedProperty
-                                                        ? 'Open your chosen home or continue your 24-hour journey.'
+                                                        ? selectedHomeJourneyCopy.cardDescription
                                                         : availableSharedProperties.length > 0
                                                             ? 'Choose one of the homes below to start your 24-hour journey.'
                                                             : staleSharedPropertiesCount > 0

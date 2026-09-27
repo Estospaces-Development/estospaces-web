@@ -304,3 +304,32 @@ test('manager tracker selection reserves visible slots for the newest share-need
 
     assert.deepEqual(selected.map((item) => item.id), ['workspace-newest', 'workspace-next', 'lead-1', 'lead-2']);
 });
+
+test('matched steps describe a finished linked journey as finished (verifier F-A)', () => {
+    const request = {
+        request_type: 'rent',
+        fast_track_enabled: true,
+        matched_broker: { id: 'broker-1', name: 'Asha Realty' },
+        handoff_status: 'property_selected',
+        selected_property_id: 'property-1',
+        selected_fast_track_case_id: 'case-1',
+        selected_property: { id: 'property-1', title: 'Selected Rental Home' },
+    } as any;
+    const handoff = (state?: Parameters<typeof getMatchedExperienceSteps>[1]) => (
+        getMatchedExperienceSteps(request, state).find((step) => step.id === 'handoff')
+    );
+
+    assert.deepEqual(handoff('completed'), {
+        id: 'handoff',
+        title: 'Journey complete',
+        description: 'The 24-hour journey for Selected Rental Home is complete.',
+    });
+    assert.deepEqual(handoff('closed'), {
+        id: 'handoff',
+        title: 'Journey closed',
+        description: 'The 24-hour journey for Selected Rental Home was closed and is no longer active.',
+    });
+    assert.doesNotMatch(handoff('loading')!.description, /ready for your 24-hour journey/);
+    assert.equal(handoff('active')!.description, 'Selected Rental Home is ready for your 24-hour journey and all next steps continue there.');
+    assert.equal(handoff()!.description, 'Selected Rental Home is ready for your 24-hour journey and all next steps continue there.');
+});

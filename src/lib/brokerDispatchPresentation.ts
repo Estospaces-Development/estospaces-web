@@ -1,6 +1,7 @@
 import type { BrokerRequestRecord } from '@/services/leadsService';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { buildManagerFastTrackRequestPath } from '@/lib/managerFastTrackRequestNavigation';
+import { getSelectedHomeJourneyCopy, type SelectedHomeJourneyState } from '@/lib/existingFastTrackJourney';
 
 export type DispatchWorkspaceSummary = {
     title: string;
@@ -145,7 +146,10 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
     };
 };
 
-export const getMatchedExperienceSteps = (request: BrokerRequestRecord): MatchedExperienceStep[] => {
+export const getMatchedExperienceSteps = (
+    request: BrokerRequestRecord,
+    selectedHomeJourneyState: SelectedHomeJourneyState = 'active',
+): MatchedExperienceStep[] => {
     const brokerName = request.matched_broker?.name || 'Your broker';
     const requestTypeLabel = formatRequestTypeLabel(request.request_type).toLowerCase();
     const sharedCount = request.property_shares?.length || 0;
@@ -162,10 +166,11 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
     }
 
     if (hasSelectedProperty) {
-        handoffTitle = 'Home selected';
-        handoffDescription = request.selected_property?.title
-            ? `${request.selected_property.title} is ready for your 24-hour journey and all next steps continue there.`
-            : 'Your chosen home is ready for your 24-hour journey.';
+        // A request keeps its linked case after the case closes, so the step
+        // must follow the journey state rather than always read as live.
+        const copy = getSelectedHomeJourneyCopy(selectedHomeJourneyState, request.selected_property?.title);
+        handoffTitle = copy.stepTitle;
+        handoffDescription = copy.stepDescription;
     }
 
     return [

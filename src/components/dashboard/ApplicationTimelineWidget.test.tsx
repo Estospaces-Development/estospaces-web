@@ -163,3 +163,15 @@ test('timeline renders a completed linked case as finished, not live', async () 
     assert.ok(buttons.some((text) => text.includes('View completed 24-hour journey')));
     assert.ok(!buttons.some((text) => text.includes('Continue existing 24-hour journey')));
 });
+
+test('timeline renders a cancelled linked case as closed, not live', async () => {
+    const { summary, buttons } = await renderTimelineWithLinkedCase(linkedJulyCase({
+        workspaceFinalStatus: 'cancelled', finalStatus: 'rejected', overdue: false,
+    }));
+    assert.ok(summary);
+    assert.match(summary, /Started 2 Jul 2026 · Closed · Linked to this agent request/);
+    assert.match(summary, /was closed and is no longer active/);
+    assert.doesNotMatch(summary, /no new 24-hour clock|In progress|Deadline passed/);
+    assert.ok(buttons.some((text) => text.includes('View closed 24-hour journey')));
+    assert.ok(!buttons.some((text) => text.includes('Continue existing 24-hour journey')));
+});

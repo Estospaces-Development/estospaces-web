@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createFastTrackCase, getFastTrackCaseById, isReusedFastTrackStart } from './fastTrackService';
+import { describeRequestEntryJourney } from '@/lib/existingFastTrackJourney';
 
 const buildCreatedResponse = (payload: unknown) => ({
   ok: true,
@@ -155,4 +156,22 @@ test('legacy expired final status maps to an active case, as the backend still r
     assert.equal(result.data?.workspaceFinalStatus, 'active');
     assert.equal(result.data?.finalStatus, 'in_progress');
   });
+});
+
+test('raw closed backend statuses map to a closed or completed journey, never a live one', async () => {
+  const expectations: Array<[string, string, string]> = [
+    ['rejected', 'closed', 'View closed 24-hour journey'],
+    ['cancelled', 'closed', 'View closed 24-hour journey'],
+    ['completed', 'completed', 'View completed 24-hour journey'],
+  ];
+  for (const [rawStatus, state, actionLabel] of expectations) {
+    await withFetch(workspaceCase({ final_status: rawStatus, broker_request_id: 'request-1' }), async () => {
+      const result = await getFastTrackCaseById('case-1');
+      assert.ok(result.data, rawStatus);
+      const described = describeRequestEntryJourney(result.data, { brokerRequestId: 'request-1' });
+      assert.equal(described.state, state, rawStatus);
+      assert.equal(described.actionLabel, actionLabel, rawStatus);
+      assert.doesNotMatch(described.text, /no new 24-hour clock|existing journey/i, rawStatus);
+    });
+  }
 });
