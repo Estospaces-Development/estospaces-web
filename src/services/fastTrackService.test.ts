@@ -119,6 +119,15 @@ test('fast-track detail lookup distinguishes a missing case from a temporary ser
 
     assert.equal(missing.data, null);
     assert.equal(missing.notFound, true);
+    assert.equal(missing.forbidden, false);
+    assert.equal(unavailable.forbidden, false);
+
+    globalThis.fetch = (async () => buildErrorResponse(403, 'Unauthorized: you do not have access to this case')) as typeof fetch;
+    const foreign = await getFastTrackCaseById('case-foreign', { suppressErrorToast: true });
+
+    assert.equal(foreign.data, null);
+    assert.equal(foreign.notFound, false);
+    assert.equal(foreign.forbidden, true);
   } finally {
     globalThis.fetch = originalFetch;
   }

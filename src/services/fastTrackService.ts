@@ -700,18 +700,20 @@ export const getFastTrackCases = async (
 export const getFastTrackCaseById = async (
   id: string,
   options: ServiceRequestOptions = {},
-): Promise<{ data: FastTrackCase | null; error: string | null; notFound: boolean }> => {
+): Promise<{ data: FastTrackCase | null; error: string | null; notFound: boolean; forbidden: boolean }> => {
   try {
     const result = await apiFetch<BackendFastTrackWorkspaceCase>(
       `${BOOKING_URL()}/api/v1/fast-track/${id}`,
       options,
     );
-    return { data: result ? mapBackendToFrontend(result) : null, error: null, notFound: false };
+    return { data: result ? mapBackendToFrontend(result) : null, error: null, notFound: false, forbidden: false };
   } catch (error: any) {
+    const status = getErrorStatus(error);
     return {
       data: null,
       error: getErrorMessage(error),
-      notFound: getErrorStatus(error) === 404,
+      notFound: status === 404,
+      forbidden: status === 403,
     };
   }
 };

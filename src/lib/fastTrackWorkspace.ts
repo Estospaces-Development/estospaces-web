@@ -342,6 +342,29 @@ export const shouldDeferFastTrackSelectionURLSync = ({
     && !requestedCaseLookupMissed
 );
 
+// While a linked case has not been confirmed as accessible, no other case may be
+// rendered under that URL: the workspace fails closed until the lookup resolves.
+export const resolveFastTrackDisplayedCaseId = ({
+    requestedCaseId,
+    requestedCaseIsAvailable,
+    requestedCaseLookupMissed,
+    selectedCaseId,
+}: {
+    requestedCaseId: string | null | undefined;
+    requestedCaseIsAvailable: boolean;
+    requestedCaseLookupMissed: boolean;
+    selectedCaseId: string | null | undefined;
+}) => {
+    if (shouldDeferFastTrackSelectionURLSync({
+        requestedCaseId,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+    })) {
+        return null;
+    }
+    return selectedCaseId || null;
+};
+
 export const isFastTrackStageUnlocked = (
     fastTrackCase: FastTrackCase | null | undefined,
     targetStage: FastTrackStage,
