@@ -8,6 +8,7 @@ import { useMessages } from '@/contexts/MessagesContext';
 import EmojiPicker from '@/components/ui/EmojiPicker';
 import { uploadMediaFile } from '@/services/mediaService';
 import type { MessageAttachment } from '@/services/messagesService';
+import { MESSAGE_MAX_BYTES, MESSAGE_TOO_LONG_TEXT, getMessageLengthState } from '@/lib/messageComposerLimit';
 
 interface MessageInputProps {
     conversationId: string;
@@ -25,6 +26,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
     const [composerError, setComposerError] = useState<string | null>(null);
     const { sendMessage } = useMessages();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const messageLength = getMessageLengthState(message);
 
     const handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
         const nextFiles = Array.from(event.target.files || []);
@@ -57,6 +59,10 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!message.trim() && pendingFiles.length === 0) {
+            return;
+        }
+        if (messageLength.overLimit) {
+            setComposerError(MESSAGE_TOO_LONG_TEXT);
             return;
         }
 
@@ -150,7 +156,8 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         aria-label="Message"
-                        aria-describedby="message-attachment-help message-composer-error"
+                        aria-describedby="message-attachment-help message-length-help message-composer-error"
+                        aria-invalid={messageLength.overLimit || undefined}
                         className="h-11 w-full min-w-0 rounded-xl border bg-gray-50 pl-3 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                     />
                     <button
@@ -170,15 +177,18 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
 
                 <button
                     type="submit"
-                    disabled={isSending || (!message.trim() && pendingFiles.length === 0)}
+                    disabled={isSending || messageLength.overLimit || (!message.trim() && pendingFiles.length === 0)}
                     className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm transition-all hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none active:scale-95"
                     aria-label="Send message"
                 >
                     {isSending ? <ActionSpinner size={20} className="" /> : <Send size={20} />}
                 </button>
             </form>
-            <div className={`${pendingFiles.length > 0 || composerError ? 'mt-2 flex' : 'sr-only'} items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400`}>
+            <div className={`${pendingFiles.length > 0 || composerError || messageLength.showCounter ? 'mt-2 flex' : 'sr-only'} items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400`}>
                 <span id="message-attachment-help">{pendingFiles.length > 0 ? `${pendingFiles.length}/${MAX_ATTACHMENTS} files attached` : 'Attach images, documents, spreadsheets, text files, or videos.'}</span>
+                <span id="message-length-help" className={messageLength.overLimit ? 'text-red-500' : undefined}>
+                    {messageLength.showCounter ? `${messageLength.bytes.toLocaleString('en-GB')} / ${MESSAGE_MAX_BYTES.toLocaleString('en-GB')}${messageLength.overLimit ? ' — too long to send' : ''}` : ''}
+                </span>
                 {composerError ? <span id="message-composer-error" role="alert" className="text-red-500">{composerError}</span> : <span id="message-composer-error" />}
             </div>
         </div>
