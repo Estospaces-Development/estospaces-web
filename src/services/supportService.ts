@@ -1,4 +1,4 @@
-import { deleteMediaFile, reassignMediaEntity, uploadMediaFile } from '@/services/mediaService';
+import { deleteMediaFile, uploadMediaFile } from '@/services/mediaService';
 import { messagesService, type CreateTicketParams, type GetTicketsParams, type MessageAttachment, type SupportTicketDetail, type SupportTicketSummary, type UpdateTicketParams } from '@/services/messagesService';
 import { userService } from '@/services/userService';
 import type { User } from '@/types';
@@ -106,10 +106,6 @@ export const supportService = {
         }));
 
         return { attachments, draftId };
-    },
-
-    async finalizeDraftAttachments(draftId: string, ticketId: string) {
-        await reassignMediaEntity(SUPPORT_DRAFT_ENTITY, draftId, 'support_ticket', ticketId);
     },
 
     async removeDraftAttachment(attachmentId: string) {
