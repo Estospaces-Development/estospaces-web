@@ -304,7 +304,7 @@ export async function updateTicketStatus(
 }
 
 export async function getSupportAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
-    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${attachmentId}/access-url`, {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${encodeURIComponent(attachmentId)}/access-url`, {
         suppressErrorToast: true,
     });
 }
@@ -314,7 +314,7 @@ export type AttachmentAccessUrlLoader = (attachmentId: string) => Promise<{ acce
 // Chat attachments are private: the messaging service checks conversation
 // membership and returns a short-lived signed URL.
 export async function getConversationAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
-    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/attachments/${attachmentId}/access-url`, {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/attachments/${encodeURIComponent(attachmentId)}/access-url`, {
         suppressErrorToast: true,
     });
 }
