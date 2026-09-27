@@ -3,8 +3,12 @@ import test from "node:test";
 
 import {
   getManagerPropertyFirstErrorStep,
+  getManagerPropertyRoomPayload,
+  getManagerPropertyTypeCategory,
+  isManagerPropertyFieldApplicable,
   validateManagerPropertyField,
   validateManagerPropertyForm,
+  validateManagerPropertySave,
   validateManagerPropertyStep,
   type ManagerPropertyValidationValues,
 } from "@/lib/managerPropertyFormValidation";
@@ -257,4 +261,155 @@ test("validateManagerPropertyField rejects PIN code that mismatches selected sta
     postalCode: "600001",
   });
   assert.equal(noState, null);
+});
+
+const legacyPublishedValues: ManagerPropertyValidationValues = {
+  ...baseValues,
+  propertyType: "apartment",
+  state: "",
+  stateId: "",
+  stateCode: "",
+  latitude: "",
+  longitude: "",
+};
+
+test("validateManagerPropertySave lets an unchanged legacy listing save", () => {
+  assert.deepEqual(
+    validateManagerPropertySave(legacyPublishedValues, {
+      baseline: legacyPublishedValues,
+      requiresCompleteListing: false,
+    }),
+    {},
+  );
+  assert.deepEqual(
+    validateManagerPropertySave(
+      { ...legacyPublishedValues, description: "Updated note only." },
+      { baseline: legacyPublishedValues, requiresCompleteListing: false },
+    ),
+    {},
+  );
+});
+
+test("validateManagerPropertySave still validates the fields a manager changes", () => {
+  const errors = validateManagerPropertySave(
+    { ...legacyPublishedValues, title: " ", hasImages: false },
+    { baseline: legacyPublishedValues, requiresCompleteListing: false },
+  );
+
+  assert.deepEqual(Object.keys(errors).sort(), ["images", "title"]);
+});
+
+test("validateManagerPropertySave re-checks dependent fields when an input changes", () => {
+  const errors = validateManagerPropertySave(
+    { ...legacyPublishedValues, totalArea: 500, carpetArea: 750 },
+    { baseline: legacyPublishedValues, requiresCompleteListing: false },
+  );
+
+  assert.equal(errors.carpetArea, "Carpet area cannot exceed total area");
+  assert.equal(errors.latitude, undefined);
+});
+
+test("validateManagerPropertySave applies every requirement to submissions and new listings", () => {
+  const submission = validateManagerPropertySave(legacyPublishedValues, {
+    baseline: legacyPublishedValues,
+    requiresCompleteListing: true,
+  });
+  assert.equal(submission.state, "State/Province is required");
+  assert.ok(submission.latitude);
+
+  const created = validateManagerPropertySave(legacyPublishedValues, {
+    baseline: null,
+    requiresCompleteListing: false,
+  });
+  assert.equal(created.state, "State/Province is required");
+});
+
+test("Land does not require or validate residential rooms and floors", () => {
+  const land: ManagerPropertyValidationValues = {
+    ...baseValues,
+    propertyType: "land",
+    bedrooms: undefined,
+    bathrooms: undefined,
+    balconies: undefined,
+    parkingSpaces: undefined,
+    floorNumber: 4,
+    totalFloors: undefined,
+  };
+
+  assert.deepEqual(validateManagerPropertyForm(land), {});
+  assert.equal(getManagerPropertyTypeCategory("land"), "land");
+  assert.equal(isManagerPropertyFieldApplicable("bedrooms", "land"), false);
+  assert.equal(isManagerPropertyFieldApplicable("facing", "land"), true);
+});
+
+test("non-residential types make bedrooms, bathrooms and balconies optional", () => {
+  for (const propertyType of ["commercial", "industrial", "office"] as const) {
+    const values: ManagerPropertyValidationValues = {
+      ...baseValues,
+      propertyType,
+      bedrooms: undefined,
+      bathrooms: undefined,
+      balconies: undefined,
+    };
+    assert.deepEqual(validateManagerPropertyForm(values), {}, propertyType);
+    assert.equal(
+      validateManagerPropertyField("bathrooms", { ...values, bathrooms: 1.5 }),
+      "Bathrooms must be a whole number",
+    );
+    assert.equal(
+      validateManagerPropertyField("parkingSpaces", { ...values, parkingSpaces: undefined }),
+      "Parking spaces is required",
+    );
+  }
+});
+
+test("residential types still require rooms", () => {
+  const errors = validateManagerPropertyForm({
+    ...baseValues,
+    propertyType: "apartment",
+    bedrooms: undefined,
+    bathrooms: undefined,
+  });
+
+  assert.equal(errors.bedrooms, "Bedrooms is required");
+  assert.equal(errors.bathrooms, "Bathrooms is required");
+});
+
+test("changing a legacy listing to a residential type requires its rooms", () => {
+  const legacyLand: ManagerPropertyValidationValues = {
+    ...legacyPublishedValues,
+    propertyType: "land",
+    bedrooms: undefined,
+    bathrooms: undefined,
+  };
+  const errors = validateManagerPropertySave(
+    { ...legacyLand, propertyType: "house" },
+    { baseline: legacyLand, requiresCompleteListing: false },
+  );
+
+  assert.equal(errors.bedrooms, "Bedrooms is required");
+  assert.equal(errors.bathrooms, "Bathrooms is required");
+  assert.equal(errors.state, undefined);
+});
+
+test("getManagerPropertyRoomPayload clears room metadata for Land only", () => {
+  const rooms = {
+    bedrooms: 2,
+    bathrooms: 1,
+    balconies: 1,
+    parkingSpaces: 1,
+    floorNumber: 1,
+    totalFloors: 3,
+  };
+
+  assert.deepEqual(getManagerPropertyRoomPayload("land", rooms), {
+    bedrooms: 0,
+    bathrooms: 0,
+    balconies: 0,
+    parkingSpaces: 0,
+    floorNumber: undefined,
+    totalFloors: undefined,
+  });
+  assert.deepEqual(getManagerPropertyRoomPayload("office", rooms), rooms);
+  assert.deepEqual(getManagerPropertyRoomPayload("apartment", rooms), rooms);
 });
