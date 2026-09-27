@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import {
     describeExistingFastTrackJourney,
     findActiveJourneyForProperty,
+    findRequestEntryJourney,
     formatJourneyStartedLabel,
     isExistingJourneyOverdue,
     resolveSelectedHomeFastTrackActionLabel,
@@ -97,7 +98,8 @@ test('selected-home CTA says continue when the user already has an active case f
     assert.equal(findActiveJourneyForProperty(cases, null), null);
 
     assert.equal(resolveSelectedHomeFastTrackActionLabel({ existingCase: existing, hasSelectedProperty: true }), 'Continue existing 24-hour journey');
-    assert.equal(resolveSelectedHomeFastTrackActionLabel({ linkedCaseId: 'case-1', existingCase: existing, hasSelectedProperty: true }), 'Continue in fast-track');
+    assert.equal(resolveSelectedHomeFastTrackActionLabel({ linkedCaseId: 'case-1', existingCase: existing, hasSelectedProperty: true }), 'Continue existing 24-hour journey');
+    assert.equal(resolveSelectedHomeFastTrackActionLabel({ linkedCaseId: 'case-1', hasSelectedProperty: true }), 'Continue existing 24-hour journey');
     assert.equal(resolveSelectedHomeFastTrackActionLabel({ existingCase: null, hasSelectedProperty: true }), 'Request fast-track for selected home');
     assert.equal(resolveSelectedHomeFastTrackActionLabel({ hasSelectedProperty: false }), 'Open matched agent request');
 });
@@ -108,7 +110,6 @@ test('user entry points render the existing-journey state', () => {
     const modal = readFileSync(resolve(root, 'src/components/dashboard/PropertyFastTrackModal.tsx'), 'utf8');
     const timeline = readFileSync(resolve(root, 'src/components/dashboard/ApplicationTimelineWidget.tsx'), 'utf8');
 
-    assert.match(widget, /findActiveJourneyForProperty\(existingJourneyCases, selectedPropertyId\)/);
     assert.match(widget, /existingSelectedHomeJourneySummary\.notice/);
     assert.match(widget, /&case=\$\{existingSelectedHomeJourney\.caseId\}/);
     assert.match(modal, /existingJourney\.notice/);
@@ -116,5 +117,30 @@ test('user entry points render the existing-journey state', () => {
     assert.match(modal, /Continue your existing journey for this home\./);
     assert.match(modal, /return existingJourney\.timingLabel/);
     assert.match(timeline, /Continue existing 24-hour journey/);
+    assert.match(timeline, /findRequestEntryJourney\(fastTrackCases, \{ linkedCaseId: request\.selected_fast_track_case_id \}\)/);
+    assert.match(timeline, /item\.primaryActionSummary/);
+    assert.match(widget, /findRequestEntryJourney\(existingJourneyCases, \{ linkedCaseId: linkedFastTrackCaseId, propertyId: selectedPropertyId \}\)/);
+    assert.match(widget, /requestIsMatched && \(selectedPropertyId \|\| linkedFastTrackCaseId\)/);
+    assert.doesNotMatch(widget, /Continue your 24-hour journey/);
+    const workspace = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspace.tsx'), 'utf8');
+    assert.match(workspace, /return role === 'user' \? 'Deadline passed' : 'Overdue';/);
+    assert.doesNotMatch(workspace, /'Needs attention'/);
     assert.doesNotMatch(timeline, /'Continue 24-hour journey'/);
+});
+
+test('request linked to a reused older case resolves that case and describes it (verifier N1)', () => {
+    // The manager started from a new request; the service reused the July case
+    // and linked it to the request, so selected_fast_track_case_id points at it.
+    const cases = [
+        julyCase({ caseId: 'case-new-home', propertyId: 'property-other' }),
+        julyCase({ brokerRequestId: 'request-september' }),
+    ];
+    const linked = findRequestEntryJourney(cases, { linkedCaseId: 'case-95979976', propertyId: 'property-other' });
+    assert.equal(linked?.caseId, 'case-95979976');
+    const summary = describeExistingFastTrackJourney(linked!, { brokerRequestId: 'request-september' }, NOW);
+    assert.equal(summary.summary, 'Started 2 Jul 2026 · Viewing stage · Deadline passed · Linked to this agent request');
+    assert.match(summary.notice, /deadline has passed and no new 24-hour clock has started/);
+
+    assert.equal(findRequestEntryJourney(cases, { linkedCaseId: 'case-unknown', propertyId: 'property-selected' }), null);
+    assert.equal(findRequestEntryJourney(cases, { propertyId: 'property-other' })?.caseId, 'case-new-home');
 });

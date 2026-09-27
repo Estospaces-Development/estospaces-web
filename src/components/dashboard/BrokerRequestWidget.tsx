@@ -35,7 +35,7 @@ import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import {
     describeExistingFastTrackJourney,
-    findActiveJourneyForProperty,
+    findRequestEntryJourney,
     resolveSelectedHomeFastTrackActionLabel,
 } from '@/lib/existingFastTrackJourney';
 import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
@@ -1113,8 +1113,9 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
     const selectedPropertyId = selectedProperty?.id || activeRequest?.selected_property_id || null;
+    const linkedFastTrackCaseId = activeRequest?.selected_fast_track_case_id || null;
     const shouldLookUpExistingJourney = Boolean(
-        requestIsMatched && selectedPropertyId && !activeRequest?.selected_fast_track_case_id,
+        requestIsMatched && (selectedPropertyId || linkedFastTrackCaseId),
     );
     const [existingJourneyCases, setExistingJourneyCases] = useState<FastTrackCase[]>([]);
     useEffect(() => {
@@ -1123,17 +1124,18 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
             return;
         }
         let cancelled = false;
-        // The booking service reuses the user's active case for this home, so
-        // the CTA must say "continue" rather than imply a new 24-hour request.
+        // The booking service reuses the user's active case for this home and
+        // may link an older case to this request, so the CTA must describe
+        // that existing journey rather than imply a new 24-hour request.
         void getFastTrackCases({ suppressErrorToast: true }).then((result) => {
             if (!cancelled) setExistingJourneyCases(result.data || []);
         });
         return () => {
             cancelled = true;
         };
-    }, [shouldLookUpExistingJourney, selectedPropertyId]);
+    }, [shouldLookUpExistingJourney, selectedPropertyId, linkedFastTrackCaseId]);
     const existingSelectedHomeJourney = shouldLookUpExistingJourney
-        ? findActiveJourneyForProperty(existingJourneyCases, selectedPropertyId)
+        ? findRequestEntryJourney(existingJourneyCases, { linkedCaseId: linkedFastTrackCaseId, propertyId: selectedPropertyId })
         : null;
     const existingSelectedHomeJourneySummary = existingSelectedHomeJourney
         ? describeExistingFastTrackJourney(existingSelectedHomeJourney, { brokerRequestId: activeRequest?.id })
@@ -1616,9 +1618,14 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                                 onClick={() => navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`)}
                                                                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                                             >
-                                                                Continue your 24-hour journey
+                                                                Continue existing 24-hour journey
                                                             </button>
                                                         )}
+                                                        {existingSelectedHomeJourneySummary ? (
+                                                            <p className="text-xs leading-5 text-gray-600 dark:text-gray-300" data-testid="existing-fast-track-journey-card-summary">
+                                                                {existingSelectedHomeJourneySummary.summary}. {existingSelectedHomeJourneySummary.notice}
+                                                            </p>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             </div>

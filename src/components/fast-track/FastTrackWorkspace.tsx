@@ -260,7 +260,7 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
         return role === 'user' ? '24 hours' : '24h window';
     }
     if (hoursRemaining <= 0) {
-        return role === 'user' ? 'Needs attention' : 'Overdue';
+        return role === 'user' ? 'Deadline passed' : 'Overdue';
     }
     return `${hoursRemaining}h left`;
 };

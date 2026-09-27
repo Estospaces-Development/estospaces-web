@@ -40,6 +40,7 @@ test('five loaded homes retain the full journey tab label before and after selec
         if (id === '../../services/salesService') return { getSaleProgressions: async () => ({ data: [], error: null }) };
         if (id === '../../services/bookingsService') return { getViewings: async () => [], getContracts: async () => [] };
         if (id === '../../services/userPropertiesService') return { getUserProperties: async () => ({ data: homes, error: null }) };
+        if (id === '@/services/fastTrackService') return { getFastTrackCases: async () => ({ data: [], error: null }) };
         if (id === '../../services/propertyService') return {
             getPropertyContextsByIds: async () => { throw new Error('Owned home context is already present'); },
         };

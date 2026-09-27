@@ -113,6 +113,21 @@ export const findActiveJourneyForProperty = <T extends Pick<JourneyCase, 'proper
     return cases.find((caseItem) => caseItem.propertyId === propertyId && isActiveJourney(caseItem)) || null;
 };
 
+/**
+ * Case a request entry point leads to: the case linked to the request when
+ * there is one (it may be an older case the service reused), otherwise the
+ * user's active case for the selected home.
+ */
+export const findRequestEntryJourney = <T extends Pick<JourneyCase, 'caseId' | 'propertyId' | 'workspaceFinalStatus' | 'finalStatus'>>(
+    cases: T[],
+    { linkedCaseId, propertyId }: { linkedCaseId?: string | null; propertyId?: string | null },
+): T | null => {
+    if (linkedCaseId) {
+        return cases.find((caseItem) => caseItem.caseId === linkedCaseId) || null;
+    }
+    return findActiveJourneyForProperty(cases, propertyId);
+};
+
 export const resolveSelectedHomeFastTrackActionLabel = ({
     linkedCaseId,
     existingCase,
@@ -122,8 +137,8 @@ export const resolveSelectedHomeFastTrackActionLabel = ({
     existingCase?: unknown;
     hasSelectedProperty: boolean;
 }) => {
-    if (linkedCaseId) return 'Continue in fast-track';
-    if (existingCase) return 'Continue existing 24-hour journey';
+    // A linked case is always an existing journey, possibly an older reused one.
+    if (linkedCaseId || existingCase) return 'Continue existing 24-hour journey';
     if (hasSelectedProperty) return 'Request fast-track for selected home';
     return 'Open matched agent request';
 };
