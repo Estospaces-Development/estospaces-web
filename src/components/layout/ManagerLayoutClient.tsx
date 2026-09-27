@@ -11,8 +11,9 @@ import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
-import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, normalizeRole, shouldAwaitSessionResolution } from '@/lib/authUtils';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import WrongRoleNotice from '@/components/routing/WrongRoleNotice';
 import RoleMobileNavigation from './RoleMobileNavigation';
 import { canLoadManagerInventory } from '@/lib/managerInventoryAccess';
 
@@ -45,8 +46,8 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
         return window.matchMedia('(min-width: 1024px)').matches;
     });
     const { user, loading, isAuthenticated } = useAuth();
-    const hasManagerAccess = user?.role === 'manager' || user?.role === 'broker';
-    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
+    const currentRole = normalizeRole(user?.role);
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading);
 
     useEffect(() => {
         if (typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches) {
@@ -97,8 +98,8 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
         return <Navigate to={getLoginPath()} replace />;
     }
 
-    if (!hasManagerAccess) {
-        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
+    if (currentRole !== 'manager') {
+        return <WrongRoleNotice requiredRole="manager" currentRole={currentRole} />;
     }
 
     return (

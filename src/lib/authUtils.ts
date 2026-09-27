@@ -144,8 +144,13 @@ export function isProtectedRoutePath(pathname: string): boolean {
     return PROTECTED_ROLE_PREFIXES.some(({ prefix }) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`));
 }
 
-export function shouldAwaitSessionResolution(loading: boolean, isAuthenticated: boolean): boolean {
-    return loading && !isAuthenticated;
+/**
+ * A cached user is only a hint until /auth/me confirms this tab's token, so
+ * protected routes must not make role decisions (or redirect) while the
+ * session is still resolving, even when a cached user is already present.
+ */
+export function shouldAwaitSessionResolution(loading: boolean): boolean {
+    return loading;
 }
 
 export interface AuthRedirectLocationLike {
