@@ -114,6 +114,12 @@ import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
 import { VIRTUAL_TOUR_ENABLED } from "@/lib/launchFlags";
 import { getCurrencySymbol } from "@/lib/utils/currency";
 import { useAuth } from "@/contexts/AuthContext";
+import ManagerPropertyLoadState from "@/components/manager/ManagerPropertyLoadState";
+import {
+  MANAGER_PROPERTY_LOAD_ERROR_MESSAGE,
+  resolveManagerPropertyDetail,
+  type ManagerPropertyLoadFailureKind,
+} from "@/lib/managerPropertyDetail";
 import {
   getSupportedLaunchCountry,
   LAUNCH_COUNTRY_CODE,
@@ -558,7 +564,6 @@ export default function AddPropertyPage() {
     formatArea: _formatArea,
     uploadImages,
     uploadVideos,
-    fetchProperties,
     loading: _contextLoading,
   } = useProperties();
   const {
@@ -598,13 +603,14 @@ export default function AddPropertyPage() {
   const [pendingMediaDelete, setPendingMediaDelete] =
     useState<MediaFile | null>(null);
   const [loadingProperty, setLoadingProperty] = useState(isEditMode);
-  const [propertyNotFound, setPropertyNotFound] = useState(false);
+  const [propertyLoadFailure, setPropertyLoadFailure] =
+    useState<ManagerPropertyLoadFailureKind | null>(null);
+  const [propertyLoadAttempt, setPropertyLoadAttempt] = useState(0);
 
   // Track dirty state (has form been modified)
   const [isDirty, setIsDirty] = useState(false);
   const hasInitializedRef = useRef(false);
   const loadedPropertyIdRef = useRef<string | null>(null);
-  const notFoundToastShownRef = useRef(false);
   const [changeReason, setChangeReason] = useState("");
 
   // Toast state
@@ -1014,35 +1020,34 @@ export default function AddPropertyPage() {
       loadedPropertyIdRef.current = idValue;
 
       setLoadingProperty(true);
-      setPropertyNotFound(false);
+      setPropertyLoadFailure(null);
 
-      // Try to get property from context first
-      let property = getProperty(idValue);
+      // The context only holds the loaded inventory page, so anything else
+      // (another page, direct load, reload) is read by ID from core.
+      const property = getProperty(idValue);
 
-      // Fresh loads can arrive before the context cache hydrates, so fetch
-      // the record directly instead of relying on a just-triggered state update.
       if (!property) {
-        const { data, error } = await getPropertyById(idValue);
-        if (data && !error) {
+        const lookup = await getPropertyById(idValue, { suppressErrorToast: true });
+        const resolved = resolveManagerPropertyDetail(
+          {
+            data: lookup.data,
+            ownerId: lookup.data?.manager_id,
+            error: lookup.error,
+            status: lookup.status,
+          },
+          user,
+        );
+        if (resolved.kind === "found") {
           const hydratedFormData = await hydrateLoadedAddressFields(
-            buildLoadedFormDataFromServiceProperty(data),
+            buildLoadedFormDataFromServiceProperty(resolved.property),
           );
           applyLoadedFormData(hydratedFormData);
           return;
         }
 
-        await fetchProperties();
-        property = getProperty(idValue);
-      }
-
-      if (!property) {
         hasInitializedRef.current = true;
-        setPropertyNotFound(true);
+        setPropertyLoadFailure(resolved.kind);
         setLoadingProperty(false);
-        if (!notFoundToastShownRef.current) {
-          notFoundToastShownRef.current = true;
-          showToast("Property not found. Please go back and try again.", "error");
-        }
         return;
       }
 
@@ -1143,9 +1148,15 @@ export default function AddPropertyPage() {
     hydrateLoadedAddressFields,
     isEditMode,
     getProperty,
-    fetchProperties,
-    showToast,
+    propertyLoadAttempt,
+    user,
   ]);
+
+  const retryPropertyLoad = useCallback(() => {
+    loadedPropertyIdRef.current = null;
+    hasInitializedRef.current = false;
+    setPropertyLoadAttempt((attempt) => attempt + 1);
+  }, []);
 
   const steps = [
     { number: 1, title: "Basic Info", icon: <Home className="w-5 h-5" /> },
@@ -2199,26 +2210,17 @@ export default function AddPropertyPage() {
     return <BrandLoadingScreen variant="section" label="Loading property details..." />;
   }
 
-  if (propertyNotFound && isEditMode) {
+  if (propertyLoadFailure && isEditMode) {
     return (
       <div className="max-w-6xl mx-auto font-sans pb-8">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <AlertCircle className="w-12 h-12 text-red-500" />
-            <p className="text-lg text-gray-800 dark:text-white font-medium">
-              Property Not Found
-            </p>
-            <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
-              The property you're trying to edit could not be found. It may have
-              been deleted or you may not have access to it.
-            </p>
-            <button
-              onClick={() => navigate("/manager/dashboard/properties")}
-              className="mt-4 px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
-            >
-              Back to Properties
-            </button>
-          </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
+          <ManagerPropertyLoadState
+            kind={propertyLoadFailure}
+            purpose="edit"
+            errorMessage={propertyLoadFailure === "error" ? MANAGER_PROPERTY_LOAD_ERROR_MESSAGE : undefined}
+            onBack={() => navigate("/manager/dashboard/properties")}
+            onRetry={retryPropertyLoad}
+          />
         </div>
       </div>
     );
