@@ -5,6 +5,73 @@ export const hasPrefilledSupportComposerContext = (searchParams: URLSearchParams
     ['category', 'subject', 'message', 'priority'].some((key) => Boolean(searchParams.get(key)?.trim()))
 );
 
+const USER_HELP_PATH = '/user/dashboard/help';
+const USER_FAST_TRACK_PATH = '/user/dashboard/fast-track';
+const ADMIN_FAST_TRACK_PATH = '/admin/fast-track';
+const SUPPORT_CASE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const normalizeSupportCaseId = (value?: string | null): string | null => {
+    const caseId = String(value || '').trim();
+    return SUPPORT_CASE_ID_PATTERN.test(caseId) ? caseId.toLowerCase() : null;
+};
+
+/** Case ID carried into Help, only when it is a well-formed Fast Track case ID. */
+export const getSupportCaseIdFromSearchParams = (searchParams: URLSearchParams): string | null => (
+    normalizeSupportCaseId(searchParams.get('case'))
+);
+
+export const buildUserFastTrackCasePath = (caseId: string): string => (
+    `${USER_FAST_TRACK_PATH}?${new URLSearchParams({ case: caseId }).toString()}`
+);
+
+export const getSupportCaseShortReference = (caseId: string): string => caseId.slice(0, 8).toUpperCase();
+
+/**
+ * Help destination for the user profile menu. From a Fast Track case the case
+ * is carried in, so the ticket is about that case without retyping its ID;
+ * everywhere else Help opens uncoupled from any case.
+ */
+export const buildUserHelpPath = (pathname: string, search: string): string => {
+    const normalizedPath = pathname.replace(/\/+$/, '');
+    const caseId = normalizedPath === USER_FAST_TRACK_PATH
+        ? normalizeSupportCaseId(new URLSearchParams(search).get('case'))
+        : null;
+    if (!caseId) {
+        return USER_HELP_PATH;
+    }
+
+    const params = new URLSearchParams({
+        category: 'Fast Track',
+        subject: `Fast Track case ${getSupportCaseShortReference(caseId)}`,
+        message: `Fast Track case ${caseId}`,
+        case: caseId,
+    });
+    return `${USER_HELP_PATH}?${params.toString()}`;
+};
+
+/**
+ * Link from a ticket back to the case it was raised from. The page is client
+ * supplied, so only an exact user Fast Track case path with a valid ID counts.
+ */
+export const getSupportTicketCaseLink = (
+    page: string | null | undefined,
+    role: 'user' | 'manager' | 'admin',
+): { caseId: string; path: string } | null => {
+    const value = String(page || '').trim();
+    const separatorIndex = value.indexOf('?');
+    if (separatorIndex < 0 || value.slice(0, separatorIndex) !== USER_FAST_TRACK_PATH) {
+        return null;
+    }
+    const caseId = normalizeSupportCaseId(new URLSearchParams(value.slice(separatorIndex + 1)).get('case'));
+    if (!caseId) {
+        return null;
+    }
+    if (role === 'admin') {
+        return { caseId, path: `${ADMIN_FAST_TRACK_PATH}?${new URLSearchParams({ case: caseId }).toString()}` };
+    }
+    return role === 'user' ? { caseId, path: buildUserFastTrackCasePath(caseId) } : null;
+};
+
 export const focusSupportTicketComposer = (target: HTMLElement | null): void => {
     if (!target) return;
 

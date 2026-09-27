@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, Home, LifeBuoy } from 'lucide-react';
+import { Bell, BellOff, Home, LifeBuoy, Radio } from 'lucide-react';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/contexts/MessagesContext';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { buildConversationPropertyPath, getConversationPropertyNavigationMessage } from '@/lib/messagesInbox';
+import { buildConversationBrokerRequestPath, buildConversationPropertyPath, getConversationPropertyNavigationMessage } from '@/lib/messagesInbox';
 import { getPropertyById } from '@/services/propertyService';
 import MessageBubble from './MessageBubble';
 
@@ -29,6 +29,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     const [propertyNavigationMessage, setPropertyNavigationMessage] = useState<string | null>(null);
     const messageKeyFor = createDuplicateSafeKeyResolver('conversation-message');
     const propertyPath = buildConversationPropertyPath(conversation?.propertyId, user?.role);
+    const brokerRequestPath = buildConversationBrokerRequestPath(conversation?.brokerRequestId, user?.role);
 
     useEffect(() => {
         const lastMessageId = messages[messages.length - 1]?.id || null;
@@ -118,6 +119,18 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                             <Home size={16} />
                             <span className="sm:hidden">Property</span>
                             <span className="hidden sm:inline">Back to property</span>
+                        </button>
+                    ) : null}
+                    {brokerRequestPath ? (
+                        <button
+                            type="button"
+                            onClick={() => navigate(brokerRequestPath)}
+                            aria-label="Back to agent request"
+                            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-500/50 dark:hover:text-orange-300 sm:gap-2 sm:px-4 sm:text-sm"
+                        >
+                            <Radio size={16} />
+                            <span className="sm:hidden">Request</span>
+                            <span className="hidden sm:inline">Back to agent request</span>
                         </button>
                     ) : null}
                     <button
