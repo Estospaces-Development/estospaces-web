@@ -66,5 +66,5 @@ test('an over-limit or failed message keeps the draft and shows the reason', () 
     // A rejected send is re-thrown with the server's message so the composer does not clear the draft.
     const handleSend = messagesPageSource.slice(messagesPageSource.indexOf('const handleSend'));
     assert.match(handleSend, /catch \(err\) \{[\s\S]*?setError\(err instanceof Error && err\.message \? err\.message :[\s\S]*?throw err;/);
-    assert.match(contextSource, /throw error instanceof Error && error\.message \? error : new Error\('Failed to send message'\)/);
+    assert.match(contextSource, /throw new Error\(getMessageSendFailureText\(error\)\);/);
 });

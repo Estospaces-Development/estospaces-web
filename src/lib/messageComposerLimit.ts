@@ -13,4 +13,14 @@ export const getMessageLengthState = (text: string) => {
     };
 };
 
-export const MESSAGE_TOO_LONG_TEXT = `This message is too long. Shorten it to ${MESSAGE_MAX_BYTES.toLocaleString('en-GB')} characters or fewer to send.`;
+// The limit is in bytes, so non-Latin text reaches it sooner; the copy does not promise a character count.
+export const MESSAGE_TOO_LONG_TEXT = 'This message is too long to send. Shorten it and try again.';
+
+const MESSAGE_SEND_FALLBACK = 'Failed to send message. Please try again.';
+const GENERIC_SEND_ERROR = /^(internal server error|api error\b|request timed out|failed to fetch|network ?error|load failed|\d{3}\b)/i;
+
+// Keeps actionable server messages (length, empty, broker context) and hides transport noise.
+export const getMessageSendFailureText = (error: unknown): string => {
+    const message = error instanceof Error ? error.message.trim() : '';
+    return message && !GENERIC_SEND_ERROR.test(message) ? message : MESSAGE_SEND_FALLBACK;
+};

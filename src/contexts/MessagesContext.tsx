@@ -15,6 +15,7 @@ import {
 import { getAuthTokenVersion } from '@/lib/authToken';
 import { formatConversationTime } from '@/lib/conversationTime';
 import { mergeLatestMessagePage } from '@/lib/messagePagination';
+import { getMessageSendFailureText } from '@/lib/messageComposerLimit';
 import {
     createUnavailableConversationThreadIssue,
     isUnavailableConversationThreadError,
@@ -897,7 +898,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         } catch (error) {
             // The message was not sent: keep the server's explanation (e.g. the
             // length limit) so the composer can show it and keep the draft.
-            throw error instanceof Error && error.message ? error : new Error('Failed to send message');
+            throw new Error(getMessageSendFailureText(error));
         }
 
         try {
