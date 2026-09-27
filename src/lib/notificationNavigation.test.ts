@@ -256,3 +256,95 @@ test('broker role uses manager messaging and support notification routes', () =>
 test('broker role opens the manager notifications page from the dropdown', () => {
     assert.equal(getNotificationsPagePath('broker'), '/manager/notifications');
 });
+
+test('manager Fast Track alerts carrying an old user path are remapped to the manager case', () => {
+    const path = getNotificationNavigationPath({
+        type: 'fast_track_updated',
+        data: {
+            target_path: '/user/dashboard/case-file?case=case-legacy-1',
+            fast_track_id: 'case-legacy-1',
+        },
+    }, 'manager');
+
+    assert.equal(path, '/manager/fast-track?case=case-legacy-1');
+});
+
+test('remapped alerts keep the document focus and fall back to the case id in the old path', () => {
+    const path = getNotificationNavigationPath({
+        type: 'fast_track_updated',
+        data: {
+            target_path: '/user/dashboard/fast-track?case=case-legacy-2&section=documents&document=address',
+        },
+    }, 'broker');
+
+    assert.equal(path, '/manager/fast-track?case=case-legacy-2&section=documents&document=address');
+});
+
+test('user alerts carrying a manager path open the user workspace instead of bouncing', () => {
+    const path = getNotificationNavigationPath({
+        type: 'fast_track_started',
+        data: {
+            target_path: '/manager/fast-track?case=case-legacy-3',
+            fast_track_id: 'case-legacy-3',
+        },
+    }, 'user');
+
+    assert.equal(path, '/user/dashboard/fast-track?case=case-legacy-3');
+});
+
+test('a wrong-role alert with no mapped type stays in the recipient notifications inbox', () => {
+    assert.equal(getNotificationNavigationPath({
+        type: 'unknown_legacy_type',
+        data: { target_path: '/user/dashboard/case-file?case=case-legacy-4' },
+    }, 'manager'), '/manager/notifications');
+    assert.equal(getNotificationNavigationPath({
+        type: 'fast_track_started',
+        data: { target_path: '/user/dashboard/case-file?case=case-legacy-5', fast_track_id: 'case-legacy-5' },
+    }, 'admin'), '/admin/notifications');
+});
+
+test('role-correct producer paths pass through unchanged', () => {
+    assert.equal(getNotificationNavigationPath({
+        type: 'fast_track_updated',
+        data: {
+            target_path: '/manager/fast-track?case=case-new-1&document=identity&section=documents',
+            fast_track_id: 'case-new-1',
+        },
+    }, 'manager'), '/manager/fast-track?case=case-new-1&document=identity&section=documents');
+    assert.equal(getNotificationNavigationPath({
+        type: 'fast_track_updated',
+        data: {
+            target_path: '/user/dashboard/fast-track?case=case-new-2&document=address&section=documents',
+            fast_track_id: 'case-new-2',
+        },
+    }, 'user'), '/user/dashboard/fast-track?case=case-new-2&document=address&section=documents');
+});
+
+test('old viewing alerts that targeted the case file open the viewing stage instead', () => {
+    assert.equal(getNotificationNavigationPath({
+        type: 'viewing_confirmed',
+        data: {
+            target_path: '/user/dashboard/case-file?case=case-viewing-1',
+            viewing_id: 'viewing-1',
+            property_id: 'property-1',
+        },
+    }, 'user'), '/user/dashboard/fast-track?viewing=viewing-1&case=case-viewing-1&section=viewing');
+    assert.equal(getNotificationNavigationPath({
+        type: 'viewing_booked',
+        data: {
+            target_path: '/manager/case-files?case=case-viewing-2',
+            viewing_id: 'viewing-2',
+        },
+    }, 'manager'), '/manager/fast-track?viewing=viewing-2&case=case-viewing-2&section=viewing');
+});
+
+test('unlinked viewing alerts open the appointment on the recipient appointments page', () => {
+    assert.equal(getNotificationNavigationPath({
+        type: 'viewing_rescheduled',
+        data: { target_path: '/manager/appointments?viewing=viewing-3', viewing_id: 'viewing-3' },
+    }, 'manager'), '/manager/appointments?viewing=viewing-3');
+    assert.equal(getNotificationNavigationPath({
+        type: 'viewing_cancelled',
+        data: { viewingId: 'viewing-4' },
+    }, 'user'), '/user/dashboard/viewings?viewing=viewing-4');
+});
