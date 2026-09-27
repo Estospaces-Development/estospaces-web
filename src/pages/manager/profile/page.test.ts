@@ -79,3 +79,16 @@ test('manager user-profile save sends only changed personal fields (QA-MB-202609
 test('manager profile heading wraps long names inside the card (QA-MB-20260925-01-014)', () => {
     assert.match(source, /<h2 className="[^"]*break-words \[overflow-wrap:anywhere\][^"]*">\{formData\.firstName\} \{formData\.lastName\}<\/h2>/);
 });
+
+test('a verified manager is warned before a save that core will send back to verification (QA-MB-20260923-01-029)', () => {
+    // The check runs after validation and before any request is sent.
+    assert.match(source, /const pendingReverificationFields = getReverificationTriggerFields\(managerProfile, buildPendingManagerProfilePayload\(\)\);\s*if \(pendingReverificationFields\.length > 0\) \{\s*setReverificationFields\(pendingReverificationFields\);\s*return;\s*\}\s*await saveProfile\(\);/);
+    assert.ok(source.indexOf('const pendingReverificationFields') > source.indexOf("showToast(validationMessage, { type: 'error' });"));
+    assert.ok(source.indexOf('const pendingReverificationFields') < source.indexOf('const saveProfile = async () => {'));
+    // Confirming sends the same payload the warning was computed from; cancelling sends nothing.
+    assert.match(source, /const confirmReverificationSave = \(\) => \{\s*setReverificationFields\(null\);\s*void saveProfile\(\);\s*\};/);
+    assert.match(source, /const managerProfilePayload = buildPendingManagerProfilePayload\(\);/);
+    assert.match(source, /onCancel=\{\(\) => setReverificationFields\(null\)\}/);
+    // Editing a field after the warning invalidates it, so a stale confirmation cannot save new values.
+    assert.match(source, /setSaveError\(''\);\s*setReverificationFields\(null\);/);
+});

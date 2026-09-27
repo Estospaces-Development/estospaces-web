@@ -49,6 +49,8 @@ import {
     fastTrackCaseMatchesQuery,
     FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
+    getFastTrackDocumentItemPermissions,
+    getFastTrackDocumentRowPresentation,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
@@ -58,6 +60,7 @@ import {
     isFastTrackCaseCompleteForRole,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
+    isFastTrackUserActionBlockedOnClosedCase,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
@@ -71,6 +74,7 @@ import {
     resolveFastTrackDisplayedCaseId,
     shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
+    getFastTrackPreviewSourceKey,
 } from '@/lib/fastTrackWorkspace';
 import {
     WORKSPACE_SYNC_INTERVALS,
@@ -535,17 +539,32 @@ interface FastTrackDocumentReviewControlsProps {
     hasAttachedFile: boolean;
     busy: boolean;
     readOnly?: boolean;
+    /** Case/role-derived permissions; when omitted only the file status is considered. */
+    permissions?: { canApprove: boolean; canRequestReplacement: boolean };
+    viewer?: 'reviewer' | 'user';
     onReview: (outcome: 'approved' | 'reupload_needed') => void;
 }
+
+const describeFastTrackDocumentReviewStatus = (
+    status: FastTrackDocumentItem['status'],
+    viewer: 'reviewer' | 'user',
+) => {
+    if (status === 'uploaded') {
+        return viewer === 'user' ? 'File uploaded.' : 'Uploaded. Review is not available at this stage.';
+    }
+    return viewer === 'user' ? 'No file uploaded.' : 'Waiting for the user to upload this file.';
+};
 
 export const FastTrackDocumentReviewControls = ({
     item,
     hasAttachedFile,
     busy,
     readOnly = false,
+    permissions,
+    viewer = 'reviewer',
     onReview,
 }: FastTrackDocumentReviewControlsProps) => {
-    const actions = getFastTrackDocumentReviewActions(item.status, hasAttachedFile);
+    const actions = permissions ?? getFastTrackDocumentReviewActions(item.status, hasAttachedFile);
 
     return (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -569,7 +588,7 @@ export const FastTrackDocumentReviewControls = ({
                 </p>
             ) : (
                 <p className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                    Waiting for the user to upload this file.
+                    {describeFastTrackDocumentReviewStatus(item.status, viewer)}
                 </p>
             )}
             {actions.canRequestReplacement && item.status !== 'approved' ? (
@@ -1596,7 +1615,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const completionRefreshAllowed = action === 'retry_handover_sync'
             && canRefreshFastTrackCompletion(selectedCase, role, user?.id);
         if ((action === 'retry_handover_sync' && !completionRefreshAllowed)
-            || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)) {
+            || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)
+            || (role === 'user' && isFastTrackUserActionBlockedOnClosedCase(selectedCase, action))) {
             setPendingAdminOverrideAction(null);
             setStageConfirmDialog(null);
             setCancelCaseDialogOpen(false);
@@ -2275,23 +2295,34 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         };
     }, [releasePreviewObjectUrl]);
 
+    // Background polling hands back new document objects every few seconds.
+    // Re-resolve the preview only when the previewed file itself changes, so an
+    // access error stays visible and the signed URL isn't re-requested per poll.
+    const previewSourceKey = getFastTrackPreviewSourceKey(
+        previewItem,
+        previewItem ? Boolean(selectedFiles[previewItem.id]) : false,
+    );
+    const latestPreviewRef = useRef({ previewItem, ensureDocumentPreview, selectedFiles });
+    latestPreviewRef.current = { previewItem, ensureDocumentPreview, selectedFiles };
+
     useEffect(() => {
-        if (!previewItem) {
+        const { previewItem: currentPreviewItem, ensureDocumentPreview: ensurePreview, selectedFiles: currentFiles } = latestPreviewRef.current;
+        if (!currentPreviewItem) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError(null);
             setPreviewZoom(0);
             return;
         }
-        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
-        if (!selectedPreviewFile && !previewItem.documentRecordId && !previewItem.fileUrl) {
+        const selectedPreviewFile = currentFiles[currentPreviewItem.id] || null;
+        if (!selectedPreviewFile && !currentPreviewItem.documentRecordId && !currentPreviewItem.fileUrl) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError('Choose a document to preview once a file has been attached.');
             return;
         }
-        void ensureDocumentPreview(previewItem);
-    }, [ensureDocumentPreview, previewItem, previewItemId, releasePreviewObjectUrl, selectedFiles]);
+        void ensurePreview(currentPreviewItem);
+    }, [previewSourceKey, releasePreviewObjectUrl]);
 
     useEffect(() => {
         if (previewModalOpen) {
@@ -2977,10 +3008,23 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item, itemIndex) => {
-                        const canUpload = role === 'user' && canUserPrepareFastTrackDocuments(selectedCase);
                         const busyKey = `upload-${item.id}`;
                         const selectedFile = selectedFiles[item.id] || null;
                         const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
+                        const documentPermissions = getFastTrackDocumentItemPermissions(
+                            selectedCase,
+                            role,
+                            item.status,
+                            Boolean(item.documentRecordId || item.fileUrl),
+                        );
+                        const canUpload = documentPermissions.canUpload;
+                        const rowPresentation = getFastTrackDocumentRowPresentation({
+                            role,
+                            workspaceFinalStatus: selectedCase.workspaceFinalStatus,
+                            canUpload,
+                            canReview: documentPermissions.canApprove || documentPermissions.canRequestReplacement,
+                            hasFile: canPreview,
+                        });
                         const uploadCopy = getFastTrackDocumentUploadCopy({
                             status: item.status,
                             hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
@@ -3062,9 +3106,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 : 'border-gray-100 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300')
                                             : 'border-dashed border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-500',
                                     )}>
-                                        {supportingNote || (canUpload
-                                            ? 'Add a file and one short upload note.'
-                                            : 'Review the file, leave one short note, and move on.')}
+                                        {supportingNote || rowPresentation.guidance}
                                     </div>
                                     {item.requestReason || item.requestDueAt ? (
                                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
@@ -3123,7 +3165,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                     </div>
 
-                                    {canUpload || canPreview ? <input
+                                    {rowPresentation.noteField ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
                                         readOnly={isFastTrackStageReadOnly(selectedCase, role)}
@@ -3133,7 +3175,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             [item.id]: event.target.value,
                                         }))}
                                         aria-label={`Note for ${item.label}`}
-                                        placeholder={canUpload ? 'Short upload note' : 'Short review note'}
+                                        placeholder={rowPresentation.noteField === 'upload' ? 'Short upload note' : 'Short review note'}
                                         className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 read-only:cursor-default read-only:bg-gray-50 read-only:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:read-only:bg-gray-900 dark:read-only:text-gray-400"
                                     /> : null}
 
@@ -3194,6 +3236,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             hasAttachedFile={canPreview}
                                             busy={activeAction === 'review_document'}
                                             readOnly={isFastTrackStageReadOnly(selectedCase, role)}
+                                            permissions={documentPermissions}
+                                            viewer={role === 'user' ? 'user' : 'reviewer'}
                                             onReview={(outcome) => void runAction(
                                                 'review_document',
                                                 {

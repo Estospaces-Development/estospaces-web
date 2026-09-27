@@ -23,3 +23,16 @@ test('unverified billing notice and refresh control retain readable dark-mode te
     assert.match(source, /onClick=\{\(\) => void load\(\)\} className="[^"]*dark:text-gray-100/);
     assert.match(source, /offersError \? <p role="status" className="[^"]*dark:bg-gray-900 dark:text-gray-200/);
 });
+
+test('unverified managers can compare plans but cannot start or resume checkout (QA-MB-20260922-01-001)', () => {
+    assert.match(source, /const checkoutBlockedByVerification = verificationGate\.kind !== 'allow';/);
+    assert.match(source, /if \(checkoutBlockedByVerification\) \{\s*toast\.error\(SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON\);\s*return;\s*\}/);
+    assert.match(source, /if \(!activeCheckout \|\| checkoutBlockedByVerification\) return;\s*await loadRazorpayScript\(\);/);
+    assert.match(source, /checkoutDisabled=\{busy \|\| [^}]*\|\| !recurringConsent \|\| checkoutBlockedByVerification\}/);
+    assert.match(source, /!pendingProof && !checkoutBlockedByVerification \? <button[^\n]*?>Resume secure checkout<\/button>/);
+    assert.match(source, /verificationGate\.kind === 'gate' \? <ManagerVerificationBanner/);
+    // Servicing an existing subscription stays available: status, verification retry and cancellation.
+    assert.doesNotMatch(source, /const checkStatus = \(\) => runAction\('status', async \(\) => \{\s*if \(!activeCheckout \|\| checkoutBlockedByVerification\)/);
+    assert.doesNotMatch(source, /const cancel = \(\) => runAction\('cancel', async \(\) => \{\s*if \(!activeCheckout \|\| checkoutBlockedByVerification\)/);
+    assert.doesNotMatch(source, /const retryVerification = \(\) => runAction\('verify', async \(\) => \{\s*if \(!pendingProof \|\| checkoutBlockedByVerification\)/);
+});
