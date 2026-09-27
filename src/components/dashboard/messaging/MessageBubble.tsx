@@ -1,10 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Check, CheckCheck, FileText, Download } from 'lucide-react';
+import { Check, CheckCheck } from 'lucide-react';
 import { SupportAttachmentPreview } from '@/components/support/SupportAttachmentPreview';
 import { useToast } from '@/contexts/ToastContext';
-import { messagesService } from '@/services/messagesService';
+import {
+    getConversationAttachmentAccessUrl,
+    getSupportAttachmentAccessUrl,
+    messagesService,
+} from '@/services/messagesService';
 import Avatar from '@/components/ui/Avatar';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
@@ -47,87 +51,35 @@ const MessageBubble = ({ message, isUser, isSupportConversation = false, showAva
         });
     };
 
-    const handleOpenSupportAttachment = async (attachmentId: string) => {
+    const handleOpenAttachment = async (attachmentId: string) => {
         if (!attachmentId) {
             toast.error('Attachment is unavailable.');
             return;
         }
 
         try {
-            await messagesService.openSupportAttachment(attachmentId);
+            if (isSupportConversation) {
+                await messagesService.openSupportAttachment(attachmentId);
+            } else {
+                await messagesService.openConversationAttachment(attachmentId);
+            }
         } catch {
-            toast.error('Unable to open this support attachment right now.');
+            toast.error('Unable to open this attachment right now.');
         }
     };
 
-    const renderAttachment = (attachment: Attachment) => {
-        if (isSupportConversation) {
-            return (
-                <div className="mt-2">
-                    <SupportAttachmentPreview
-                        attachment={attachment}
-                        emphasized={isUser}
-                        onOpenAttachment={(attachmentId) => void handleOpenSupportAttachment(attachmentId)}
-                    />
-                </div>
-            );
-        }
-
-        if ((attachment.mime_type || '').startsWith('image/')) {
-            return (
-                <div className="mt-2 rounded-lg overflow-hidden">
-                    <img
-                        src={attachment.file_url}
-                        alt={attachment.file_name}
-                        className="max-w-full h-auto max-h-64 object-cover"
-                    />
-                </div>
-            );
-        } else if (attachment.mime_type === 'application/pdf') {
-            return (
-                <div className="mt-2 flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <FileText size={20} className="text-gray-600 dark:text-gray-400" />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {attachment.file_name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : 'PDF Document'}
-                        </p>
-                    </div>
-                    <a
-                        href={attachment.file_url}
-                        download={attachment.file_name}
-                        aria-label={`Download ${attachment.file_name}`}
-                        title={`Download ${attachment.file_name}`}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                    >
-                        <Download size={16} />
-                    </a>
-                </div>
-            );
-        } else {
-            return (
-                <div className="mt-2 flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <FileText size={20} className="text-gray-600 dark:text-gray-400" />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {attachment.file_name}
-                        </p>
-                    </div>
-                    <a
-                        href={attachment.file_url}
-                        download={attachment.file_name}
-                        aria-label={`Download ${attachment.file_name}`}
-                        title={`Download ${attachment.file_name}`}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                    >
-                        <Download size={16} />
-                    </a>
-                </div>
-            );
-        }
-    };
+    // Attachments are private files: previews and downloads always go through a
+    // short-lived signed URL issued after a server-side participant check.
+    const renderAttachment = (attachment: Attachment) => (
+        <div className="mt-2">
+            <SupportAttachmentPreview
+                attachment={attachment}
+                emphasized={isUser}
+                getAccessUrl={isSupportConversation ? getSupportAttachmentAccessUrl : getConversationAttachmentAccessUrl}
+                onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)}
+            />
+        </div>
+    );
 
     return (
         <div className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
