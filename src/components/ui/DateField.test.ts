@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+    buildDateFieldCalendarDays,
+    DATE_FIELD_CALENDAR_CELL_COUNT,
     DATE_FIELD_POPOVER_Z_INDEX_CLASS,
     resolveDateFieldInitialFocusDate,
     resolveDateFieldKeyboardTarget,
@@ -160,4 +162,18 @@ test('QA-MB-20260925-01-007: calendar layer is above the shared Modal and in-pag
     assert.ok(Number.isFinite(modalZ), 'Modal z-index is discoverable');
     assert.ok(zOf(DATE_FIELD_POPOVER_Z_INDEX_CLASS) > modalZ);
     assert.ok(zOf(DATE_FIELD_POPOVER_Z_INDEX_CLASS) > 9999);
+});
+
+test('verifier F1: every month renders the same 42-cell grid, including 5-row and 6-row months', () => {
+    for (const month of ['2026-12-01', '2027-01-01', '2026-02-01', '2027-02-01', '2026-08-01']) {
+        const days = buildDateFieldCalendarDays(day(month));
+        assert.equal(days.length, DATE_FIELD_CALENDAR_CELL_COUNT, month);
+        assert.equal(days[0].getDay(), 0, `${month} grid starts on Sunday`);
+        assert.ok(days.some((value) => iso(value) === month), `${month} grid contains the 1st`);
+    }
+    // Dec 2026 needs 5 rows and Jan 2027 needs 6; both grids have the same size.
+    assert.equal(iso(buildDateFieldCalendarDays(day('2026-12-01'))[0]), '2026-11-29');
+    assert.equal(iso(buildDateFieldCalendarDays(day('2026-12-01'))[41]), '2027-01-09');
+    assert.equal(iso(buildDateFieldCalendarDays(day('2027-01-01'))[0]), '2026-12-27');
+    assert.equal(iso(buildDateFieldCalendarDays(day('2027-01-01'))[41]), '2027-02-06');
 });

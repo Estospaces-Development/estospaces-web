@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { addDays, addMonths, addYears, eachDayOfInterval, endOfMonth, endOfWeek, format, isAfter, isBefore, isSameDay, isSameMonth, parseISO, startOfMonth, startOfToday, startOfWeek, subMonths } from 'date-fns';
+import { addDays, addMonths, addYears, eachDayOfInterval, endOfWeek, format, isAfter, isBefore, isSameDay, isSameMonth, parseISO, startOfMonth, startOfToday, startOfWeek, subMonths } from 'date-fns';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type DateFieldSize = 'sm' | 'md';
@@ -58,6 +58,7 @@ const POPOVER_MAX_WIDTH = 320;
 // (short landscape phones), the panel covers the viewport height instead and
 // scrolls internally so Clear/Today stay reachable.
 const POPOVER_MIN_SIDE_HEIGHT = 240;
+const DATE_FIELD_TOUCH_SLOP_PX = 10;
 
 /**
  * Tailwind z-index class for the calendar panel. It must stay above the shared
@@ -200,6 +201,18 @@ export function resolveDateFieldKeyboardTarget(
     return next;
 }
 
+export const DATE_FIELD_CALENDAR_CELL_COUNT = 42;
+
+/**
+ * Always six week rows (42 cells). Months span 4-6 rows; a variable row count
+ * changes the panel height, which moves an above/viewport-clamped panel's top
+ * edge and the month buttons out from under the pointer while paging.
+ */
+export function buildDateFieldCalendarDays(month: Date): Date[] {
+    const start = startOfWeek(startOfMonth(month));
+    return eachDayOfInterval({ start, end: addDays(start, DATE_FIELD_CALENDAR_CELL_COUNT - 1) });
+}
+
 /** Day that receives focus when the calendar opens. */
 export function resolveDateFieldInitialFocusDate(
     selected: Date | null,
@@ -303,14 +316,52 @@ export default function DateField({
             return;
         }
 
-        const handlePointerDown = (event: Event) => {
-            const target = event.target as Node | null;
-            if (!target) {
+        const isOutside = (target: EventTarget | null) => Boolean(
+            target
+            && !wrapperRef.current?.contains(target as Node)
+            && !panelRef.current?.contains(target as Node),
+        );
+        // Touch/pen presses outside close only on release without significant
+        // movement, so a scroll or drag gesture that starts outside the panel
+        // does not dismiss it. Mouse presses close immediately (mousedown parity).
+        let pendingTouchPress: { pointerId: number; x: number; y: number } | null = null;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            if (!isOutside(event.target)) {
+                pendingTouchPress = null;
                 return;
             }
-            if (!wrapperRef.current?.contains(target) && !panelRef.current?.contains(target)) {
+            if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+                pendingTouchPress = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+                return;
+            }
+            closePopover('if-lost');
+        };
+
+        const movedBeyondSlop = (event: PointerEvent) => Boolean(
+            pendingTouchPress
+            && Math.hypot(event.clientX - pendingTouchPress.x, event.clientY - pendingTouchPress.y) > DATE_FIELD_TOUCH_SLOP_PX,
+        );
+
+        const handlePointerMove = (event: PointerEvent) => {
+            if (pendingTouchPress?.pointerId === event.pointerId && movedBeyondSlop(event)) {
+                pendingTouchPress = null;
+            }
+        };
+
+        const handlePointerUp = (event: PointerEvent) => {
+            if (!pendingTouchPress || pendingTouchPress.pointerId !== event.pointerId) {
+                return;
+            }
+            const isTap = !movedBeyondSlop(event);
+            pendingTouchPress = null;
+            if (isTap) {
                 closePopover('if-lost');
             }
+        };
+
+        const handlePointerCancel = () => {
+            pendingTouchPress = null;
         };
 
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -344,10 +395,16 @@ export default function DateField({
         };
 
         document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('pointermove', handlePointerMove);
+        document.addEventListener('pointerup', handlePointerUp);
+        document.addEventListener('pointercancel', handlePointerCancel);
         document.addEventListener('keydown', handleKeyDown, true);
 
         return () => {
             document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            document.removeEventListener('pointercancel', handlePointerCancel);
             document.removeEventListener('keydown', handleKeyDown, true);
         };
     }, [closePopover, open]);
@@ -402,11 +459,7 @@ export default function DateField({
         };
     }, [align, open, visibleMonth]);
 
-    const calendarDays = useMemo(() => {
-        const start = startOfWeek(startOfMonth(visibleMonth));
-        const end = endOfWeek(endOfMonth(visibleMonth));
-        return eachDayOfInterval({ start, end });
-    }, [visibleMonth]);
+    const calendarDays = useMemo(() => buildDateFieldCalendarDays(visibleMonth), [visibleMonth]);
 
     const isDayDisabled = useCallback((day: Date) => {
         if (minDate && isBefore(day, startOfDay(minDate))) {
