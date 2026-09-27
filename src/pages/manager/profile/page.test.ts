@@ -58,3 +58,24 @@ test('manager profile saves professional fields through the canonical verificati
     assert.match(source, /await syncManagerProfile\(managerProfilePayload\)/);
     assert.doesNotMatch(source, /payload\.broker_settings/);
 });
+
+test('manager profile loads stored name parts instead of re-splitting the display name', () => {
+    assert.match(source, /const hasStoredNameParts = Boolean\(user\.first_name \|\| user\.last_name\);/);
+    assert.match(source, /hasStoredNameParts \? \(user\.first_name \|\| ''\)/);
+    assert.match(source, /hasStoredNameParts \? \(user\.last_name \|\| ''\)/);
+});
+
+test('manager user-profile save sends only changed personal fields (QA-MB-20260923-01-032)', () => {
+    assert.match(source, /const personalBaselineRef = useRef</);
+    assert.match(source, /\.\.\.buildChangedProfileFields\(personalBaseline, submittedPersonalValues\)/);
+    assert.match(source, /avatarValue !== undefined && avatarValue !== storedAvatarValue \? \{ avatar: avatarValue \} : \{\}/);
+    assert.doesNotMatch(source, /first_name: formData\.firstName,/);
+    assert.doesNotMatch(source, /address: formData\.address,\s*postcode: formData\.postcode,\s*avatar: avatarValue/);
+    // Broker-profile sync (the re-verification path) is still sent in full.
+    assert.match(source, /personalAddress: formData\.address,/);
+    assert.match(source, /await syncManagerProfile\(managerProfilePayload\)/);
+});
+
+test('manager profile heading wraps long names inside the card (QA-MB-20260925-01-014)', () => {
+    assert.match(source, /<h2 className="[^"]*break-words \[overflow-wrap:anywhere\][^"]*">\{formData\.firstName\} \{formData\.lastName\}<\/h2>/);
+});

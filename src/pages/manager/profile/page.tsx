@@ -18,6 +18,7 @@ import {
     type ManagerVerificationProfileField,
 } from '@/lib/managerVerificationProfileRequirements';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
+import { buildChangedProfileFields, type ProfileFormValues } from '@/lib/profileUpdatePayload';
 import {
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
@@ -92,6 +93,9 @@ export default function ManagerProfilePage() {
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const isEditingProfileRef = useRef(false);
+    // Personal values the form was loaded with; the user-profile save sends only
+    // fields that differ from these so a stale tab cannot revert another session's save.
+    const personalBaselineRef = useRef<ProfileFormValues & { bio?: string; website?: string }>({});
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -127,9 +131,25 @@ export default function ManagerProfilePage() {
             return;
         }
 
-        const nameParts = (user?.name || '').split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        // Prefer the stored name parts; re-splitting the display name moves the
+        // second word of a multi-word first name into the last name.
+        const hasStoredNameParts = Boolean(user.first_name || user.last_name);
+        const nameParts = (user.name || '').split(' ');
+        const firstName = hasStoredNameParts ? (user.first_name || '') : (nameParts[0] || '');
+        const lastName = hasStoredNameParts ? (user.last_name || '') : (nameParts.slice(1).join(' ') || '');
+        const loadedAddress = formatOptionalLaunchPropertyLocation(user.address ?? '');
+        const loadedPostcode = formatLaunchLocationCode(user.postcode ?? '');
+        const loadedBio = managerProfile?.company_description ?? user?.user_metadata?.bio ?? '';
+        const loadedWebsite = user.user_metadata?.website ?? '';
+        personalBaselineRef.current = {
+            firstName,
+            lastName,
+            phone: user.phone ?? '',
+            address: loadedAddress,
+            postcode: loadedPostcode,
+            website: loadedWebsite,
+            bio: loadedBio,
+        };
 
         setFormData(prev => ({
             ...prev,
@@ -137,12 +157,10 @@ export default function ManagerProfilePage() {
             lastName: user ? lastName : prev.lastName,
             email: user ? (user.email || '') : prev.email,
             phone: user ? (user.phone ?? '') : prev.phone,
-            address: user ? formatOptionalLaunchPropertyLocation(user.address ?? '') : prev.address,
-            postcode: user ? formatLaunchLocationCode(user.postcode ?? '') : prev.postcode,
-            bio: isManagerProfileLoading
-                ? prev.bio
-                : (managerProfile?.company_description ?? user?.user_metadata?.bio ?? ''),
-            website: user ? (user.user_metadata?.website ?? '') : prev.website,
+            address: user ? loadedAddress : prev.address,
+            postcode: user ? loadedPostcode : prev.postcode,
+            bio: loadedBio,
+            website: user ? loadedWebsite : prev.website,
             // Broker / manager fields
             companyName: isManagerProfileLoading ? prev.companyName : (managerProfile?.company_name ?? ''),
             branchName: isManagerProfileLoading ? prev.branchName : formatLaunchPropertyText(managerProfile?.branch_name ?? '', ''),
@@ -384,16 +402,29 @@ export default function ManagerProfilePage() {
                 avatarValue = uploadedAvatar.file_url;
             }
             
-            const payload: any = {
-                first_name: formData.firstName,
-                last_name: formData.lastName,
+            const personalBaseline = personalBaselineRef.current;
+            const submittedPersonalValues: ProfileFormValues = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
                 phone: formData.phone,
                 address: formData.address,
                 postcode: formData.postcode,
-                avatar: avatarValue,
+            };
+            const changedMetadata: Record<string, string> = {};
+            if (formData.bio !== (personalBaseline.bio ?? '')) {
+                changedMetadata.bio = formData.bio;
+            }
+            if (formData.website !== (personalBaseline.website ?? '')) {
+                changedMetadata.website = formData.website;
+            }
+            // Only changed user-profile fields are sent. The broker-profile sync
+            // (syncManagerProfile) still sends its full payload, so re-verification
+            // triggers are unaffected.
+            const payload: Record<string, unknown> = {
+                ...buildChangedProfileFields(personalBaseline, submittedPersonalValues),
+                ...(avatarValue !== undefined && avatarValue !== storedAvatarValue ? { avatar: avatarValue } : {}),
                 metadata: {
-                    bio: formData.bio,
-                    website: formData.website,
+                    ...changedMetadata,
                     profile_type: isManager ? 'company' : 'individual'
                 }
             };
@@ -421,6 +452,12 @@ export default function ManagerProfilePage() {
             if (data) {
                 mergeCurrentUserProfile(data);
             }
+            personalBaselineRef.current = {
+                ...personalBaseline,
+                ...submittedPersonalValues,
+                bio: formData.bio,
+                website: formData.website,
+            };
 
             const savedAvatar = avatarValue || (user?.avatar_url || user?.avatar || null) || null;
             const resolvedSavedAvatar = resolveMediaUrl(savedAvatar) || null;
@@ -600,7 +637,7 @@ export default function ManagerProfilePage() {
                         <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                             Click the profile image to upload a JPG, PNG, or WebP under 5 MB.
                         </p>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{formData.firstName} {formData.lastName}</h2>
+                        <h2 className="max-w-full text-xl font-bold text-gray-900 dark:text-gray-100 break-words [overflow-wrap:anywhere]">{formData.firstName} {formData.lastName}</h2>
                         <p className="text-orange-600 dark:text-orange-400 font-medium text-sm mb-1">
                             {isVerified
                                 ? (isPropertySubmissionReady ? 'Verified Manager' : 'Approved Manager')

@@ -3,7 +3,7 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     User,
@@ -24,7 +24,12 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useApplications } from '@/contexts/ApplicationsContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
-import { validateFullName, validatePhoneInput } from '@/lib/profileValidation';
+import { type ProfileNameErrors, validatePhoneInput, validateProfileNameFields } from '@/lib/profileValidation';
+import {
+    buildChangedProfileFields,
+    PROFILE_ADDRESS_MAX_LENGTH,
+    type ProfileFormValues,
+} from '@/lib/profileUpdatePayload';
 import { getLoginPath } from '@/lib/authUtils';
 import { resolveMediaUrl } from '@/lib/mediaUrls';
 import {
@@ -42,7 +47,8 @@ export default function ProfilePage() {
     const toast = useToast();
 
     const [formData, setFormData] = useState({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         email: '',
         phone: '',
         address: '',
@@ -53,12 +59,14 @@ export default function ProfilePage() {
     const [viewingsCount, setViewingsCount] = useState(0);
 
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
-    const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [profileValidationError, setProfileValidationError] = useState('');
+    // Values the form was loaded with; saves send only fields that differ from these.
+    const [baselineData, setBaselineData] = useState<ProfileFormValues>({});
+    const [nameErrors, setNameErrors] = useState<ProfileNameErrors>({});
     const [phoneError, setPhoneError] = useState('');
     const geoMarket = useUserGeoMarket(currentUser, { locationCode: formData.postcode || currentUser?.postcode });
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
@@ -82,23 +90,24 @@ export default function ProfilePage() {
             return;
         }
 
-        setFormData({
-            email: currentUser.email || '',
-            fullName: currentUser.user_metadata?.full_name || currentUser.name || currentUser.email || '',
+        const loadedProfile = {
+            firstName: currentUser.first_name || '',
+            lastName: currentUser.last_name || '',
             phone: currentUser.phone || '',
             address: currentUser.address || '',
             postcode: currentUser.postcode || '',
             country: currentUser.country || '',
-        });
+        };
+        setFormData({ ...loadedProfile, email: currentUser.email || '' });
+        setBaselineData(loadedProfile);
         const existingAvatar = currentUser.avatar_url || currentUser.avatar || null;
         const resolvedAvatar = resolveMediaUrl(existingAvatar);
         setProfileImagePreview(resolvedAvatar);
-        setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
         fetchStats();
     }, [authLoading, currentUser, fetchStats, isAuthenticated, navigate]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
 
         if (name === 'phone') {
@@ -117,8 +126,8 @@ export default function ProfilePage() {
 
         setFormData(prev => ({ ...prev, [name]: name === 'postcode' ? sanitizeLaunchLocationCodeInput(value) : value }));
         setSaveSuccess(false);
-        if (name === 'fullName') {
-            setProfileValidationError('');
+        if (name === 'firstName' || name === 'lastName') {
+            setNameErrors(prev => ({ ...prev, [name]: undefined }));
         }
         if (name === 'email') {
             // Email is disabled — no error to clear.
@@ -156,10 +165,14 @@ export default function ProfilePage() {
     };
 
     const handleSaveProfile = async () => {
-        const fullNameError = validateFullName(formData.fullName);
-        if (fullNameError) {
-            setProfileValidationError(fullNameError);
-            toast.error(fullNameError);
+        const nextNameErrors = validateProfileNameFields({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+        });
+        setNameErrors(nextNameErrors);
+        const nameError = nextNameErrors.firstName || nextNameErrors.lastName;
+        if (nameError) {
+            toast.error(nameError);
             return;
         }
 
@@ -170,34 +183,41 @@ export default function ProfilePage() {
             return;
         }
 
+        const submittedValues: ProfileFormValues = {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phone: formData.phone,
+            address: formData.address,
+            postcode: formData.postcode,
+            country: formData.country,
+        };
+        const changedFields = buildChangedProfileFields(baselineData, submittedValues);
+        const shouldUploadAvatar = Boolean(selectedAvatarFile && currentUser?.id);
+        if (Object.keys(changedFields).length === 0 && !shouldUploadAvatar) {
+            toast.info('No changes to save.');
+            return;
+        }
+
         try {
             setSavingProfile(true);
             let avatarValue: string | undefined;
-            const prevPreview = profileImagePreview;
 
             if (selectedAvatarFile && currentUser?.id) {
                 const uploadedAvatar = await uploadMediaFile(
                     selectedAvatarFile,
                     'user',
                     currentUser.id,
-                    `${formData.fullName || 'User'} profile photo`,
+                    `${[formData.firstName, formData.lastName].join(' ').trim() || 'User'} profile photo`,
                     true,
                 );
                 avatarValue = uploadedAvatar.file_url;
-            } else if (storedAvatarValue && !storedAvatarValue.startsWith('data:')) {
-                avatarValue = storedAvatarValue;
-            } else {
-                avatarValue = prevPreview || undefined;
             }
 
+            // Only changed fields are sent, so a stale tab cannot revert a field
+            // that another session saved after this form was loaded.
             const { data, error } = await updateProfile({
-                first_name: formData.fullName.split(' ')[0],
-                last_name: formData.fullName.split(' ').slice(1).join(' '),
-                phone: formData.phone,
-                address: formData.address,
-                postcode: formData.postcode,
-                country: formData.country,
-                avatar: avatarValue,
+                ...changedFields,
+                ...(avatarValue ? { avatar: avatarValue } : {}),
             });
 
             if (error) throw new Error(error);
@@ -206,9 +226,10 @@ export default function ProfilePage() {
                 mergeCurrentUserProfile(data);
             }
 
-            const nextAvatar = resolveMediaUrl(avatarValue || prevPreview || '');
-            setProfileImagePreview(nextAvatar);
-            setStoredAvatarValue(avatarValue || prevPreview || '');
+            if (avatarValue) {
+                setProfileImagePreview(resolveMediaUrl(avatarValue));
+            }
+            setBaselineData(submittedValues);
             setSelectedAvatarFile(null);
             setSaveSuccess(true);
             toast.success('Profile updated successfully');
@@ -284,25 +305,31 @@ export default function ProfilePage() {
                                         </div>
                                     )}
                                 </div>
-                                <label
-                                    htmlFor="avatar-upload"
-                                    className="absolute -bottom-2 -right-2 bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-2xl shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-all"
+                                <button
+                                    type="button"
+                                    onClick={() => avatarInputRef.current?.click()}
+                                    disabled={uploadingImage || savingProfile}
+                                    aria-label="Change profile photo"
+                                    title="Change profile photo"
+                                    className="absolute -bottom-2 -right-2 bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-2xl shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 disabled:cursor-wait disabled:opacity-70"
                                 >
-                                    <Camera size={18} />
-                                    <input
-                                        type="file"
-                                        id="avatar-upload"
-                                        name="profile-avatar"
-                                        aria-label="Upload profile photo"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handleImageSelect}
-                                    />
-                                </label>
+                                    <Camera size={18} aria-hidden="true" />
+                                </button>
+                                <input
+                                    ref={avatarInputRef}
+                                    type="file"
+                                    id="avatar-upload"
+                                    name="profile-avatar"
+                                    aria-label="Upload profile photo"
+                                    tabIndex={-1}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageSelect}
+                                />
                             </div>
 
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.fullName || 'User'}</h2>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{formData.email}</p>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">{[formData.firstName, formData.lastName].join(' ').trim() || 'User'}</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium break-words [overflow-wrap:anywhere]">{formData.email}</p>
 
                             <div className="mt-8 grid grid-cols-1 gap-2 border-t pt-8 min-[360px]:grid-cols-3 dark:border-gray-800">
                                 <div className="text-center">
@@ -348,21 +375,47 @@ export default function ProfilePage() {
                             <div className="p-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                            <label htmlFor="user-full-name" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>
-                                            <input
-                                                id="user-full-name"
+                                        <label htmlFor="user-first-name" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">First Name</label>
+                                        <input
+                                            id="user-first-name"
                                             type="text"
-                                            name="fullName"
-                                            value={formData.fullName}
+                                            name="firstName"
+                                            autoComplete="given-name"
+                                            required
+                                            maxLength={80}
+                                            value={formData.firstName}
                                             onChange={handleInputChange}
-                                            aria-invalid={profileValidationError ? 'true' : 'false'}
-                                            aria-describedby={profileValidationError ? 'user-full-name-error' : undefined}
+                                            aria-invalid={nameErrors.firstName ? 'true' : 'false'}
+                                            aria-describedby={nameErrors.firstName ? 'user-first-name-error' : undefined}
                                             className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
-                                            placeholder="Enter your full name"
+                                            placeholder="Enter your first name"
                                         />
-                                        {profileValidationError && (
-                                            <p id="user-full-name-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
-                                                {profileValidationError}
+                                        {nameErrors.firstName && (
+                                            <p id="user-first-name-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {nameErrors.firstName}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label htmlFor="user-last-name" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Last Name</label>
+                                        <input
+                                            id="user-last-name"
+                                            type="text"
+                                            name="lastName"
+                                            autoComplete="family-name"
+                                            required
+                                            maxLength={80}
+                                            value={formData.lastName}
+                                            onChange={handleInputChange}
+                                            aria-invalid={nameErrors.lastName ? 'true' : 'false'}
+                                            aria-describedby={nameErrors.lastName ? 'user-last-name-error' : undefined}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                            placeholder="Enter your last name"
+                                        />
+                                        {nameErrors.lastName && (
+                                            <p id="user-last-name-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {nameErrors.lastName}
                                             </p>
                                         )}
                                     </div>
@@ -426,14 +479,17 @@ export default function ProfilePage() {
                                             <label htmlFor="user-residential-address" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Residential Address</label>
                                             <div className="relative">
                                                 <Building className="absolute left-5 top-5 text-gray-400" size={18} />
-                                                <input
+                                                <textarea
                                                     id="user-residential-address"
                                                     name="address"
-                                                value={formData.address}
-                                                onChange={handleInputChange}
-                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white min-h-[56px]"
-                                                placeholder="Your complete address..."
-                                            />
+                                                    rows={3}
+                                                    maxLength={PROFILE_ADDRESS_MAX_LENGTH}
+                                                    autoComplete="street-address"
+                                                    value={formData.address}
+                                                    onChange={handleInputChange}
+                                                    className="w-full resize-y whitespace-pre-wrap bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white min-h-[56px]"
+                                                    placeholder="Your complete address..."
+                                                />
                                         </div>
                                     </div>
                                 </div>

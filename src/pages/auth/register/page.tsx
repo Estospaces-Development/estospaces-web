@@ -527,7 +527,7 @@ export default function RegisterPage() {
         setEmail(normalizedEmail);
 
         try {
-            const result = await register(buildRegisterFullName(firstName, lastName), normalizedEmail, password, role, {
+            const result = await register({ firstName, lastName }, normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
                 country: role === 'manager' ? country : undefined,
