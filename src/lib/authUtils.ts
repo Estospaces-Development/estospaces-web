@@ -154,18 +154,149 @@ export interface AuthRedirectLocationLike {
     hash?: string | null;
 }
 
+const RETURN_PATH_BASE_ORIGIN = 'https://return-path.invalid';
+const PUBLIC_SEARCH_RETURN_PATH = '/search';
+
+const hasForbiddenReturnPathCharacter = (value: string) => {
+    for (let index = 0; index < value.length; index += 1) {
+        const code = value.charCodeAt(index);
+        if (code <= 0x1f || code === 0x7f || value[index] === '\\') {
+            return true;
+        }
+    }
+    return false;
+};
+
+/**
+ * Accepts only a same-origin, relative application path ("/path?query#hash").
+ * Absolute URLs, protocol-relative URLs ("//host"), backslash tricks, control
+ * characters and auth routes are rejected so a return target can never become
+ * an open redirect or a login loop.
+ */
+export function sanitizeInternalReturnPath(value: unknown): string | null {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const candidate = value.trim();
+    if (
+        !candidate.startsWith('/')
+        || candidate.startsWith('//')
+        || hasForbiddenReturnPathCharacter(candidate)
+    ) {
+        return null;
+    }
+
+    let parsed: URL;
+    try {
+        parsed = new URL(candidate, RETURN_PATH_BASE_ORIGIN);
+    } catch {
+        return null;
+    }
+
+    if (parsed.origin !== RETURN_PATH_BASE_ORIGIN || isAuthRoutePath(parsed.pathname)) {
+        return null;
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+}
+
+function toSanitizedReturnLocation(value: unknown): AuthRedirectLocationLike | null {
+    let rawPath: unknown = value;
+    if (value && typeof value === 'object') {
+        const location = value as AuthRedirectLocationLike;
+        rawPath = `${location.pathname || ''}${location.search || ''}${location.hash || ''}`;
+    }
+
+    const sanitized = sanitizeInternalReturnPath(rawPath);
+    if (!sanitized) {
+        return null;
+    }
+
+    const parsed = new URL(sanitized, RETURN_PATH_BASE_ORIGIN);
+    return { pathname: parsed.pathname, search: parsed.search, hash: parsed.hash };
+}
+
+/**
+ * Public pages a signed-in seeker may resume after a guest action handoff.
+ */
+export function isPublicSeekerReturnPath(pathname: string): boolean {
+    const normalizedPath = normalizePathname(pathname);
+    return normalizedPath === PUBLIC_SEARCH_RETURN_PATH || isPublicUserPropertyDetailPath(normalizedPath);
+}
+
+/**
+ * Resolves the requested return location from the login route's router state
+ * (`state.from`) or, failing that, its `?redirect=` query parameter.
+ */
+export function resolveLoginReturnLocation(
+    routerState: unknown,
+    search?: string | null,
+): AuthRedirectLocationLike | null {
+    const stateFrom = routerState && typeof routerState === 'object'
+        ? (routerState as { from?: unknown }).from
+        : undefined;
+    const fromState = toSanitizedReturnLocation(stateFrom);
+    if (fromState) {
+        return fromState;
+    }
+
+    const redirectParam = new URLSearchParams(search || '').get('redirect');
+    return toSanitizedReturnLocation(redirectParam);
+}
+
+export interface ReturnNavigationState {
+    backTo: string;
+    backLabel?: string;
+}
+
+/**
+ * Carries a validated "Back" target (for example the originating search query)
+ * through the login handoff. Anything that is not an internal path is dropped.
+ */
+export function sanitizeReturnNavigationState(value: unknown): ReturnNavigationState | undefined {
+    if (!value || typeof value !== 'object') {
+        return undefined;
+    }
+
+    const candidate = value as { backTo?: unknown; backLabel?: unknown };
+    const backTo = sanitizeInternalReturnPath(candidate.backTo);
+    if (!backTo) {
+        return undefined;
+    }
+
+    const backLabel = typeof candidate.backLabel === 'string' ? candidate.backLabel.trim().slice(0, 60) : '';
+    return backLabel ? { backTo, backLabel } : { backTo };
+}
+
+export function resolveLoginReturnNavigationState(routerState: unknown): ReturnNavigationState | undefined {
+    const stateFrom = routerState && typeof routerState === 'object'
+        ? (routerState as { from?: { state?: unknown } }).from
+        : undefined;
+    return sanitizeReturnNavigationState(stateFrom && typeof stateFrom === 'object' ? stateFrom.state : undefined);
+}
+
 export function getPostLoginRedirectPath(
     role?: string,
     requestedLocation?: AuthRedirectLocationLike | null,
 ): string {
-    const requestedPathname = normalizePathname(requestedLocation?.pathname || '');
+    const safeLocation = toSanitizedReturnLocation(requestedLocation);
+    const requestedPathname = normalizePathname(safeLocation?.pathname || '');
 
     if (
-        requestedLocation
+        safeLocation
         && isProtectedRoutePath(requestedPathname)
         && resolveProtectedRedirect(requestedPathname, true, role) === null
     ) {
-        return `${requestedPathname}${requestedLocation.search || ''}${requestedLocation.hash || ''}`;
+        return `${requestedPathname}${safeLocation.search || ''}${safeLocation.hash || ''}`;
+    }
+
+    if (
+        safeLocation
+        && normalizeRole(role) === 'user'
+        && isPublicSeekerReturnPath(requestedPathname)
+    ) {
+        return `${requestedPathname}${safeLocation.search || ''}${safeLocation.hash || ''}`;
     }
 
     return getRedirectPath(role);

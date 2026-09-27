@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect, resolveLoginReturnLocation, resolveLoginReturnNavigationState } from '@/lib/authUtils';
 import { getPublicHomeHref } from '@/lib/utils/hostUtils';
 import { ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
@@ -46,7 +46,13 @@ export default function LoginPage() {
       return;
     }
 
-    navigate(getPostLoginRedirectPath(role, location.state?.from));
+    const requestedLocation = resolveLoginReturnLocation(location.state, location.search);
+    const redirectPath = getPostLoginRedirectPath(role, requestedLocation);
+    const isRequestedReturn = Boolean(requestedLocation)
+      && redirectPath === `${requestedLocation?.pathname || ''}${requestedLocation?.search || ''}${requestedLocation?.hash || ''}`;
+    navigate(redirectPath, isRequestedReturn
+      ? { state: resolveLoginReturnNavigationState(location.state) }
+      : undefined);
   };
 
   const handleLogin = async (e: React.FormEvent) => {

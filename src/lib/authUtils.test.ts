@@ -11,7 +11,10 @@ import {
     normalizeRole,
     resolveAuthRecoveryRedirect,
     requiresHostedLoginRedirect,
+    resolveLoginReturnLocation,
+    resolveLoginReturnNavigationState,
     resolveProtectedRedirect,
+    sanitizeInternalReturnPath,
     shouldAwaitSessionResolution,
 } from './authUtils';
 
@@ -147,4 +150,68 @@ test('shouldAwaitSessionResolution allows cached authenticated workspaces during
     assert.equal(shouldAwaitSessionResolution(true, false), true);
     assert.equal(shouldAwaitSessionResolution(true, true), false);
     assert.equal(shouldAwaitSessionResolution(false, false), false);
+});
+
+test('sanitizeInternalReturnPath accepts only internal relative paths (no open redirect)', () => {
+    assert.equal(sanitizeInternalReturnPath('/search?page=2&sort=price_asc'), '/search?page=2&sort=price_asc');
+    assert.equal(sanitizeInternalReturnPath('/user/properties/abc#gallery'), '/user/properties/abc#gallery');
+    for (const unsafe of [
+        'https://evil.example/search',
+        '//evil.example/search',
+        '/\\evil.example',
+        '\\\\evil.example',
+        '/\tevil',
+        '/\nevil',
+        'javascript:alert(1)',
+        'search',
+        '',
+        '/login/',
+        '/register?next=/search',
+        undefined,
+        { pathname: '/search' },
+    ]) {
+        assert.equal(sanitizeInternalReturnPath(unsafe), null, `rejects ${String(unsafe)}`);
+    }
+});
+
+test('getPostLoginRedirectPath returns a seeker to the public property or search they started from', () => {
+    assert.equal(
+        getPostLoginRedirectPath('user', { pathname: '/user/properties/prop-1' }),
+        '/user/properties/prop-1',
+    );
+    assert.equal(
+        getPostLoginRedirectPath('user', { pathname: '/search', search: '?page=2&sort=price_asc' }),
+        '/search?page=2&sort=price_asc',
+    );
+    assert.equal(getPostLoginRedirectPath('manager', { pathname: '/user/properties/prop-1' }), '/manager/dashboard');
+    assert.equal(getPostLoginRedirectPath('admin', { pathname: '/search' }), '/admin/dashboard');
+    assert.equal(getPostLoginRedirectPath('user', { pathname: '//evil.example/search' }), '/user/dashboard');
+});
+
+test('resolveLoginReturnLocation reads router state first, then a validated redirect query', () => {
+    assert.deepEqual(
+        resolveLoginReturnLocation({ from: { pathname: '/user/properties/prop-1', search: '', hash: '' } }, '?redirect=/search'),
+        { pathname: '/user/properties/prop-1', search: '', hash: '' },
+    );
+    assert.deepEqual(
+        resolveLoginReturnLocation(null, `?redirect=${encodeURIComponent('/search?q=London&page=2')}`),
+        { pathname: '/search', search: '?q=London&page=2', hash: '' },
+    );
+    assert.equal(resolveLoginReturnLocation(null, `?redirect=${encodeURIComponent('https://evil.example/')}`), null);
+    assert.equal(resolveLoginReturnLocation(null, `?redirect=${encodeURIComponent('//evil.example/')}`), null);
+    assert.equal(resolveLoginReturnLocation({ from: 'https://evil.example/' }, ''), null);
+    assert.equal(
+        getPostLoginRedirectPath('user', resolveLoginReturnLocation(null, `?redirect=${encodeURIComponent('//evil.example/')}`)),
+        '/user/dashboard',
+    );
+});
+
+test('resolveLoginReturnNavigationState keeps only a validated internal back target', () => {
+    assert.deepEqual(
+        resolveLoginReturnNavigationState({ from: { state: { backTo: '/search?page=2', backLabel: 'Back to Search' } } }),
+        { backTo: '/search?page=2', backLabel: 'Back to Search' },
+    );
+    assert.equal(resolveLoginReturnNavigationState({ from: { state: { backTo: 'https://evil.example' } } }), undefined);
+    assert.equal(resolveLoginReturnNavigationState({ from: { pathname: '/search' } }), undefined);
+    assert.equal(resolveLoginReturnNavigationState(undefined), undefined);
 });
