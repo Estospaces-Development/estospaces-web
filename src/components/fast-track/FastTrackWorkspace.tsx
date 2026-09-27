@@ -71,6 +71,7 @@ import {
     resolveFastTrackDisplayedCaseId,
     shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
+    getFastTrackPreviewSourceKey,
 } from '@/lib/fastTrackWorkspace';
 import {
     WORKSPACE_SYNC_INTERVALS,
@@ -2275,23 +2276,34 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         };
     }, [releasePreviewObjectUrl]);
 
+    // Background polling hands back new document objects every few seconds.
+    // Re-resolve the preview only when the previewed file itself changes, so an
+    // access error stays visible and the signed URL isn't re-requested per poll.
+    const previewSourceKey = getFastTrackPreviewSourceKey(
+        previewItem,
+        previewItem ? Boolean(selectedFiles[previewItem.id]) : false,
+    );
+    const latestPreviewRef = useRef({ previewItem, ensureDocumentPreview, selectedFiles });
+    latestPreviewRef.current = { previewItem, ensureDocumentPreview, selectedFiles };
+
     useEffect(() => {
-        if (!previewItem) {
+        const { previewItem: currentPreviewItem, ensureDocumentPreview: ensurePreview, selectedFiles: currentFiles } = latestPreviewRef.current;
+        if (!currentPreviewItem) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError(null);
             setPreviewZoom(0);
             return;
         }
-        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
-        if (!selectedPreviewFile && !previewItem.documentRecordId && !previewItem.fileUrl) {
+        const selectedPreviewFile = currentFiles[currentPreviewItem.id] || null;
+        if (!selectedPreviewFile && !currentPreviewItem.documentRecordId && !currentPreviewItem.fileUrl) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError('Choose a document to preview once a file has been attached.');
             return;
         }
-        void ensureDocumentPreview(previewItem);
-    }, [ensureDocumentPreview, previewItem, previewItemId, releasePreviewObjectUrl, selectedFiles]);
+        void ensurePreview(currentPreviewItem);
+    }, [previewSourceKey, releasePreviewObjectUrl]);
 
     useEffect(() => {
         if (previewModalOpen) {
