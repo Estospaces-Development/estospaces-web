@@ -329,8 +329,10 @@ function MessagesContent() {
         try {
             await sendMessage(conversationId, text, attachments);
             setError(null);
-        } catch (_err) {
-            setError('Failed to send message. Please try again.');
+        } catch (err) {
+            setError(err instanceof Error && err.message ? err.message : 'Failed to send message. Please try again.');
+            // Re-throw so the composer keeps the unsent draft.
+            throw err;
         }
     };
 

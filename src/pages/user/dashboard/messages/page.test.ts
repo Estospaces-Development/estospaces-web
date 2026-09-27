@@ -46,7 +46,7 @@ test('mobile composer remains a compact three-control row with accessible target
     assert.match(messageInputSource, /aria-label="Message"/);
     assert.match(messageInputSource, /aria-label="Attach files"/);
     assert.match(messageInputSource, /aria-label="Send message"/);
-    assert.match(messageInputSource, /pendingFiles\.length > 0 \|\| composerError \? 'mt-2 flex' : 'sr-only'/);
+    assert.match(messageInputSource, /pendingFiles\.length > 0 \|\| composerError \|\| messageLength\.showCounter \? 'mt-2 flex' : 'sr-only'/);
 });
 
 test('mobile conversation metadata and emoji picker reflow at narrow widths', () => {
@@ -55,4 +55,16 @@ test('mobile conversation metadata and emoji picker reflow at narrow widths', ()
     assert.match(conversationThreadSource, /<span className="sm:hidden">Support<\/span>/);
     assert.match(emojiPickerSource, /h-\[min\(24rem,calc\(100dvh-9rem\)\)\]/);
     assert.match(emojiPickerSource, /-right-12/);
+});
+
+test('an over-limit or failed message keeps the draft and shows the reason', () => {
+    const contextSource = readFileSync(resolve(process.cwd(), 'src/contexts/MessagesContext.tsx'), 'utf8');
+    // Composer blocks sends over the service byte limit and says why.
+    assert.match(messageInputSource, /if \(messageLength\.overLimit\) \{\s*setComposerError\(MESSAGE_TOO_LONG_TEXT\);\s*return;/);
+    assert.match(messageInputSource, /disabled=\{isSending \|\| messageLength\.overLimit \|\|/);
+    assert.match(messageInputSource, /aria-describedby="message-attachment-help message-length-help message-composer-error"/);
+    // A rejected send is re-thrown with the server's message so the composer does not clear the draft.
+    const handleSend = messagesPageSource.slice(messagesPageSource.indexOf('const handleSend'));
+    assert.match(handleSend, /catch \(err\) \{[\s\S]*?setError\(err instanceof Error && err\.message \? err\.message :[\s\S]*?throw err;/);
+    assert.match(contextSource, /throw new Error\(getMessageSendFailureText\(error\)\);/);
 });
