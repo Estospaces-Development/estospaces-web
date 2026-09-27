@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
     buildPrefilledSupportComposer,
-    finalizeCreatedSupportTicket,
     getAutoSelectedSupportTicketId,
     getLaunchSafeSupportCategoryLabel,
     hasPrefilledSupportComposerContext,
@@ -156,31 +155,21 @@ test('admin queue does not fall back to the first ticket for an unknown selected
     }), '');
 });
 
-test('ticket creation keeps the created ticket even when attachment finalization fails', async () => {
-    const warning = await finalizeCreatedSupportTicket({
-        ticketId: 'ticket-1',
-        draftId: 'draft-1',
-        finalizeDraftAttachments: async () => {
-            throw new Error('Attachments could not be finalized');
-        },
-    });
-
-    assert.equal(warning, 'Attachments could not be finalized');
+test('support attachments are sent without a media reassign, which media rejects for support files', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+    const serviceSource = readFileSync(resolve(process.cwd(), 'src/services/supportService.ts'), 'utf8');
+    // Messaging binds support attachments to the sender and a support* entity type, so draft uploads stay readable.
+    assert.doesNotMatch(serviceSource, /reassignMediaEntity/);
+    assert.doesNotMatch(source, /finalizeDraftAttachments/);
+    const handleReply = source.slice(source.indexOf('const handleReply'), source.indexOf('const handleReply') + 900);
+    assert.ok(handleReply.includes('await supportService.sendReply(selectedTicket.conversation_id, reply.trim(), replyAttachments)'));
 });
 
-test('ticket creation returns no warning when there is no draft to finalize', async () => {
-    let finalizeCalled = false;
-
-    const warning = await finalizeCreatedSupportTicket({
-        ticketId: 'ticket-1',
-        draftId: '',
-        finalizeDraftAttachments: async () => {
-            finalizeCalled = true;
-        },
-    });
-
-    assert.equal(warning, '');
-    assert.equal(finalizeCalled, false);
+test('requesters are offered Close only on active tickets and Reopen on resolved ones', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
+    assert.ok(source.includes("(selectedTicket.status === 'open' || selectedTicket.status === 'in_progress') && <button onClick={() => void patchTicket({ status: 'closed' })}"));
+    assert.ok(source.includes("selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })}"));
+    assert.ok(!source.includes("selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })}"));
 });
 
 test('ticket creation refresh is silent so success is not followed by a contradictory load error', () => {
