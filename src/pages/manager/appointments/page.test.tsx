@@ -97,3 +97,12 @@ test("manager cancellation submit stays disabled until the reason is valid", () 
   assert.match(source, /const isCancelReasonValid = validateManagerAppointmentCancelReason\(cancelReason\) === null;/);
   assert.match(source, /disabled=\{isSavingCancel \|\| !isCancelReasonValid\}/);
 });
+
+test("manager Mark Completed is disabled while the linked Fast Track awaits documents", () => {
+  assert.match(source, /getFastTrackViewingCompletionBlockReason\(findLinkedFastTrackCase\(fastTrackCases, \{/);
+  assert.match(source, /disabled=\{isBusy \|\| Boolean\(completionBlockReason\)\}/);
+  assert.match(source, /title=\{completionBlockReason \|\| undefined\}/);
+  assert.match(source, /data-appointment-completion-hint/);
+  assert.match(source, /aria-describedby=\{completionBlockReason \? `appointment-completion-hint-\$\{appointment\.id\}` : undefined\}/);
+  assert.match(source, /\{completionBlockReason\}\s*<\/p>/);
+});
