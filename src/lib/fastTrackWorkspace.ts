@@ -365,6 +365,22 @@ export const resolveFastTrackDisplayedCaseId = ({
     return selectedCaseId || null;
 };
 
+// Mirrors booking-service's documents hold: an open case whose required
+// documents are not all approved is held at the documents stage, whatever its
+// stored decision, agreement or handover progress.
+export const isFastTrackHeldForDocuments = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'documents'> | null | undefined,
+) => {
+    if (!fastTrackCase || fastTrackCase.workspaceFinalStatus !== 'active') {
+        return false;
+    }
+    const items = fastTrackCase.documents?.items || [];
+    const allApproved = items.length > 0
+        ? items.every((item) => item.status === 'approved')
+        : Boolean(fastTrackCase.documents?.allApproved);
+    return !allApproved;
+};
+
 export const isFastTrackStageUnlocked = (
     fastTrackCase: FastTrackCase | null | undefined,
     targetStage: FastTrackStage,
@@ -385,6 +401,13 @@ export const isFastTrackStageUnlocked = (
 
     if (targetStage === 'documents') {
         return fastTrackCase.workspaceFinalStatus === 'active';
+    }
+
+    // While documents are held, only an existing appointment keeps the
+    // viewing tab visible (read-only); decision, agreement and handover stay
+    // locked until the documents are approved.
+    if (isFastTrackHeldForDocuments(fastTrackCase) && targetStage !== 'viewing') {
+        return false;
     }
 
     const viewingStatus = String(fastTrackCase.viewing.status || '').trim().toLowerCase();
@@ -565,7 +588,7 @@ export const getFastTrackDocumentItemPermissions = (
 export const FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE =
     'Approve the required Fast Track documents before marking this viewing completed.';
 export const FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE =
-    'This Fast Track has expired and is closed, so its viewing cannot be completed here.';
+    'This Fast Track has expired. The user can revive it by uploading the requested documents; approve them before marking this viewing completed.';
 
 // A linked appointment cannot be completed while its active Fast Track still
 // has unapproved documents; booking-service refuses the completion (and

@@ -29,6 +29,7 @@ import {
     getFastTrackDocumentItemPermissions,
     getFastTrackDocumentRowPresentation,
     getFastTrackViewingCompletionBlockReason,
+    isFastTrackHeldForDocuments,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
@@ -1208,4 +1209,56 @@ test('linked appointment completion is blocked until Fast Track documents are ap
         getFastTrackViewingCompletionBlockReason({ ...withItems(pendingItems), finalStatus: 'expired' }),
         FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE,
     );
+});
+
+// Round 6 (P3-2): mirror the booking documents hold in the stage tabs.
+test('a held case with later progress keeps decision, agreement and handover locked', () => {
+    const heldDocuments = {
+        identityProof: 'verified' as const,
+        addressProof: 'reupload_required' as const,
+        items: [
+            { id: 'identity', label: 'Identity', status: 'approved' as const },
+            { id: 'address', label: 'Address', status: 'reupload_needed' as const },
+        ],
+        allUploaded: false,
+        allApproved: false,
+    };
+    const held = buildCase({
+        stage: 'documents',
+        documents: heldDocuments,
+        viewing: { status: 'completed' },
+        decision: { mode: 'rent', status: 'approved' },
+        agreement: { status: 'accepted', paymentStatus: 'paid' },
+        handover: { status: 'ready' },
+    });
+    assert.equal(isFastTrackHeldForDocuments(held), true);
+    for (const stage of ['decision', 'agreement', 'handover'] as const) {
+        assert.equal(isFastTrackStageUnlocked(held, stage), false, stage);
+    }
+    assert.equal(isFastTrackStageUnlocked(held, 'documents'), true);
+
+    const heldWithAppointment = buildCase({
+        stage: 'documents',
+        documents: heldDocuments,
+        viewingId: 'viewing-1',
+        viewing: { status: 'scheduled', scheduledAt: '2026-10-01T10:00:00Z' },
+    });
+    assert.equal(isFastTrackStageUnlocked(heldWithAppointment, 'viewing'), true);
+
+    const approved = buildCase({
+        stage: 'agreement',
+        documents: { ...heldDocuments, items: heldDocuments.items.map((item) => ({ ...item, status: 'approved' as const })), allApproved: true },
+        viewing: { status: 'completed' },
+        decision: { mode: 'rent', status: 'approved' },
+        agreement: { status: 'accepted', paymentStatus: 'not_requested' },
+    });
+    assert.equal(isFastTrackHeldForDocuments(approved), false);
+    assert.equal(isFastTrackStageUnlocked(approved, 'handover'), true);
+
+    assert.equal(isFastTrackHeldForDocuments(buildCase({ workspaceFinalStatus: 'completed', documents: heldDocuments })), false);
+});
+
+test('expired viewing completion copy says the case can be revived', () => {
+    assert.match(FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE, /revive/i);
+    assert.doesNotMatch(FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE, /closed/i);
 });
