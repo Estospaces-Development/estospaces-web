@@ -7,8 +7,9 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
-import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, normalizeRole, shouldAwaitSessionResolution } from '@/lib/authUtils';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import WrongRoleNotice from '@/components/routing/WrongRoleNotice';
 import RoleMobileNavigation from './RoleMobileNavigation';
 
 interface AdminLayoutClientProps {
@@ -25,7 +26,7 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
         return window.matchMedia('(min-width: 1024px)').matches;
     });
     const { user, loading, isAuthenticated } = useAuth();
-    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading);
 
     useEffect(() => {
         if (typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches) {
@@ -61,8 +62,9 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
         return <Navigate to={getLoginPath()} replace />;
     }
 
-    if (user?.role !== 'admin') {
-        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
+    const currentRole = normalizeRole(user?.role);
+    if (currentRole !== 'admin') {
+        return <WrongRoleNotice requiredRole="admin" currentRole={currentRole} />;
     }
 
     return (

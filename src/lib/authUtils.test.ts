@@ -148,10 +148,11 @@ test('login path avoids the Cloud Run reserved exact login route', () => {
     assert.equal(getLoginPath('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/login/');
 });
 
-test('shouldAwaitSessionResolution allows cached authenticated workspaces during refresh', () => {
-    assert.equal(shouldAwaitSessionResolution(true, false), true);
-    assert.equal(shouldAwaitSessionResolution(true, true), false);
-    assert.equal(shouldAwaitSessionResolution(false, false), false);
+test('shouldAwaitSessionResolution waits for /auth/me even when a cached user is present', () => {
+    // A cached user is only a hint; role decisions made before the session is
+    // confirmed were what bounced deep links to the dashboard on reload.
+    assert.equal(shouldAwaitSessionResolution(true), true);
+    assert.equal(shouldAwaitSessionResolution(false), false);
 });
 
 test('sanitizeInternalReturnPath accepts only internal relative paths (no open redirect)', () => {
