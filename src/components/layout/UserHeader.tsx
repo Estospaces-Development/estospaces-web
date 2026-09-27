@@ -3,7 +3,7 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, Settings, HelpCircle, User, BookOpen, Search } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import Avatar from '../ui/Avatar';
@@ -11,6 +11,7 @@ import UserAppSearchDialog from './UserAppSearchDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
 import { getLoginPath } from '@/lib/authUtils';
+import { buildUserHelpPath } from '@/lib/supportCenter';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -18,6 +19,7 @@ interface UserHeaderProps {
 
 const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, signOut, getDisplayName } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [appSearchOpen, setAppSearchOpen] = useState(false);
@@ -152,7 +154,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);
-                                                navigate(getLinkPath('/user/dashboard/help'));
+                                                navigate(getLinkPath(buildUserHelpPath(location.pathname, location.search)));
                                             }}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                         >

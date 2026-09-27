@@ -15,10 +15,14 @@ import { SupportTicketList } from '@/components/support/SupportTicketList';
 import { SupportTranscript } from '@/components/support/SupportTranscript';
 import {
     buildPrefilledSupportComposer,
+    buildUserFastTrackCasePath,
     finalizeCreatedSupportTicket,
     focusSupportTicketComposer,
     getAutoSelectedSupportTicketId,
     getLaunchSafeSupportCategoryLabel,
+    getSupportCaseIdFromSearchParams,
+    getSupportCaseShortReference,
+    getSupportTicketCaseLink,
     hasActiveSupportFilters,
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
@@ -141,10 +145,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const prefilledPriority = searchParams.get('priority') || '';
 
     const isAdmin = role === 'admin';
+    // Only the requesting user carries a case in; staff never attach one on the requester's behalf.
+    const supportCaseId = role === 'user' ? getSupportCaseIdFromSearchParams(searchParams) : null;
     const selectedTicketId = searchParams.get('ticket');
     const selectedConversationId = searchParams.get('conversation');
     const hasPrefilledComposerContext = !isAdmin && hasPrefilledSupportComposerContext(searchParams);
     const hasActiveFilters = hasActiveSupportFilters(filters);
+    const selectedTicketCaseLink = selectedTicket ? getSupportTicketCaseLink(selectedTicket.requester_context?.page, role) : null;
     const canReply = Boolean(selectedTicket && selectedTicket.status !== 'closed' && (isAdmin || selectedTicket.status !== 'resolved'));
     const currentAdminId = user?.id || '';
     const unassignedTicketCount = useMemo(() => allTickets.filter((ticket) => !ticket.assignee_id).length, [allTickets]);
@@ -500,7 +507,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     role,
                     name: user?.name || user?.user_metadata?.full_name || '',
                     email: user?.email || '',
-                    page: window.location.pathname,
+                    page: supportCaseId ? buildUserFastTrackCasePath(supportCaseId) : window.location.pathname,
                     module: composer.category,
                 },
             });
@@ -699,6 +706,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     {!isAdmin && !selectedTicket && (
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                             <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 ref={composerHeadingRef} tabIndex={-1} className="text-2xl font-black text-gray-950 outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:text-white dark:focus-visible:ring-offset-gray-900">Open a support ticket</h2></div>
+                            {supportCaseId ? (
+                                <p data-testid="support-case-context" className="mb-4 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-900 dark:border-orange-500/20 dark:bg-orange-950/20 dark:text-orange-100">
+                                    This ticket will be linked to Fast Track case {getSupportCaseShortReference(supportCaseId)}.{' '}
+                                    <Link to={buildUserFastTrackCasePath(supportCaseId)} className="font-semibold underline underline-offset-2">Back to case</Link>
+                                </p>
+                            ) : null}
                             <div className="grid gap-4 md:grid-cols-2">
                                 <select value={composer.category} onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket category">{ROLE_COPY[role].categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
                                 <select value={composer.priority} onChange={(event) => setComposer((current) => ({ ...current, priority: event.target.value as SupportTicketSummary['priority'] }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
@@ -719,6 +732,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                             {selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Support request'}
                                             {selectedTicket.requester_context?.module ? ` - ${getLaunchSafeSupportCategoryLabel(selectedTicket.requester_context.module)}` : ''}
                                         </p>
+                                        {selectedTicketCaseLink ? (
+                                            <Link data-testid="support-ticket-case-link" to={selectedTicketCaseLink.path} className="mt-2 inline-flex text-sm font-semibold text-orange-700 underline underline-offset-2 dark:text-orange-200">
+                                                Open Fast Track case {getSupportCaseShortReference(selectedTicketCaseLink.caseId)}
+                                            </Link>
+                                        ) : null}
                                     </div>
                                     <div className="flex flex-wrap gap-2"><SupportStatusBadge status={selectedTicket.status} /><SupportPriorityBadge priority={selectedTicket.priority} /></div>
                                 </div>

@@ -144,3 +144,12 @@ test("manager appointments refresh the list after a saved change even when the c
   assert.match(runActionBody, /toast\.warning\(describeCompanionSyncFailure\(successMessage, outcome\.error\)\)/);
   assert.ok(runActionBody.indexOf("toast.warning") < runActionBody.indexOf("await fetchAppointments({ background: true })"));
 });
+
+test("manager Mark Completed is disabled while the linked Fast Track awaits documents", () => {
+  assert.match(source, /getFastTrackViewingCompletionBlockReason\(findLinkedFastTrackCase\(fastTrackCases, \{/);
+  assert.match(source, /disabled=\{isBusy \|\| Boolean\(completionBlockReason\)\}/);
+  assert.match(source, /title=\{completionBlockReason \|\| undefined\}/);
+  assert.match(source, /data-appointment-completion-hint/);
+  assert.match(source, /aria-describedby=\{completionBlockReason \? `appointment-completion-hint-\$\{appointment\.id\}` : undefined\}/);
+  assert.match(source, /\{completionBlockReason\}\s*<\/p>/);
+});

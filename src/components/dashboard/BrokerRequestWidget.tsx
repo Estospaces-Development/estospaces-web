@@ -872,6 +872,8 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
 
             const conversation = await messagesService.upsertDirectConversation(activeRequest.matched_broker_id, {
                 ...propertyContext,
+                // Scopes the thread to this request so an older conversation with the same agent is never reused.
+                brokerRequestId: activeRequest.id,
                 senderName: displayName,
                 senderEmail: user.email || '',
                 senderPhone: user.phone || user.user_metadata?.phone || '',
@@ -905,6 +907,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
 
         if (!user) {
             toast.error('Sign in to message this agent.');
+            return;
+        }
+
+        // The matched agent is also listed nearby; use the request's own thread for them.
+        if (activeRequest?.matched_broker_id && activeRequest.matched_broker_id === broker.id) {
+            await handleOpenConversation();
             return;
         }
 
@@ -1487,7 +1495,8 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                 open={Boolean(selectedProperty || availableSharedProperties.length > 0)}
                                 className="group rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40 sm:rounded-2xl sm:border-gray-100 sm:p-5"
                             >
-                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:hidden">
+                                {/* Closed on desktop too when no home is ready, so the summary must stay reachable there. */}
+                                <summary data-testid="broker-next-step-summary" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white sm:px-0 sm:py-0 sm:text-sm sm:font-semibold sm:group-open:hidden">
                                     <span className="min-w-0">
                                         <span className="block text-[9px] font-medium uppercase tracking-[0.14em] text-orange-500">Next step</span>
                                         <span className="mt-0.5 block truncate">
@@ -1787,18 +1796,22 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                         ) : null}
                                     </div>
                                 )}
+                                </div>
+                            </details>
 
+                            {/* Outside the disclosure so desktop users can always start a separate request (QA-MB-20260923-01-037). */}
+                            <div className="hidden sm:block">
                                 <button
                                     type="button"
+                                    data-testid="broker-start-another-request-desktop"
                                     onClick={handleStartAnotherRequest}
                                     disabled={loading || rematching || Boolean(selectingPropertyId) || openingConversation}
-                                    className="mt-4 hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900 sm:inline-flex"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                 >
                                     <Radio size={14} />
                                     {brokerCopy.restartRequestLabel}
                                 </button>
-                                </div>
-                            </details>
+                            </div>
                         </div>
                     ) : (
                         <>

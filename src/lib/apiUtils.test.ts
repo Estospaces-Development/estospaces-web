@@ -360,3 +360,35 @@ test('auth/me 401 clears the stale session without redundant revalidation', asyn
         });
     }
 });
+
+// Verifier F1(d): booking-service documents-gate refusals reach the user verbatim.
+test('booking documents gate refusals surface the backend message', async () => {
+    const originalFetch = globalThis.fetch;
+    const backendMessage = 'approve all required Fast Track documents before the viewing is completed or a decision is made';
+    Object.defineProperty(globalThis, 'fetch', {
+        value: async () => new Response(JSON.stringify({ success: false, error: backendMessage }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+        }),
+        configurable: true,
+    });
+
+    try {
+        await assert.rejects(
+            () => apiFetch('https://example.test/api/v1/viewings/viewing-1', {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'completed' }),
+                suppressErrorToast: true,
+            }),
+            (error: unknown) => {
+                assert.equal(getErrorMessage(error), backendMessage);
+                return true;
+            },
+        );
+    } finally {
+        Object.defineProperty(globalThis, 'fetch', {
+            value: originalFetch,
+            configurable: true,
+        });
+    }
+});
