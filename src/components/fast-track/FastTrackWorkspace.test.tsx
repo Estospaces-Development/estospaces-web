@@ -695,3 +695,11 @@ test("fast-track preserves deep-linked stage while the requested case changes", 
     assert.ok(source.includes('shouldRemoveFastTrackStaleCaseLink({'),
         'stale-link recovery must use the deferred lookup state machine');
 });
+
+test("document rows use role-aware presentation for guidance and the note field", () => {
+  const source = workspaceSource();
+  assert.match(source, /const rowPresentation = getFastTrackDocumentRowPresentation\(/);
+  assert.match(source, /\{supportingNote \|\| rowPresentation\.guidance\}/);
+  assert.match(source, /\{rowPresentation\.noteField \? <input/);
+  assert.doesNotMatch(source, /canUpload \|\| canPreview \? <input/);
+});

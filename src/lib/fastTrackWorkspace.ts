@@ -562,6 +562,64 @@ export const getFastTrackDocumentItemPermissions = (
     };
 };
 
+export const FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE =
+    'Approve both Fast Track documents before marking this viewing completed.';
+
+// A linked appointment cannot be completed while its active Fast Track still
+// has unapproved documents; booking-service refuses the completion.
+export const getFastTrackViewingCompletionBlockReason = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'documents'> | null | undefined,
+) => {
+    if (!fastTrackCase || fastTrackCase.workspaceFinalStatus !== 'active') {
+        return null;
+    }
+    const items = fastTrackCase.documents?.items || [];
+    const allApproved = items.length > 0
+        ? items.every((item) => item.status === 'approved')
+        : Boolean(fastTrackCase.documents?.allApproved);
+    return allApproved ? null : FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE;
+};
+
+// Copy and note-field visibility for one document row, by what the viewer can
+// actually do. Users never see reviewer wording or the review note field.
+export const getFastTrackDocumentRowPresentation = ({
+    role,
+    workspaceFinalStatus,
+    canUpload,
+    canReview,
+    hasFile,
+}: {
+    role: FastTrackWorkspaceRole;
+    workspaceFinalStatus: FastTrackCase['workspaceFinalStatus'];
+    canUpload: boolean;
+    canReview: boolean;
+    hasFile: boolean;
+}) => {
+    if (canUpload) {
+        return { guidance: 'Add a file and one short upload note.', noteField: 'upload' as const };
+    }
+    if (role === 'user') {
+        return {
+            guidance: workspaceFinalStatus !== 'active'
+                ? 'This Fast Track is closed. Your files stay available to view.'
+                : 'Files can only be changed while documents are being collected.',
+            noteField: null,
+        };
+    }
+    if (canReview) {
+        return {
+            guidance: 'Review the file, leave one short note, and move on.',
+            noteField: hasFile ? 'review' as const : null,
+        };
+    }
+    return {
+        guidance: workspaceFinalStatus !== 'active'
+            ? 'This Fast Track is closed. Files stay available to view.'
+            : 'No review action is available for this file at this stage.',
+        noteField: null,
+    };
+};
+
 export const resolveFastTrackDocumentSearchParam = (
     params: URLSearchParams,
     validDocumentIds: string[] = [],

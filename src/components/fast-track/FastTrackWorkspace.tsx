@@ -50,6 +50,7 @@ import {
     FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
     getFastTrackDocumentItemPermissions,
+    getFastTrackDocumentRowPresentation,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
@@ -3004,6 +3005,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             Boolean(item.documentRecordId || item.fileUrl),
                         );
                         const canUpload = documentPermissions.canUpload;
+                        const rowPresentation = getFastTrackDocumentRowPresentation({
+                            role,
+                            workspaceFinalStatus: selectedCase.workspaceFinalStatus,
+                            canUpload,
+                            canReview: documentPermissions.canApprove || documentPermissions.canRequestReplacement,
+                            hasFile: canPreview,
+                        });
                         const uploadCopy = getFastTrackDocumentUploadCopy({
                             status: item.status,
                             hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
@@ -3085,9 +3093,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 : 'border-gray-100 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300')
                                             : 'border-dashed border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-500',
                                     )}>
-                                        {supportingNote || (canUpload
-                                            ? 'Add a file and one short upload note.'
-                                            : 'Review the file, leave one short note, and move on.')}
+                                        {supportingNote || rowPresentation.guidance}
                                     </div>
                                     {item.requestReason || item.requestDueAt ? (
                                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
@@ -3146,7 +3152,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                     </div>
 
-                                    {canUpload || canPreview ? <input
+                                    {rowPresentation.noteField ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
                                         readOnly={isFastTrackStageReadOnly(selectedCase, role)}
@@ -3156,7 +3162,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             [item.id]: event.target.value,
                                         }))}
                                         aria-label={`Note for ${item.label}`}
-                                        placeholder={canUpload ? 'Short upload note' : 'Short review note'}
+                                        placeholder={rowPresentation.noteField === 'upload' ? 'Short upload note' : 'Short review note'}
                                         className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 read-only:cursor-default read-only:bg-gray-50 read-only:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:read-only:bg-gray-900 dark:read-only:text-gray-400"
                                     /> : null}
 

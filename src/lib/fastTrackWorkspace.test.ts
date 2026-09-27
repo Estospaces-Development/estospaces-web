@@ -24,7 +24,10 @@ import {
     fastTrackCaseMatchesQuery,
     FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
+    FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE,
     getFastTrackDocumentItemPermissions,
+    getFastTrackDocumentRowPresentation,
+    getFastTrackViewingCompletionBlockReason,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
@@ -1134,4 +1137,69 @@ test('closed cases block user workflow actions except confirming a completed han
     }
     assert.equal(isFastTrackUserActionBlockedOnClosedCase(completed, 'confirm_handover'), false);
     assert.equal(isFastTrackUserActionBlockedOnClosedCase(buildCase(), 'confirm_viewing'), false);
+});
+
+// Verifier F2: document rows show users no reviewer copy or review note field.
+test('document row presentation never gives users reviewer copy or a review note field', () => {
+    for (const workspaceFinalStatus of ['active', 'completed', 'cancelled'] as const) {
+        for (const stage of ['documents', 'viewing', 'decision', 'handover'] as const) {
+            const fastTrackCase = buildCase({ workspaceFinalStatus, stage, viewing: { status: 'pending' } });
+            for (const status of ['pending', 'uploaded', 'approved', 'reupload_needed'] as const) {
+                const hasFile = status !== 'pending';
+                const permissions = getFastTrackDocumentItemPermissions(fastTrackCase, 'user', status, hasFile);
+                const presentation = getFastTrackDocumentRowPresentation({
+                    role: 'user',
+                    workspaceFinalStatus,
+                    canUpload: permissions.canUpload,
+                    canReview: permissions.canApprove || permissions.canRequestReplacement,
+                    hasFile,
+                });
+                const label = [workspaceFinalStatus, stage, status].join('/');
+                assert.doesNotMatch(presentation.guidance, /review/i, label);
+                assert.notEqual(presentation.noteField, 'review', label);
+                if (!permissions.canUpload) {
+                    assert.equal(presentation.noteField, null, label);
+                }
+            }
+        }
+    }
+
+    const closed = getFastTrackDocumentRowPresentation({
+        role: 'user', workspaceFinalStatus: 'cancelled', canUpload: false, canReview: false, hasFile: true,
+    });
+    assert.match(closed.guidance, /closed/i);
+    const upload = getFastTrackDocumentRowPresentation({
+        role: 'user', workspaceFinalStatus: 'active', canUpload: true, canReview: false, hasFile: false,
+    });
+    assert.equal(upload.noteField, 'upload');
+});
+
+test('document row presentation gives reviewers the note field only when they can review a file', () => {
+    assert.equal(getFastTrackDocumentRowPresentation({
+        role: 'manager', workspaceFinalStatus: 'active', canUpload: false, canReview: true, hasFile: true,
+    }).noteField, 'review');
+    assert.equal(getFastTrackDocumentRowPresentation({
+        role: 'manager', workspaceFinalStatus: 'active', canUpload: false, canReview: true, hasFile: false,
+    }).noteField, null);
+    const closedReviewer = getFastTrackDocumentRowPresentation({
+        role: 'admin', workspaceFinalStatus: 'completed', canUpload: false, canReview: false, hasFile: true,
+    });
+    assert.equal(closedReviewer.noteField, null);
+    assert.doesNotMatch(closedReviewer.guidance, /leave one short note/i);
+});
+
+// Verifier F1(d): appointment completion is not offered while the linked case awaits documents.
+test('linked appointment completion is blocked until Fast Track documents are approved', () => {
+    const pendingItems = [
+        { id: 'identity', label: 'Identity', status: 'approved' },
+        { id: 'address', label: 'Address', status: 'uploaded' },
+    ] as FastTrackCase['documents']['items'];
+    const approvedItems = pendingItems.map((item) => ({ ...item, status: 'approved' as const }));
+    const withItems = (items: FastTrackCase['documents']['items'], workspaceFinalStatus: FastTrackCase['workspaceFinalStatus'] = 'active') =>
+        buildCase({ workspaceFinalStatus, documents: { ...buildCase().documents, items } });
+
+    assert.equal(getFastTrackViewingCompletionBlockReason(withItems(pendingItems)), FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE);
+    assert.equal(getFastTrackViewingCompletionBlockReason(withItems(approvedItems)), null);
+    assert.equal(getFastTrackViewingCompletionBlockReason(withItems(pendingItems, 'cancelled')), null);
+    assert.equal(getFastTrackViewingCompletionBlockReason(null), null);
 });
