@@ -24,10 +24,12 @@ import {
     fastTrackCaseMatchesQuery,
     FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
+    getFastTrackDocumentItemPermissions,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
     isFastTrackHistoricalStageForCase,
+    isFastTrackUserActionBlockedOnClosedCase,
     isFastTrackDocumentDraftDirty,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
@@ -1058,4 +1060,78 @@ test('a linked Fast Track case that is not yet confirmed never renders a differe
         requestedCaseLookupMissed: false,
         selectedCaseId: 'own-case',
     }), 'own-case');
+});
+
+// QA-MB-20260923-01-006: review controls follow case state + role, not file status alone.
+test('users never receive document review permissions on any case state', () => {
+    for (const workspaceFinalStatus of ['active', 'completed', 'cancelled'] as const) {
+        for (const stage of ['documents', 'viewing', 'decision'] as const) {
+            const fastTrackCase = buildCase({ workspaceFinalStatus, stage, viewing: { status: 'pending' } });
+            for (const status of ['uploaded', 'approved'] as const) {
+                const permissions = getFastTrackDocumentItemPermissions(fastTrackCase, 'user', status, true);
+                const label = [workspaceFinalStatus, stage, status].join('/');
+                assert.equal(permissions.canApprove, false, label);
+                assert.equal(permissions.canRequestReplacement, false, label);
+            }
+        }
+    }
+});
+
+test('closed cases give managers and admins no document review permissions', () => {
+    for (const workspaceFinalStatus of ['completed', 'cancelled'] as const) {
+        const fastTrackCase = buildCase({ workspaceFinalStatus, stage: 'documents' });
+        for (const role of ['manager', 'admin'] as const) {
+            assert.deepEqual(getFastTrackDocumentItemPermissions(fastTrackCase, role, 'uploaded', true), {
+                canUpload: false,
+                canApprove: false,
+                canRequestReplacement: false,
+            });
+        }
+    }
+});
+
+test('manager review permissions mirror the booking stage rules', () => {
+    const documentsStage = buildCase({ stage: 'documents' });
+    assert.deepEqual(getFastTrackDocumentItemPermissions(documentsStage, 'manager', 'uploaded', true), {
+        canUpload: false,
+        canApprove: true,
+        canRequestReplacement: true,
+    });
+    assert.equal(getFastTrackDocumentItemPermissions(documentsStage, 'manager', 'uploaded', false).canApprove, false);
+
+    const viewingUnscheduled = buildCase({ stage: 'viewing', viewing: { status: 'pending' } });
+    assert.deepEqual(getFastTrackDocumentItemPermissions(viewingUnscheduled, 'admin', 'approved', true), {
+        canUpload: false,
+        canApprove: false,
+        canRequestReplacement: true,
+    });
+
+    const viewingScheduled = buildCase({ stage: 'viewing', viewing: { status: 'scheduled', scheduledAt: '2026-10-01T10:00:00Z' } });
+    assert.deepEqual(getFastTrackDocumentItemPermissions(viewingScheduled, 'manager', 'approved', true), {
+        canUpload: false,
+        canApprove: false,
+        canRequestReplacement: false,
+    });
+});
+
+test('users upload only while an open case is collecting documents', () => {
+    assert.equal(getFastTrackDocumentItemPermissions(buildCase({ stage: 'documents' }), 'user', 'pending', false).canUpload, true);
+    assert.equal(getFastTrackDocumentItemPermissions(buildCase({ stage: 'viewing' }), 'user', 'pending', false).canUpload, false);
+    assert.equal(
+        getFastTrackDocumentItemPermissions(buildCase({ stage: 'documents', workspaceFinalStatus: 'cancelled' }), 'user', 'pending', false).canUpload,
+        false,
+    );
+});
+
+test('closed cases block user workflow actions except confirming a completed handover', () => {
+    const cancelled = buildCase({ workspaceFinalStatus: 'cancelled' });
+    const completed = buildCase({ workspaceFinalStatus: 'completed', stage: 'handover' });
+    for (const action of ['upload_document', 'review_document', 'confirm_viewing', 'request_viewing_change', 'confirm_agreement', 'confirm_handover']) {
+        assert.equal(isFastTrackUserActionBlockedOnClosedCase(cancelled, action), true, action);
+    }
+    for (const action of ['upload_document', 'review_document', 'confirm_viewing', 'confirm_agreement']) {
+        assert.equal(isFastTrackUserActionBlockedOnClosedCase(completed, action), true, action);
+    }
+    assert.equal(isFastTrackUserActionBlockedOnClosedCase(completed, 'confirm_handover'), false);
+    assert.equal(isFastTrackUserActionBlockedOnClosedCase(buildCase(), 'confirm_viewing'), false);
 });

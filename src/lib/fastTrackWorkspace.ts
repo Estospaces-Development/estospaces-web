@@ -526,6 +526,42 @@ export const getFastTrackDocumentReviewActions = (
     canRequestReplacement: hasAttachedFile && (status === 'uploaded' || status === 'approved'),
 });
 
+// Closed cases accept no workflow mutation from a user except confirming a
+// handover the manager already completed (and the completion refresh, which
+// has its own participant check). Mirrors errFastTrackCaseClosed in booking.
+export const isFastTrackUserActionBlockedOnClosedCase = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
+    action: string,
+) => fastTrackCase.workspaceFinalStatus !== 'active'
+    && action !== 'retry_handover_sync'
+    && !(action === 'confirm_handover' && fastTrackCase.workspaceFinalStatus === 'completed');
+
+// Per-document permissions derived from case state and role. Mirrors the
+// booking-service rules: only managers/admins review, only on open cases;
+// approval happens during document collection, and a replacement can also be
+// requested while the viewing is still unscheduled. Users only upload.
+export const getFastTrackDocumentItemPermissions = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'stage' | 'viewing'>,
+    role: FastTrackWorkspaceRole,
+    status: FastTrackCase['documents']['items'][number]['status'],
+    hasAttachedFile: boolean,
+) => {
+    const isOpen = fastTrackCase.workspaceFinalStatus === 'active';
+    const isReviewer = role === 'manager' || role === 'admin';
+    const reviewActions = getFastTrackDocumentReviewActions(status, hasAttachedFile);
+    const viewingUnscheduled = fastTrackCase.stage === 'viewing'
+        && String(fastTrackCase.viewing?.status || '').trim().toLowerCase() === 'pending';
+
+    return {
+        canUpload: role === 'user' && canUserPrepareFastTrackDocuments(fastTrackCase),
+        canApprove: isOpen && isReviewer && fastTrackCase.stage === 'documents' && reviewActions.canApprove,
+        canRequestReplacement: isOpen
+            && isReviewer
+            && (fastTrackCase.stage === 'documents' || viewingUnscheduled)
+            && reviewActions.canRequestReplacement,
+    };
+};
+
 export const resolveFastTrackDocumentSearchParam = (
     params: URLSearchParams,
     validDocumentIds: string[] = [],
