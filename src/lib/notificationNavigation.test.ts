@@ -14,7 +14,7 @@ test('Fast Track request notification fallback opens the manager approval flow',
         },
     }, 'manager');
 
-    assert.equal(path, '/manager/dashboard?fast-track=request&broker-request=request-42&lead=lead-42');
+    assert.equal(path, '/manager/dashboard?fast-track=request&broker-request=request-42&lead=lead-42&client=user-42&property=property-42');
 });
 
 test('documents requested notifications deep-link the user into the exact fast-track workspace', () => {

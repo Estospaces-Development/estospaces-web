@@ -15,11 +15,20 @@ import {
 } from '@/services/fastTrackService';
 import { getBrokerLeads, type Lead } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import type { ManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
+import {
+    findRequestContextCase,
+    getFastTrackStartSuccessMessage,
+    hasManagerFastTrackRequestContext,
+    isReusableFastTrackCase,
+    leadMatchesRequestContext,
+} from '@/lib/manualFastTrackStart';
 
 interface ManualFastTrackModalProps {
     open: boolean;
     existingCases: FastTrackCase[];
-    initialSearch?: string;
+    /** IDs from a dashboard or notification shortcut, matched by field rather than free-text search. */
+    requestContext?: ManagerFastTrackRequestContext | null;
     backgroundBusy?: boolean;
     onClose: () => void;
     onCreated?: (createdCase: FastTrackCase) => void | Promise<void>;
@@ -65,15 +74,10 @@ const isRecoverableBrokerRequestError = (message: string) => {
     return normalized.includes('broker request') || normalized.includes('broker selection');
 };
 
-const hasActiveFastTrackCase = (caseItem: FastTrackCase) => (
-    caseItem.finalStatus === 'in_progress'
-    && (!caseItem.expiresAt || new Date(caseItem.expiresAt).getTime() > Date.now())
-);
-
 export default function ManualFastTrackModal({
     open,
     existingCases,
-    initialSearch = '',
+    requestContext = null,
     backgroundBusy = false,
     onClose,
     onCreated,
@@ -85,15 +89,18 @@ export default function ManualFastTrackModal({
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [actingLeadId, setActingLeadId] = useState<string | null>(null);
+    const [contextFilterActive, setContextFilterActive] = useState(false);
 
     useEffect(() => {
         if (!open) {
             setSearchQuery('');
             setError(null);
+            setContextFilterActive(false);
             return;
         }
 
-        setSearchQuery(initialSearch.trim());
+        setSearchQuery('');
+        setContextFilterActive(hasManagerFastTrackRequestContext(requestContext));
 
         let cancelled = false;
 
@@ -123,13 +130,13 @@ export default function ManualFastTrackModal({
         return () => {
             cancelled = true;
         };
-    }, [initialSearch, open]);
+    }, [open, requestContext]);
 
     const activeCaseByLeadKey = useMemo(() => {
         const nextMap = new Map<string, FastTrackCase>();
 
         existingCases.forEach((caseItem) => {
-            if (!hasActiveFastTrackCase(caseItem)) {
+            if (!isReusableFastTrackCase(caseItem)) {
                 return;
             }
 
@@ -158,14 +165,22 @@ export default function ManualFastTrackModal({
             }));
     }, [activeCaseByLeadKey, leads]);
 
+    const requestContextCase = useMemo(
+        () => findRequestContextCase(existingCases, requestContext),
+        [existingCases, requestContext],
+    );
+
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
+        const scopedLeads = contextFilterActive
+            ? eligibleLeads.filter(({ lead }) => leadMatchesRequestContext(lead, requestContext))
+            : eligibleLeads;
 
         if (!query) {
-            return eligibleLeads;
+            return scopedLeads;
         }
 
-        return eligibleLeads.filter(({ lead, stage, activeCase }) => {
+        return scopedLeads.filter(({ lead, stage, activeCase }) => {
             const haystack = [
                 lead.lead_number,
                 lead.id,
@@ -185,7 +200,7 @@ export default function ManualFastTrackModal({
 
             return haystack.includes(query);
         });
-    }, [eligibleLeads, searchQuery]);
+    }, [contextFilterActive, eligibleLeads, requestContext, searchQuery]);
 
     const handleOpenCase = async (caseItem: FastTrackCase) => {
         onClose();
@@ -251,9 +266,11 @@ export default function ManualFastTrackModal({
                 throw new Error(result.error || 'Unable to create the 24-hour fast-track case.');
             }
 
-            toast.success('24-hour fast-track case created successfully.');
+            const createdCase = result.data;
+            const reused = result.reused || existingCases.some((caseItem) => caseItem.id === createdCase.id);
+            toast.success(getFastTrackStartSuccessMessage({ reused, requestedLeadId: result.requestedLeadId }));
             onClose();
-            await onCreated?.(result.data);
+            await onCreated?.(createdCase);
         } catch (createError: any) {
             const message = String(createError?.message || '');
             toast.error(
@@ -317,6 +334,46 @@ export default function ManualFastTrackModal({
                     />
                 </div>
 
+                {requestContextCase ? (
+                    <div
+                        role="status"
+                        className="flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-blue-900/40 dark:bg-blue-950/20"
+                    >
+                        <div>
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                This request already has an active 24-hour case
+                            </p>
+                            <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
+                                {requestContextCase.propertyTitle || 'Selected property'} for {requestContextCase.clientName || 'this client'} · Case {requestContextCase.caseId}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void handleOpenCase(requestContextCase);
+                            }}
+                            disabled={Boolean(actingLeadId)}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <span>Open existing case</span>
+                            <ArrowRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                ) : null}
+
+                {contextFilterActive ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <span>Showing leads linked to the selected request.</span>
+                        <button
+                            type="button"
+                            onClick={() => setContextFilterActive(false)}
+                            className="font-semibold text-orange-600 underline-offset-2 hover:underline dark:text-orange-400"
+                        >
+                            Show all leads
+                        </button>
+                    </div>
+                ) : null}
+
                 {loading ? (
                     <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
                         <BrandLoadingScreen variant="panel" label="Loading eligible users and properties..." />
@@ -331,7 +388,9 @@ export default function ManualFastTrackModal({
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {searchQuery
                                 ? `No active manager leads matched "${searchQuery}".`
-                                : 'You need an active lead with both a linked property and a linked client account before starting manual fast-track.'}
+                                : contextFilterActive
+                                    ? 'No eligible lead is linked to this request yet. Use Show all leads to pick one manually.'
+                                    : 'You need an active lead with both a linked property and a linked client account before starting manual fast-track.'}
                         </p>
                     </div>
                 ) : (

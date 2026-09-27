@@ -2,7 +2,7 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
-import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
@@ -48,7 +48,7 @@ import { managerDocs } from '@/lib/roleDocsContent';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
   clearManagerFastTrackRequestNavigation,
-  getManagerFastTrackRequestSearch,
+  getManagerFastTrackRequestContext,
 } from '@/lib/managerFastTrackRequestNavigation';
 import { formatManagerDashboardCount } from '@/lib/managerDashboardPresentation';
 import {
@@ -145,13 +145,16 @@ function DashboardContent() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
   const [propertyStatusFilter, setPropertyStatusFilter] = useState('all');
   const [propertyPage, setPropertyPage] = useState(1);
-  const fastTrackRequestSearch = getManagerFastTrackRequestSearch(location.search);
+  const fastTrackRequestContext = useMemo(
+    () => getManagerFastTrackRequestContext(location.search),
+    [location.search],
+  );
 
   const closeManualFastTrack = useCallback(() => {
     setIsManualFastTrackOpen(false);
-    if (fastTrackRequestSearch === null) return;
+    if (fastTrackRequestContext === null) return;
     navigate(clearManagerFastTrackRequestNavigation(location.pathname, location.search), { replace: true });
-  }, [fastTrackRequestSearch, location.pathname, location.search, navigate]);
+  }, [fastTrackRequestContext, location.pathname, location.search, navigate]);
   const [propertyTotal, setPropertyTotal] = useState(0);
   const [propertyTotalPages, setPropertyTotalPages] = useState(1);
   const [propertyError, setPropertyError] = useState<string | null>(null);
@@ -174,10 +177,10 @@ function DashboardContent() {
     : managerVerificationError || readinessCopy?.description;
 
   useEffect(() => {
-    if (canLoadOperationalDashboard && fastTrackRequestSearch !== null) {
+    if (canLoadOperationalDashboard && fastTrackRequestContext !== null) {
       setIsManualFastTrackOpen(true);
     }
-  }, [canLoadOperationalDashboard, fastTrackRequestSearch]);
+  }, [canLoadOperationalDashboard, fastTrackRequestContext]);
 
   const resetOperationalDashboardData = useCallback(() => {
     propertyRequestGeneration.current += 1;
@@ -997,7 +1000,7 @@ function DashboardContent() {
       <ManualFastTrackModal
         open={canLoadOperationalDashboard && isManualFastTrackOpen}
         existingCases={fastTrackCases}
-        initialSearch={fastTrackRequestSearch || ''}
+        requestContext={fastTrackRequestContext}
         onClose={closeManualFastTrack}
         onCreated={handleManualFastTrackCreated}
       />

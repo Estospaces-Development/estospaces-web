@@ -167,7 +167,7 @@ test('manager workspace helpers keep same-user repeated sessions distinguishable
         } as any),
         {
             label: 'Start Fast Track workflow',
-            path: '/manager/dashboard?fast-track=request&broker-request=request-1&lead=lead-1',
+            path: '/manager/dashboard?fast-track=request&broker-request=request-1&lead=lead-1&property=property-1',
         },
     );
 

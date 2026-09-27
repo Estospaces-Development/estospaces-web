@@ -200,6 +200,7 @@ export const getManagerWorkspaceAction = (request: BrokerRequestRecord): Manager
                 path: buildManagerFastTrackRequestPath({
                     brokerRequestId: request.id,
                     leadId: request.selected_lead_id,
+                    clientId: request.user_id,
                     propertyId: request.selected_property_id,
                 }),
             };
