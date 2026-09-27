@@ -1,6 +1,7 @@
 "use client";
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import ProfileReverificationWarning from '@/components/manager/ProfileReverificationWarning';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Building, Globe, Save, CheckCircle, Upload, Hash, Trash2, AlertCircle } from 'lucide-react';
@@ -13,6 +14,7 @@ import { userService } from '@/services/userService';
 import { resolveMediaUrl } from '@/lib/mediaUrls';
 import { buildManagerProfileSyncPayload } from '@/lib/managerProfileSync';
 import { normalizeManagerBranchNameInput } from '@/lib/managerProfileInput';
+import { getReverificationTriggerFields } from '@/lib/managerProfileReverification';
 import {
     getMissingManagerVerificationProfileFields,
     type ManagerVerificationProfileField,
@@ -85,6 +87,8 @@ export default function ManagerProfilePage() {
     const [isSaved, setIsSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<ManagerProfileFieldErrors>({});
+    // Verification-sensitive fields a pending save would change; the save waits for confirmation.
+    const [reverificationFields, setReverificationFields] = useState<string[] | null>(null);
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -216,6 +220,7 @@ export default function ManagerProfilePage() {
         }));
         setIsSaved(false);
         setSaveError('');
+        setReverificationFields(null);
         if (e.target.name === 'firstName' || e.target.name === 'lastName') {
             setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));
         }
@@ -311,6 +316,33 @@ export default function ManagerProfilePage() {
         }
     };
 
+    const isManagerAccount = user?.role === 'manager' || user?.role === 'broker';
+
+    // The broker-profile payload a save will send, from the current form values.
+    const buildPendingManagerProfilePayload = () => (isManagerAccount
+        ? buildManagerProfileSyncPayload({
+            profileType: managerProfile?.profile_type || 'company',
+            fallbackFullName: `${formData.firstName} ${formData.lastName}`.trim(),
+            companyName: formData.companyName.trim(),
+            branchName: formData.branchName,
+            bio: formData.bio,
+            licenseNumber: formData.licenseNumber,
+            businessPhone: formData.businessPhone.trim(),
+            personalPhone: formData.phone,
+            companyAddress: formData.companyAddress.trim(),
+            personalAddress: formData.address,
+            registeredOfficeAddress: formData.registeredOfficeAddress.trim(),
+            serviceAreas: formData.serviceAreas,
+            dispatchPincodes: formData.dispatchPincodes,
+            complaintsContact: formData.complaintsContact,
+            redressSchemeName: formData.redressSchemeName,
+            redressMembershipNumber: formData.redressMembershipNumber,
+            cmpProvider: formData.cmpProvider,
+            cmpCertificateUrl: formData.cmpCertificateUrl,
+            taxId: formData.taxId,
+        })
+        : null);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const nameErrors = validateProfileNameFields({
@@ -355,40 +387,31 @@ export default function ManagerProfilePage() {
             return;
         }
 
+        // Core moves a verified manager back to review when these fields change;
+        // say so before saving instead of revoking access silently.
+        const pendingReverificationFields = getReverificationTriggerFields(managerProfile, buildPendingManagerProfilePayload());
+        if (pendingReverificationFields.length > 0) {
+            setReverificationFields(pendingReverificationFields);
+            return;
+        }
+
+        await saveProfile();
+    };
+
+    const confirmReverificationSave = () => {
+        setReverificationFields(null);
+        void saveProfile();
+    };
+
+    const saveProfile = async () => {
         setIsLoading(true);
         setSaveError('');
         
         try {
-            const isManager = user?.role === 'manager' || user?.role === 'broker';
+            const isManager = isManagerAccount;
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-            const companyName = formData.companyName.trim();
-            const businessPhone = formData.businessPhone.trim();
-            const companyAddress = formData.companyAddress.trim();
-            const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
             const managerProfileType = managerProfile?.profile_type || 'company';
-            const managerProfilePayload = isManager
-                ? buildManagerProfileSyncPayload({
-                    profileType: managerProfileType,
-                    fallbackFullName: fullName,
-                    companyName,
-                    branchName: formData.branchName,
-                    bio: formData.bio,
-                    licenseNumber: formData.licenseNumber,
-                    businessPhone,
-                    personalPhone: formData.phone,
-                    companyAddress,
-                    personalAddress: formData.address,
-                    registeredOfficeAddress,
-                    serviceAreas: formData.serviceAreas,
-                    dispatchPincodes: formData.dispatchPincodes,
-                    complaintsContact: formData.complaintsContact,
-                    redressSchemeName: formData.redressSchemeName,
-                    redressMembershipNumber: formData.redressMembershipNumber,
-                    cmpProvider: formData.cmpProvider,
-                    cmpCertificateUrl: formData.cmpCertificateUrl,
-                    taxId: formData.taxId,
-                })
-                : null;
+            const managerProfilePayload = buildPendingManagerProfilePayload();
             let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
 
             if (selectedAvatarFile && user?.id) {
@@ -960,6 +983,14 @@ export default function ManagerProfilePage() {
                             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
                                 {saveError}
                             </div>
+                        )}
+
+                        {reverificationFields && reverificationFields.length > 0 && (
+                            <ProfileReverificationWarning
+                                fields={reverificationFields}
+                                onConfirm={confirmReverificationSave}
+                                onCancel={() => setReverificationFields(null)}
+                            />
                         )}
 
                         {saveDisabledReason && (

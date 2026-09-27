@@ -29,7 +29,7 @@ test('launch UI exposes the protected payment and manager subscription workspace
   const adminDashboard = readSource('src/pages/admin/dashboard/page.tsx');
 
   assert.match(app, /path="billing\/\*" element=\{<ManagerBilling \/>\}/);
-  assert.match(app, /path="subscription" element=\{<VerifiedManagerRoute><ManagerSubscription \/><\/VerifiedManagerRoute>\}/);
+  assert.match(app, /path="subscription" element=\{<ManagerVerificationGate area="subscription"><ManagerSubscription \/><\/ManagerVerificationGate>\}/);
   assert.match(app, /path="dashboard\/payments\/\*" element=\{<UserPayments \/>\}/);
   assert.match(app, /^const ManagerBilling = lazyPage/m);
   assert.match(app, /^const UserPayments = lazyPage/m);

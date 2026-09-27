@@ -7,6 +7,8 @@ import type { ManagerPlanOffer, ManagerPlanPreview } from '@/services/managerSub
 interface ManagerSubscriptionPlanCardProps {
     plan: ManagerPlanOffer | ManagerPlanPreview;
     checkoutDisabled: boolean;
+    /** Shown under the payment button when checkout is unavailable for a reason the manager can act on. */
+    checkoutDisabledReason?: string;
     busy: boolean;
     onStart: (offer: ManagerPlanOffer) => void;
 }
@@ -16,8 +18,9 @@ const planDescriptions = {
     growth: 'Higher property and Fast Track capacity, with dedicated support for a larger portfolio.',
 };
 
-export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, busy, onStart }: ManagerSubscriptionPlanCardProps) {
+export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, checkoutDisabledReason, busy, onStart }: ManagerSubscriptionPlanCardProps) {
     const offer = 'id' in plan ? plan : null;
+    const reasonId = offer && checkoutDisabledReason ? `plan-${offer.id}-checkout-reason` : undefined;
     const name = plan.code === 'pro' ? 'Pro' : 'Growth';
 
     return (
@@ -42,9 +45,10 @@ export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, bu
             {plan.lead_delivery_policy === 'best_effort' ? <p className="mt-5 text-xs leading-5 text-gray-600 dark:text-gray-300">Lead delivery is best-effort and is not guaranteed.</p> : null}
             {offer ? <>
                 <p className="mt-4 text-xs leading-5 text-gray-600 dark:text-gray-300">{offer.terms_text}</p>
-                <button type="button" disabled={checkoutDisabled} onClick={() => onStart(offer)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" disabled={checkoutDisabled} aria-describedby={reasonId} onClick={() => onStart(offer)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
                     {busy ? <ActionSpinner size="sm" aria-hidden /> : <CreditCard className="h-4 w-4" />} Continue to secure payment
                 </button>
+                {reasonId ? <p id={reasonId} className="mt-3 text-xs leading-5 text-gray-600 dark:text-gray-300">{checkoutDisabledReason}</p> : null}
             </> : <p className="mt-5 text-xs leading-5 text-gray-600 dark:text-gray-300">This overview is not a payment offer. Your free access remains available.</p>}
         </article>
     );

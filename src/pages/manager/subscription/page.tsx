@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import { ManagerVerificationBanner } from '@/components/routing/ManagerVerificationGate';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
 import { orderManagerPlans } from './managerPlanOrder';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
+import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
+import { SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON, resolveManagerVerificationGate } from '@/lib/managerVerificationGate';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
 import {
     cancelManagerSubscriptionCheckout,
@@ -24,6 +27,17 @@ import {
 import { getMyManagerBillingProfile } from '@/services/managerBillingProfileService';
 export default function ManagerSubscriptionPage() {
     const toast = useToast();
+    const verification = useManagerVerification();
+    // Pending or re-verifying managers can compare plans, but new payments wait
+    // for approval. Servicing an existing checkout (status, verify, cancel) stays open.
+    const verificationGate = resolveManagerVerificationGate({
+        isLoading: verification.isLoading,
+        error: verification.error,
+        hasProfile: Boolean(verification.managerProfile),
+        verificationStatus: verification.verificationStatus,
+        reverificationReason: verification.managerProfile?.agency_verification_reason,
+    });
+    const checkoutBlockedByVerification = verificationGate.kind !== 'allow';
     const [offers, setOffers] = useState<ManagerPlanOffer[]>([]);
     const [planPreviews, setPlanPreviews] = useState<ManagerPlanPreview[]>([]);
     const [summary, setSummary] = useState<ManagerSubscriptionSummary | null>(null);
@@ -130,6 +144,10 @@ export default function ManagerSubscriptionPage() {
             toast.error('Please confirm the monthly recurring payment consent before continuing.');
             return;
         }
+        if (checkoutBlockedByVerification) {
+            toast.error(SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON);
+            return;
+        }
         if (activeCheckout || loading || error || offersError || summary?.new_checkouts_paused) return;
         await runAction(offer.id, async () => {
             await loadRazorpayScript();
@@ -145,7 +163,7 @@ export default function ManagerSubscriptionPage() {
     };
 
     const resume = () => runAction('resume', async () => {
-        if (!activeCheckout) return;
+        if (!activeCheckout || checkoutBlockedByVerification) return;
         await loadRazorpayScript();
         await reconcileManagerSubscriptionCheckout(activeCheckout.id);
         const { account } = await getManagerSubscriptionSummary();
@@ -194,6 +212,7 @@ export default function ManagerSubscriptionPage() {
                     <div><h1 className="text-3xl font-black text-gray-900 dark:text-white">Choose your Estospaces plan</h1><p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Compare published-property limits, Fast Track capacity and support. {offers.length > 0 ? 'Displayed monthly prices include applicable taxes.' : 'Local prices and payment are shown only when your billing country is verified and supported.'}</p></div>
                     <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 dark:border-gray-700 dark:text-gray-100 disabled:opacity-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
                 </div>
+                {verificationGate.kind === 'gate' ? <ManagerVerificationBanner notice={verificationGate.notice} detail={SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON} onRetry={() => void verification.refetch()} /> : null}
                 {access ? <section aria-label="Your current access" className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">Your current access</p>
                     <h2 className="mt-2 text-xl font-black text-gray-900 dark:text-white">{access.title}</h2>
@@ -213,7 +232,7 @@ export default function ManagerSubscriptionPage() {
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
                     <div className="mt-4 flex flex-wrap gap-3">
-                        {summary && canResumeSubscription(summary) && acceptedCheckout && !pendingProof ? <button disabled={busy || Boolean(error)} type="button" onClick={() => void resume()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Resume secure checkout</button> : null}
+                        {summary && canResumeSubscription(summary) && acceptedCheckout && !pendingProof && !checkoutBlockedByVerification ? <button disabled={busy || Boolean(error)} type="button" onClick={() => void resume()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Resume secure checkout</button> : null}
                         <button disabled={busy} type="button" onClick={() => void checkStatus()} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Check payment status</button>
                         {activeCheckout.provider_subscription_id && !terminal && summary?.cancellation?.status !== 'confirmed' ? <button disabled={busy} type="button" onClick={() => setConfirmCancel(true)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Cancel subscription / renewal</button> : null}
                     </div>
@@ -228,12 +247,13 @@ export default function ManagerSubscriptionPage() {
                     {plansToShow.map((plan) => <ManagerSubscriptionPlanCard
                         key={'id' in plan ? plan.id : plan.code}
                         plan={plan}
-                        checkoutDisabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent}
+                        checkoutDisabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent || checkoutBlockedByVerification}
+                        checkoutDisabledReason={checkoutBlockedByVerification ? SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON : undefined}
                         busy={'id' in plan && busyPlan === plan.id}
                         onStart={(offer) => void start(offer)}
                     />)}
                 </section> : null}
-                {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" checked={recurringConsent} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
+                {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
             </div>
         </div>

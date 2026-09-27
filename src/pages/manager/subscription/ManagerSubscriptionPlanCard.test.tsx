@@ -51,3 +51,19 @@ test('only a real priced offer renders its price, accepted terms and checkout ac
     assert.match(markup, /Continue to secure payment/);
     assert.doesNotMatch(markup, /Local price and checkout unavailable/);
 });
+
+test('a verification-blocked offer keeps its price visible but disables checkout with the reason', () => {
+    const offer: ManagerPlanOffer = {
+        ...pro, id: 'approved-plan', version: 1, amount_minor: 99900, currency: 'INR',
+        billing_period: 'monthly', billing_interval: 1, total_cycles: 12,
+        tax_inclusive: true, terms_version: 'approved-v1', terms_text: 'Approved monthly terms.',
+        terms_digest: 'approved-digest',
+    };
+    const markup = renderToStaticMarkup(createElement(ManagerSubscriptionPlanCard, {
+        plan: offer, checkoutDisabled: true, busy: false, onStart: () => assert.fail('blocked checkout must not start'),
+        checkoutDisabledReason: 'Checkout is available once your manager verification is approved.',
+    }));
+    assert.match(markup, /₹999\.00/);
+    assert.match(markup, /<button type="button" disabled="" aria-describedby="plan-approved-plan-checkout-reason"/);
+    assert.match(markup, /<p id="plan-approved-plan-checkout-reason"[^>]*>Checkout is available once your manager verification is approved\.<\/p>/);
+});
