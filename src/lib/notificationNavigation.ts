@@ -168,6 +168,78 @@ const normalizeTargetPath = (
     return finalQuery ? `${normalizedPath}?${finalQuery}${hash}` : `${normalizedPath}${hash}`;
 };
 
+type NotificationRoleArea = 'user' | 'manager' | 'admin';
+
+const getPathRoleArea = (path: string): NotificationRoleArea | null => {
+    if (isPathOrNestedPath(path, '/user')) {
+        return 'user';
+    }
+    if (isPathOrNestedPath(path, '/manager')) {
+        return 'manager';
+    }
+    if (isPathOrNestedPath(path, '/admin')) {
+        return 'admin';
+    }
+    return null;
+};
+
+const readTargetQuery = (path: string) => {
+    const queryIndex = path.indexOf('?');
+    if (queryIndex < 0) {
+        return new URLSearchParams();
+    }
+    const query = path.slice(queryIndex + 1).split('#')[0];
+    try {
+        return new URLSearchParams(query);
+    } catch {
+        return new URLSearchParams();
+    }
+};
+
+const FAST_TRACK_WORKSPACE_PATHS = ['/user/dashboard/fast-track', '/manager/fast-track', '/admin/fast-track'] as const;
+const WORKSPACE_FOCUS_KEYS = ['section', 'document', 'viewing'] as const;
+
+// Keeps the section, document and viewing focus of a remapped Fast Track
+// destination so an old alert still opens the same part of the case.
+const carryWorkspaceFocus = (path: string, sourceParams: URLSearchParams) => {
+    const [basePath] = path.split('?');
+    if (!FAST_TRACK_WORKSPACE_PATHS.some((workspacePath) => basePath === workspacePath)) {
+        return path;
+    }
+    const params = readTargetQuery(path);
+    let changed = false;
+    WORKSPACE_FOCUS_KEYS.forEach((key) => {
+        const value = sourceParams.get(key)?.trim();
+        if (value && !params.has(key)) {
+            params.set(key, value);
+            changed = true;
+        }
+    });
+    if (!changed) {
+        return path;
+    }
+    return `${basePath}?${params.toString()}`;
+};
+
+const getRoleNotificationsPath = (role: NotificationRoleArea) => {
+    if (role === 'manager') {
+        return '/manager/notifications';
+    }
+    if (role === 'admin') {
+        return '/admin/notifications';
+    }
+    return '/user/dashboard/notifications';
+};
+
+const VIEWING_NOTIFICATION_TYPES = new Set([
+    'viewing_confirmed',
+    'viewing_completed',
+    'viewing_booked',
+    'viewing_cancelled',
+    'viewing_rescheduled',
+    'appointment_reminder',
+]);
+
 export function getNotificationNavigationPath(
     notification: { type: string; data?: NotificationNavigationData },
     role: string = 'user',
@@ -269,6 +341,62 @@ export function getNotificationNavigationPath(
                 return buildSupportPath('/admin/help', ticketId, conversationID);
             }
             return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
+        }
+
+        const targetRoleArea = getPathRoleArea(effectiveTargetPath);
+        const recipientRoleArea: NotificationRoleArea | null = notificationRole === 'user'
+            || notificationRole === 'manager'
+            || notificationRole === 'admin'
+            ? notificationRole
+            : null;
+        if (targetRoleArea && recipientRoleArea && targetRoleArea !== recipientRoleArea) {
+            // Older producers sent user paths to managers. Rebuild the
+            // destination for this role from the notification type and IDs
+            // instead of letting the other role's layout bounce to a dashboard.
+            const targetParams = readTargetQuery(effectiveTargetPath);
+            const remapData: Record<string, unknown> = {};
+            Object.entries(data || {}).forEach(([key, value]) => {
+                if (key !== 'target_path' && key !== 'targetPath') {
+                    remapData[key] = value;
+                }
+            });
+            const targetCaseId = targetParams.get('case')?.trim();
+            if (!fastTrackCaseId && targetCaseId) {
+                remapData.fast_track_id = targetCaseId;
+            }
+            const targetViewingId = targetParams.get('viewing')?.trim();
+            if (!viewingId && targetViewingId) {
+                remapData.viewing_id = targetViewingId;
+            }
+            const remappedPath = getNotificationNavigationPath({ type: notification.type, data: remapData }, recipientRoleArea);
+            if (!remappedPath || getPathRoleArea(remappedPath) !== recipientRoleArea) {
+                return getRoleNotificationsPath(recipientRoleArea);
+            }
+            return carryWorkspaceFocus(remappedPath, targetParams);
+        }
+
+        if (
+            VIEWING_NOTIFICATION_TYPES.has(notification.type)
+            && (recipientRoleArea === 'user' || recipientRoleArea === 'manager')
+            && (
+                isPathOrNestedPath(effectiveTargetPath, '/user/dashboard/case-file')
+                || isPathOrNestedPath(effectiveTargetPath, '/manager/case-files')
+            )
+        ) {
+            // Older viewing alerts opened the generic case file. The viewing
+            // stage of the Fast Track workspace shows the appointment itself.
+            const targetParams = readTargetQuery(effectiveTargetPath);
+            const caseId = targetParams.get('case')?.trim() || fastTrackCaseId;
+            if (caseId) {
+                return buildWorkspacePath(
+                    recipientRoleArea === 'manager' ? '/manager/fast-track' : '/user/dashboard/fast-track',
+                    {
+                        caseId,
+                        viewingId: targetParams.get('viewing')?.trim() || viewingId,
+                        section: 'viewing',
+                    },
+                );
+            }
         }
 
         if (notificationRole === 'admin' && readNestedPathId(effectiveTargetPath, '/admin/properties')) {

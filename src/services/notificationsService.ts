@@ -6,6 +6,7 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { getNotificationNavigationPath as resolveNotificationNavigationPath } from '@/lib/notificationNavigation';
 import { isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
+import { formatNotificationDateTime } from '@/lib/notificationTime';
 
 const NOTIFICATION_URL = () => getServiceUrl('notification');
 
@@ -455,13 +456,14 @@ export async function notifyViewingCancelled(
     propertyId: string,
     date: string,
     reason: string,
+    viewingId?: string,
 ): Promise<boolean> {
     return createNotification({
         userId,
         type: NOTIFICATION_TYPES.VIEWING_CANCELLED,
         title: 'Viewing Cancelled',
-        message: `Your viewing for "${propertyTitle}" on ${date} has been cancelled. Reason: ${reason}`,
-        data: { propertyId, propertyTitle, date, reason },
+        message: `Your viewing for "${propertyTitle}" on ${formatNotificationDateTime(date)} has been cancelled. Reason: ${reason}`,
+        data: { propertyId, propertyTitle, date, reason, ...(viewingId ? { viewingId } : {}) },
     });
 }
 

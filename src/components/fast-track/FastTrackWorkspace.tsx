@@ -1871,8 +1871,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        setViewingDate(selectedCase.viewing.scheduledAt ? selectedCase.viewing.scheduledAt.slice(0, 10) : '');
-        setViewingTime(selectedCase.viewing.scheduledAt ? selectedCase.viewing.scheduledAt.slice(11, 16) : '');
+        setViewingDate(formatFastTrackDocumentRequestInputValue(selectedCase.viewing.scheduledAt).slice(0, 10));
+        setViewingTime(formatFastTrackDocumentRequestInputValue(selectedCase.viewing.scheduledAt).slice(11, 16));
         setViewingNote(selectedCase.viewing.note || '');
         setDecisionAmount(selectedCase.decision.amount ? String(selectedCase.decision.amount) : '');
         setDecisionNote(selectedCase.decision.note || '');
