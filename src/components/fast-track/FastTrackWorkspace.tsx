@@ -68,6 +68,7 @@ import {
     resolveFastTrackVisibleStage,
     shouldDeferFastTrackStageResolution,
     shouldDeferFastTrackSelectionURLSync,
+    resolveFastTrackDisplayedCaseId,
     shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
 } from '@/lib/fastTrackWorkspace';
@@ -762,7 +763,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
         caseId: string;
-        status: 'loading' | 'miss' | 'unavailable';
+        status: 'loading' | 'miss' | 'unavailable' | 'forbidden';
     } | null>(null);
     const [requestedCaseRetryToken, setRequestedCaseRetryToken] = useState(0);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
@@ -1101,6 +1102,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 return;
             }
 
+            if (result.forbidden) {
+                setError(null);
+                setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'forbidden' });
+                return;
+            }
+
             setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'unavailable' });
             setError(result.error || 'The Fast Track service is temporarily unavailable. Please try again.');
         };
@@ -1299,9 +1306,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setSearchParams,
     ]);
 
+    const displayedCaseId = resolveFastTrackDisplayedCaseId({
+        requestedCaseId: requestedCaseParam,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+        selectedCaseId,
+    });
+    const requestedCaseForbidden = Boolean(
+        normalizedRequestedCaseParam
+        && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
+        && requestedCaseLookup.status === 'forbidden',
+    );
     const selectedCase = useMemo(
-        () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
-        [filteredCases, selectedCaseId],
+        () => filteredCases.find((item) => item.caseId === displayedCaseId) || null,
+        [filteredCases, displayedCaseId],
     );
     const selectedCaseDisplayTitle = selectedCase
         ? getFastTrackWorkspaceDisplayTitle(selectedCase, role)
@@ -4035,10 +4053,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 deadlineLabel: formatFastTrackCaseDeadline(item, role, deadlineNow),
                 statusLabel: chip.label,
                 statusTone: chip.tone,
-                selected: selectedCaseId === item.caseId,
+                selected: displayedCaseId === item.caseId,
             };
         }),
-        [deadlineNow, paginatedCases, role, selectedCaseId],
+        [deadlineNow, displayedCaseId, paginatedCases, role],
     );
 
     const caseRailLayout = useMemo(
@@ -4468,6 +4486,43 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 ) : null}
                             </div>
                         </>
+                    ) : requestedCaseForbidden ? (
+                        <div
+                            role="alert"
+                            data-fast-track-case-forbidden
+                            className="rounded-[32px] border border-red-200 bg-white px-6 py-16 text-center text-sm text-gray-600 shadow-sm dark:border-red-900/40 dark:bg-gray-950 dark:text-gray-300"
+                        >
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                                You do not have access to this journey.
+                            </p>
+                            <p className="mt-2">
+                                This link belongs to a journey that is not shared with your account.
+                            </p>
+                            <div className="mt-6 flex flex-wrap justify-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setRequestedCaseLookup(null);
+                                        setSearchParams((previous) => stripCaseSearchParam(previous), { replace: true });
+                                    }}
+                                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
+                                >
+                                    View your journeys
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
+                                    className="inline-flex items-center justify-center rounded-xl bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950"
+                                >
+                                    Back to dashboard
+                                </button>
+                            </div>
+                        </div>
+                    ) : requestedCaseParam && !displayedCaseId ? (
+                        <div role="status" className="flex items-center justify-center gap-3 rounded-[32px] border border-gray-200 bg-white px-6 py-20 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
+                            <ActionSpinner size={16} aria-hidden />
+                            Opening the linked journey...
+                        </div>
                     ) : (
                         <div className="rounded-[32px] border border-dashed border-gray-300 bg-white px-6 py-20 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
                             <p className="font-semibold text-gray-900 dark:text-white">

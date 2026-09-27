@@ -7,6 +7,7 @@ import type { FastTrackCase } from '@/services/fastTrackService';
 import { PAYMENTS_ENABLED } from './launchFlags';
 
 import {
+    resolveFastTrackDisplayedCaseId,
     buildFastTrackDocumentDraftStorageKey,
     buildFastTrackDocumentRequestFieldKey,
     buildFastTrackDocumentRequestPayload,
@@ -1023,4 +1024,38 @@ test('document focus remains switchable after upload refresh and polling replace
         [...['identity', 'address']],
     );
     assert.equal(focus, 'address');
+});
+
+test('a linked Fast Track case that is not yet confirmed never renders a different case', () => {
+    // Foreign or still-loading link: the auto-selected own case must not be displayed.
+    assert.equal(resolveFastTrackDisplayedCaseId({
+        requestedCaseId: 'foreign-case',
+        requestedCaseIsAvailable: false,
+        requestedCaseLookupMissed: false,
+        selectedCaseId: 'own-case',
+    }), null);
+
+    // Link resolved to an accessible case: display the selection.
+    assert.equal(resolveFastTrackDisplayedCaseId({
+        requestedCaseId: 'own-case',
+        requestedCaseIsAvailable: true,
+        requestedCaseLookupMissed: false,
+        selectedCaseId: 'own-case',
+    }), 'own-case');
+
+    // Missing (404) link is stripped and recovered by the existing notice flow.
+    assert.equal(resolveFastTrackDisplayedCaseId({
+        requestedCaseId: 'deleted-case',
+        requestedCaseIsAvailable: false,
+        requestedCaseLookupMissed: true,
+        selectedCaseId: 'own-case',
+    }), 'own-case');
+
+    // No link at all: ordinary selection.
+    assert.equal(resolveFastTrackDisplayedCaseId({
+        requestedCaseId: null,
+        requestedCaseIsAvailable: false,
+        requestedCaseLookupMissed: false,
+        selectedCaseId: 'own-case',
+    }), 'own-case');
 });
