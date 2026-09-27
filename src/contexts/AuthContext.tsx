@@ -6,6 +6,7 @@ import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage, getServ
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/authToken';
 import { setProductAnalyticsIdentity, trackProductEvent } from '@/lib/productAnalytics';
+import { clearPendingGuestAction } from '@/lib/pendingGuestAction';
 
 export interface User {
     id: string;
@@ -691,6 +692,8 @@ const sanitizeRegistrationError = (err: unknown): string => {
             }
         }
 
+        // A guest action stored before sign-in must never carry over to the next account.
+        clearPendingGuestAction(typeof window !== 'undefined' ? window.sessionStorage : null);
         applySignedOutState(null);
     }, [applySignedOutState]);
 

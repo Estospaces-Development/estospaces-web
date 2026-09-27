@@ -87,7 +87,17 @@ import {
     shouldResetPropertyDetailScroll,
 } from '@/lib/propertyDetailScroll';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
-import { getLoginPath } from '@/lib/authUtils';
+import { sanitizeInternalReturnPath } from '@/lib/authUtils';
+import {
+    buildGuestLoginNavigation,
+    clearPendingGuestAction,
+    consumePendingGuestAction,
+    isPendingGuestActionForProperty,
+    storePendingGuestAction,
+    type PendingGuestAction,
+    type PendingGuestActionType,
+} from '@/lib/pendingGuestAction';
+import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
@@ -375,6 +385,24 @@ export function getPropertyDetailFallbackBackTarget(fastTrackQuery: string | nul
     }
 
     return fastTrackQuery === '1' ? '/user/dashboard' : '/user/dashboard/discover';
+}
+
+/**
+ * "Back to Search" recovery target. Guests always recover to the public
+ * search (never the protected user search); the originating search query is
+ * kept when the page was opened from a search result.
+ */
+export function getPropertyDetailSearchRecoveryTarget(backTo: unknown, user?: unknown) {
+    const safeBackTo = sanitizeInternalReturnPath(backTo);
+    const backToPathname = safeBackTo ? new URL(safeBackTo, 'https://return-path.invalid').pathname : '';
+
+    if (!user) {
+        return safeBackTo && backToPathname === '/search' ? safeBackTo : '/search';
+    }
+
+    return safeBackTo && (backToPathname === '/search' || backToPathname === USER_SEARCH_PATH)
+        ? safeBackTo
+        : USER_SEARCH_PATH;
 }
 
 export function shouldUseBrowserHistoryForPropertyDetailBack(user?: unknown) {
@@ -979,11 +1007,13 @@ const UserPropertyDetail = () => {
         ? location.state
         : null) as { backTo?: string; backLabel?: string; backState?: unknown } | null;
     const fallbackBackTarget = getPropertyDetailFallbackBackTarget(fastTrackQuery, user);
-    const backLabel = navigationState?.backLabel || 'Back';
+    // Router state is caller-controlled; only a validated internal path may be followed.
+    const safeBackTo = sanitizeInternalReturnPath(navigationState?.backTo);
+    const backLabel = (safeBackTo && navigationState?.backLabel) || 'Back';
 
     const handleBackNavigation = () => {
-        if (navigationState?.backTo) {
-            navigate(navigationState.backTo, { state: navigationState.backState });
+        if (safeBackTo) {
+            navigate(safeBackTo, { state: navigationState?.backState });
             return;
         }
 
@@ -1755,13 +1785,25 @@ const UserPropertyDetail = () => {
         property?.agent_company ||
         '';
 
-    const ensureAuthenticated = () => {
+    const ensureAuthenticated = (pendingActionType?: PendingGuestActionType) => {
         if (user) {
             return true;
         }
 
+        // Only the latest guest intent is kept; an action without a type clears it.
+        const pendingActionNonce = pendingActionType && property?.id
+            ? storePendingGuestAction(window.sessionStorage, {
+                type: pendingActionType,
+                origin: 'property',
+                propertyId: property.id,
+            }, location)
+            : null;
+        if (!pendingActionNonce) {
+            clearPendingGuestAction(window.sessionStorage);
+        }
+        const loginNavigation = buildGuestLoginNavigation(location, pendingActionNonce);
         toast.error('Please sign in to continue.');
-        navigate(getLoginPath());
+        navigate(loginNavigation.to, { state: loginNavigation.state });
         return false;
     };
 
@@ -1776,7 +1818,7 @@ const UserPropertyDetail = () => {
     };
 
     const handleSaveToggle = async () => {
-        if (!property || !id || !ensureAuthenticated()) {
+        if (!property || !id || !ensureAuthenticated('save')) {
             return;
         }
         if (isUpdatingSavedProperty) {
@@ -1881,7 +1923,7 @@ const UserPropertyDetail = () => {
     };
 
     const handleStartFastTrack = async () => {
-        if (fastTrackRequestInFlightRef.current || !property || !ensureAuthenticated()) {
+        if (fastTrackRequestInFlightRef.current || !property || !ensureAuthenticated('fast_track')) {
             return;
         }
 
@@ -1994,6 +2036,80 @@ const UserPropertyDetail = () => {
         setIsFastTrackRequestConfirmationOpen(false);
         void handleStartFastTrack();
     };
+
+    const isSeekerAccount = String(user?.role || '').trim().toLowerCase() === 'user';
+    const [resumedGuestAction, setResumedGuestAction] = useState<PendingGuestAction | null>(null);
+    useEffect(() => {
+        if (!isSeekerAccount || !property?.id) {
+            return;
+        }
+        const pendingAction = consumePendingGuestAction(
+            window.sessionStorage,
+            location,
+            (action) => action.origin === 'property' && isPendingGuestActionForProperty(action, property.id),
+        );
+        if (pendingAction) {
+            setResumedGuestAction(pendingAction);
+        }
+    }, [isSeekerAccount, location, property?.id]);
+
+    useEffect(() => {
+        if (!resumedGuestAction || !property || !isPendingGuestActionForProperty(resumedGuestAction, property.id)) {
+            return;
+        }
+
+        if (resumedGuestAction.type === 'save') {
+            setResumedGuestAction(null);
+            if (isPropertySaved(property.id)) {
+                setSavedPropertyStatusMessage('This property is already in your saved list.');
+                return;
+            }
+            void (async () => {
+                const result = await saveProperty(property.id);
+                const message = result?.success
+                    ? 'Property saved successfully.'
+                    : result?.error || 'Unable to update your saved properties.';
+                setSavedPropertyStatusMessage(message);
+                if (result?.success) {
+                    toast.success(message);
+                } else {
+                    toast.error(message);
+                }
+            })();
+            return;
+        }
+
+        if (resumedGuestAction.type === 'enquire') {
+            setResumedGuestAction(null);
+            toast.success('You are signed in. Choose a time to send your viewing request.');
+            window.setTimeout(() => {
+                viewingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                viewingFormRef.current
+                    ?.querySelector<HTMLButtonElement>('button[aria-label^="Select "]:not(:disabled)')
+                    ?.focus({ preventScroll: true });
+            }, 0);
+            return;
+        }
+
+        // Fast Track: wait for the journey lookup, then offer the existing confirmation step.
+        if (fastTrackCtaState === 'checking') {
+            return;
+        }
+        setResumedGuestAction(null);
+        if (fastTrackCtaState === 'start' && !isFastTrackCtaDisabled && mapFastTrackPropertyType(property.listing_type)) {
+            setIsFastTrackRequestConfirmationOpen(true);
+            return;
+        }
+        if (fastTrackCtaState === 'continue') {
+            toast.success('You already have a Fast Track journey for this property. Use the Fast Track button to continue it.');
+            return;
+        }
+        if (isFastTrackApprovalPending) {
+            toast.success('Your Fast Track request for this property is already waiting for manager approval.');
+            return;
+        }
+        toast.error('You are signed in, but Fast Track is not available to request right now. Use the Fast Track button to try again.');
+    }, [fastTrackCtaState, isFastTrackApprovalPending, isFastTrackCtaDisabled, isPropertySaved, property, resumedGuestAction, saveProperty, toast]);
 
     const handleOpenConversation = async () => {
         if (!property || !ensureAuthenticated()) {
@@ -2141,7 +2257,7 @@ const UserPropertyDetail = () => {
     const handleScheduleViewing = async (event: React.FormEvent) => {
         event.preventDefault();
 
-        if (!property || !ensureAuthenticated()) {
+        if (!property || !ensureAuthenticated('enquire')) {
             return;
         }
 
@@ -2233,7 +2349,7 @@ const UserPropertyDetail = () => {
                     <p className="text-gray-500 dark:text-gray-400 mb-8">The property you are looking for might have been removed or is temporarily unavailable.</p>
                     <button
                         type="button"
-                        onClick={() => navigate('/user/search')}
+                        onClick={() => navigate(getPropertyDetailSearchRecoveryTarget(navigationState?.backTo, user))}
                         className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-md"
                     >
                         Back to Search

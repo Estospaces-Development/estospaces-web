@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation as useRouterLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
@@ -40,6 +40,7 @@ import {
 } from '@/lib/propertySearchControls';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { getLoginPath } from '@/lib/authUtils';
+import { buildGuestLoginNavigation, consumePendingGuestAction, storePendingGuestAction } from '@/lib/pendingGuestAction';
 import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSearchValidation';
 import { buildSearchHistoryLabel, buildSearchHistoryMeta, buildSearchHistoryUrlParams } from '@/lib/searchHistory';
 import {
@@ -82,6 +83,7 @@ const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
 
 const PropertySearch = () => {
     const navigate = useNavigate();
+    const routerLocation = useRouterLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated, user } = useAuth();
     const preferredSearchDefaults = usePreferredSearchDefaults(isAuthenticated ? user?.id : null);
@@ -613,8 +615,56 @@ const PropertySearch = () => {
         setShowSuggestions(false);
     };
 
+    const searchReturnPath = `${routerLocation.pathname}${routerLocation.search}`;
+    const openPropertyFromSearch = (propertyId: string) => {
+        navigate(`/user/properties/${propertyId}`, {
+            state: { backTo: searchReturnPath, backLabel: 'Back to Search' },
+        });
+    };
+
+    const isSeekerAccount = isAuthenticated && String(user?.role || '').trim().toLowerCase() === 'user';
+    const resumedGuestSaveRef = useRef(false);
+    // The location this page was entered with; the post-login handoff nonce
+    // arrives here, before the page normalises its own URL parameters.
+    const entryLocationRef = useRef(routerLocation);
+    useEffect(() => {
+        if (!isSeekerAccount || resumedGuestSaveRef.current) {
+            return;
+        }
+        resumedGuestSaveRef.current = true;
+        const pendingAction = consumePendingGuestAction(
+            window.sessionStorage,
+            entryLocationRef.current,
+            (action) => action.origin === 'search' && action.type === 'save',
+        );
+        if (!pendingAction) {
+            return;
+        }
+
+        void (async () => {
+            const result = await saveProperty(pendingAction.propertyId);
+            if (result?.success === false) {
+                setSearchSaveStatus('We could not save the property you chose before signing in. Please try again.');
+                showToastError(result.error || 'Could not update saved property');
+                return;
+            }
+            setSearchSaveStatus('The property you chose before signing in is now in your saved properties.');
+        })();
+    }, [isSeekerAccount, saveProperty, showToastError]);
+
     const handleSavePropertyFromSearch = async (property: SearchResult) => {
         if (savingPropertyId === property.id) {
+            return;
+        }
+
+        if (!isAuthenticated) {
+            const pendingActionNonce = storePendingGuestAction(
+                window.sessionStorage,
+                { type: 'save', origin: 'search', propertyId: property.id },
+                routerLocation,
+            );
+            const loginNavigation = buildGuestLoginNavigation(routerLocation, pendingActionNonce);
+            navigate(loginNavigation.to, { state: loginNavigation.state });
             return;
         }
 
@@ -742,7 +792,7 @@ const PropertySearch = () => {
                                     className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-zinc-800 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center justify-between gap-2"
                                     onClick={() => {
                                         if (suggestion.type === 'property' && suggestion.id) {
-                                            navigate(`/user/properties/${suggestion.id}`);
+                                            openPropertyFromSearch(suggestion.id);
                                         } else if (isLocationAutocompleteSuggestion(suggestion)) {
                                             locationInferenceSuppressedRef.current = false;
                                             inferredLocationRef.current = suggestion.text;
@@ -1106,7 +1156,7 @@ const PropertySearch = () => {
                         const displayTitle = formatLaunchPropertyText(p.title);
                         return (
                             <div key={p.id} className="min-w-0 bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
-                                <div className="relative mb-3 flex h-40 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-zinc-800" onClick={() => navigate(`/user/properties/${p.id}`)}>
+                                <div className="relative mb-3 flex h-40 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-zinc-800" onClick={() => openPropertyFromSearch(p.id)}>
                                     <MapPin className="w-8 h-8 text-gray-300" />
                                     {coverImg ? (
                                         <img
@@ -1122,7 +1172,7 @@ const PropertySearch = () => {
                                     )}
                                     <button
                                         type="button"
-                                        aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle} from search results`}
+                                        aria-label={isSaved ? `Remove ${displayTitle} from saved properties` : !isAuthenticated ? `Sign in to save ${displayTitle}` : `Save ${displayTitle} from search results`}
                                         aria-pressed={isSaved}
                                         disabled={isSavingProperty}
                                         onClick={(event) => {
@@ -1133,7 +1183,7 @@ const PropertySearch = () => {
                                             ? 'bg-rose-500 text-white hover:bg-rose-600'
                                             : 'bg-white/95 text-gray-700 hover:bg-orange-50 hover:text-primary dark:bg-zinc-900/90 dark:text-gray-200 dark:hover:bg-zinc-800'
                                             }`}
-                                        title={isSaved ? `Remove ${displayTitle} from saved properties` : `Save ${displayTitle}`}
+                                        title={isSaved ? `Remove ${displayTitle} from saved properties` : !isAuthenticated ? `Sign in to save ${displayTitle}` : `Save ${displayTitle}`}
                                     >
                                         {isSavingProperty ? (
                                             <ActionSpinner className="h-4 w-4" />
@@ -1142,7 +1192,7 @@ const PropertySearch = () => {
                                         )}
                                     </button>
                                 </div>
-                                <h2 className="mobile-safe-text font-semibold text-gray-900 dark:text-white mb-1 cursor-pointer" onClick={() => navigate(`/user/properties/${p.id}`)}>{displayTitle}</h2>
+                                <h2 className="mobile-safe-text font-semibold text-gray-900 dark:text-white mb-1 cursor-pointer" onClick={() => openPropertyFromSearch(p.id)}>{displayTitle}</h2>
                                 <p className="mobile-safe-text text-sm text-gray-500 dark:text-gray-400 mb-2">{formatLaunchPropertyLocation(p.location || [p.city, p.postcode])}</p>
                                 <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                                     <span className="text-lg font-bold text-primary">
@@ -1158,7 +1208,7 @@ const PropertySearch = () => {
                                 <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
                                     <button
                                         type="button"
-                                        onClick={() => navigate(`/user/properties/${p.id}`)}
+                                        onClick={() => openPropertyFromSearch(p.id)}
                                         className="flex min-h-11 flex-1 items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
                                     >
                                         View details
