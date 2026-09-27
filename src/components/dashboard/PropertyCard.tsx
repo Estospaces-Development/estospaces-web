@@ -22,6 +22,7 @@ import ShareModal from './ShareModal';
 import PropertyMediaImage from './PropertyMediaImage';
 import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
+import { isListingClosedForNewJourneys } from '@/lib/propertyAvailability';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
@@ -213,7 +214,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         );
     };
 
-    const fastTrackAction = onStartFastTrack ? (
+    const fastTrackAction = onStartFastTrack && !isListingClosedForNewJourneys(property?.status) ? (
         <button
             type="button"
             onClick={handleStartFastTrack}

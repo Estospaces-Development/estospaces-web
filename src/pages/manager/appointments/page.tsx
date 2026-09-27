@@ -204,6 +204,45 @@ function getStatusBadge(status: Viewing['status']) {
     }
 }
 
+export type AppointmentMutationOutcome =
+    | { status: 'saved' }
+    | { status: 'mutation_failed'; error: string }
+    | { status: 'saved_sync_failed'; error: string };
+
+const errorMessageOf = (error: unknown, fallback: string) => (
+    error instanceof Error && error.message ? error.message : fallback
+);
+
+/**
+ * Commits the appointment change first, then syncs the linked Fast Track
+ * case. A companion-sync failure must never be reported as a failed
+ * appointment update, because the appointment change is already saved
+ * (QA-MB-20260926-01-006).
+ */
+export async function runAppointmentMutationWithCompanionSync(
+    mutate: () => Promise<void>,
+    syncCompanion?: () => Promise<void>,
+): Promise<AppointmentMutationOutcome> {
+    try {
+        await mutate();
+    } catch (error) {
+        return { status: 'mutation_failed', error: errorMessageOf(error, 'Unable to update this appointment.') };
+    }
+    if (!syncCompanion) {
+        return { status: 'saved' };
+    }
+    try {
+        await syncCompanion();
+    } catch (error) {
+        return { status: 'saved_sync_failed', error: errorMessageOf(error, 'Unable to sync the linked fast-track case.') };
+    }
+    return { status: 'saved' };
+}
+
+export function describeCompanionSyncFailure(successMessage: string, error: string) {
+    return `${successMessage} The linked Fast Track case was not updated: ${error}`;
+}
+
 export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -367,31 +406,43 @@ export default function ManagerAppointmentsPage() {
         setActingID(appointmentID);
         try {
             const appointment = appointments.find((item) => item.id === appointmentID);
-            await action();
-            if (appointment && fastTrackSync) {
-                const linkedFastTrackCase = findLinkedFastTrackCase(fastTrackCases, {
+            const linkedFastTrackCase = appointment && fastTrackSync
+                ? findLinkedFastTrackCase(fastTrackCases, {
                     caseId: appointment.fast_track_case_id,
                     viewingId: appointment.id,
                     applicationId: appointment.application_id,
                     leadId: appointment.lead_id,
                     propertyId: appointment.property_id,
-                });
-                if (linkedFastTrackCase) {
-                    const syncResult = await syncFastTrackCompanionAction({
-                        fastTrackCase: linkedFastTrackCase,
-                        request: fastTrackSync,
-                        publishWorkspaceSync,
-                        reason: `Manager appointments companion action: ${fastTrackSync.action}`,
-                    });
-                    if (syncResult.error || !syncResult.data) {
-                        throw new Error(syncResult.error || 'Unable to sync the linked fast-track case.');
+                })
+                : null;
+            const outcome = await runAppointmentMutationWithCompanionSync(
+                action,
+                linkedFastTrackCase && fastTrackSync
+                    ? async () => {
+                        const syncResult = await syncFastTrackCompanionAction({
+                            fastTrackCase: linkedFastTrackCase,
+                            request: fastTrackSync,
+                            publishWorkspaceSync,
+                            reason: `Manager appointments companion action: ${fastTrackSync.action}`,
+                        });
+                        if (syncResult.error || !syncResult.data) {
+                            throw new Error(syncResult.error || 'Unable to sync the linked fast-track case.');
+                        }
+                        setFastTrackCases((previous) => previous.map((caseItem) => (
+                            caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem
+                        )));
                     }
-                    setFastTrackCases((previous) => previous.map((caseItem) => (
-                        caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem
-                    )));
-                }
+                    : undefined,
+            );
+            if (outcome.status === 'mutation_failed') {
+                toast.error(outcome.error);
+                return;
             }
-            toast.success(successMessage);
+            if (outcome.status === 'saved_sync_failed') {
+                toast.warning(describeCompanionSyncFailure(successMessage, outcome.error));
+            } else {
+                toast.success(successMessage);
+            }
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [

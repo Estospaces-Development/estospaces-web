@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
+  describeCompanionSyncFailure,
+  runAppointmentMutationWithCompanionSync,
   MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH,
   MAX_MANAGER_APPOINTMENT_NOTE_LENGTH,
   normalizeManagerAppointmentCancelReason,
@@ -96,6 +98,51 @@ test("manager cancellation modal enforces reason limit in the textarea", () => {
 test("manager cancellation submit stays disabled until the reason is valid", () => {
   assert.match(source, /const isCancelReasonValid = validateManagerAppointmentCancelReason\(cancelReason\) === null;/);
   assert.match(source, /disabled=\{isSavingCancel \|\| !isCancelReasonValid\}/);
+});
+
+test("appointment confirm that saves but fails Fast Track sync is reported as saved", async () => {
+  const calls: string[] = [];
+  const outcome = await runAppointmentMutationWithCompanionSync(
+    async () => { calls.push("confirm"); },
+    async () => {
+      calls.push("sync");
+      throw new Error("approve all required documents before scheduling a viewing");
+    },
+  );
+  assert.deepEqual(calls, ["confirm", "sync"]);
+  assert.deepEqual(outcome, {
+    status: "saved_sync_failed",
+    error: "approve all required documents before scheduling a viewing",
+  });
+  assert.equal(
+    describeCompanionSyncFailure("Appointment confirmed successfully.", outcome.status === "saved_sync_failed" ? outcome.error : ""),
+    "Appointment confirmed successfully. The linked Fast Track case was not updated: approve all required documents before scheduling a viewing",
+  );
+});
+
+test("appointment mutation failure skips the Fast Track sync and reports failure", async () => {
+  let synced = false;
+  const outcome = await runAppointmentMutationWithCompanionSync(
+    async () => { throw new Error("viewing slot already booked"); },
+    async () => { synced = true; },
+  );
+  assert.equal(synced, false);
+  assert.deepEqual(outcome, { status: "mutation_failed", error: "viewing slot already booked" });
+});
+
+test("appointment mutation with no linked case or a clean sync is saved", async () => {
+  assert.deepEqual(await runAppointmentMutationWithCompanionSync(async () => undefined), { status: "saved" });
+  assert.deepEqual(
+    await runAppointmentMutationWithCompanionSync(async () => undefined, async () => undefined),
+    { status: "saved" },
+  );
+});
+
+test("manager appointments refresh the list after a saved change even when the companion sync fails", () => {
+  const runActionBody = source.slice(source.indexOf("const runAction = async"), source.indexOf("const updateRescheduleFormField"));
+  assert.match(runActionBody, /outcome\.status === 'mutation_failed'[\s\S]*return;/);
+  assert.match(runActionBody, /toast\.warning\(describeCompanionSyncFailure\(successMessage, outcome\.error\)\)/);
+  assert.ok(runActionBody.indexOf("toast.warning") < runActionBody.indexOf("await fetchAppointments({ background: true })"));
 });
 
 test("manager Mark Completed is disabled while the linked Fast Track awaits documents", () => {

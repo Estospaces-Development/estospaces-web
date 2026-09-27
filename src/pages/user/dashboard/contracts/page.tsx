@@ -70,6 +70,12 @@ import {
 import { paginateItems } from "@/lib/pagination";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
 import { filterContractsWorkspace } from "@/lib/contractsWorkspaceSearch";
+import {
+  CONTRACT_DOWNLOAD_UNAVAILABLE_MESSAGE,
+  canDownloadContract,
+  downloadContractDocument,
+  getContractBodyText,
+} from "@/lib/contractDocument";
 
 const USER_PROPERTIES_PAGE_SIZE = 8;
 const USER_CONTRACTS_PAGE_SIZE = 8;
@@ -890,16 +896,25 @@ export default function ContractsPage() {
                           <button
                             type="button"
                             aria-label={`Download contract ${contract.id}`}
-                            disabled={!contract.contract_pdf_url}
+                            aria-describedby={canDownloadContract(contract) ? undefined : `contract-download-note-${contract.id}`}
+                            title={canDownloadContract(contract) ? "Download a printable copy" : CONTRACT_DOWNLOAD_UNAVAILABLE_MESSAGE}
+                            disabled={!canDownloadContract(contract)}
                             onClick={() => {
-                              if (contract.contract_pdf_url) {
-                                window.open(contract.contract_pdf_url, "_blank", "noopener,noreferrer");
-                              }
+                              if (!canDownloadContract(contract)) return;
+                              downloadContractDocument(contract, {
+                                formatAmount: (amount) => formatContractCurrency(contract, amount),
+                                statusLabel: getStatusLabel(contract.status || ""),
+                              });
                             }}
                             className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Download size={18} />
                           </button>
+                          {!canDownloadContract(contract) && (
+                            <span id={`contract-download-note-${contract.id}`} className="sr-only">
+                              {CONTRACT_DOWNLOAD_UNAVAILABLE_MESSAGE}
+                            </span>
+                          )}
                         </div>
                       </UserContractCardFrame>
                     );
@@ -1029,15 +1044,23 @@ export default function ContractsPage() {
               </div>
             </div>
 
-            {viewContract.content ? (
-              <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
-                {viewContract.content}
-              </div>
+            {getContractBodyText(viewContract) ? (
+              <section
+                aria-labelledby="user-contract-terms-title"
+                className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300"
+              >
+                <h3 id="user-contract-terms-title" className="text-xs uppercase tracking-[0.18em] text-gray-400">
+                  Terms and conditions
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap break-words">
+                  {getContractBodyText(viewContract)}
+                </p>
+              </section>
             ) : (
               <div className="mt-6 rounded-2xl border border-dashed border-gray-200 p-5 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                Full contract text is not embedded in this record yet. This
-                panel keeps the user on the exact linked contract while the
-                signing workflow continues.
+                No terms and conditions text is recorded on this contract yet.
+                Ask the manager to add the agreement terms before you rely on
+                or sign it.
               </div>
             )}
 
