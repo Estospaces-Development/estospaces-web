@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, normalizeRole, requiresHostedLoginRedirect, resolveLoginReturnLocation, resolveLoginReturnNavigationState } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect, resolveLoginReturnLocation, resolveLoginReturnNavigationState } from '@/lib/authUtils';
 import { clearPendingGuestAction } from '@/lib/pendingGuestAction';
 import { getPublicHomeHref } from '@/lib/utils/hostUtils';
 import { ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
@@ -56,7 +56,8 @@ export default function LoginPage() {
     // through this exact handoff; any other outcome discards it.
     const returnState = isRequestedReturn ? resolveLoginReturnNavigationState(location.state) : undefined;
     const resumesSeekerHandoff = isRequestedReturn
-      && normalizeRole(role) === 'user'
+      // Strict match, as on the consuming pages: an unknown or empty role never resumes.
+      && String(role || '').trim().toLowerCase() === 'user'
       && Boolean(returnState?.pendingActionNonce);
     if (!resumesSeekerHandoff) {
       clearPendingGuestAction(window.sessionStorage);

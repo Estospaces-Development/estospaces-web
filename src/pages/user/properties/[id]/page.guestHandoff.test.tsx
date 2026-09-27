@@ -59,6 +59,7 @@ const mountPage = async ({
     }
     const requests: Array<{ id: string; resolve: (value: Result) => void }> = [];
     const saveCalls: string[] = [];
+    const toasts: string[] = [];
     const seen: SeenLocation[] = [];
     const noop = () => undefined;
     const require = createRequire(import.meta.url);
@@ -79,7 +80,10 @@ const mountPage = async ({
             uploadDocument: async () => ({ data: null, error: null }),
         },
         '@/contexts/AuthContext': { useAuth: () => ({ user }) },
-        '@/contexts/ToastContext': { useToast: () => ({ error: noop, success: noop }) },
+        '@/contexts/ToastContext': { useToast: () => ({
+            error: (message: string) => { toasts.push(`error:${message}`); },
+            success: (message: string) => { toasts.push(`success:${message}`); },
+        }) },
         '@/contexts/SavedPropertiesContext': {
             useSavedProperties: () => ({
                 saveProperty: async (id: string) => { saveCalls.push(id); return { success: true }; },
@@ -93,7 +97,10 @@ const mountPage = async ({
         '@/services/fastTrackService': { getFastTrackCases: async () => ({ data: [], error: null }) },
         '@/services/bookingsService': { bookingsService: { getViewingAvailability: async (id: string) => ({ property_id: id, slots: [] }) } },
         '@/components/dashboard/PropertyFastTrackModal': { __esModule: true, default: () => null },
-        '@/components/fast-track/FastTrackRequestConfirmationModal': { __esModule: true, default: () => null },
+        '@/components/fast-track/FastTrackRequestConfirmationModal': {
+            __esModule: true,
+            default: ({ open }: { open: boolean }) => (open ? <p>Fast Track confirmation open</p> : null),
+        },
     };
     const module = { exports: {} as { default: React.ComponentType } };
     const load = (id: string): unknown => boundaries[id] ?? require(id.startsWith('@/')
@@ -133,7 +140,7 @@ const mountPage = async ({
         return button as unknown as HTMLButtonElement;
     };
     return {
-        window, requests, saveCalls, seen, container, cleanup,
+        window, requests, saveCalls, toasts, seen, container, cleanup,
         complete: async (index: number, result: Result) => { await act(async () => requests[index].resolve(result)); },
         click: async (pattern: RegExp) => { await act(async () => { findButton(pattern).click(); }); },
         settle: async () => { await act(async () => { await new Promise((done) => setTimeout(done, 0)); }); },
@@ -341,4 +348,126 @@ test('a guest Back target that dot-normalises to another origin is ignored', asy
         assert.equal(page.seen.at(-1)?.pathname, '/search');
         assert.equal(page.seen.at(-1)?.search, '');
     } finally { await page.cleanup(); }
+});
+
+const FAST_TRACK_CONFIRMATION = /Fast Track confirmation open/;
+const readStoredAction = (page: { window: Window }) => JSON.parse(
+    page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY) || 'null',
+) as Record<string, unknown> | null;
+const settleMany = async (page: { settle: () => Promise<void> }, times = 5) => {
+    for (let index = 0; index < times; index += 1) await page.settle();
+};
+const findViewingForm = (container: HTMLElement | { querySelectorAll: (selector: string) => ArrayLike<unknown> }) => (
+    Array.from(container.querySelectorAll('form') as ArrayLike<HTMLFormElement>)
+        .find((form) => String(form.getAttribute('class') || '').includes('scroll-mt-24'))
+);
+
+test('guest Fast Track stores a fast_track action bound to the login handoff', async () => {
+    const page = await mountPage({ user: null });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        const fastTrackButton = Array.from(page.container.querySelectorAll('button'))
+            .find((button) => /fast.?track/i.test(button.textContent || '') && !(button as unknown as HTMLButtonElement).disabled);
+        assert.ok(fastTrackButton, 'an enabled Fast Track control is rendered for guests');
+        await act(async () => { (fastTrackButton as unknown as HTMLButtonElement).click(); });
+        const stored = readStoredAction(page);
+        assert.equal(stored?.type, 'fast_track');
+        assert.equal(stored?.origin, 'property');
+        assert.equal(stored?.returnPath, '/user/properties/first');
+        const landed = page.seen.at(-1);
+        assert.match(landed?.pathname || '', /^\/login\/?$/);
+        assert.equal((landed?.state as { from: { state: { pendingActionNonce: string } } }).from.state.pendingActionNonce, stored?.nonce);
+        assert.deepEqual(page.saveCalls, []);
+        assert.doesNotMatch(page.container.textContent || '', FAST_TRACK_CONFIRMATION);
+    } finally { await page.cleanup(); }
+});
+
+test('guest viewing request stores an enquire action bound to the login handoff', async () => {
+    const page = await mountPage({ user: null });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        const form = findViewingForm(page.container);
+        assert.ok(form, 'viewing request form is rendered');
+        await act(async () => {
+            form.dispatchEvent(new page.window.Event('submit', { bubbles: true, cancelable: true }) as never);
+        });
+        const stored = readStoredAction(page);
+        assert.equal(stored?.type, 'enquire');
+        assert.equal(stored?.origin, 'property');
+        const landed = page.seen.at(-1);
+        assert.match(landed?.pathname || '', /^\/login\/?$/);
+        assert.equal((landed?.state as { from: { state: { pendingActionNonce: string } } }).from.state.pendingActionNonce, stored?.nonce);
+        assert.deepEqual(page.saveCalls, []);
+    } finally { await page.cleanup(); }
+});
+
+test('a seeker resuming a Fast Track handoff is offered the confirmation step, not a save', async () => {
+    const page = await mountPage({
+        user: { id: 'qa-user', role: 'user', name: 'QA User' },
+        initialEntry: handoffEntry(),
+        pendingAction: pendingDetailSave({ type: 'fast_track' }),
+    });
+    try {
+        await page.complete(0, { data: property('first'), error: null });
+        await settleMany(page);
+        assert.match(page.container.textContent || '', FAST_TRACK_CONFIRMATION);
+        assert.deepEqual(page.saveCalls, []);
+        assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+        assert.equal(page.toasts.filter((message) => message.startsWith('error:')).length, 0, page.toasts.join(' | '));
+    } finally { await page.cleanup(); }
+});
+
+test('a seeker resuming an Enquire handoff gets the prompt and the viewing form is focused, not a save', async () => {
+    const page = await mountPage({
+        user: { id: 'qa-user', role: 'user', name: 'QA User' },
+        initialEntry: handoffEntry(),
+        pendingAction: pendingDetailSave({ type: 'enquire' }),
+    });
+    try {
+        // Record which form was scrolled at call time; the form node can be re-created by later renders.
+        const scrolledTo: string[] = [];
+        const prototype = page.window.HTMLFormElement.prototype as unknown as { scrollIntoView: (this: HTMLFormElement) => void };
+        const originalScroll = prototype.scrollIntoView;
+        prototype.scrollIntoView = function scrollIntoViewSpy(this: HTMLFormElement) {
+            scrolledTo.push(`${this.getAttribute('class') || ''}|${this.textContent || ''}`);
+        };
+        try {
+            await page.complete(0, { data: property('first'), error: null });
+            await settleMany(page);
+        } finally { prototype.scrollIntoView = originalScroll; }
+        assert.ok(page.toasts.some((message) => /^success:.*viewing request/.test(message)), page.toasts.join(' | '));
+        const form = findViewingForm(page.container);
+        assert.ok(form);
+        assert.ok(
+            scrolledTo.some((entry) => entry.includes('scroll-mt-24') && /Schedule a private tour/.test(entry)),
+            'the viewing request form is scrolled into view',
+        );
+        assert.equal(scrolledTo.some((entry) => /Rental application/.test(entry)), false, 'the rental form is not targeted');
+        // Node identity is not stable across happy-dom wrappers, so check the focused control's form by content.
+        const active = page.window.document.activeElement as unknown as HTMLElement | null;
+        assert.match(active?.getAttribute('aria-label') || '', /^Select /, 'a viewing slot control is focused');
+        const activeForm = active?.closest('form');
+        assert.match(activeForm?.getAttribute('class') || '', /scroll-mt-24/, 'focus is inside the viewing request form');
+        assert.match(activeForm?.textContent || '', /Schedule a private tour/);
+        assert.deepEqual(page.saveCalls, []);
+        assert.doesNotMatch(page.container.textContent || '', FAST_TRACK_CONFIRMATION);
+        assert.equal(page.window.sessionStorage.getItem(PENDING_GUEST_ACTION_STORAGE_KEY), null);
+    } finally { await page.cleanup(); }
+});
+
+test('a manager is offered neither a resumed Fast Track nor Enquire action', async () => {
+    for (const type of ['fast_track', 'enquire'] as const) {
+        const page = await mountPage({
+            user: { id: 'qa-manager', role: 'manager', name: 'QA Manager' },
+            initialEntry: handoffEntry(),
+            pendingAction: pendingDetailSave({ type }),
+        });
+        try {
+            await page.complete(0, { data: property('first'), error: null });
+            await settleMany(page);
+            assert.doesNotMatch(page.container.textContent || '', FAST_TRACK_CONFIRMATION, type);
+            assert.equal(page.toasts.some((message) => /viewing request|Fast Track/.test(message)), false, type);
+            assert.deepEqual(page.saveCalls, [], type);
+        } finally { await page.cleanup(); }
+    }
 });

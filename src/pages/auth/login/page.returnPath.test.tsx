@@ -169,3 +169,20 @@ test('a seeker login returning to a protected deep link clears the pending actio
     assert.equal(landed?.pathname, '/user/dashboard/fast-track');
     assert.equal(landed?.storedAction, null);
 });
+
+test('an empty or unknown role clears the pending action even through the seeker handoff', async () => {
+    for (const role of ['', 'broker-admin', 'undefined']) {
+        const landed = await continueAfterLogin(role, { pathname: '/login', state: handoffState }, pendingAction);
+        assert.equal(landed?.storedAction, null, `role ${JSON.stringify(role)} clears the entry`);
+        assert.equal(
+            (landed?.state as { pendingActionNonce?: string } | null)?.pendingActionNonce,
+            undefined,
+            `role ${JSON.stringify(role)} gets no nonce`,
+        );
+    }
+});
+
+test('the seeker handoff role check is case-insensitive for a real user role', async () => {
+    const landed = await continueAfterLogin(' User ', { pathname: '/login', state: handoffState }, pendingAction);
+    assert.ok(landed?.storedAction);
+});
