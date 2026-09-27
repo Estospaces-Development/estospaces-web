@@ -935,3 +935,12 @@ export const describeFastTrackWorkspaceStatus = (
                     : 'Claim the case, then open documents here so the rest of the journey stays on one page.';
     }
 };
+
+// Identity of the file behind a document preview. Polling returns new objects for
+// the same document, so previews re-resolve only when this key changes.
+export const getFastTrackPreviewSourceKey = (
+    item: { id: string; documentRecordId?: string | null; fileUrl?: string | null } | null | undefined,
+    hasLocalFile: boolean,
+) => (item
+    ? [item.id, item.documentRecordId || '', item.fileUrl || '', hasLocalFile ? 'local' : ''].join('|')
+    : '');
