@@ -42,6 +42,34 @@ const FILTERS = [
     { value: 'cancelled', label: 'Cancelled' },
 ];
 
+export type AppointmentDateScope = 'all' | 'today' | 'upcoming' | 'past';
+
+const DATE_SCOPES: Array<{ value: AppointmentDateScope; label: string }> = [
+    { value: 'all', label: 'All dates' },
+    { value: 'today', label: 'Today' },
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'past', label: 'Past' },
+];
+
+// Scopes use the manager's local day; an appointment without a valid time only matches "All dates".
+export const matchesAppointmentDateScope = (
+    scheduledAt: string | null | undefined,
+    scope: AppointmentDateScope,
+    now: Date = new Date(),
+): boolean => {
+    if (scope === 'all') {
+        return true;
+    }
+    const scheduled = scheduledAt ? new Date(scheduledAt) : null;
+    if (!scheduled || Number.isNaN(scheduled.getTime())) {
+        return false;
+    }
+    if (scope === 'today') {
+        return scheduled.toDateString() === now.toDateString();
+    }
+    return scope === 'upcoming' ? scheduled.getTime() >= now.getTime() : scheduled.getTime() < now.getTime();
+};
+
 type FetchAppointmentsOptions = {
     background?: boolean;
     reportFailure?: boolean;
@@ -254,6 +282,17 @@ export default function ManagerAppointmentsPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [dateScope, setDateScope] = useState<AppointmentDateScope>('all');
+    // Re-evaluate Today/Upcoming/Past each minute while a date scope is active.
+    const [dateScopeNow, setDateScopeNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (dateScope === 'all') {
+            return undefined;
+        }
+        setDateScopeNow(Date.now());
+        const timer = window.setInterval(() => setDateScopeNow(Date.now()), 60_000);
+        return () => window.clearInterval(timer);
+    }, [dateScope]);
     const [searchQuery, setSearchQuery] = useState('');
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
@@ -362,6 +401,11 @@ export default function ManagerAppointmentsPage() {
             filtered = filtered.filter((appointment) => appointment.status === statusFilter);
         }
 
+        if (dateScope !== 'all') {
+            const now = new Date(dateScopeNow);
+            filtered = filtered.filter((appointment) => matchesAppointmentDateScope(appointment.scheduled_at, dateScope, now));
+        }
+
         // Search Filter
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
@@ -384,7 +428,7 @@ export default function ManagerAppointmentsPage() {
             }
             return 0;
         });
-    }, [appointments, focusedAppointmentId, searchQuery, statusFilter]);
+    }, [appointments, dateScope, dateScopeNow, focusedAppointmentId, searchQuery, statusFilter]);
 
     const summary = useMemo(() => ({
         total: appointments.length,
@@ -638,7 +682,17 @@ export default function ManagerAppointmentsPage() {
                             className="block w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl text-sm placeholder-gray-400 focus:ring-2 focus:ring-orange-500 transition-all font-medium"
                         />
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                    <select
+                        aria-label="Appointment dates"
+                        value={dateScope}
+                        onChange={(event) => setDateScope(event.target.value as AppointmentDateScope)}
+                        className="rounded-full border-none bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-orange-500 dark:bg-gray-900 dark:text-gray-300"
+                    >
+                        {DATE_SCOPES.map((scope) => (
+                            <option key={scope.value} value={scope.value}>{scope.label}</option>
+                        ))}
+                    </select>
                     {FILTERS.map((filter) => (
                         <button
                             key={filter.value}
