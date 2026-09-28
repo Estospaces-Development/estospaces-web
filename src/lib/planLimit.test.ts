@@ -111,3 +111,10 @@ test('does not read the entitlement for errors that are not plan limits', async 
     assert.equal(notice, null);
     assert.equal(reads, 0);
 });
+
+test('the plan-limit entitlement read uses a short timeout so spinners are not held', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync(`${process.cwd()}/src/lib/planLimit.ts`, 'utf8');
+    assert.ok(source.includes('getManagerSubscriptionSummary({ timeoutMs: PLAN_LIMIT_ENTITLEMENT_TIMEOUT_MS, suppressErrorToast: true })'));
+    assert.match(source, /PLAN_LIMIT_ENTITLEMENT_TIMEOUT_MS = 4_000/);
+});

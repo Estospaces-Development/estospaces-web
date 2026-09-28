@@ -117,11 +117,14 @@ export function getEntitlementLimit(
     return limit.value;
 }
 
+export const PLAN_LIMIT_ENTITLEMENT_TIMEOUT_MS = 4_000;
+
 export type EntitlementLoader = () => Promise<ManagerSubscriptionEntitlement | null | undefined>;
 
 /** Reads the signed-in manager's current entitlement from Payment. */
 export const loadManagerPlanEntitlement: EntitlementLoader = async () => {
-    const summary = await getManagerSubscriptionSummary();
+    // Best effort: a slow Payment read must not hold the save or publish spinner.
+    const summary = await getManagerSubscriptionSummary({ timeoutMs: PLAN_LIMIT_ENTITLEMENT_TIMEOUT_MS, suppressErrorToast: true });
     return summary?.account?.entitlement;
 };
 

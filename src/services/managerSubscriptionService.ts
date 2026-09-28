@@ -1,4 +1,4 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getServiceUrl, type ApiFetchOptions } from '@/lib/apiUtils';
 
 const PAYMENT_URL = () => getServiceUrl('payment');
 
@@ -81,8 +81,8 @@ export function getManagerSubscriptionPlanPreviews() {
     return apiFetch<ManagerPlanPreview[]>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/plan-previews`);
 }
 
-export function getManagerSubscriptionSummary() {
-    return apiFetch<{ account: ManagerSubscriptionSummary; key_id: string }>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/`);
+export function getManagerSubscriptionSummary(options: Pick<ApiFetchOptions, 'timeoutMs' | 'suppressErrorToast'> = {}) {
+    return apiFetch<{ account: ManagerSubscriptionSummary; key_id: string }>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/`, options);
 }
 
 export function getManagerSubscriptionCheckout(checkoutId: string) {
