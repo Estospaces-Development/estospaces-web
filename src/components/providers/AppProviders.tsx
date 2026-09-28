@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import ProductAnalyticsProvider from '@/components/analytics/ProductAnalyticsProvider';
+import QueryCacheAccountBoundary from '@/components/providers/QueryCacheAccountBoundary';
 import { ApplicationsProvider } from '@/contexts/ApplicationsContext';
 import { SavedPropertiesProvider } from '@/contexts/SavedPropertiesContext';
 import { ToastProvider } from '@/contexts/ToastContext';
@@ -24,6 +25,7 @@ interface AppProvidersProps {
 export default function AppProviders({ children }: AppProvidersProps) {
     return (
         <QueryClientProvider client={queryClient}>
+            <QueryCacheAccountBoundary>
             <ProductAnalyticsProvider>
                 <WorkspaceSyncProvider>
                     <UserProfileSummaryProvider>
@@ -35,6 +37,7 @@ export default function AppProviders({ children }: AppProvidersProps) {
                     </UserProfileSummaryProvider>
                 </WorkspaceSyncProvider>
             </ProductAnalyticsProvider>
+            </QueryCacheAccountBoundary>
         </QueryClientProvider>
     );
 }

@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { useAuth } from '@/contexts/AuthContext';
 import { describeManagerPaidPeriod } from '@/lib/managerBillingHistory';
 import { getManagerSubscriptionPaidPeriods } from '@/services/managerSubscriptionService';
 
 // Verified paid periods for the signed-in manager, newest first.
 export default function ManagerBillingHistory() {
+    const { user } = useAuth();
     const history = useQuery({
-        queryKey: ['manager-subscription-paid-periods'],
+        // Scoped to the account so another manager on this tab never sees it.
+        queryKey: ['manager-subscription-paid-periods', user?.id || ''],
         queryFn: () => getManagerSubscriptionPaidPeriods(12, 0),
+        enabled: Boolean(user?.id),
         staleTime: 60_000,
     });
 
