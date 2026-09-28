@@ -2,6 +2,7 @@ import { CreditCard } from 'lucide-react';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import { formatSubscriptionPrice } from '@/lib/managerSubscriptionCheckout';
+import { getManagerPlanDisplayName } from '@/lib/managerPlanNames';
 import type { ManagerPlanOffer, ManagerPlanPreview } from '@/services/managerSubscriptionService';
 
 interface ManagerSubscriptionPlanCardProps {
@@ -21,7 +22,7 @@ const planDescriptions = {
 export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, checkoutDisabledReason, busy, onStart }: ManagerSubscriptionPlanCardProps) {
     const offer = 'id' in plan ? plan : null;
     const reasonId = offer && checkoutDisabledReason ? `plan-${offer.id}-checkout-reason` : undefined;
-    const name = plan.code === 'pro' ? 'Pro' : 'Growth';
+    const name = getManagerPlanDisplayName(plan.code);
 
     return (
         <article className={`rounded-2xl border bg-white p-6 dark:bg-gray-900 ${plan.featured ? 'border-orange-400 dark:border-orange-700' : 'border-gray-200 dark:border-gray-800'}`}>

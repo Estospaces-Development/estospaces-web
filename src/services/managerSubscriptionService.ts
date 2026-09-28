@@ -47,8 +47,8 @@ export interface ManagerSubscriptionResourceLimit {
 }
 
 export interface ManagerSubscriptionEntitlement {
-    state: 'free_active' | 'paid_active' | 'pilot_active' | 'expired';
-    source: 'free' | 'paid' | 'pilot';
+    state: 'free_active' | 'paid_active' | 'trial_active' | 'pilot_active' | 'expired';
+    source: 'free' | 'paid' | 'trial' | 'pilot';
     ends_at?: string;
     reason: string;
     published_property_limit: ManagerSubscriptionResourceLimit;
@@ -56,9 +56,23 @@ export interface ManagerSubscriptionEntitlement {
     support_level: 'basic' | 'standard' | 'dedicated';
 }
 
+// Launch trial grant (payment schema v9). A trial never calls Razorpay and is
+// never charged; `superseded` means a paid period replaced it.
+export type ManagerSubscriptionTrialState = 'active' | 'expired' | 'superseded' | 'revoked';
+
+export interface ManagerSubscriptionTrial {
+    plan_code: string;
+    plan_name: string;
+    starts_at: string;
+    ends_at: string;
+    days_remaining: number;
+    state: ManagerSubscriptionTrialState;
+}
+
 export interface ManagerSubscriptionSummary {
     mode: 'test' | 'live';
     entitlement?: ManagerSubscriptionEntitlement | null;
+    trial?: ManagerSubscriptionTrial | null;
     checkout?: SubscriptionCheckout | null;
     subscription?: { status: string; current_end?: number; paid_count?: number } | null;
     cancellation?: { status: 'requesting' | 'reconciliation_required' | 'failed' | 'confirmed'; confirmed_at?: string } | null;

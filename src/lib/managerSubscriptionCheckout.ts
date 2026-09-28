@@ -1,4 +1,5 @@
 import type { AcceptedSubscriptionTerms, ManagerSubscriptionSummary, StartCheckoutResponse } from '../services/managerSubscriptionService';
+import { getManagerPlanDisplayName } from './managerPlanNames';
 
 export function formatSubscriptionPrice(terms: Pick<AcceptedSubscriptionTerms, 'amount_minor' | 'currency' | 'tax_minor' | 'tax_inclusive'>): string {
     const gross = terms.amount_minor + (terms.tax_inclusive ? 0 : (terms.tax_minor ?? 0));
@@ -91,7 +92,7 @@ export function openSubscriptionCheckout(
             key: checkout.key_id,
             subscription_id: checkout.checkout.provider_subscription_id,
             name: 'Estospaces',
-            description: `${checkout.terms.code === 'growth' ? 'Growth' : 'Pro'} manager subscription`,
+            description: `${getManagerPlanDisplayName(checkout.terms.code)} manager subscription`,
             handler: (response) => {
                 if (settled || verifying) return;
                 verifying = true;

@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { orderManagerPlans } from './managerPlanOrder';
 
-test('shows Pro before Growth without changing the source plan list', () => {
+test('shows Growth (pro) before Premium (growth) without changing the source plan list', () => {
     const plans = [{ code: 'growth' as const }, { code: 'pro' as const }];
 
     assert.deepEqual(orderManagerPlans(plans).map((plan) => plan.code), ['pro', 'growth']);

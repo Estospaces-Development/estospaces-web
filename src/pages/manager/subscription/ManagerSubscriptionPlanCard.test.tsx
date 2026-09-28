@@ -19,8 +19,8 @@ const growth: ManagerPlanPreview = {
 
 test('unpriced plan previews explain both approved benefit tiers without payment actions', () => {
     for (const [plan, title, properties, cases, support] of [
-        [pro, 'Pro', '8', '10', 'standard'],
-        [growth, 'Growth', '20', '50', 'dedicated'],
+        [pro, 'Growth', '8', '10', 'standard'],
+        [growth, 'Premium', '20', '50', 'dedicated'],
     ] as const) {
         const markup = renderToStaticMarkup(createElement(ManagerSubscriptionPlanCard, {
             plan, checkoutDisabled: false, busy: false, onStart: () => assert.fail('preview must not start checkout'),
