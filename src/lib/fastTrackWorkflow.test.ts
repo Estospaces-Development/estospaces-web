@@ -26,6 +26,8 @@ import {
     resolveLeadStage,
     shouldReuseCaseVerificationDocuments,
     shouldBlockFastTrackWorkspaceRefresh,
+    isEnglandJurisdiction,
+    normalizeComplianceJurisdiction,
 } from './fastTrackWorkflow';
 
 test('manager fast-track document summaries reflect individually approved documents', () => {
@@ -1008,4 +1010,14 @@ test('live fast-track step prefers backend live stages when the server has newer
         ),
         'application_in_review',
     );
+});
+
+test('India cases are not mapped to the England Right to Rent journey', () => {
+    for (const value of ['India', ' IN ', 'ind', 'Bharat', 'Republic of India', 'india']) {
+        assert.equal(normalizeComplianceJurisdiction(value), 'india', value);
+        assert.equal(isEnglandJurisdiction(value), false, value);
+    }
+    assert.equal(normalizeComplianceJurisdiction('England'), 'england');
+    assert.equal(normalizeComplianceJurisdiction('wales'), 'wales');
+    assert.equal(normalizeComplianceJurisdiction('Northern Ireland'), 'northern_ireland');
 });
