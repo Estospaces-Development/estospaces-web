@@ -576,7 +576,10 @@ const mapBackendToFrontend = (
     fileUrl: item.file_url,
     mimeType: item.mime_type,
     uploadNote: item.upload_note || (item.reviewed_at ? undefined : item.note),
-    reviewNote: item.review_note || (item.reviewed_at ? item.note : undefined),
+    // Booking fills the legacy note with the upload note when a review has no
+    // note, so a note equal to the upload note is never the reviewer's note.
+    reviewNote: item.review_note
+      || (item.reviewed_at && item.note && item.note !== item.upload_note ? item.note : undefined),
     note: item.review_note || item.upload_note || item.note,
     uploadedAt: item.uploaded_at,
     reviewedAt: item.reviewed_at,

@@ -5,6 +5,8 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getFastTrackCaseById } from "@/services/fastTrackService";
 import {
   AlertTriangle,
   ArrowRight,
@@ -77,6 +79,12 @@ import {
   type WorkspaceSection,
 } from "@/lib/liveCaseWorkspace";
 import { getCaseFileSupportCopy } from "@/lib/userJourneyCopy";
+import {
+  countFastTrackReplacementRequests,
+  getCaseFileDocumentReviewState,
+  getFastTrackApprovedDocumentRecordIds,
+  isFastTrackCaseClosed,
+} from "@/lib/caseFileDocumentReview";
 import PaginationBar from "@/components/ui/PaginationBar";
 import Modal from "@/components/ui/Modal";
 
@@ -703,6 +711,25 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     () => normalizeNestedFastTrackCase(caseFile?.fast_track_case || null),
     [caseFile?.fast_track_case],
   );
+  // The case-file payload carries only the Fast Track summary; per-document
+  // review state (with record ids) comes from the Fast Track workspace itself.
+  const queryClient = useQueryClient();
+  const fastTrackWorkspaceQuery = useQuery({
+    queryKey: ["case-file-fast-track-workspace", caseFile?.case_id],
+    queryFn: async () => {
+      const result = await getFastTrackCaseById(String(caseFile?.case_id || ""), { suppressErrorToast: true });
+      return result.data;
+    },
+    enabled: Boolean(caseFile?.case_id),
+    staleTime: 30_000,
+  });
+  const fastTrackWorkspaceCase = fastTrackWorkspaceQuery.data || null;
+  const fastTrackApprovedDocumentIds = useMemo(
+    () => getFastTrackApprovedDocumentRecordIds(fastTrackWorkspaceCase),
+    [fastTrackWorkspaceCase],
+  );
+  const fastTrackCaseClosed = isFastTrackCaseClosed(fastTrackWorkspaceCase || liveFastTrackCase);
+  const fastTrackReplacementCount = countFastTrackReplacementRequests(fastTrackWorkspaceCase);
   const linkedJourney = useMemo(
     () =>
       liveFastTrackCase
@@ -816,11 +843,13 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
 
       setCaseFile(result.data);
       setError(null);
+      // Keep the Fast Track review state in step with every case-file reload.
+      void queryClient.invalidateQueries({ queryKey: ["case-file-fast-track-workspace", result.data?.case_id] });
       if (!silent) {
         setLoading(false);
       }
     },
-    [caseRouteReference.error, embedded, navigate, resolvedCaseId, role, toast],
+    [caseRouteReference.error, embedded, navigate, queryClient, resolvedCaseId, role, toast],
   );
 
   useEffect(() => {
@@ -937,10 +966,19 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const summary = useMemo(
     () =>
       summarizeCaseFileDocuments(
-        caseFile?.documents || [],
+        (caseFile?.documents || []).map((document) =>
+          getCaseFileDocumentReviewState({
+            linkStatus: document.status,
+            documentId: document.document_id,
+            fastTrackApprovedIds: fastTrackApprovedDocumentIds,
+            caseClosed: fastTrackCaseClosed,
+          }).approvedInFastTrack
+            ? { ...document, status: "approved" }
+            : document,
+        ),
         caseFile?.requests || [],
       ),
-    [caseFile],
+    [caseFile, fastTrackApprovedDocumentIds, fastTrackCaseClosed],
   );
   const documentLimit = caseFile?.document_limit || 30;
   const documentCount = caseFile?.document_count ?? caseFile?.documents.length ?? 0;
@@ -1774,7 +1812,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 {role === "user" ? "Open document requests" : "Open requests"}
               </p>
               <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                {summary.openRequestCount}
+                {summary.openRequestCount + fastTrackReplacementCount}
               </p>
             </div>
             <div className={stackedHeroMetricCardClass}>
@@ -1851,7 +1889,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 {role === "user" ? "Open document requests" : "Open requests"}
               </p>
               <p className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">
-                {summary.openRequestCount}
+                {summary.openRequestCount + fastTrackReplacementCount}
               </p>
               <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
                 {summary.pendingReviewCount} document
@@ -2876,6 +2914,12 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             <div className="mt-4 space-y-4">
               {caseFile.documents.length > 0 ? (
                 caseFile.documents.map((document) => {
+                  const reviewState = getCaseFileDocumentReviewState({
+                    linkStatus: document.status,
+                    documentId: document.document_id,
+                    fastTrackApprovedIds: fastTrackApprovedDocumentIds,
+                    caseClosed: fastTrackCaseClosed,
+                  });
                   return (
                     <div
                       key={document.id}
@@ -2888,10 +2932,15 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                               {document.document.file_name}
                             </p>
                             <span
-                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(document.status)}`}
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(reviewState.effectiveStatus)}`}
                             >
-                              {formatLabel(document.status)}
+                              {formatLabel(reviewState.effectiveStatus)}
                             </span>
+                            {reviewState.approvedInFastTrack ? (
+                              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                Approved in Fast Track
+                              </span>
+                            ) : null}
                           </div>
                           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                             {formatLabel(document.document.document_category)} -{" "}
@@ -2945,8 +2994,14 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                         </div>
                       </div>
 
-                      {role === "manager" ? (
+                      {role === "manager" && !reviewState.canChangeReview ? (
+                        <p className="mt-4 text-xs font-medium text-gray-500 dark:text-gray-400">
+                          This Fast Track case is closed, so its documents are read-only.
+                        </p>
+                      ) : null}
+                      {role === "manager" && reviewState.canChangeReview ? (
                         <div className="mt-4 flex flex-wrap gap-2">
+                          {reviewState.canApprove ? (
                           <button
                             type="button"
                             onClick={() => openReviewDialog(document, "approved")}
@@ -2960,6 +3015,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                             )}
                             Approve
                           </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => openReviewDialog(document, "reupload_required")}
