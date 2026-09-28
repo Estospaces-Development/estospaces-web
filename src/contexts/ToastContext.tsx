@@ -15,6 +15,12 @@ import {
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
 
+/** Optional in-app link rendered under the toast message. */
+export interface ToastAction {
+    label: string;
+    href: string;
+}
+
 export interface ToastMessage {
     id: string;
     message: string;
@@ -22,6 +28,7 @@ export interface ToastMessage {
     title?: string;
     duration?: number;
     position?: ToastPosition;
+    action?: ToastAction;
     isVisible: boolean;
 }
 
@@ -30,6 +37,7 @@ interface ToastOptions {
     title?: string;
     duration?: number;
     position?: ToastPosition;
+    action?: ToastAction;
 }
 
 interface ToastActionsContextType {
@@ -59,6 +67,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             title,
             duration = 5000,
             position = 'top-right',
+            action,
         } = options;
 
         if (isAuthRoutePath(location.pathname) && shouldSuppressAuthRouteToast(title, message)) {
@@ -73,6 +82,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             type,
             duration,
             position,
+            action,
             isVisible: true,
         };
 

@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   useProperties,
   Property,
@@ -81,6 +81,8 @@ import {
   type MediaFile,
 } from "@/services/mediaService";
 import { ApiRequestError } from "@/lib/apiUtils";
+import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from "@/lib/planLimit";
+import type { ToastAction } from "@/contexts/ToastContext";
 import { getManagerPropertySubmissionBlocker } from "@/lib/managerPropertySubmission";
 import { useUnsavedChangesLinkGuard } from "@/lib/unsavedChangesLinkGuard";
 import {
@@ -672,6 +674,7 @@ export default function AddPropertyPage() {
     message: string;
     type: "success" | "error" | "warning" | "info";
     visible: boolean;
+    action?: ToastAction;
   }>({
     id: "",
     message: "",
@@ -683,8 +686,9 @@ export default function AddPropertyPage() {
     (
       message: string,
       type: "success" | "error" | "warning" | "info" = "success",
+      action?: ToastAction,
     ) => {
-      setToast({ id: Date.now().toString(), message, type, visible: true });
+      setToast({ id: Date.now().toString(), message, type, visible: true, action });
     },
     [],
   );
@@ -2180,6 +2184,11 @@ export default function AddPropertyPage() {
       if (applyServerValidationErrors(error)) {
         return;
       }
+      const planLimit = await resolvePlanLimitNotice(error, loadManagerPlanEntitlement);
+      if (planLimit) {
+        showToast(planLimit.message, "error", planLimit.action);
+        return;
+      }
       showToast(
         `Failed to save draft: ${error?.message || "Unknown error"}`,
         "error",
@@ -2292,6 +2301,11 @@ export default function AddPropertyPage() {
       setTimeout(() => navigate("/manager/dashboard/properties"), 1500);
     } catch (error: any) {
       if (applyServerValidationErrors(error)) {
+        return;
+      }
+      const planLimit = await resolvePlanLimitNotice(error, loadManagerPlanEntitlement);
+      if (planLimit) {
+        showToast(planLimit.message, "error", planLimit.action);
         return;
       }
       const actionWord =
@@ -2475,6 +2489,14 @@ export default function AddPropertyPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">Property needs attention</p>
                   <p className="mt-1 leading-5">{toast.message}</p>
+                  {toast.action && (
+                    <Link
+                      to={toast.action.href}
+                      className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-red-700 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
+                    >
+                      {toast.action.label}
+                    </Link>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -4123,7 +4145,7 @@ export default function AddPropertyPage() {
         </div>
       )}
 
-      {/* Toast Notification */}
+      {/* Toast Notification. A plan-limit prompt stays until dismissed so its link can be used. */}
       <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem+0.75rem)] z-[60] flex justify-center sm:inset-x-auto sm:right-4 sm:top-[calc(env(safe-area-inset-top)+5rem)]">
         <Toast
           id={toast.id}
@@ -4131,7 +4153,8 @@ export default function AddPropertyPage() {
           type={toast.type}
           isVisible={toast.visible}
           onClose={hideToast}
-          duration={3000}
+          action={toast.action}
+          duration={toast.action ? 0 : 3000}
         />
       </div>
     </div>
