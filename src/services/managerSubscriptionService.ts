@@ -120,3 +120,25 @@ export function verifyManagerSubscriptionCheckout(checkoutId: string, input: { p
         body: JSON.stringify(input),
     });
 }
+
+// A verified, paid billing period (payment-service PaidPeriod).
+export interface ManagerPaidPeriod {
+    mode: 'test' | 'live';
+    invoice_id: string;
+    payment_id: string;
+    checkout_id: string;
+    amount_minor: number;
+    currency: string;
+    refunded_minor: number;
+    billing_start: string;
+    billing_end: string;
+    status: string;
+    verified_at: string;
+}
+
+export function getManagerSubscriptionPaidPeriods(limit = 12, offset = 0) {
+    return apiFetch<ManagerPaidPeriod[]>(
+        `${PAYMENT_URL()}/api/v1/manager/subscriptions/invoices?limit=${limit}&offset=${offset}`,
+        { suppressErrorToast: true },
+    );
+}
