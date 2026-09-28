@@ -16,6 +16,7 @@ import {
 import { getBrokerLeads, type Lead } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import type { ManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
+import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import {
     findRequestContextCaseMatch,
     getFastTrackStartSuccessMessage,
@@ -262,6 +263,16 @@ export default function ManualFastTrackModal({
                 if (existingCase && (result.error || '').toLowerCase().includes('active fast-track case')) {
                     toast.success('An active 24-hour case already exists for this client. Opening it now.');
                     await handleOpenCase(existingCase);
+                    return;
+                }
+
+                const planLimit = await resolvePlanLimitNotice(result.error, loadManagerPlanEntitlement);
+                if (planLimit) {
+                    toast.error(planLimit.message, {
+                        title: planLimit.title,
+                        action: planLimit.action,
+                        duration: 10000,
+                    });
                     return;
                 }
 

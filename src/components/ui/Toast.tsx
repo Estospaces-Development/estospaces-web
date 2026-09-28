@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, X, AlertTriangle, Info } from 'lucide-react';
 import type { ToastMessage } from '../../contexts/ToastContext';
@@ -10,7 +11,7 @@ interface ToastProps extends Omit<ToastMessage, 'isVisible'> {
     onClose: () => void;
 }
 
-const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose, duration = 5000, position: _position = 'top-right' }: ToastProps) => {
+const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose, duration = 5000, position: _position = 'top-right', action }: ToastProps) => {
     useEffect(() => {
         if (isVisible && duration > 0) {
             const timer = setTimeout(() => {
@@ -82,6 +83,15 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
                             <h4 className="font-semibold text-sm mb-1 text-white">{title}</h4>
                         )}
                         <p className="text-sm font-medium leading-relaxed text-white">{message}</p>
+                        {action && (
+                            <Link
+                                to={action.href}
+                                onClick={onClose}
+                                className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-white px-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                            >
+                                {action.label}
+                            </Link>
+                        )}
                     </div>
                     <button
                         onClick={onClose}

@@ -19,6 +19,7 @@ import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
+import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
 import {
@@ -164,6 +165,15 @@ export default function PropertyDetailPage() {
                 });
             }
         } catch (error: any) {
+            const planLimit = await resolvePlanLimitNotice(error, loadManagerPlanEntitlement);
+            if (planLimit) {
+                appToast.error(planLimit.message, {
+                    title: planLimit.title,
+                    action: planLimit.action,
+                    duration: 10000,
+                });
+                return;
+            }
             setToast({
                 message: `Failed to publish property: ${error?.message || 'Unknown error'}`,
                 type: 'error',
