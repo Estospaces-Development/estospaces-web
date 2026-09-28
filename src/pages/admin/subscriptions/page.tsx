@@ -149,7 +149,7 @@ export default function AdminSubscriptionsPage() {
                 <p className="mt-3 text-sm text-orange-950 dark:text-orange-100">Draft v{nextVersion}: {profile.displayAmount}/month, 52 MB per image, {profile.support} support, leads are best-effort. No Fast Track discount is included.</p>
                 {catalogState === 'error' ? <p role="alert" className="mt-3 text-sm font-semibold text-red-800 dark:text-red-200">The current catalog could not be loaded. Refresh before creating a draft so its version is correct.</p> : null}
                 <button type="button" disabled={busy !== null || !catalogReady} onClick={() => void createDraft()} className="mt-4 min-h-11 rounded-xl bg-orange-700 px-4 font-bold text-white disabled:opacity-60">{busy === 'create-plan' ? 'Creating…' : 'Create immutable draft'}</button>
-                <p className="mt-3 text-xs text-orange-900 dark:text-orange-200">GBP drafts and checkout are intentionally unavailable until Razorpay confirms this merchant’s GBP recurring eligibility and the UK tax treatment is approved.</p>
+                <p className="mt-3 text-xs text-orange-900 dark:text-orange-200">This form creates India (INR) drafts only. UK managers are billed on the approved GBP plan listed below; a new GBP plan version needs a separate, developer-assisted release.</p>
             </section>
 
             <section className="mb-6 rounded-2xl border bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
