@@ -361,6 +361,11 @@ export default function ManagerSubscriptionPage() {
                 await handleDiscountCheckoutRefusal(err, activeDiscount, offer);
                 return;
             }
+            if (discount.kind === 'discounted' && checkout.price?.price_digest !== discount.fields.price_digest) {
+                // Second line of defence: never open Razorpay unless the server accepted the exact price shown.
+                toast.error(CHECKOUT_FAILED_TRY_AGAIN_MESSAGE);
+                return;
+            }
             if (discount.kind === 'discounted') {
                 // The checkout now holds the accepted price; the code is used.
                 setAppliedDiscount(null);
@@ -487,7 +492,7 @@ export default function ManagerSubscriptionPage() {
                     {plansToShow.map((plan) => <ManagerSubscriptionPlanCard
                         key={'id' in plan ? plan.id : plan.code}
                         plan={plan}
-                        checkoutDisabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent || checkoutBlockedByVerification}
+                        checkoutDisabled={busy || discountChecking !== null || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent || checkoutBlockedByVerification}
                         checkoutDisabledReason={checkoutBlockedByVerification ? SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON : undefined}
                         busy={'id' in plan && busyPlan === plan.id}
                         onStart={(offer) => void start(offer)}

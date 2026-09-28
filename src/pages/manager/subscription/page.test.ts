@@ -36,3 +36,9 @@ test('unverified managers can compare plans but cannot start or resume checkout 
     assert.doesNotMatch(source, /const cancel = \(\) => runAction\('cancel', async \(\) => \{\s*if \(!activeCheckout \|\| checkoutBlockedByVerification\)/);
     assert.doesNotMatch(source, /const retryVerification = \(\) => runAction\('verify', async \(\) => \{\s*if \(!pendingProof \|\| checkoutBlockedByVerification\)/);
 });
+
+test('checkout waits for a code preview and only opens Razorpay for the exact accepted price', () => {
+    const page = source;
+    assert.ok(page.includes('checkoutDisabled={busy || discountChecking !== null ||'));
+    assert.ok(page.includes("if (discount.kind === 'discounted' && checkout.price?.price_digest !== discount.fields.price_digest) {"));
+});
