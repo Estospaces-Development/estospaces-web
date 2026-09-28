@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import {
   describeCompanionSyncFailure,
+  matchesAppointmentDateScope,
   runAppointmentMutationWithCompanionSync,
   MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH,
   MAX_MANAGER_APPOINTMENT_NOTE_LENGTH,
@@ -152,4 +153,19 @@ test("manager Mark Completed is disabled while the linked Fast Track awaits docu
   assert.match(source, /data-appointment-completion-hint/);
   assert.match(source, /aria-describedby=\{completionBlockReason \? `appointment-completion-hint-\$\{appointment\.id\}` : undefined\}/);
   assert.match(source, /\{completionBlockReason\}\s*<\/p>/);
+});
+
+test("manager appointments can be scoped to today, upcoming or past dates", () => {
+  const now = new Date("2026-05-01T12:00:00");
+  assert.equal(matchesAppointmentDateScope("2026-05-01T09:00:00", "today", now), true);
+  assert.equal(matchesAppointmentDateScope("2026-05-02T09:00:00", "today", now), false);
+  assert.equal(matchesAppointmentDateScope("2026-05-01T15:00:00", "upcoming", now), true);
+  assert.equal(matchesAppointmentDateScope("2026-04-30T15:00:00", "upcoming", now), false);
+  assert.equal(matchesAppointmentDateScope("2026-04-30T15:00:00", "past", now), true);
+  assert.equal(matchesAppointmentDateScope("2026-05-01T15:00:00", "past", now), false);
+  assert.equal(matchesAppointmentDateScope(undefined, "upcoming", now), false);
+  assert.equal(matchesAppointmentDateScope("not-a-date", "past", now), false);
+  assert.equal(matchesAppointmentDateScope(undefined, "all", now), true);
+  assert.match(source, /aria-label="Appointment dates"/);
+  assert.match(source, /matchesAppointmentDateScope\(appointment\.scheduled_at, dateScope, now\)/);
 });
