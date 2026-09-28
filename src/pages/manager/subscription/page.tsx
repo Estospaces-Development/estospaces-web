@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    PENDING_PAYMENT_POLL_INTERVAL_MS,
+    formatSubscriptionStatus,
+    shouldKeepPollingPendingPayment,
+} from '@/lib/managerSubscriptionStatus';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { ManagerVerificationBanner } from '@/components/routing/ManagerVerificationGate';
@@ -51,6 +56,8 @@ export default function ManagerSubscriptionPage() {
     const [acceptedCheckout, setAcceptedCheckout] = useState<StartCheckoutResponse | null>(null);
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [pendingProof, setPendingProof] = useState<{ checkoutId: string; proof: SubscriptionPaymentProof } | null>(null);
+    // Set when checkout closes with the first charge still pending (UPI Autopay, eMandate).
+    const [pendingPaymentSince, setPendingPaymentSince] = useState<number | null>(null);
     const actionLock = useRef(false);
     const loadVersion = useRef(0);
 
@@ -124,9 +131,42 @@ export default function ManagerSubscriptionPage() {
     };
 
     const reportVerification = (account: ManagerSubscriptionSummary) => {
-        if (account.new_paid_actions_available) toast.success('Subscription payment verified.');
-        else toast.info('Payment confirmation is still pending. Check payment status; do not pay again.');
+        if (account.new_paid_actions_available) {
+            setPendingPaymentSince(null);
+            toast.success('Subscription payment verified.');
+        } else {
+            setPendingPaymentSince(Date.now());
+            toast.info('Payment confirmation is still pending. We are checking automatically; do not pay again.');
+        }
     };
+
+    useEffect(() => {
+        if (pendingPaymentSince === null) return undefined;
+        let cancelled = false;
+        const timer = window.setInterval(() => {
+            void (async () => {
+                try {
+                    const { account } = await getManagerSubscriptionSummary();
+                    if (cancelled) return;
+                    setSummary(account);
+                    if (account.new_paid_actions_available) {
+                        setPendingPaymentSince(null);
+                        setPendingProof(null);
+                        toast.success('Subscription payment verified.');
+                    } else if (!shouldKeepPollingPendingPayment(account, pendingPaymentSince, Date.now())) {
+                        setPendingPaymentSince(null);
+                        toast.info('Your bank has not confirmed the first charge yet. Use Check payment status later; do not pay again.');
+                    }
+                } catch {
+                    // A failed poll is retried on the next tick; the manual status check still works.
+                }
+            })();
+        }, PENDING_PAYMENT_POLL_INTERVAL_MS);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [pendingPaymentSince, toast]);
 
     const openCheckout = async (checkout: StartCheckoutResponse) => {
         const account = await openSubscriptionCheckout(checkout, async (proof) => {
@@ -227,7 +267,8 @@ export default function ManagerSubscriptionPage() {
                 {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${new Date(summary.paid_period.billing_end).toLocaleString()}.` : ''}</div> : null}
                 {activeCheckout ? <section aria-label="Current subscription" className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
                     <h2 className="font-bold">Current subscription</h2>
-                    <p role="status" className="mt-2">Status: {summary?.subscription?.status ?? activeCheckout.status}. No second checkout will be created while this subscription is unresolved.</p>
+                    <p role="status" className="mt-2">Status: {formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status)}. No second checkout will be created while this subscription is unresolved.</p>
+                    {pendingPaymentSince !== null ? <p role="status" className="mt-2">Waiting for your bank to confirm the first charge. This page updates automatically.</p> : null}
                     {acceptedCheckout ? <div className="mt-3"><p><strong>{acceptedCheckout.terms.code} — {formatPlanPrice(acceptedCheckout.terms)} / month</strong></p><p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
