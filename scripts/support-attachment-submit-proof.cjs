@@ -236,7 +236,7 @@ async function main() {
     adminTranscriptAttachmentVisible: false,
     apiMessageAttachmentVisible: false,
     attachmentAccessUrlAvailable: false,
-    mediaRecordReassignedToTicket: false,
+    mediaRecordIsSupportAttachment: false,
     ticketClosed: false,
     mediaCleanupStatus: 'not_started',
     screenshotUserTicket: '',
@@ -318,11 +318,12 @@ async function main() {
     result.uploadedMediaId = String(mediaFile.id || '');
     result.mediaEntityType = String(mediaFile.entity_type || '');
     result.mediaEntityId = String(mediaFile.entity_id || '');
-    result.mediaRecordReassignedToTicket =
-      result.mediaEntityType === 'support_ticket' &&
-      result.mediaEntityId === result.ticketId;
-    if (!result.mediaRecordReassignedToTicket) {
-      throw new Error(`Support media was not reassigned to ticket. media=${JSON.stringify(mediaFile)}`);
+    // Support attachments stay on their draft entity; messaging binds them to the
+    // ticket through the message attachment (owner + support* entity type).
+    result.mediaRecordIsSupportAttachment =
+      result.mediaEntityType.startsWith('support') && Boolean(result.mediaEntityId);
+    if (!result.mediaRecordIsSupportAttachment) {
+      throw new Error(`Support media is not stored as a support attachment. media=${JSON.stringify(mediaFile)}`);
     }
 
     await adminPage.goto(
@@ -364,7 +365,7 @@ async function main() {
       result.adminTranscriptAttachmentVisible &&
       result.apiMessageAttachmentVisible &&
       result.attachmentAccessUrlAvailable &&
-      result.mediaRecordReassignedToTicket &&
+      result.mediaRecordIsSupportAttachment &&
       result.ticketClosed &&
       result.mediaCleanupStatus === 'verified' &&
       result.pageErrors.length === 0 &&

@@ -15,6 +15,7 @@ import {
 import { getAuthTokenVersion } from '@/lib/authToken';
 import { formatConversationTime } from '@/lib/conversationTime';
 import { mergeLatestMessagePage } from '@/lib/messagePagination';
+import { getMessageSendFailureText } from '@/lib/messageComposerLimit';
 import {
     createUnavailableConversationThreadIssue,
     isUnavailableConversationThreadError,
@@ -886,13 +887,21 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             return;
         }
 
+        let sentMessage: Awaited<ReturnType<typeof messagesService.sendMessage>>;
         try {
-            const sentMessage = await messagesService.sendMessage({
+            sentMessage = await messagesService.sendMessage({
                 conversationId,
                 content: text.trim(),
                 type: attachments.length > 0 && !text.trim() ? 'file' : 'text',
                 attachments,
             });
+        } catch (error) {
+            // The message was not sent: keep the server's explanation (e.g. the
+            // length limit) so the composer can show it and keep the draft.
+            throw new Error(getMessageSendFailureText(error));
+        }
+
+        try {
 
             const mappedMessage = mapBackendMessage(sentMessage);
             setConversations((previous) =>
@@ -921,8 +930,8 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 ids: { conversationId, messageId: sentMessage.id },
             });
         } catch {
-            // Surface the error at the caller level.
-            throw new Error('Failed to send message');
+            // The message was sent; a failed refresh must not report a send failure
+            // (that would invite a duplicate resend). Background sync catches up.
         }
     }, [loadConversationMessages, loadConversations, mapBackendMessage, publishWorkspaceSync]);
 
