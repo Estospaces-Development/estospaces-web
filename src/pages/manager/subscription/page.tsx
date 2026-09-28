@@ -5,6 +5,7 @@ import {
     formatSubscriptionStatus,
     isVerificationPendingError,
 } from '@/lib/managerSubscriptionStatus';
+import ManagerBillingHistory from '@/components/manager/ManagerBillingHistory';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { ManagerVerificationBanner } from '@/components/routing/ManagerVerificationGate';
@@ -325,6 +326,7 @@ export default function ManagerSubscriptionPage() {
                 </section> : null}
                 {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
+                <ManagerBillingHistory />
             </div>
         </div>
     );
