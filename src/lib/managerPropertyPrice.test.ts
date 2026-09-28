@@ -47,3 +47,11 @@ test('signed-in Discover cards read listing_type to label rentals', async () => 
     assert.ok(source.includes("const isRentalListing = property.listing_type === 'rent' || property.listingType === 'rent'"));
     assert.equal(source.split('if (isRentalListing) {').length - 1, 2);
 });
+
+test('manager listings table and chart axes never show a blank or fractional derived price', async () => {
+    const { readFileSync } = await import('node:fs');
+    const listSource = readFileSync(`${process.cwd()}/src/pages/manager/dashboard/properties/page.tsx`, 'utf8');
+    assert.ok(listSource.includes("{formatManagerPropertyPrice(property) || 'POA'}"));
+    const chartSource = readFileSync(`${process.cwd()}/src/components/ui/BarChart.tsx`, 'utf8');
+    assert.ok(chartSource.includes('formatLaunchCurrency(Math.round(value))'));
+});
