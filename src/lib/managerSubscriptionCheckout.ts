@@ -89,6 +89,14 @@ export function canResumeSubscription(account: ManagerSubscriptionSummary): bool
         && (!account.subscription || account.subscription.status === 'created');
 }
 
+/** The line shown on Razorpay's own screen, naming the accepted discount when there is one. */
+export function describeCheckoutForProvider(checkout: Pick<StartCheckoutResponse, 'terms' | 'price'>): string {
+    const base = `${getManagerPlanDisplayName(checkout.terms.code)} manager subscription`;
+    const price = checkout.price;
+    if (!price) return base;
+    return `${base} · ${price.percent_off}% off for ${price.discount_cycles} ${price.discount_cycles === 1 ? 'month' : 'months'}`;
+}
+
 // The promise owns the SDK callback, so asynchronous verification failures reach
 // the page's error handling rather than becoming unhandled rejections.
 export function openSubscriptionCheckout(
@@ -106,7 +114,7 @@ export function openSubscriptionCheckout(
             key: checkout.key_id,
             subscription_id: checkout.checkout.provider_subscription_id,
             name: 'Estospaces',
-            description: `${getManagerPlanDisplayName(checkout.terms.code)} manager subscription`,
+            description: describeCheckoutForProvider(checkout),
             handler: (response) => {
                 if (settled || verifying) return;
                 verifying = true;

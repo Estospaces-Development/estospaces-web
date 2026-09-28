@@ -118,6 +118,22 @@ export function classifyDiscountError(error: unknown): DiscountErrorKind {
     return 'other';
 }
 
+export const CHECKOUT_FAILED_TRY_AGAIN_MESSAGE = 'Secure checkout could not be set up, and nothing was charged. Please try again.';
+
+/**
+ * A 503 provider_unavailable that carries a checkout already marked failed
+ * (for example the provider did not echo the discount offer). The server has
+ * released it, so the manager can simply try again; a retry always starts a
+ * new checkout with a new idempotency key and never reuses this checkout ID.
+ * Other 503s may have an unknown outcome and keep the server's own message.
+ */
+export function isFailedCheckoutError(error: unknown): boolean {
+    const { status, code, data } = (error && typeof error === 'object' ? error : {}) as { status?: unknown; code?: unknown; data?: unknown };
+    if (status !== 503 || code !== 'provider_unavailable' || !data || typeof data !== 'object') return false;
+    const checkout = (data as { checkout?: unknown }).checkout;
+    return Boolean(checkout && typeof checkout === 'object' && (checkout as { status?: unknown }).status === 'failed');
+}
+
 export type StaleRecoveryOutcome =
     | { kind: 'confirm_new_price'; applied: AppliedDiscount }
     | { kind: 'unavailable' }

@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import type { ManagerDiscountPreview, ManagerPlanOffer } from '../services/managerSubscriptionService';
 import {
+    CHECKOUT_FAILED_TRY_AGAIN_MESSAGE,
     DEFAULT_RECURRING_CONSENT_TEXT,
+    DISCOUNT_CODE_RATE_LIMITED_MESSAGE,
     assertCheckoutPromotionPair,
     classifyDiscountError,
     describeDiscountPrice,
@@ -11,6 +13,7 @@ import {
     discountedAmountMinor,
     forgetDiscountCode,
     getRecurringConsentText,
+    isFailedCheckoutError,
     normalizeDiscountCode,
     planDiscountCheckout,
     previewMatchesOffer,
@@ -197,4 +200,19 @@ test('storage failures never break the code field', () => {
     assert.equal(readRememberedDiscountCode(broken, 'manager-a'), null);
     assert.doesNotThrow(() => forgetDiscountCode(broken, 'manager-a'));
     assert.equal(readRememberedDiscountCode(null, 'manager-a'), null);
+});
+
+test('a failed checkout from the provider is a plain "try again", other 503s keep their unknown outcome', () => {
+    assert.equal(isFailedCheckoutError({ status: 503, code: 'provider_unavailable', data: { checkout: { id: 'attempt-1', status: 'failed' } } }), true);
+    assert.equal(isFailedCheckoutError({ status: 503, code: 'provider_unavailable', data: { checkout: { status: 'reconciliation_required' } } }), false);
+    assert.equal(isFailedCheckoutError({ status: 503, code: 'provider_unavailable', data: null }), false);
+    assert.equal(isFailedCheckoutError({ status: 503, code: 'checkout_paused', data: { checkout: { status: 'failed' } } }), false);
+    assert.equal(isFailedCheckoutError({ status: 409, code: 'provider_unavailable', data: { checkout: { status: 'failed' } } }), false);
+    assert.equal(isFailedCheckoutError(null), false);
+    assert.match(CHECKOUT_FAILED_TRY_AGAIN_MESSAGE, /nothing was charged\. Please try again\./);
+});
+
+test('the shared preview and coded-checkout rate limit reads the same everywhere', () => {
+    assert.equal(classifyDiscountError({ status: 429, code: 'rate_limited' }), 'rate_limited');
+    assert.match(DISCOUNT_CODE_RATE_LIMITED_MESSAGE, /Too many code attempts/);
 });

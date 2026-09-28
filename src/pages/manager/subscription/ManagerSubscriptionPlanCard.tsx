@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { CreditCard } from 'lucide-react';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
@@ -12,6 +13,8 @@ interface ManagerSubscriptionPlanCardProps {
     checkoutDisabledReason?: string;
     busy: boolean;
     onStart: (offer: ManagerPlanOffer) => void;
+    /** The discount code field, shown only for priced offers. */
+    discountField?: ReactNode;
 }
 
 const planDescriptions = {
@@ -19,7 +22,7 @@ const planDescriptions = {
     growth: 'Higher property and Fast Track capacity, with dedicated support for a larger portfolio.',
 };
 
-export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, checkoutDisabledReason, busy, onStart }: ManagerSubscriptionPlanCardProps) {
+export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, checkoutDisabledReason, busy, onStart, discountField }: ManagerSubscriptionPlanCardProps) {
     const offer = 'id' in plan ? plan : null;
     const reasonId = offer && checkoutDisabledReason ? `plan-${offer.id}-checkout-reason` : undefined;
     const name = getManagerPlanDisplayName(plan.code);
@@ -47,6 +50,7 @@ export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, ch
             {offer ? <>
                 {describeStoredTermsPlanName(offer.code, offer.terms_text) ? <p className="mt-4 text-xs font-semibold text-gray-700 dark:text-gray-200">{describeStoredTermsPlanName(offer.code, offer.terms_text)}</p> : null}
                 <p className="mt-4 text-xs leading-5 text-gray-600 dark:text-gray-300">{offer.terms_text}</p>
+                {discountField}
                 <button type="button" disabled={checkoutDisabled} aria-describedby={reasonId} onClick={() => onStart(offer)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
                     {busy ? <ActionSpinner size="sm" aria-hidden /> : <CreditCard className="h-4 w-4" />} Continue to secure payment
                 </button>
