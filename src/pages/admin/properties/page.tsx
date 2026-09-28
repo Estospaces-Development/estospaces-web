@@ -37,6 +37,7 @@ import {
     sortAdminPropertyRegistry,
 } from '@/lib/adminPropertyRegistry';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
+import { resolveAdminListingOwner } from '@/lib/adminListingOwner';
 
 function PropertyManagementContent() {
     const navigate = useNavigate();
@@ -626,6 +627,7 @@ function PropertyManagementContent() {
                             const propertyCardKey = resolvePropertyCardKey(propertyId, index);
                             const isBusy = propertyId !== null && updatingPropertyId === propertyId;
                             const propertyImage = getPrimaryPropertyImage(property);
+                            const listingOwner = resolveAdminListingOwner(property);
 
                             return (
                                 <div
@@ -708,11 +710,11 @@ function PropertyManagementContent() {
 
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-400 dark:bg-gray-700">
-                                                {(property.contactName || 'AG').substring(0, 2).toUpperCase()}
+                                            <div aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-400 dark:bg-gray-700">
+                                                {listingOwner.initials}
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black text-gray-900 dark:text-white">{property.contactName || 'Unknown Owner'}</p>
+                                                <p className={`text-[10px] font-black ${listingOwner.isSet ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{listingOwner.label}</p>
                                                 <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400">Listing Owner</p>
                                             </div>
                                         </div>
