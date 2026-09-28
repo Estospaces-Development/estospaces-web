@@ -5,6 +5,7 @@ import { Megaphone } from 'lucide-react';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import {
+    OFFER_CHECKLIST_EXPLANATION,
     RAZORPAY_OFFER_STEPS,
     REDEMPTIONS_PAGE_SIZE,
     TRIAL_REVOKE_REASON_MAX,
@@ -23,8 +24,10 @@ import {
     formatPromotionPlan,
     formatPromotionUsage,
     getAdminTrialGrantState,
+    getOfferChecklist,
     getPromotionActions,
     getPromotionErrorMessage,
+    isOfferChecklistComplete,
     normalizeManagerID,
     promotionEditValues,
     shouldReuseIdempotencyKey,
@@ -85,6 +88,29 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 type EditErrors = Extract<PromotionEditResult, { success: false }>['errors'];
 
+// Activating a percent discount first requires confirming the matching
+// Razorpay offer's settings; Activate stays disabled until all are ticked.
+function OfferChecklist({ promotion, windowLabel, ticked, busy, onToggle, onActivate }: {
+    promotion: AdminPromotion;
+    windowLabel: string;
+    ticked: string[];
+    busy: string | null;
+    onToggle: (id: string, checked: boolean) => void;
+    onActivate: () => void;
+}) {
+    const items = getOfferChecklist(promotion, windowLabel);
+    const complete = isOfferChecklistComplete(items, ticked);
+    const headingId = `offer-check-${promotion.id}`;
+    const reasonId = `${headingId}-reason`;
+    return <fieldset aria-labelledby={headingId} className="mt-3 grid min-w-72 gap-2 rounded-xl border border-orange-300 p-3 text-xs dark:border-orange-800">
+        <legend id={headingId} className="px-1 text-sm font-bold">Confirm the Razorpay offer before activating</legend>
+        <p className="text-gray-700 dark:text-gray-300">{OFFER_CHECKLIST_EXPLANATION}</p>
+        {items.map((item) => <label key={item.id} className="flex items-start gap-2"><input type="checkbox" checked={ticked.includes(item.id)} onChange={(event) => onToggle(item.id, event.target.checked)} className="mt-0.5 h-4 w-4 accent-orange-600" /><span>{item.label}</span></label>)}
+        <button type="button" disabled={!complete || busy !== null} aria-describedby={complete ? undefined : reasonId} onClick={onActivate} className={buttonPrimary}>{busy === `activate:${promotion.id}:${promotion.version}` ? 'Saving…' : 'Activate'}</button>
+        {complete ? null : <p id={reasonId} className="text-gray-600 dark:text-gray-300">Tick every setting above to enable Activate.</p>}
+    </fieldset>;
+}
+
 export default function AdminPromotionsSection() {
     const toast = useToast();
     const queryClient = useQueryClient();
@@ -100,6 +126,8 @@ export default function AdminPromotionsSection() {
     const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
     const [revokeReason, setRevokeReason] = useState('');
     const [backfillManagerID, setBackfillManagerID] = useState('');
+    // Ticked Razorpay offer settings, bound to one promotion version so an edit resets them.
+    const [offerCheck, setOfferCheck] = useState<{ key: string; ticked: string[] } | null>(null);
 
     const promotions = useQuery({ queryKey: promotionQueryKeys.list(), queryFn: getAdminPromotions });
     const promotionList = useMemo(() => promotions.data ?? [], [promotions.data]);
@@ -239,10 +267,13 @@ export default function AdminPromotionsSection() {
                                 <td className="py-3 pr-4">{formatPromotionUsage(promotion)}</td>
                                 <td className="py-3 pr-4"><span className={`rounded-full px-2 py-1 text-xs font-bold capitalize ${statusClasses[promotion.status]}`}>{promotion.status}</span></td>
                                 <td className="py-3"><div className="flex flex-wrap gap-2">
-                                    {getPromotionActions(promotion.status).map((action) => <button key={action} type="button" disabled={busy !== null} onClick={() => void changeStatus(promotion, action)} className={buttonSecondary}>{busy === `${action}:${promotion.id}:${promotion.version}` ? 'Saving…' : actionLabels[action]}</button>)}
+                                    {getPromotionActions(promotion.status).map((action) => action === 'activate' && promotion.kind === 'percent_discount'
+                                        ? <button key={action} type="button" aria-expanded={offerCheck?.key === `${promotion.id}:${promotion.version}`} disabled={busy !== null} onClick={() => setOfferCheck(offerCheck?.key === `${promotion.id}:${promotion.version}` ? null : { key: `${promotion.id}:${promotion.version}`, ticked: [] })} className={buttonSecondary}>{offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'Close offer check' : 'Activate…'}</button>
+                                        : <button key={action} type="button" disabled={busy !== null} onClick={() => void changeStatus(promotion, action)} className={buttonSecondary}>{busy === `${action}:${promotion.id}:${promotion.version}` ? 'Saving…' : actionLabels[action]}</button>)}
                                     {canEditPromotion(promotion) ? <button type="button" aria-expanded={editing?.id === promotion.id} disabled={busy !== null} onClick={() => setEditing(editing?.id === promotion.id ? null : { id: promotion.id, values: promotionEditValues(promotion), errors: {} })} className={buttonSecondary}>{editing?.id === promotion.id ? 'Close edit' : 'Edit'}</button> : null}
                                     <button type="button" aria-pressed={selectedID === promotion.id} onClick={() => { setSelectedID(selectedID === promotion.id ? null : promotion.id); setRedemptionOffset(0); }} className={buttonSecondary}>{selectedID === promotion.id ? 'Hide redemptions' : 'Redemptions'}</button>
                                 </div>
+                                {offerCheck?.key === `${promotion.id}:${promotion.version}` ? <OfferChecklist promotion={promotion} windowLabel={formatWindow(promotion)} ticked={offerCheck.ticked} busy={busy} onToggle={(id, checked) => setOfferCheck({ key: offerCheck.key, ticked: checked ? [...offerCheck.ticked, id] : offerCheck.ticked.filter((item) => item !== id) })} onActivate={async () => { if (await changeStatus(promotion, 'activate')) setOfferCheck(null); }} /> : null}
                                 {editing?.id === promotion.id ? <div className="mt-3 grid min-w-72 gap-2 rounded-xl border p-3 dark:border-gray-800">
                                     <label className="text-xs font-semibold">Name<input value={editing.values.name} maxLength={128} onChange={(event) => setEditing({ ...editing, values: { ...editing.values, name: event.target.value }, errors: {} })} className={inputClass} /><FieldError id={`edit-${promotion.id}-name`} message={editing.errors.name} /></label>
                                     <label className="text-xs font-semibold">Description<input value={editing.values.description} maxLength={1000} onChange={(event) => setEditing({ ...editing, values: { ...editing.values, description: event.target.value }, errors: {} })} className={inputClass} /><FieldError id={`edit-${promotion.id}-description`} message={editing.errors.description} /></label>
