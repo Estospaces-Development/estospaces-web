@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    PENDING_PAYMENT_POLL_INTERVAL_MS,
+    evaluatePendingPaymentPoll,
+    formatSubscriptionStatus,
+    isVerificationPendingError,
+} from '@/lib/managerSubscriptionStatus';
 import ManagerBillingHistory from '@/components/manager/ManagerBillingHistory';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -52,6 +58,8 @@ export default function ManagerSubscriptionPage() {
     const [acceptedCheckout, setAcceptedCheckout] = useState<StartCheckoutResponse | null>(null);
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [pendingProof, setPendingProof] = useState<{ checkoutId: string; proof: SubscriptionPaymentProof } | null>(null);
+    // Set when checkout closes with the first charge still pending (UPI Autopay, eMandate).
+    const [pendingPaymentSince, setPendingPaymentSince] = useState<number | null>(null);
     const actionLock = useRef(false);
     const loadVersion = useRef(0);
 
@@ -124,20 +132,78 @@ export default function ManagerSubscriptionPage() {
         }
     };
 
-    const reportVerification = (account: ManagerSubscriptionSummary) => {
-        if (account.new_paid_actions_available) toast.success('Subscription payment verified.');
-        else toast.info('Payment confirmation is still pending. Check payment status; do not pay again.');
+    const startPendingPaymentPoll = () => {
+        setPendingPaymentSince(Date.now());
+        toast.info('Payment confirmation is still pending. We are checking automatically; do not pay again.');
     };
 
+    const reportVerification = (account: ManagerSubscriptionSummary) => {
+        if (account.new_paid_actions_available) {
+            setPendingPaymentSince(null);
+            toast.success('Subscription payment verified.');
+        } else {
+            startPendingPaymentPoll();
+        }
+    };
+
+    // A 409 verification_pending from verify starts the automatic poll instead of failing.
+    const verifyOrPoll = async (verify: () => Promise<ManagerSubscriptionSummary | null>): Promise<{ account: ManagerSubscriptionSummary | null; pending: boolean }> => {
+        try {
+            const account = await verify();
+            if (account) reportVerification(account);
+            return { account, pending: false };
+        } catch (err) {
+            if (!isVerificationPendingError(err)) throw err;
+            startPendingPaymentPoll();
+            return { account: null, pending: true };
+        }
+    };
+
+    useEffect(() => {
+        if (pendingPaymentSince === null) return undefined;
+        let cancelled = false;
+        let inFlight = false;
+        const timer = window.setInterval(() => {
+            // One request at a time, and never while a user action is updating the summary.
+            if (inFlight || actionLock.current) return;
+            inFlight = true;
+            void (async () => {
+                try {
+                    const { account } = await getManagerSubscriptionSummary();
+                    if (cancelled || actionLock.current) return;
+                    setSummary(account);
+                    const outcome = evaluatePendingPaymentPoll(account, pendingPaymentSince, Date.now());
+                    if (outcome === 'paid') {
+                        setPendingPaymentSince(null);
+                        setPendingProof(null);
+                        toast.success('Subscription payment verified.');
+                    } else if (outcome === 'stop') {
+                        setPendingPaymentSince(null);
+                    } else if (outcome === 'timeout') {
+                        setPendingPaymentSince(null);
+                        toast.info('Your bank has not confirmed the first charge yet. Use Check payment status later; do not pay again.');
+                    }
+                } catch {
+                    // A failed poll is retried on the next tick; the manual status check still works.
+                } finally {
+                    inFlight = false;
+                }
+            })();
+        }, PENDING_PAYMENT_POLL_INTERVAL_MS);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [pendingPaymentSince, toast]);
+
     const openCheckout = async (checkout: StartCheckoutResponse) => {
-        const account = await openSubscriptionCheckout(checkout, async (proof) => {
+        const { account, pending } = await verifyOrPoll(() => openSubscriptionCheckout(checkout, async (proof) => {
             setPendingProof({ checkoutId: checkout.checkout.id, proof });
             const result = await verifyManagerSubscriptionCheckout(checkout.checkout.id, proof);
             setPendingProof(null);
             return result.account;
-        });
-        if (account) reportVerification(account);
-        else toast.info('Checkout closed. You can resume the same checkout below.');
+        }));
+        if (!account && !pending) toast.info('Checkout closed. You can resume the same checkout below.');
     };
 
     const start = async (offer: ManagerPlanOffer) => {
@@ -189,6 +255,7 @@ export default function ManagerSubscriptionPage() {
         if (!activeCheckout) return;
         const cancellation = await cancelManagerSubscriptionCheckout(activeCheckout.id);
         if (cancellation.status !== 'confirmed') throw new Error('Cancellation is pending confirmation. Check payment status again.');
+        setPendingPaymentSince(null);
         setConfirmCancel(false);
         toast.success('Cancellation confirmed. Any verified paid-through access remains until its end date.');
         await reconcileManagerSubscriptionCheckout(activeCheckout.id);
@@ -196,9 +263,11 @@ export default function ManagerSubscriptionPage() {
 
     const retryVerification = () => runAction('verify', async () => {
         if (!pendingProof) return;
-        const result = await verifyManagerSubscriptionCheckout(pendingProof.checkoutId, pendingProof.proof);
-        setPendingProof(null);
-        reportVerification(result.account);
+        await verifyOrPoll(async () => {
+            const result = await verifyManagerSubscriptionCheckout(pendingProof.checkoutId, pendingProof.proof);
+            setPendingProof(null);
+            return result.account;
+        });
     });
 
     const busy = busyPlan !== null || loading;
@@ -228,7 +297,8 @@ export default function ManagerSubscriptionPage() {
                 {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${new Date(summary.paid_period.billing_end).toLocaleString()}.` : ''}</div> : null}
                 {activeCheckout ? <section aria-label="Current subscription" className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
                     <h2 className="font-bold">Current subscription</h2>
-                    <p role="status" className="mt-2">Status: {summary?.subscription?.status ?? activeCheckout.status}. No second checkout will be created while this subscription is unresolved.</p>
+                    <p role="status" className="mt-2">Status: {formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status)}. No second checkout will be created while this subscription is unresolved.</p>
+                    {pendingPaymentSince !== null ? <p role="status" className="mt-2">Waiting for your bank to confirm the first charge. This page updates automatically.</p> : null}
                     {acceptedCheckout ? <div className="mt-3"><p><strong>{acceptedCheckout.terms.code} — {formatPlanPrice(acceptedCheckout.terms)} / month</strong></p><p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
