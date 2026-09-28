@@ -113,6 +113,7 @@ test('the case file reads per-document review state from the Fast Track workspac
     const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
     assert.ok(source.includes('getFastTrackCaseById(String(caseFile?.case_id || ""), { suppressErrorToast: true })'));
     assert.ok(source.includes('getFastTrackApprovedDocumentRecordIds(fastTrackWorkspaceCase)'));
+    assert.ok(source.includes('queryKey: ["case-file-fast-track-workspace", caseFile?.case_id, signedInUser?.id || ""]'));
     assert.ok(source.includes('countFastTrackReplacementRequests(fastTrackWorkspaceCase)'));
 });
 
