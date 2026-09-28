@@ -130,6 +130,13 @@ import {
   UK_COUNTRY_CODE,
 } from "@/lib/launchLocale";
 import { areCoordinatesInsideLaunchMarket } from "@/lib/mapCoordinates";
+import {
+  getImageFileProblem,
+  getLocalFileFingerprint,
+  getVideoFileProblem,
+  readFileHeadSafely,
+  UNREADABLE_FILE_MESSAGE,
+} from "@/lib/uploadFileSignature";
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
@@ -1660,8 +1667,22 @@ export default function AddPropertyPage() {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    // Reset so choosing the same file again still fires change (and is deduped).
+    e.target.value = "";
+    const seenImageFingerprints = new Set(
+      formData.images
+        .filter((image): image is File => image instanceof File)
+        .map(getLocalFileFingerprint),
+    );
 
-    files.forEach((file) => {
+    files.forEach((file) => void (async () => {
+      const fingerprint = getLocalFileFingerprint(file);
+      if (seenImageFingerprints.has(fingerprint)) {
+        showToast(`${file.name} is already in the gallery.`, "info");
+        return;
+      }
+      seenImageFingerprints.add(fingerprint);
+
       if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
         showToast(
           `${file.name} has an unsupported format. Use JPEG, PNG, WebP, or GIF.`,
@@ -1672,6 +1693,13 @@ export default function AddPropertyPage() {
 
       if (file.size > 10 * 1024 * 1024) {
         showToast(`${file.name} is too large. Maximum size is 10MB.`, "error");
+        return;
+      }
+
+      const imageHead = await readFileHeadSafely(file);
+      const imageProblem = imageHead ? getImageFileProblem(file, imageHead) : UNREADABLE_FILE_MESSAGE;
+      if (imageProblem) {
+        showToast(`${file.name}: ${imageProblem}`, "error");
         return;
       }
 
@@ -1696,13 +1724,26 @@ export default function AddPropertyPage() {
         }
       };
       reader.readAsDataURL(file);
-    });
+    })());
   };
 
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    const seenVideoFingerprints = new Set(
+      formData.videos
+        .filter((video): video is File => video instanceof File)
+        .map(getLocalFileFingerprint),
+    );
 
-    files.forEach((file) => {
+    files.forEach((file) => void (async () => {
+      const fingerprint = getLocalFileFingerprint(file);
+      if (seenVideoFingerprints.has(fingerprint)) {
+        showToast(`${file.name} is already added.`, "info");
+        return;
+      }
+      seenVideoFingerprints.add(fingerprint);
+
       if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
         showToast(
           `${file.name} has an unsupported format. Use MP4, WebM, or MOV.`,
@@ -1716,6 +1757,13 @@ export default function AddPropertyPage() {
         return;
       }
 
+      const videoHead = await readFileHeadSafely(file);
+      const videoProblem = videoHead ? getVideoFileProblem(file, videoHead) : UNREADABLE_FILE_MESSAGE;
+      if (videoProblem) {
+        showToast(`${file.name}: ${videoProblem}`, "error");
+        return;
+      }
+
       const previewURL = createManagerPropertyVideoPreview(file);
       ownedVideoPreviewURLsRef.current.add(previewURL);
       setVideoPreviews((prev) => [...prev, previewURL]);
@@ -1724,7 +1772,7 @@ export default function AddPropertyPage() {
         videos: [...prev.videos, file],
       }));
       setIsDirty(true);
-    });
+    })());
   };
 
   const removeImage = (index: number) => {
