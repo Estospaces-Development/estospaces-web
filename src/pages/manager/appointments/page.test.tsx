@@ -169,3 +169,13 @@ test("manager appointments can be scoped to today, upcoming or past dates", () =
   assert.match(source, /aria-label="Appointment dates"/);
   assert.match(source, /matchesAppointmentDateScope\(appointment\.scheduled_at, dateScope, now\)/);
 });
+
+test("appointment date scopes compare UTC times against the local day and refresh each minute", () => {
+  const now = new Date(2026, 4, 1, 12, 0, 0);
+  const localMidnight = new Date(2026, 4, 1, 0, 0, 0);
+  const justBefore = new Date(localMidnight.getTime() - 60_000).toISOString();
+  const justAfter = new Date(localMidnight.getTime() + 60_000).toISOString();
+  assert.equal(matchesAppointmentDateScope(justAfter, "today", now), true);
+  assert.equal(matchesAppointmentDateScope(justBefore, "today", now), false);
+  assert.match(source, /window\.setInterval\(\(\) => setDateScopeNow\(Date\.now\(\)\), 60_000\)/);
+});

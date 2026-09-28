@@ -283,6 +283,16 @@ export default function ManagerAppointmentsPage() {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateScope, setDateScope] = useState<AppointmentDateScope>('all');
+    // Re-evaluate Today/Upcoming/Past each minute while a date scope is active.
+    const [dateScopeNow, setDateScopeNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (dateScope === 'all') {
+            return undefined;
+        }
+        setDateScopeNow(Date.now());
+        const timer = window.setInterval(() => setDateScopeNow(Date.now()), 60_000);
+        return () => window.clearInterval(timer);
+    }, [dateScope]);
     const [searchQuery, setSearchQuery] = useState('');
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
@@ -392,7 +402,7 @@ export default function ManagerAppointmentsPage() {
         }
 
         if (dateScope !== 'all') {
-            const now = new Date();
+            const now = new Date(dateScopeNow);
             filtered = filtered.filter((appointment) => matchesAppointmentDateScope(appointment.scheduled_at, dateScope, now));
         }
 
@@ -418,7 +428,7 @@ export default function ManagerAppointmentsPage() {
             }
             return 0;
         });
-    }, [appointments, dateScope, focusedAppointmentId, searchQuery, statusFilter]);
+    }, [appointments, dateScope, dateScopeNow, focusedAppointmentId, searchQuery, statusFilter]);
 
     const summary = useMemo(() => ({
         total: appointments.length,
