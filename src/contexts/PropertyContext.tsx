@@ -290,6 +290,8 @@ export interface Property {
     licenseNumber?: string;
   };
   contactName?: string;
+  /** Owning manager's account name (admin reads only). */
+  managerName?: string;
   phoneNumber?: string;
   emailAddress?: string;
 
@@ -813,6 +815,7 @@ export const PropertyProvider = ({
         licenseNumber: p.license_number || "",
       },
       contactName: p.agent_name,
+      managerName: p.manager_name?.trim() || undefined,
       phoneNumber: p.agent_phone,
       emailAddress: p.agent_email,
       financial: {

@@ -123,6 +123,8 @@ export interface Property {
   favorites?: number;
   is_verified?: boolean;
   agent_name?: string;
+  /** Owning manager's account name; core returns it on admin reads only. */
+  manager_name?: string;
   agent_email?: string;
   agent_phone?: string;
   alternate_phone?: string;
