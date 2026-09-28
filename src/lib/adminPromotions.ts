@@ -208,6 +208,53 @@ export const RAZORPAY_OFFER_STEPS: readonly string[] = [
     'Copy each offer ID (it starts with offer_) and paste it below. You can save the draft first and add offers later; activation needs one per selected market.',
 ];
 
+// ── Razorpay offer checklist before activating a discount ──────────────────
+
+export interface OfferChecklistItem {
+    id: string;
+    label: string;
+}
+
+export const OFFER_CHECKLIST_EXPLANATION = 'Razorpay charges what its offer says, not what this promotion says. If the offer differs in any of these settings, managers are charged a different amount and payment verification rejects the payment. Check each setting in the Razorpay Dashboard, then tick it.';
+
+const MARKET_CURRENCY: Record<AdminPromotionMarket, { currency: 'INR' | 'GBP'; offerField: 'provider_offer_id_inr' | 'provider_offer_id_gbp' }> = {
+    IN: { currency: 'INR', offerField: 'provider_offer_id_inr' },
+    GB: { currency: 'GBP', offerField: 'provider_offer_id_gbp' },
+};
+
+/**
+ * The settings every Razorpay offer behind a percent discount must have. It
+ * is a client-side confirmation only: the payment service cannot read the
+ * offer's configuration, so the admin confirms it before activating.
+ */
+export function getOfferChecklist(
+    promotion: Pick<AdminPromotion, 'kind' | 'percent_off' | 'discount_cycles' | 'eligible_markets' | 'provider_offer_id_inr' | 'provider_offer_id_gbp'>,
+    windowLabel: string,
+): OfferChecklistItem[] {
+    if (promotion.kind !== 'percent_discount') return [];
+    const percent = promotion.percent_off ?? '?';
+    const cycles = promotion.discount_cycles ?? '?';
+    const items: OfferChecklistItem[] = [
+        { id: 'offer_type', label: `Offer type is Percentage, at exactly ${percent}% off.` },
+        { id: 'cycles', label: `Applies to “Limited number of cycles”, set to ${cycles} (the discounted months).` },
+        { id: 'payment_methods', label: 'Payment methods: all cards and UPI, not restricted to some methods.' },
+        { id: 'failure', label: 'On payment failure or validation failure: do not allow the payment without the offer.' },
+        { id: 'validity', label: `The offer’s validity dates cover this promotion’s window (${windowLabel}).` },
+    ];
+    for (const market of promotion.eligible_markets) {
+        const { currency, offerField } = MARKET_CURRENCY[market];
+        const offerID = promotion[offerField];
+        items.push({ id: `offer_${currency}`, label: `One ${currency} offer on the ${currency} plan, with ID ${offerID || '(not set yet)'} pasted in this promotion.` });
+    }
+    return items;
+}
+
+/** Activate stays disabled until every checklist item is ticked. */
+export function isOfferChecklistComplete(items: readonly OfferChecklistItem[], ticked: ReadonlySet<string> | readonly string[]): boolean {
+    const done = new Set<string>(ticked);
+    return items.length > 0 && items.every((item) => done.has(item.id));
+}
+
 // ── Edit (PATCH) ───────────────────────────────────────────────────────────
 
 export interface PromotionEditValues {

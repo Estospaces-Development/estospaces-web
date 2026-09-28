@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     PENDING_PAYMENT_POLL_INTERVAL_MS,
@@ -14,6 +15,27 @@ import { describeStoredTermsPlanName, getManagerPlanDisplayName } from '@/lib/ma
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { ManagerVerificationBanner } from '@/components/routing/ManagerVerificationGate';
+import {
+    CHECKOUT_FAILED_TRY_AGAIN_MESSAGE,
+    COUPON_QUERY_PARAM,
+    DISCOUNT_CODE_RATE_LIMITED_MESSAGE,
+    DISCOUNT_CODE_UNAVAILABLE_MESSAGE,
+    DISCOUNT_PRICE_CHANGED_MESSAGE,
+    classifyDiscountError,
+    describeDiscountPrice,
+    describeOtherPlanDiscount,
+    forgetDiscountCode,
+    getRecurringConsentText,
+    isFailedCheckoutError,
+    normalizeDiscountCode,
+    planDiscountCheckout,
+    previewMatchesOffer,
+    recoverFromStalePreview,
+    rememberDiscountCode,
+    resolveDiscountCodePrefill,
+    type AppliedDiscount,
+} from '@/lib/managerDiscountCode';
+import ManagerDiscountCodeField from './ManagerDiscountCodeField';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
 import { orderManagerPlans } from './managerPlanOrder';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
@@ -27,6 +49,7 @@ import {
     getManagerSubscriptionOffers,
     getManagerSubscriptionPlanPreviews,
     getManagerSubscriptionSummary,
+    previewManagerSubscriptionDiscount,
     reconcileManagerSubscriptionCheckout,
     recoverManagerSubscriptionCheckout,
     startManagerSubscriptionCheckout,
@@ -37,6 +60,11 @@ import {
     type StartCheckoutResponse,
 } from '@/services/managerSubscriptionService';
 import { getMyManagerBillingProfile } from '@/services/managerBillingProfileService';
+
+function tabStorage(): Storage | null {
+    try { return typeof window === 'undefined' ? null : window.sessionStorage; } catch { return null; }
+}
+
 export default function ManagerSubscriptionPage() {
     const toast = useToast();
     const queryClient = useQueryClient();
@@ -59,7 +87,15 @@ export default function ManagerSubscriptionPage() {
     const [billingProfile, setBillingProfile] = useState<BillingProfileLookup>({ kind: 'unavailable' });
     const [loading, setLoading] = useState(true);
     const [busyPlan, setBusyPlan] = useState<string | null>(null);
-    const [recurringConsent, setRecurringConsent] = useState(false);
+    // Consent is bound to the exact text the manager ticked: applying, changing
+    // or removing a discount changes the text and so clears the consent.
+    const [consentedText, setConsentedText] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [discountPrefill, setDiscountPrefill] = useState(() => resolveDiscountCodePrefill(searchParams, tabStorage(), userId) ?? '');
+    const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
+    const [discountError, setDiscountError] = useState<{ offerId: string; message: string } | null>(null);
+    const [discountChecking, setDiscountChecking] = useState<string | null>(null);
+    const [discountNotice, setDiscountNotice] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [offersError, setOffersError] = useState<string | null>(null);
     const [previewError, setPreviewError] = useState(false);
@@ -132,7 +168,65 @@ export default function ManagerSubscriptionPage() {
         if (userId && summary) queryClient.setQueryData(managerSubscriptionSummaryQueryKey(userId), summary);
     }, [queryClient, summary, userId]);
 
+    // A ?coupon= link is remembered for this account in this tab, then dropped
+    // from the address bar so it is not shared or bookmarked with the page.
+    useEffect(() => {
+        if (!userId || !searchParams.has(COUPON_QUERY_PARAM)) return;
+        const next = new URLSearchParams(searchParams);
+        next.delete(COUPON_QUERY_PARAM);
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams, userId]);
+
     const activeCheckout = summary?.checkout;
+    // A discount stays applied only while its offer is still on the page with
+    // the same price; a refreshed or changed plan drops it back to the field.
+    const discountOffer = appliedDiscount ? offers.find((offer) => offer.id === appliedDiscount.offerId) : undefined;
+    const activeDiscount = appliedDiscount && discountOffer && previewMatchesOffer(appliedDiscount.preview, discountOffer, appliedDiscount.code) ? appliedDiscount : null;
+    const consentText = getRecurringConsentText(activeDiscount && discountOffer ? { planName: getManagerPlanDisplayName(discountOffer.code), terms: activeDiscount.preview } : null);
+    const recurringConsent = consentedText === consentText;
+
+    const applyDiscount = async (offer: ManagerPlanOffer, rawCode: string) => {
+        if (discountChecking) return;
+        setDiscountNotice(null);
+        const code = normalizeDiscountCode(rawCode);
+        if (!code) {
+            setDiscountError({ offerId: offer.id, message: DISCOUNT_CODE_UNAVAILABLE_MESSAGE });
+            return;
+        }
+        setDiscountError(null);
+        setDiscountChecking(offer.id);
+        try {
+            const preview = await previewManagerSubscriptionDiscount(code, offer.id);
+            if (!previewMatchesOffer(preview, offer, code)) {
+                setDiscountError({ offerId: offer.id, message: DISCOUNT_CODE_UNAVAILABLE_MESSAGE });
+                return;
+            }
+            // One discount per checkout: applying to another plan moves it.
+            setAppliedDiscount({ offerId: offer.id, code, preview });
+            setConsentedText(null);
+            rememberDiscountCode(tabStorage(), userId, code);
+        } catch (err) {
+            const kind = classifyDiscountError(err);
+            setDiscountError({
+                offerId: offer.id,
+                message: kind === 'rate_limited' ? DISCOUNT_CODE_RATE_LIMITED_MESSAGE
+                    : kind === 'unavailable' ? DISCOUNT_CODE_UNAVAILABLE_MESSAGE
+                        : 'The code could not be checked right now. Please try again.',
+            });
+        } finally {
+            setDiscountChecking(null);
+        }
+    };
+
+    const removeDiscount = () => {
+        setAppliedDiscount(null);
+        setDiscountError(null);
+        setDiscountNotice(null);
+        setDiscountPrefill('');
+        setConsentedText(null);
+        forgetDiscountCode(tabStorage(), userId);
+    };
+
     const runAction = async (name: string, action: () => Promise<void>) => {
         if (actionLock.current) return;
         actionLock.current = true;
@@ -240,17 +334,71 @@ export default function ManagerSubscriptionPage() {
             return;
         }
         if (activeCheckout || loading || error || offersError || summary?.new_checkouts_paused) return;
+        const discount = planDiscountCheckout(activeDiscount, offer.id);
+        if (discount.kind === 'other_plan') {
+            toast.error(describeOtherPlanDiscount(discount.code, getManagerPlanDisplayName(discountOffer?.code), getManagerPlanDisplayName(offer.code)));
+            return;
+        }
         await runAction(offer.id, async () => {
             await loadRazorpayScript();
-            const checkout = await startManagerSubscriptionCheckout({
-                plan_version_id: offer.id,
-                idempotency_key: `web-${crypto.randomUUID()}`,
-                terms_digest: offer.terms_digest,
-                consent_version: offer.terms_version,
-                recurring_consent: true,
-            });
+            let checkout: StartCheckoutResponse;
+            try {
+                checkout = await startManagerSubscriptionCheckout({
+                    plan_version_id: offer.id,
+                    idempotency_key: `web-${crypto.randomUUID()}`,
+                    terms_digest: offer.terms_digest,
+                    consent_version: offer.terms_version,
+                    recurring_consent: true,
+                    ...discount.fields,
+                });
+            } catch (err) {
+                if (isFailedCheckoutError(err)) {
+                    // The failed checkout is never resumed; the next click creates a new one.
+                    toast.error(CHECKOUT_FAILED_TRY_AGAIN_MESSAGE);
+                    return;
+                }
+                if (discount.kind !== 'discounted' || !activeDiscount) throw err;
+                await handleDiscountCheckoutRefusal(err, activeDiscount, offer);
+                return;
+            }
+            if (discount.kind === 'discounted' && checkout.price?.price_digest !== discount.fields.price_digest) {
+                // Second line of defence: never open Razorpay unless the server accepted the exact price shown.
+                toast.error(CHECKOUT_FAILED_TRY_AGAIN_MESSAGE);
+                return;
+            }
+            if (discount.kind === 'discounted') {
+                // The checkout now holds the accepted price; the code is used.
+                setAppliedDiscount(null);
+                setDiscountPrefill('');
+                forgetDiscountCode(tabStorage(), userId);
+            }
             await openCheckout(checkout);
         });
+    };
+
+    // No checkout was created for any of these refusals, so nothing can be
+    // charged. A changed price always goes back to the manager to confirm.
+    const handleDiscountCheckoutRefusal = async (err: unknown, discount: AppliedDiscount, offer: ManagerPlanOffer) => {
+        const kind = classifyDiscountError(err);
+        if (kind === 'rate_limited') {
+            toast.error(DISCOUNT_CODE_RATE_LIMITED_MESSAGE);
+            return;
+        }
+        if (kind === 'other') throw err;
+        setConsentedText(null);
+        const outcome = kind === 'stale' ? await recoverFromStalePreview(discount, offer, previewManagerSubscriptionDiscount) : { kind: 'unavailable' as const };
+        if (outcome.kind === 'confirm_new_price') {
+            setAppliedDiscount(outcome.applied);
+            setDiscountNotice(DISCOUNT_PRICE_CHANGED_MESSAGE);
+            toast.info(DISCOUNT_PRICE_CHANGED_MESSAGE);
+            return;
+        }
+        setAppliedDiscount(null);
+        const message = outcome.kind === 'rate_limited' ? DISCOUNT_CODE_RATE_LIMITED_MESSAGE
+            : outcome.kind === 'unavailable' ? DISCOUNT_CODE_UNAVAILABLE_MESSAGE
+                : 'The discount could not be checked again. Nothing was charged. Apply the code again to continue.';
+        setDiscountError({ offerId: offer.id, message });
+        toast.error(message);
     };
 
     const resume = () => runAction('resume', async () => {
@@ -325,7 +473,7 @@ export default function ManagerSubscriptionPage() {
                     <h2 className="font-bold">Current subscription</h2>
                     <p role="status" className="mt-2">Status: {formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status)}. No second checkout will be created while this subscription is unresolved.</p>
                     {pendingPaymentSince !== null ? <p role="status" className="mt-2">Waiting for your bank to confirm the first charge. This page updates automatically.</p> : null}
-                    {acceptedCheckout ? <div className="mt-3"><p><strong>{getManagerPlanDisplayName(acceptedCheckout.terms.code)} — {formatPlanPrice(acceptedCheckout.terms)} / month</strong></p>{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text) ? <p className="mt-1 text-xs font-semibold">{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text)}</p> : null}<p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
+                    {acceptedCheckout ? <div className="mt-3"><p><strong>{getManagerPlanDisplayName(acceptedCheckout.terms.code)} — {acceptedCheckout.price ? describeDiscountPrice(acceptedCheckout.price) : `${formatPlanPrice(acceptedCheckout.terms)} / month`}</strong></p>{acceptedCheckout.price ? <p className="mt-1 text-xs font-semibold">Discount code {acceptedCheckout.price.promotion_code} was accepted with this checkout.</p> : null}{trialCheckoutNote && summary && canResumeSubscription(summary) ? <p role="note" className="mt-1 text-xs">{trialCheckoutNote}</p> : null}{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text) ? <p className="mt-1 text-xs font-semibold">{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text)}</p> : null}<p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -344,14 +492,26 @@ export default function ManagerSubscriptionPage() {
                     {plansToShow.map((plan) => <ManagerSubscriptionPlanCard
                         key={'id' in plan ? plan.id : plan.code}
                         plan={plan}
-                        checkoutDisabled={busy || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent || checkoutBlockedByVerification}
+                        checkoutDisabled={busy || discountChecking !== null || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent || checkoutBlockedByVerification}
                         checkoutDisabledReason={checkoutBlockedByVerification ? SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON : undefined}
                         busy={'id' in plan && busyPlan === plan.id}
                         onStart={(offer) => void start(offer)}
+                        discountField={'id' in plan && !activeCheckout && !summary?.new_checkouts_paused ? <ManagerDiscountCodeField
+                            key={`${plan.id}:${activeDiscount?.offerId === plan.id ? activeDiscount.preview.price_digest : discountPrefill}`}
+                            planName={getManagerPlanDisplayName(plan.code)}
+                            initialCode={discountPrefill}
+                            applied={activeDiscount?.offerId === plan.id ? activeDiscount : null}
+                            error={discountError?.offerId === plan.id ? discountError.message : null}
+                            checking={discountChecking === plan.id}
+                            disabled={busy || discountChecking !== null}
+                            onApply={(code) => void applyDiscount(plan, code)}
+                            onRemove={removeDiscount}
+                        /> : undefined}
                     />)}
                 </section> : null}
                 {offers.length > 0 && trialCheckoutNote ? <p role="note" className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">{trialCheckoutNote}</p> : null}
-                {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
+                {offers.length > 0 && discountNotice ? <p role="alert" className="mt-8 rounded-2xl border border-orange-300 bg-orange-50 p-4 text-sm font-semibold text-orange-950 dark:border-orange-800/60 dark:bg-orange-950/30 dark:text-orange-100">{discountNotice}</p> : null}
+                {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setConsentedText(event.target.checked ? consentText : null)} className="mt-1 h-4 w-4 accent-orange-600" /><span>{consentText}</span></label> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
                 <ManagerBillingHistory />
             </div>

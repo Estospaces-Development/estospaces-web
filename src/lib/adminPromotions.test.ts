@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    OFFER_CHECKLIST_EXPLANATION,
     buildPromotionDraft,
     buildPromotionPatch,
     canRevokeTrialGrant,
@@ -14,9 +15,11 @@ import {
     formatPromotionMarkets,
     formatPromotionUsage,
     getAdminTrialGrantState,
+    getOfferChecklist,
     getPromotionActions,
     getPromotionActivationReason,
     getPromotionErrorMessage,
+    isOfferChecklistComplete,
     promotionEditValues,
     shouldReuseIdempotencyKey,
     type PromotionFormValues,
@@ -282,4 +285,34 @@ test('limits are counted in UTF-8 bytes and manager IDs are normalised like paym
     assert.equal(checkRevokeReason('₹'.repeat(200)).ok, false); // 600 bytes > 500
     assert.equal(checkRevokeReason('a'.repeat(500)).ok, true);
     assert.equal(normalizeManagerID('  0F8FAD5B-D9CB-469F-A165-70867728950E '), '0f8fad5b-d9cb-469f-a165-70867728950e');
+});
+
+test('activating a percent discount needs every Razorpay offer setting ticked, one offer per currency', () => {
+    const discount = {
+        kind: 'percent_discount' as const, percent_off: 20, discount_cycles: 3, eligible_markets: ['IN', 'GB'] as ('IN' | 'GB')[],
+        provider_offer_id_inr: 'offer_INR123', provider_offer_id_gbp: null,
+    };
+    const items = getOfferChecklist(discount, 'now → no end date');
+    assert.deepEqual(items.map((item) => item.id), ['offer_type', 'cycles', 'payment_methods', 'failure', 'validity', 'offer_INR', 'offer_GBP']);
+    const labels = items.map((item) => item.label).join('\n');
+    assert.match(labels, /Percentage, at exactly 20% off/);
+    assert.match(labels, /Limited number of cycles”, set to 3/);
+    assert.match(labels, /all cards and UPI/);
+    assert.match(labels, /do not allow the payment without the offer/);
+    assert.match(labels, /cover this promotion’s window \(now → no end date\)/);
+    assert.match(labels, /INR offer on the INR plan, with ID offer_INR123/);
+    assert.match(labels, /GBP offer on the GBP plan, with ID \(not set yet\)/);
+    assert.match(OFFER_CHECKLIST_EXPLANATION, /charged a different amount and payment verification rejects the payment/);
+
+    assert.equal(isOfferChecklistComplete(items, []), false);
+    assert.equal(isOfferChecklistComplete(items, items.slice(1).map((item) => item.id)), false);
+    assert.equal(isOfferChecklistComplete(items, items.map((item) => item.id)), true);
+    assert.equal(isOfferChecklistComplete(items, new Set(items.map((item) => item.id))), true);
+
+    const indiaOnly = getOfferChecklist({ ...discount, eligible_markets: ['IN'] }, 'window');
+    assert.equal(indiaOnly.some((item) => item.id === 'offer_GBP'), false);
+    // Trials never touch Razorpay, so they have no checklist and it is never "complete".
+    const trial = getOfferChecklist({ ...discount, kind: 'trial_grant' }, 'window');
+    assert.deepEqual(trial, []);
+    assert.equal(isOfferChecklistComplete(trial, []), false);
 });

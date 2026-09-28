@@ -1,4 +1,5 @@
 import { apiFetch, getServiceUrl, type ApiFetchOptions } from '@/lib/apiUtils';
+import { assertCheckoutPromotionPair, type CheckoutPromotionFields } from '@/lib/managerDiscountCode';
 
 const PAYMENT_URL = () => getServiceUrl('payment');
 
@@ -81,10 +82,37 @@ export interface ManagerSubscriptionSummary {
     new_checkouts_paused?: boolean;
 }
 
+// The percent discount a checkout was accepted at (payment PR #25). Null or
+// absent means full price. Amounts are integer minor units.
+export interface SubscriptionCheckoutPrice {
+    promotion_code: string;
+    percent_off: number;
+    discount_cycles: number;
+    discounted_amount_minor: number;
+    full_amount_minor: number;
+    currency: 'INR' | 'GBP';
+    price_digest: string;
+}
+
+// GET /promotions/preview: a quote for one code on one plan version. Every
+// refusal is the same 409 promotion_unavailable.
+export interface ManagerDiscountPreview {
+    code: string;
+    plan_version_id: string;
+    percent_off: number;
+    discount_cycles: number;
+    discounted_amount_minor: number;
+    full_amount_minor: number;
+    currency: 'INR' | 'GBP';
+    price_digest: string;
+    valid_until: string | null;
+}
+
 export interface StartCheckoutResponse {
     checkout: SubscriptionCheckout;
     terms: AcceptedSubscriptionTerms;
     key_id: string;
+    price?: SubscriptionCheckoutPrice | null;
 }
 
 export function getManagerSubscriptionOffers() {
@@ -115,16 +143,26 @@ export function cancelManagerSubscriptionCheckout(checkoutId: string) {
     return apiFetch<NonNullable<ManagerSubscriptionSummary['cancellation']>>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts/${encodeURIComponent(checkoutId)}/cancel`, { method: 'POST' });
 }
 
+export function previewManagerSubscriptionDiscount(code: string, planVersionId: string) {
+    const query = new URLSearchParams({ code, plan_version_id: planVersionId });
+    // The page explains refusals next to the field; a generic toast would contradict it.
+    return apiFetch<ManagerDiscountPreview>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/promotions/preview?${query.toString()}`, { suppressErrorToast: true });
+}
+
 export function startManagerSubscriptionCheckout(input: {
     plan_version_id: string;
     idempotency_key: string;
     terms_digest: string;
     consent_version: string;
     recurring_consent: boolean;
-}) {
+} & CheckoutPromotionFields) {
+    // promotion_code and price_digest travel together or not at all.
+    const discounted = assertCheckoutPromotionPair(input);
     return apiFetch<StartCheckoutResponse>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts`, {
         method: 'POST',
         body: JSON.stringify(input),
+        // Discount refusals (stale preview, unavailable code) are explained on the page.
+        suppressErrorToast: discounted,
     });
 }
 
