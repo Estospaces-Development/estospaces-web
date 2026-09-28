@@ -10,23 +10,28 @@ import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { ManagerVerificationBanner } from '@/components/routing/ManagerVerificationGate';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
+import ManagerPilotRedemption from './ManagerPilotRedemption';
 import { orderManagerPlans } from './managerPlanOrder';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
 import { SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON, resolveManagerVerificationGate } from '@/lib/managerVerificationGate';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
+import { formatPilotDate, getPilotRedeemErrorMessage, getPilotRedemptionAvailability } from '@/lib/managerPilotRedemption';
 import {
     cancelManagerSubscriptionCheckout,
+    getManagerPilotStatus,
     getManagerSubscriptionCheckout,
     getManagerSubscriptionOffers,
     getManagerSubscriptionPlanPreviews,
     getManagerSubscriptionSummary,
     reconcileManagerSubscriptionCheckout,
     recoverManagerSubscriptionCheckout,
+    redeemManagerPilotCoupon,
     startManagerSubscriptionCheckout,
     verifyManagerSubscriptionCheckout,
     type ManagerPlanOffer,
+    type ManagerPilotStatus,
     type ManagerPlanPreview,
     type ManagerSubscriptionSummary,
     type StartCheckoutResponse,
@@ -60,6 +65,9 @@ export default function ManagerSubscriptionPage() {
     const [pendingProof, setPendingProof] = useState<{ checkoutId: string; proof: SubscriptionPaymentProof } | null>(null);
     // Set when checkout closes with the first charge still pending (UPI Autopay, eMandate).
     const [pendingPaymentSince, setPendingPaymentSince] = useState<number | null>(null);
+    const [pilotStatus, setPilotStatus] = useState<ManagerPilotStatus | null>(null);
+    const [pilotStatusFailed, setPilotStatusFailed] = useState(false);
+    const [pilotCheckedAt, setPilotCheckedAt] = useState(0);
     const actionLock = useRef(false);
     const loadVersion = useRef(0);
 
@@ -71,10 +79,16 @@ export default function ManagerSubscriptionPage() {
         setPreviewError(false);
         setBillingProfile({ kind: 'unavailable' });
         try {
+            // Pilot status is supplemental: its failure only disables pilot redemption.
+            const pilotRequest = Promise.allSettled([getManagerPilotStatus()]);
             const [offerResult, previewResult, summaryResult] = await Promise.allSettled([
                 getManagerSubscriptionOffers(), getManagerSubscriptionPlanPreviews(), getManagerSubscriptionSummary(),
             ]);
+            const [pilotResult] = await pilotRequest;
             if (version !== loadVersion.current) return;
+            setPilotStatus(pilotResult.status === 'fulfilled' ? pilotResult.value : null);
+            setPilotStatusFailed(pilotResult.status === 'rejected');
+            setPilotCheckedAt(Date.now());
             if (previewResult.status === 'fulfilled') setPlanPreviews(previewResult.value);
             else {
                 setPlanPreviews([]);
@@ -270,7 +284,28 @@ export default function ManagerSubscriptionPage() {
         });
     });
 
+    // Shares the page action lock, and always re-reads the summary and pilot
+    // status from the server afterwards, whether the code was accepted or not.
+    const redeemPilot = async (code: string): Promise<string | null> => {
+        if (actionLock.current) return 'Another subscription action is still running. Wait for it to finish, then try again.';
+        actionLock.current = true;
+        setBusyPlan('pilot');
+        try {
+            const grant = await redeemManagerPilotCoupon(code);
+            const endsAt = formatPilotDate(grant.ends_at);
+            toast.success(endsAt ? `Pilot started. It is active until ${endsAt}.` : 'Pilot started.');
+            return null;
+        } catch (err) {
+            return getPilotRedeemErrorMessage(err);
+        } finally {
+            await load();
+            actionLock.current = false;
+            setBusyPlan(null);
+        }
+    };
+
     const busy = busyPlan !== null || loading;
+    const pilotAvailability = getPilotRedemptionAvailability({ pilotStatus, pilotStatusFailed, summary, now: pilotCheckedAt });
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
     const access = getSubscriptionAccessPresentation(summary?.entitlement);
     const plansToShow: (ManagerPlanOffer | ManagerPlanPreview)[] = orderManagerPlans(offers.length > 0 ? offers : planPreviews);
@@ -326,6 +361,7 @@ export default function ManagerSubscriptionPage() {
                 </section> : null}
                 {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
+                {summary || error ? <ManagerPilotRedemption availability={pilotAvailability} disabled={busy} redeeming={busyPlan === 'pilot'} onRedeem={redeemPilot} /> : null}
                 <ManagerBillingHistory />
             </div>
         </div>
