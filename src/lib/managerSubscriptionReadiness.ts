@@ -1,6 +1,7 @@
 import { ApiRequestError } from './apiUtils';
 import type { ManagerBillingProfile } from '@/services/managerBillingProfileService';
-import type { ManagerSubscriptionEntitlement, ManagerSubscriptionResourceLimit } from '@/services/managerSubscriptionService';
+import type { ManagerSubscriptionEntitlement, ManagerSubscriptionResourceLimit, ManagerSubscriptionTrial } from '@/services/managerSubscriptionService';
+import { getManagerPlanDisplayName } from './managerPlanNames';
 
 export type BillingProfileLookup =
     | { kind: 'loaded'; profile: ManagerBillingProfile }
@@ -33,19 +34,27 @@ function formatLimit(limit: ManagerSubscriptionResourceLimit | undefined): strin
     return 'Unavailable';
 }
 
-export function getSubscriptionAccessPresentation(entitlement: ManagerSubscriptionEntitlement | null | undefined): SubscriptionAccessPresentation | null {
+export function getSubscriptionAccessPresentation(
+    entitlement: ManagerSubscriptionEntitlement | null | undefined,
+    trial?: ManagerSubscriptionTrial | null,
+): SubscriptionAccessPresentation | null {
     if (!entitlement) return null;
 
+    const trialPlanName = getManagerPlanDisplayName(trial?.plan_code || 'pro');
     const title = entitlement.source === 'free'
         ? 'Free access'
-        : entitlement.source === 'pilot'
-            ? 'Pilot access'
-            : 'Current paid access';
+        : entitlement.source === 'trial'
+            ? `${trialPlanName} plan trial`
+            : entitlement.source === 'pilot'
+                ? 'Pilot access'
+                : 'Current paid access';
     const detail = entitlement.source === 'free'
         ? 'No payment is required. Upgrade only when you need higher limits.'
-        : entitlement.source === 'pilot'
-            ? 'Your pilot benefits are active until their recorded end date.'
-            : 'Your account limits are active for the current paid period.';
+        : entitlement.source === 'trial'
+            ? `Your ${trialPlanName} limits are free until the trial ends. No card is needed and nothing is charged automatically.`
+            : entitlement.source === 'pilot'
+                ? 'Your pilot benefits are active until their recorded end date.'
+                : 'Your account limits are active for the current paid period.';
 
     return {
         title,

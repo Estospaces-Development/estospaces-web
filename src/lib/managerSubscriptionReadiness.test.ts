@@ -99,7 +99,7 @@ test('offer failures keep checkout blocked and existing subscriptions manageable
     const page = readFileSync(new URL('../pages/manager/subscription/page.tsx', import.meta.url), 'utf8');
     assert.match(page, /getSubscriptionOffersErrorMessage\(offerResult.reason, billingLookup\)/);
     assert.match(page, /getMyManagerBillingProfile\(\)/);
-    assert.match(page, /getSubscriptionAccessPresentation\(summary\?\.entitlement\)/);
+    assert.match(page, /getSubscriptionAccessPresentation\(summary\?\.entitlement, summary\?\.trial\)/);
     assert.match(page, /aria-label="Your current access"/);
     assert.match(page, /setOffers\(\[\]\)/);
     assert.match(page, /Boolean\(offersError\)/);
@@ -108,4 +108,15 @@ test('offer failures keep checkout blocked and existing subscriptions manageable
     assert.match(page, /checkoutDisabled=\{busy \|\| Boolean\(error\) \|\| Boolean\(offersError\)/);
     assert.match(page, /plansToShow\.length === 0 && !previewError/);
     assert.match(page, /No approved plans are currently available to compare/);
+});
+
+test('trial access is named with the customer-facing plan and keeps its snapshot limits', () => {
+    const access = getSubscriptionAccessPresentation({
+        state: 'trial_active', source: 'trial', reason: 'trial', ends_at: '2026-11-27T10:00:00Z',
+        published_property_limit: { kind: 'finite', value: 8 }, active_case_limit: { kind: 'finite', value: 10 }, support_level: 'standard',
+    }, { plan_code: 'pro', plan_name: 'Pro', starts_at: '2026-09-28T10:00:00Z', ends_at: '2026-11-27T10:00:00Z', days_remaining: 60, state: 'active' });
+    assert.equal(access?.title, 'Growth plan trial');
+    assert.match(access?.detail || '', /nothing is charged automatically/);
+    assert.equal(access?.publishedProperties, '8');
+    assert.equal(access?.activeFastTrackCases, '10');
 });

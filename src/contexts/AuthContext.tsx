@@ -7,6 +7,7 @@ import { resetAuthExpiryState } from '@/lib/authExpiry';
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/authToken';
 import { setProductAnalyticsIdentity, trackProductEvent } from '@/lib/productAnalytics';
 import { clearPendingGuestAction } from '@/lib/pendingGuestAction';
+import { parseLaunchOffer, type LaunchOffer } from '@/lib/managerLaunchTrial';
 
 export interface User {
     id: string;
@@ -44,7 +45,7 @@ interface AuthContextType {
         password: string,
         role: string,
         termsAcceptance: { acceptedAt: string; version: string; country?: string },
-    ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean }>;
+    ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean; launchOffer?: LaunchOffer | null }>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
     mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
@@ -646,6 +647,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
             const userData = data.user || data.data?.user || { email, first_name, last_name, role };
             const userObj = buildStoredUser(userData, email);
 			const verificationEmailSent = resolveVerificationEmailSent(data);
+            const launchOffer = parseLaunchOffer(data);
 
             setProductAnalyticsIdentity({
                 email: userObj.email,
@@ -671,7 +673,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
                 }, 100);
             }
 
-			return { success: true, verificationEmailSent };
+			return { success: true, verificationEmailSent, launchOffer };
         } catch (err: any) {
             const errorMessage = sanitizeRegistrationError(err);
             setError(errorMessage);

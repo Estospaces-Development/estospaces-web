@@ -34,6 +34,7 @@ import { useToast } from '@/contexts/ToastContext';
 
 // Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
+import ManagerTrialBanner from '@/components/manager/ManagerTrialBanner';
 import StatCard from '@/components/dashboard/StatCard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import TopProperties from '@/components/dashboard/TopProperties';
@@ -526,6 +527,8 @@ function DashboardContent() {
         actionLabel={canLoadOperationalDashboard ? undefined : 'Complete verification'}
         actionPath={canLoadOperationalDashboard ? undefined : '/manager/verification'}
       />
+
+      <ManagerTrialBanner />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
