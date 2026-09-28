@@ -118,5 +118,7 @@ export function verifyManagerSubscriptionCheckout(checkoutId: string, input: { p
     return apiFetch<{ payment: unknown; account: ManagerSubscriptionSummary }>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts/${checkoutId}/verify`, {
         method: 'POST',
         body: JSON.stringify(input),
+        // The page reports failures itself; a pending charge (409) is not an error there.
+        suppressErrorToast: true,
     });
 }

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     PENDING_PAYMENT_POLL_INTERVAL_MS,
+    evaluatePendingPaymentPoll,
     formatSubscriptionStatus,
-    shouldKeepPollingPendingPayment,
+    isVerificationPendingError,
 } from '@/lib/managerSubscriptionStatus';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -130,35 +131,61 @@ export default function ManagerSubscriptionPage() {
         }
     };
 
+    const startPendingPaymentPoll = () => {
+        setPendingPaymentSince(Date.now());
+        toast.info('Payment confirmation is still pending. We are checking automatically; do not pay again.');
+    };
+
     const reportVerification = (account: ManagerSubscriptionSummary) => {
         if (account.new_paid_actions_available) {
             setPendingPaymentSince(null);
             toast.success('Subscription payment verified.');
         } else {
-            setPendingPaymentSince(Date.now());
-            toast.info('Payment confirmation is still pending. We are checking automatically; do not pay again.');
+            startPendingPaymentPoll();
+        }
+    };
+
+    // A 409 verification_pending from verify starts the automatic poll instead of failing.
+    const verifyOrPoll = async (verify: () => Promise<ManagerSubscriptionSummary | null>): Promise<{ account: ManagerSubscriptionSummary | null; pending: boolean }> => {
+        try {
+            const account = await verify();
+            if (account) reportVerification(account);
+            return { account, pending: false };
+        } catch (err) {
+            if (!isVerificationPendingError(err)) throw err;
+            startPendingPaymentPoll();
+            return { account: null, pending: true };
         }
     };
 
     useEffect(() => {
         if (pendingPaymentSince === null) return undefined;
         let cancelled = false;
+        let inFlight = false;
         const timer = window.setInterval(() => {
+            // One request at a time, and never while a user action is updating the summary.
+            if (inFlight || actionLock.current) return;
+            inFlight = true;
             void (async () => {
                 try {
                     const { account } = await getManagerSubscriptionSummary();
-                    if (cancelled) return;
+                    if (cancelled || actionLock.current) return;
                     setSummary(account);
-                    if (account.new_paid_actions_available) {
+                    const outcome = evaluatePendingPaymentPoll(account, pendingPaymentSince, Date.now());
+                    if (outcome === 'paid') {
                         setPendingPaymentSince(null);
                         setPendingProof(null);
                         toast.success('Subscription payment verified.');
-                    } else if (!shouldKeepPollingPendingPayment(account, pendingPaymentSince, Date.now())) {
+                    } else if (outcome === 'stop') {
+                        setPendingPaymentSince(null);
+                    } else if (outcome === 'timeout') {
                         setPendingPaymentSince(null);
                         toast.info('Your bank has not confirmed the first charge yet. Use Check payment status later; do not pay again.');
                     }
                 } catch {
                     // A failed poll is retried on the next tick; the manual status check still works.
+                } finally {
+                    inFlight = false;
                 }
             })();
         }, PENDING_PAYMENT_POLL_INTERVAL_MS);
@@ -169,14 +196,13 @@ export default function ManagerSubscriptionPage() {
     }, [pendingPaymentSince, toast]);
 
     const openCheckout = async (checkout: StartCheckoutResponse) => {
-        const account = await openSubscriptionCheckout(checkout, async (proof) => {
+        const { account, pending } = await verifyOrPoll(() => openSubscriptionCheckout(checkout, async (proof) => {
             setPendingProof({ checkoutId: checkout.checkout.id, proof });
             const result = await verifyManagerSubscriptionCheckout(checkout.checkout.id, proof);
             setPendingProof(null);
             return result.account;
-        });
-        if (account) reportVerification(account);
-        else toast.info('Checkout closed. You can resume the same checkout below.');
+        }));
+        if (!account && !pending) toast.info('Checkout closed. You can resume the same checkout below.');
     };
 
     const start = async (offer: ManagerPlanOffer) => {
@@ -228,6 +254,7 @@ export default function ManagerSubscriptionPage() {
         if (!activeCheckout) return;
         const cancellation = await cancelManagerSubscriptionCheckout(activeCheckout.id);
         if (cancellation.status !== 'confirmed') throw new Error('Cancellation is pending confirmation. Check payment status again.');
+        setPendingPaymentSince(null);
         setConfirmCancel(false);
         toast.success('Cancellation confirmed. Any verified paid-through access remains until its end date.');
         await reconcileManagerSubscriptionCheckout(activeCheckout.id);
@@ -235,9 +262,11 @@ export default function ManagerSubscriptionPage() {
 
     const retryVerification = () => runAction('verify', async () => {
         if (!pendingProof) return;
-        const result = await verifyManagerSubscriptionCheckout(pendingProof.checkoutId, pendingProof.proof);
-        setPendingProof(null);
-        reportVerification(result.account);
+        await verifyOrPoll(async () => {
+            const result = await verifyManagerSubscriptionCheckout(pendingProof.checkoutId, pendingProof.proof);
+            setPendingProof(null);
+            return result.account;
+        });
     });
 
     const busy = busyPlan !== null || loading;
