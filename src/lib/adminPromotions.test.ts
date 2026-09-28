@@ -293,11 +293,12 @@ test('activating a percent discount needs every Razorpay offer setting ticked, o
         provider_offer_id_inr: 'offer_INR123', provider_offer_id_gbp: null,
     };
     const items = getOfferChecklist(discount, 'now → no end date');
-    assert.deepEqual(items.map((item) => item.id), ['offer_type', 'cycles', 'payment_methods', 'failure', 'validity', 'offer_INR', 'offer_GBP']);
+    assert.deepEqual(items.map((item) => item.id), ['offer_type', 'cycles', 'payment_methods', 'max_discount', 'failure', 'validity', 'offer_INR', 'offer_GBP']);
     const labels = items.map((item) => item.label).join('\n');
     assert.match(labels, /Percentage, at exactly 20% off/);
     assert.match(labels, /Limited number of cycles”, set to 3/);
-    assert.match(labels, /all cards and UPI/);
+    assert.match(labels, /Payment method is Card, with no card type, bank or network restriction/);
+    assert.doesNotMatch(labels, /UPI, not restricted/);
     assert.match(labels, /do not allow the payment without the offer/);
     assert.match(labels, /cover this promotion’s window \(now → no end date\)/);
     assert.match(labels, /INR offer on the INR plan, with ID offer_INR123/);

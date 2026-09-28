@@ -202,10 +202,11 @@ export function buildPromotionDraft(values: PromotionFormValues): PromotionFormR
 
 export const RAZORPAY_OFFER_STEPS: readonly string[] = [
     'Open the Razorpay Dashboard in the same mode as this environment (Test mode for dev).',
-    'Go to Offers and create a new offer for subscriptions.',
-    'Set a percentage discount equal to the percent below, and limit it to the same number of billing cycles as the discounted months below.',
-    'Link it to the Razorpay plan for this tier. Create one offer for the INR plan and, if the UK is selected, a second offer for the GBP plan.',
-    'Copy each offer ID (it starts with offer_) and paste it below. You can save the draft first and add offers later; activation needs one per selected market.',
+    'Go to Offers, choose Create New Offer, then “Offers on Subscriptions”.',
+    'Set Redemption Type to “Limited Number of Cycles” with the discounted months below, and Discount Type to Percentage with the percent below.',
+    'Set Maximum Discount to at least the full discount on this plan’s price, so Razorpay never caps it. Leave the minimum and maximum order amounts empty.',
+    'Set Payment Method to Card with no card type, bank or network restriction, and set “On Offer validation failure” to “Do not allow payment to go through”.',
+    'Create one offer in INR and, if the UK is selected, a second offer in GBP. Copy each offer ID (it starts with offer_) and paste it below. You can save the draft first and add offers later; activation needs one per selected market.',
 ];
 
 // ── Razorpay offer checklist before activating a discount ──────────────────
@@ -237,7 +238,8 @@ export function getOfferChecklist(
     const items: OfferChecklistItem[] = [
         { id: 'offer_type', label: `Offer type is Percentage, at exactly ${percent}% off.` },
         { id: 'cycles', label: `Applies to “Limited number of cycles”, set to ${cycles} (the discounted months).` },
-        { id: 'payment_methods', label: 'Payment methods: all cards and UPI, not restricted to some methods.' },
+        { id: 'payment_methods', label: 'Payment method is Card, with no card type, bank or network restriction. Razorpay allows one method per subscription offer, so managers using this discount pay by card; other methods are declined, never charged full price.' },
+        { id: 'max_discount', label: 'Maximum Discount is at least the full discount on this plan, so Razorpay never caps it.' },
         { id: 'failure', label: 'On payment failure or validation failure: do not allow the payment without the offer.' },
         { id: 'validity', label: `The offer’s validity dates cover this promotion’s window (${windowLabel}).` },
     ];
