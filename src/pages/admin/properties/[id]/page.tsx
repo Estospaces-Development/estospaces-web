@@ -34,7 +34,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
 import { getAdminPropertyWorkflowFallbackLabel } from '@/lib/adminPropertyRegistry';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
+import { formatAmenityLabel } from '@/lib/amenityLabels';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -64,15 +65,14 @@ const parseStringArray = (value: unknown): string[] => {
 };
 
 const formatPrice = (property: Property) => {
-    if (typeof property.price !== 'number') {
-        return 'Price on request';
-    }
-
-    return formatLaunchCurrencyForCountry(property.price, {
-        countryCode: (property as any).country || (property as any).location?.countryCode || (property as any).location?.country,
-        countryName: (property as any).country || (property as any).location?.country,
-        currencyCode: (property as any).currency,
-    });
+    const record = property as any;
+    return formatManagerPropertyPrice({
+        price: typeof property.price === 'number' ? property.price : undefined,
+        listing_type: property.listing_type,
+        country: record.country,
+        currency: record.currency,
+        location: record.location,
+    }) || 'Price on request';
 };
 
 const formatDate = (value?: string) => {
@@ -614,7 +614,7 @@ export default function AdminPropertyDetailPage() {
                                             key={amenity}
                                             className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                                         >
-                                            {amenity.replace(/_/g, ' ')}
+                                            {formatAmenityLabel(amenity)}
                                         </span>
                                     ))}
                                 </div>

@@ -36,7 +36,7 @@ import {
     getAdminPropertySortControlLabel,
     sortAdminPropertyRegistry,
 } from '@/lib/adminPropertyRegistry';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 
 function PropertyManagementContent() {
     const navigate = useNavigate();
@@ -666,13 +666,14 @@ function PropertyManagementContent() {
                                         <span className="max-w-full text-lg font-black leading-tight text-blue-500 min-[360px]:shrink-0 min-[360px]:text-xl">
                                             {(() => {
                                                 const propertyRecord = property as any;
-                                                return typeof property.price?.amount === 'number'
-                                                    ? formatLaunchCurrencyForCountry(property.price.amount, {
-                                                        countryCode: propertyRecord.countryCode || propertyRecord.country_code || propertyRecord.country || property.location?.countryCode || property.location?.country,
-                                                        countryName: propertyRecord.country || property.location?.country,
-                                                        currencyCode: property.price.currency || propertyRecord.currency,
-                                                    })
-                                                    : property.priceString || 'POA';
+                                                return formatManagerPropertyPrice({
+                                                    price: property.price,
+                                                    listingType: property.listingType,
+                                                    countryCode: propertyRecord.countryCode || propertyRecord.country_code,
+                                                    country: propertyRecord.country,
+                                                    currency: propertyRecord.currency,
+                                                    location: property.location,
+                                                }) || 'POA';
                                             })()}
                                         </span>
                                     </div>
