@@ -28,6 +28,17 @@ export const isVideoContainer = (head: Uint8Array): boolean =>
 export const readFileHead = async (file: Blob, length = 16): Promise<Uint8Array> =>
     new Uint8Array(await file.slice(0, length).arrayBuffer());
 
+export const UNREADABLE_FILE_MESSAGE = 'This file could not be read. Download it to this device and choose it again.';
+
+// Unreadable files (for example cloud placeholders) resolve to null instead of throwing.
+export const readFileHeadSafely = async (file: Blob, length = 16): Promise<Uint8Array | null> => {
+    try {
+        return await readFileHead(file, length);
+    } catch {
+        return null;
+    }
+};
+
 const normalizeImageType = (type: string) => (type.toLowerCase() === 'image/jpg' ? 'image/jpeg' : type.toLowerCase());
 
 // Returns a user-facing problem, or null when the image bytes are acceptable.

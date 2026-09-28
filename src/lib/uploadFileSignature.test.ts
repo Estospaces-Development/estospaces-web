@@ -9,6 +9,7 @@ import {
     getLocalFileFingerprint,
     getVideoFileProblem,
     readFileHead,
+    readFileHeadSafely,
 } from './uploadFileSignature';
 
 const bytes = (...values: number[]) => new Uint8Array(values);
@@ -39,6 +40,8 @@ test('videos must be a real MP4/MOV or WebM container', () => {
 
 test('file heads are read from the start of the blob', async () => {
     assert.deepEqual(await readFileHead(new Blob([PNG]), 4), bytes(0x89, 0x50, 0x4e, 0x47));
+    const unreadable = { slice: () => ({ arrayBuffer: async () => { throw new Error('NotReadableError'); } }) } as unknown as Blob;
+    assert.equal(await readFileHeadSafely(unreadable), null);
 });
 
 test('the same selected file has one fingerprint', () => {
@@ -51,8 +54,8 @@ test('the same selected file has one fingerprint', () => {
 
 test('property editor and Fast Track documents use the byte checks', () => {
     const editor = readFileSync(resolve(process.cwd(), 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
-    assert.ok(editor.includes('getImageFileProblem(file, await readFileHead(file))'));
-    assert.ok(editor.includes('getVideoFileProblem(file, await readFileHead(file))'));
+    assert.ok(editor.includes('imageHead ? getImageFileProblem(file, imageHead) : UNREADABLE_FILE_MESSAGE'));
+    assert.ok(editor.includes('videoHead ? getVideoFileProblem(file, videoHead) : UNREADABLE_FILE_MESSAGE'));
     assert.ok(editor.includes('seenImageFingerprints.has(fingerprint)'));
     const leads = readFileSync(resolve(process.cwd(), 'src/services/leadsService.ts'), 'utf8');
     assert.ok(leads.includes('if (file.size === 0) throw new Error(EMPTY_FILE_MESSAGE);'));

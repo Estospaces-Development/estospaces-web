@@ -134,7 +134,8 @@ import {
   getImageFileProblem,
   getLocalFileFingerprint,
   getVideoFileProblem,
-  readFileHead,
+  readFileHeadSafely,
+  UNREADABLE_FILE_MESSAGE,
 } from "@/lib/uploadFileSignature";
 
 // Mode type for clear distinction
@@ -1695,7 +1696,8 @@ export default function AddPropertyPage() {
         return;
       }
 
-      const imageProblem = getImageFileProblem(file, await readFileHead(file));
+      const imageHead = await readFileHeadSafely(file);
+      const imageProblem = imageHead ? getImageFileProblem(file, imageHead) : UNREADABLE_FILE_MESSAGE;
       if (imageProblem) {
         showToast(`${file.name}: ${imageProblem}`, "error");
         return;
@@ -1755,7 +1757,8 @@ export default function AddPropertyPage() {
         return;
       }
 
-      const videoProblem = getVideoFileProblem(file, await readFileHead(file));
+      const videoHead = await readFileHeadSafely(file);
+      const videoProblem = videoHead ? getVideoFileProblem(file, videoHead) : UNREADABLE_FILE_MESSAGE;
       if (videoProblem) {
         showToast(`${file.name}: ${videoProblem}`, "error");
         return;
