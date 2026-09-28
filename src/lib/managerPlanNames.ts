@@ -15,3 +15,18 @@ export function getManagerPlanDisplayName(code: string | null | undefined): stri
     const key = String(code || '').trim().toLowerCase();
     return key in PLAN_DISPLAY_NAMES ? PLAN_DISPLAY_NAMES[key as ManagerPlanCode] : FALLBACK_PAID_PLAN_NAME;
 }
+
+// Older approved plan versions store consent text that uses the previous names
+// ("Estospaces Pro", "Estospaces Growth"). That text is the accepted consent and
+// is never rewritten; this explains which customer-facing plan it belongs to.
+const LEGACY_TERMS_NAMES: Record<'pro' | 'growth', RegExp> = {
+    pro: /\bEstospaces Pro\b/,
+    growth: /\bEstospaces Growth\b/,
+};
+
+export function describeStoredTermsPlanName(code: string | null | undefined, termsText: string | null | undefined): string | null {
+    const key = String(code || '').trim().toLowerCase();
+    if (key !== 'pro' && key !== 'growth') return null;
+    const match = LEGACY_TERMS_NAMES[key].exec(termsText || '');
+    return match ? `${getManagerPlanDisplayName(key)} plan (internal plan name in these terms: ${match[0]})` : null;
+}

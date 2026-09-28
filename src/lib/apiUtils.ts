@@ -181,6 +181,8 @@ export class ApiRequestError extends Error {
     userMessage: string;
     fieldErrors?: Record<string, string>;
     unauthorizedState?: UnauthorizedResponseState;
+    /** The error envelope's `data`, for structured detail such as a machine-readable reason. */
+    data?: unknown;
 
     constructor(
         message: string,
@@ -189,6 +191,7 @@ export class ApiRequestError extends Error {
         fieldErrors?: Record<string, string>,
         unauthorizedState?: UnauthorizedResponseState,
         code?: string,
+        data?: unknown,
     ) {
         super(message);
         this.name = 'ApiRequestError';
@@ -197,6 +200,7 @@ export class ApiRequestError extends Error {
         this.fieldErrors = fieldErrors;
         this.unauthorizedState = unauthorizedState;
         this.code = code;
+        this.data = data;
     }
 }
 
@@ -544,10 +548,12 @@ export async function apiFetchEnvelope<T>(
         let errorMsg = `API error: ${response.status}`;
         let errorCode: string | undefined;
         let fieldErrors: Record<string, string> | undefined;
+        let errorData: unknown;
         try {
             const errorJson = await parseJsonResponse<any>(response, responseText);
             errorMsg = errorJson.error || errorJson.message || errorMsg;
             if (typeof errorJson.code === 'string') errorCode = errorJson.code;
+            if (errorJson.data !== undefined && errorJson.data !== null) errorData = errorJson.data;
             if (errorJson.field_errors && typeof errorJson.field_errors === 'object') {
                 fieldErrors = errorJson.field_errors as Record<string, string>;
             }
@@ -571,6 +577,7 @@ export async function apiFetchEnvelope<T>(
             fieldErrors,
             unauthorizedState,
             errorCode,
+            errorData,
         );
     }
 

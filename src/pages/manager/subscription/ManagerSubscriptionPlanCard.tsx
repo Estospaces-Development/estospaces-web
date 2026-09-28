@@ -2,7 +2,7 @@ import { CreditCard } from 'lucide-react';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import { formatSubscriptionPrice } from '@/lib/managerSubscriptionCheckout';
-import { getManagerPlanDisplayName } from '@/lib/managerPlanNames';
+import { describeStoredTermsPlanName, getManagerPlanDisplayName } from '@/lib/managerPlanNames';
 import type { ManagerPlanOffer, ManagerPlanPreview } from '@/services/managerSubscriptionService';
 
 interface ManagerSubscriptionPlanCardProps {
@@ -45,6 +45,7 @@ export default function ManagerSubscriptionPlanCard({ plan, checkoutDisabled, ch
             </dl>
             {plan.lead_delivery_policy === 'best_effort' ? <p className="mt-5 text-xs leading-5 text-gray-600 dark:text-gray-300">Lead delivery is best-effort and is not guaranteed.</p> : null}
             {offer ? <>
+                {describeStoredTermsPlanName(offer.code, offer.terms_text) ? <p className="mt-4 text-xs font-semibold text-gray-700 dark:text-gray-200">{describeStoredTermsPlanName(offer.code, offer.terms_text)}</p> : null}
                 <p className="mt-4 text-xs leading-5 text-gray-600 dark:text-gray-300">{offer.terms_text}</p>
                 <button type="button" disabled={checkoutDisabled} aria-describedby={reasonId} onClick={() => onStart(offer)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
                     {busy ? <ActionSpinner size="sm" aria-hidden /> : <CreditCard className="h-4 w-4" />} Continue to secure payment

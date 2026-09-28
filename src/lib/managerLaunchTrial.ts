@@ -61,6 +61,18 @@ export function trialDaysRemaining(endsAt: Date, now: Date): number {
     return remaining <= 0 ? 0 : Math.ceil(remaining / DAY_MS);
 }
 
+/**
+ * Days left for the warnings. Payment's days_remaining is preferred (it uses
+ * the server clock); the local count only decides that the end has passed and
+ * covers a missing or malformed server value.
+ */
+export function trialBannerDays(trial: Pick<ManagerSubscriptionTrial, 'state' | 'days_remaining'>, endsAt: Date, now: Date): number {
+    const local = trialDaysRemaining(endsAt, now);
+    if (local === 0) return 0;
+    const server = trial.days_remaining;
+    return trial.state === 'active' && Number.isInteger(server) && server > 0 ? server : local;
+}
+
 export function getLaunchOfferMessage(offer: LaunchOffer | null | undefined, formatDate: TrialDateFormatter = formatTrialDate): string | null {
     if (!offer) return null;
     const planName = offer.plan_name || DEFAULT_TRIAL_PLAN_NAME;
@@ -126,7 +138,7 @@ export function getTrialBanner(
 
     const planName = trial.plan_code ? getManagerPlanDisplayName(trial.plan_code) : (trial.plan_name || DEFAULT_TRIAL_PLAN_NAME);
     const date = formatDate(endsAt);
-    const days = trialDaysRemaining(endsAt, now);
+    const days = trialBannerDays(trial, endsAt, now);
 
     if (trial.state === 'expired' || days === 0) {
         // Until payment reports the Free entitlement, its numbers are unknown and omitted.
@@ -165,3 +177,19 @@ export function getTrialBanner(
 /** Account-scoped cache key so another manager on this tab never sees the summary. */
 export const managerSubscriptionSummaryQueryKey = (userId: string | null | undefined) =>
     ['manager-subscription-summary', userId || ''] as const;
+
+/**
+ * Shown next to checkout while a trial runs: subscribing starts billing now
+ * and the rest of the trial ends (payment supersedes it on the first paid period).
+ */
+export function getTrialCheckoutNote(
+    trial: ManagerSubscriptionTrial | null | undefined,
+    now: Date,
+    formatDate: TrialDateFormatter = formatTrialDate,
+): string | null {
+    if (!trial || trial.state !== 'active') return null;
+    const endsAt = parseDate(trial.ends_at);
+    if (!endsAt || trialDaysRemaining(endsAt, now) === 0) return null;
+    const planName = trial.plan_code ? getManagerPlanDisplayName(trial.plan_code) : (trial.plan_name || DEFAULT_TRIAL_PLAN_NAME);
+    return `Your ${planName} trial runs until ${formatDate(endsAt)}. If you subscribe now, billing starts today and the remaining trial days end.`;
+}

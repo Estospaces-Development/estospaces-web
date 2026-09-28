@@ -9,8 +9,8 @@ import {
 import ManagerBillingHistory from '@/components/manager/ManagerBillingHistory';
 import ManagerTrialBanner from '@/components/manager/ManagerTrialBanner';
 import { useAuth } from '@/contexts/AuthContext';
-import { managerSubscriptionSummaryQueryKey } from '@/lib/managerLaunchTrial';
-import { getManagerPlanDisplayName } from '@/lib/managerPlanNames';
+import { getTrialCheckoutNote, managerSubscriptionSummaryQueryKey } from '@/lib/managerLaunchTrial';
+import { describeStoredTermsPlanName, getManagerPlanDisplayName } from '@/lib/managerPlanNames';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { ManagerVerificationBanner } from '@/components/routing/ManagerVerificationGate';
@@ -108,8 +108,6 @@ export default function ManagerSubscriptionPage() {
             }
             const account = summaryResult.value.account;
             setSummary(account);
-            // Keep the dashboard trial banner in step with this fresh server read.
-            if (userId) queryClient.setQueryData(managerSubscriptionSummaryQueryKey(userId), account);
             setAcceptedCheckout(null);
             if (account.checkout) {
                 const checkout = await getManagerSubscriptionCheckout(account.checkout.id);
@@ -120,13 +118,19 @@ export default function ManagerSubscriptionPage() {
         } finally {
             if (version === loadVersion.current) setLoading(false);
         }
-    }, [queryClient, userId]);
+    }, []);
 
     useEffect(() => {
         const requestVersion = loadVersion;
         void load();
         return () => { requestVersion.current++; };
     }, [load]);
+
+    // Every fresh server read (load, verify, poll, status check) keeps the
+    // account-scoped summary cache, and so the dashboard trial banner, current.
+    useEffect(() => {
+        if (userId && summary) queryClient.setQueryData(managerSubscriptionSummaryQueryKey(userId), summary);
+    }, [queryClient, summary, userId]);
 
     const activeCheckout = summary?.checkout;
     const runAction = async (name: string, action: () => Promise<void>) => {
@@ -147,8 +151,17 @@ export default function ManagerSubscriptionPage() {
         toast.info('Payment confirmation is still pending. We are checking automatically; do not pay again.');
     };
 
+    // A verified payment supersedes the trial and adds a paid period.
+    const invalidateAccountQueries = useCallback(() => {
+        if (!userId) return;
+        void queryClient.invalidateQueries({ queryKey: managerSubscriptionSummaryQueryKey(userId) });
+        void queryClient.invalidateQueries({ queryKey: ['manager-subscription-paid-periods', userId] });
+    }, [queryClient, userId]);
+
     const reportVerification = (account: ManagerSubscriptionSummary) => {
+        setSummary(account);
         if (account.new_paid_actions_available) {
+            invalidateAccountQueries();
             setPendingPaymentSince(null);
             toast.success('Subscription payment verified.');
         } else {
@@ -184,6 +197,7 @@ export default function ManagerSubscriptionPage() {
                     setSummary(account);
                     const outcome = evaluatePendingPaymentPoll(account, pendingPaymentSince, Date.now());
                     if (outcome === 'paid') {
+                        invalidateAccountQueries();
                         setPendingPaymentSince(null);
                         setPendingProof(null);
                         toast.success('Subscription payment verified.');
@@ -204,7 +218,7 @@ export default function ManagerSubscriptionPage() {
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [pendingPaymentSince, toast]);
+    }, [invalidateAccountQueries, pendingPaymentSince, toast]);
 
     const openCheckout = async (checkout: StartCheckoutResponse) => {
         const { account, pending } = await verifyOrPoll(() => openSubscriptionCheckout(checkout, async (proof) => {
@@ -283,6 +297,7 @@ export default function ManagerSubscriptionPage() {
     const busy = busyPlan !== null || loading;
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
     const access = getSubscriptionAccessPresentation(summary?.entitlement, summary?.trial);
+    const trialCheckoutNote = getTrialCheckoutNote(summary?.trial, new Date());
     const plansToShow: (ManagerPlanOffer | ManagerPlanPreview)[] = orderManagerPlans(offers.length > 0 ? offers : planPreviews);
 
     return (
@@ -310,7 +325,7 @@ export default function ManagerSubscriptionPage() {
                     <h2 className="font-bold">Current subscription</h2>
                     <p role="status" className="mt-2">Status: {formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status)}. No second checkout will be created while this subscription is unresolved.</p>
                     {pendingPaymentSince !== null ? <p role="status" className="mt-2">Waiting for your bank to confirm the first charge. This page updates automatically.</p> : null}
-                    {acceptedCheckout ? <div className="mt-3"><p><strong>{getManagerPlanDisplayName(acceptedCheckout.terms.code)} — {formatPlanPrice(acceptedCheckout.terms)} / month</strong></p><p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
+                    {acceptedCheckout ? <div className="mt-3"><p><strong>{getManagerPlanDisplayName(acceptedCheckout.terms.code)} — {formatPlanPrice(acceptedCheckout.terms)} / month</strong></p>{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text) ? <p className="mt-1 text-xs font-semibold">{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text)}</p> : null}<p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -335,6 +350,7 @@ export default function ManagerSubscriptionPage() {
                         onStart={(offer) => void start(offer)}
                     />)}
                 </section> : null}
+                {offers.length > 0 && trialCheckoutNote ? <p role="note" className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">{trialCheckoutNote}</p> : null}
                 {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setRecurringConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-orange-600" /><span>I understand this is a monthly recurring subscription, the displayed tax-inclusive amount, and the cancellation terms before payment.</span></label> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
                 <ManagerBillingHistory />

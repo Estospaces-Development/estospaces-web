@@ -5,9 +5,11 @@ import {
     DAY_MS,
     TRIAL_NO_CHARGE_NOTE,
     getLaunchOfferMessage,
+    getTrialCheckoutNote,
     getTrialBanner,
     managerSubscriptionSummaryQueryKey,
     parseLaunchOffer,
+    trialBannerDays,
     trialDaysRemaining,
 } from './managerLaunchTrial';
 import type { ManagerSubscriptionEntitlement, ManagerSubscriptionTrial } from '../services/managerSubscriptionService';
@@ -65,14 +67,16 @@ test('active trial banner takes its limits from the entitlement', () => {
 });
 
 test('ending soon warns from 7 days and switches to the last-day copy within a day', () => {
-    assert.equal(getTrialBanner(trial(), trialEntitlement, before(7 * DAY_MS + 1), formatDate)?.kind, 'active');
-    const soon = getTrialBanner(trial(), trialEntitlement, before(7 * DAY_MS), formatDate);
+    // Without a usable server count the local clock decides.
+    const local = (overrides: Partial<ManagerSubscriptionTrial> = {}) => trial({ days_remaining: 0, ...overrides });
+    assert.equal(getTrialBanner(local(), trialEntitlement, before(7 * DAY_MS + 1), formatDate)?.kind, 'active');
+    const soon = getTrialBanner(local(), trialEntitlement, before(7 * DAY_MS), formatDate);
     assert.equal(soon?.kind, 'ending_soon');
     assert.equal(soon?.title, 'Your Growth plan ends in 7 days, on 2026-11-27.');
     assert.equal(soon?.detail, `Subscribe to keep 8 published properties and 10 active Fast Track cases. ${TRIAL_NO_CHARGE_NOTE}`);
     assert.equal(soon?.action?.label, 'Subscribe');
-    assert.equal(getTrialBanner(trial(), trialEntitlement, before(DAY_MS + 1), formatDate)?.kind, 'ending_soon');
-    const last = getTrialBanner(trial(), trialEntitlement, before(DAY_MS), formatDate);
+    assert.equal(getTrialBanner(local(), trialEntitlement, before(DAY_MS + 1), formatDate)?.kind, 'ending_soon');
+    const last = getTrialBanner(local(), trialEntitlement, before(DAY_MS), formatDate);
     assert.equal(last?.kind, 'last_day');
     assert.equal(last?.title, 'Your Growth plan ends within a day, on 2026-11-27.');
     assert.match(last?.detail || '', /won't charge you automatically/);
@@ -101,4 +105,26 @@ test('no trial banner for paid, superseded, revoked or missing trials', () => {
 test('summary query key is scoped to the signed-in account', () => {
     assert.deepEqual(managerSubscriptionSummaryQueryKey('manager-1'), ['manager-subscription-summary', 'manager-1']);
     assert.notDeepEqual(managerSubscriptionSummaryQueryKey('manager-1'), managerSubscriptionSummaryQueryKey('manager-2'));
+});
+
+test('warnings prefer payment days_remaining over the local clock', () => {
+    // A device clock two days slow would otherwise delay the warning.
+    const slowClock = before(9 * DAY_MS);
+    assert.equal(trialBannerDays(trial({ days_remaining: 7 }), end, slowClock), 7);
+    assert.equal(getTrialBanner(trial({ days_remaining: 7 }), trialEntitlement, slowClock, formatDate)?.kind, 'ending_soon');
+    assert.equal(getTrialBanner(trial({ days_remaining: 1 }), trialEntitlement, slowClock, formatDate)?.kind, 'last_day');
+    assert.equal(getTrialBanner(trial({ days_remaining: 30 }), trialEntitlement, slowClock, formatDate)?.kind, 'active');
+    // Invalid server values fall back to the local count.
+    assert.equal(trialBannerDays(trial({ days_remaining: 0 }), end, slowClock), 9);
+    assert.equal(trialBannerDays(trial({ days_remaining: 2.5 }), end, slowClock), 9);
+    // Once the end has passed locally the trial has ended, whatever the cached count says.
+    assert.equal(trialBannerDays(trial({ days_remaining: 5 }), end, end), 0);
+});
+
+test('checkout note warns that subscribing during a trial starts billing now', () => {
+    assert.equal(getTrialCheckoutNote(trial(), before(10 * DAY_MS), formatDate), 'Your Growth trial runs until 2026-11-27. If you subscribe now, billing starts today and the remaining trial days end.');
+    assert.equal(getTrialCheckoutNote(trial({ state: 'expired' }), before(10 * DAY_MS), formatDate), null);
+    assert.equal(getTrialCheckoutNote(trial({ state: 'superseded' }), before(10 * DAY_MS), formatDate), null);
+    assert.equal(getTrialCheckoutNote(trial(), end, formatDate), null);
+    assert.equal(getTrialCheckoutNote(null, end, formatDate), null);
 });

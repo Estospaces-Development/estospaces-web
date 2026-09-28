@@ -7,9 +7,25 @@ import type {
     AdminPromotionAction,
     AdminPromotionDraft,
     AdminPromotionMarket,
-    AdminPromotionRedemption,
+    AdminPromotionPatch,
     AdminPromotionStatus,
+    AdminTrialBackfillResult,
+    AdminTrialGrant,
 } from '../services/adminSubscriptionService';
+
+// Rules mirror payment internal/subscriptions/promotion.go validateShape and
+// validateActivation. The server stays authoritative; this only catches
+// mistakes before a round trip.
+
+export const PROMOTION_NAME_MAX = 128;
+export const PROMOTION_DESCRIPTION_MAX = 1000;
+export const PROMOTION_REDEMPTION_CAP_MAX = 1_000_000;
+export const TRIAL_REVOKE_REASON_MAX = 500;
+export const RAZORPAY_OFFER_ID_PATTERN = /^offer_[A-Za-z0-9]{1,122}$/;
+export const PROMOTION_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{2,31}$/;
+export const PERCENT_OFF_RANGE = { min: 1, max: 90 } as const;
+export const DISCOUNT_CYCLES_RANGE = { min: 1, max: 24 } as const;
+export const TRIAL_DAYS_RANGE = { min: 1, max: 365 } as const;
 
 // ── Create form ────────────────────────────────────────────────────────────
 
@@ -30,6 +46,7 @@ export interface PromotionFormValues {
     valid_from: string;
     valid_until: string;
     max_redemptions: string;
+    /** Discount markets only. A trial has no market filter. */
     market_in: boolean;
     market_gb: boolean;
 }
@@ -52,15 +69,9 @@ export const emptyPromotionForm = (kind: PromotionFormValues['kind'] = 'trial_gr
     valid_from: '',
     valid_until: '',
     max_redemptions: '',
-    market_in: true,
+    market_in: false,
     market_gb: false,
 });
-
-export const RAZORPAY_OFFER_ID_PATTERN = /^offer_[A-Za-z0-9]+$/;
-export const PROMOTION_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{2,31}$/;
-export const PERCENT_OFF_RANGE = { min: 1, max: 90 } as const;
-export const DISCOUNT_CYCLES_RANGE = { min: 1, max: 24 } as const;
-export const TRIAL_DAYS_RANGE = { min: 1, max: 365 } as const;
 
 const wholeNumber = (label: string, min: number, max: number) => z.string().trim()
     .regex(/^\d+$/, `${label} must be a whole number.`)
@@ -73,18 +84,22 @@ const localDateTime = (label: string) => z.string().trim()
 const offerID = (currency: string) => z.string().trim()
     .refine((value) => value === '' || RAZORPAY_OFFER_ID_PATTERN.test(value), `The ${currency} offer ID must look like offer_ followed by letters and numbers.`);
 
+const redemptionCap = z.string().trim()
+    .refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= PROMOTION_REDEMPTION_CAP_MAX),
+        `The usage cap must be a whole number from 1 to ${PROMOTION_REDEMPTION_CAP_MAX.toLocaleString('en-GB')}, or empty for no cap.`);
+
+const promotionName = z.string().trim().min(1, 'Enter a name admins will recognise.').max(PROMOTION_NAME_MAX, `Keep the name to ${PROMOTION_NAME_MAX} characters.`);
+const promotionDescription = z.string().trim().max(PROMOTION_DESCRIPTION_MAX, `Keep the description to ${PROMOTION_DESCRIPTION_MAX} characters.`);
+
 const baseShape = {
-    name: z.string().trim().min(1, 'Enter a name admins will recognise.').max(120, 'Keep the name under 120 characters.'),
-    description: z.string().trim().max(500, 'Keep the description under 500 characters.'),
+    name: promotionName,
+    description: promotionDescription,
     code: z.string().trim().transform((value) => value.toUpperCase())
         .refine((value) => value === '' || PROMOTION_CODE_PATTERN.test(value), 'Codes are 3–32 letters, numbers, hyphens or underscores.'),
     plan_code: z.enum(['pro', 'growth']),
     valid_from: localDateTime('Start').refine((value) => value !== '', 'Choose when the promotion starts.'),
     valid_until: localDateTime('End'),
-    max_redemptions: z.string().trim()
-        .refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) >= 1), 'The usage cap must be a whole number of at least 1, or empty for no cap.'),
-    market_in: z.boolean(),
-    market_gb: z.boolean(),
+    max_redemptions: redemptionCap,
 };
 
 const trialSchema = z.object({
@@ -101,12 +116,11 @@ const discountSchema = z.object({
     discount_cycles: wholeNumber('Discounted months', DISCOUNT_CYCLES_RANGE.min, DISCOUNT_CYCLES_RANGE.max),
     provider_offer_id_inr: offerID('INR'),
     provider_offer_id_gbp: offerID('GBP'),
+    market_in: z.boolean(),
+    market_gb: z.boolean(),
 });
 
 const promotionFormSchema = z.discriminatedUnion('kind', [trialSchema, discountSchema]).superRefine((value, ctx) => {
-    if (!value.market_in && !value.market_gb) {
-        ctx.addIssue({ code: 'custom', path: ['markets'], message: 'Choose at least one market.' });
-    }
     if (value.valid_until && value.valid_from && new Date(value.valid_until).getTime() <= new Date(value.valid_from).getTime()) {
         ctx.addIssue({ code: 'custom', path: ['valid_until'], message: 'The end must be after the start.' });
     }
@@ -114,11 +128,8 @@ const promotionFormSchema = z.discriminatedUnion('kind', [trialSchema, discountS
         if (!value.code) {
             ctx.addIssue({ code: 'custom', path: ['code'], message: 'Managers type this code at checkout, so a discount needs one.' });
         }
-        if (value.market_in && !value.provider_offer_id_inr) {
-            ctx.addIssue({ code: 'custom', path: ['provider_offer_id_inr'], message: 'India is selected, so paste the INR Razorpay offer ID.' });
-        }
-        if (value.market_gb && !value.provider_offer_id_gbp) {
-            ctx.addIssue({ code: 'custom', path: ['provider_offer_id_gbp'], message: 'United Kingdom is selected, so paste the GBP Razorpay offer ID.' });
+        if (!value.market_in && !value.market_gb) {
+            ctx.addIssue({ code: 'custom', path: ['markets'], message: 'Choose at least one market for the discount.' });
         }
     }
 });
@@ -127,49 +138,56 @@ export type PromotionFormResult =
     | { success: true; draft: AdminPromotionDraft }
     | { success: false; errors: PromotionFormErrors };
 
-const optional = <T,>(value: T | '' | undefined): T | undefined => value === '' ? undefined : value;
+const optional = (value: string): string | undefined => value === '' ? undefined : value;
 
-/** Validates the create form and builds the exact payment request body. */
+function collectErrors(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
+    const errors: Record<string, string> = {};
+    for (const issue of issues) {
+        const field = issue.path[0];
+        if (typeof field === 'string' && !errors[field]) errors[field] = issue.message;
+    }
+    return errors;
+}
+
+/**
+ * Validates the create form and builds the exact payment request body. A trial
+ * body never contains markets, offers or discount fields; a discount body sends
+ * offers only for its selected markets (offers are optional until activation).
+ */
 export function buildPromotionDraft(values: PromotionFormValues): PromotionFormResult {
     const parsed = promotionFormSchema.safeParse(values);
     if (!parsed.success) {
-        const errors: PromotionFormErrors = {};
-        for (const issue of parsed.error.issues) {
-            const field = issue.path[0] as PromotionFormField | undefined;
-            if (field && !errors[field]) errors[field] = issue.message;
-        }
-        return { success: false, errors };
+        return { success: false, errors: collectErrors(parsed.error.issues) as PromotionFormErrors };
     }
     const value = parsed.data;
-    const markets: AdminPromotionMarket[] = [];
-    if (value.market_in) markets.push('IN');
-    if (value.market_gb) markets.push('GB');
     const base = {
         name: value.name,
         description: optional(value.description),
-        code: optional(value.code),
         plan_code: value.plan_code,
         valid_from: new Date(value.valid_from).toISOString(),
         valid_until: value.valid_until ? new Date(value.valid_until).toISOString() : undefined,
         max_redemptions: value.max_redemptions ? Number(value.max_redemptions) : undefined,
-        eligible_markets: markets,
     };
     if (value.kind === 'trial_grant') {
         return {
             success: true,
-            draft: { ...base, kind: 'trial_grant', trial_days: value.trial_days, auto_apply_on_signup: value.auto_apply_on_signup },
+            draft: { ...base, code: optional(value.code), kind: 'trial_grant', trial_days: value.trial_days, auto_apply_on_signup: value.auto_apply_on_signup },
         };
     }
+    const markets: AdminPromotionMarket[] = [];
+    if (value.market_in) markets.push('IN');
+    if (value.market_gb) markets.push('GB');
     return {
         success: true,
         draft: {
             ...base,
             kind: 'percent_discount',
+            code: value.code,
             percent_off: value.percent_off,
             discount_cycles: value.discount_cycles,
-            // Only the offers for the chosen markets are sent.
-            provider_offer_id_inr: value.market_in ? value.provider_offer_id_inr : undefined,
-            provider_offer_id_gbp: value.market_gb ? value.provider_offer_id_gbp : undefined,
+            eligible_markets: markets,
+            provider_offer_id_inr: value.market_in ? optional(value.provider_offer_id_inr) : undefined,
+            provider_offer_id_gbp: value.market_gb ? optional(value.provider_offer_id_gbp) : undefined,
         },
     };
 }
@@ -179,8 +197,101 @@ export const RAZORPAY_OFFER_STEPS: readonly string[] = [
     'Go to Offers and create a new offer for subscriptions.',
     'Set a percentage discount equal to the percent below, and limit it to the same number of billing cycles as the discounted months below.',
     'Link it to the Razorpay plan for this tier. Create one offer for the INR plan and, if the UK is selected, a second offer for the GBP plan.',
-    'Copy each offer ID (it starts with offer_) and paste it below. Payment checks that Razorpay echoes the same offer on every checkout.',
+    'Copy each offer ID (it starts with offer_) and paste it below. You can save the draft first and add offers later; activation needs one per selected market.',
 ];
+
+// ── Edit (PATCH) ───────────────────────────────────────────────────────────
+
+export interface PromotionEditValues {
+    name: string;
+    description: string;
+    valid_until: string;
+    max_redemptions: string;
+}
+
+export const toDateTimeLocal = (value?: string | null): string => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+export const promotionEditValues = (promotion: AdminPromotion): PromotionEditValues => ({
+    name: promotion.name,
+    description: promotion.description ?? '',
+    valid_until: toDateTimeLocal(promotion.valid_until),
+    max_redemptions: promotion.max_redemptions ? String(promotion.max_redemptions) : '',
+});
+
+export type PromotionEditResult =
+    | { success: true; patch: AdminPromotionPatch }
+    | { success: false; errors: Partial<Record<keyof PromotionEditValues | 'form', string>> };
+
+/**
+ * Builds a PATCH with only the changed fields. Payment cannot clear an end
+ * date or a cap through PATCH, so clearing them is refused here.
+ */
+export function buildPromotionPatch(promotion: AdminPromotion, values: PromotionEditValues, now: Date = new Date()): PromotionEditResult {
+    const errors: Partial<Record<keyof PromotionEditValues | 'form', string>> = {};
+    const patch: AdminPromotionPatch = { version: promotion.version };
+    const name = promotionName.safeParse(values.name);
+    if (!name.success) errors.name = name.error.issues[0]?.message;
+    else if (name.data !== promotion.name) patch.name = name.data;
+    const description = promotionDescription.safeParse(values.description);
+    if (!description.success) errors.description = description.error.issues[0]?.message;
+    else if (description.data !== (promotion.description ?? '')) patch.description = description.data;
+
+    const until = values.valid_until.trim();
+    if (until !== toDateTimeLocal(promotion.valid_until)) {
+        const date = new Date(until);
+        if (!until) errors.valid_until = 'An end date cannot be removed once set. Choose a later date instead.';
+        else if (Number.isNaN(date.getTime())) errors.valid_until = 'End is not a valid date and time.';
+        else if (promotion.valid_from && date.getTime() <= new Date(promotion.valid_from).getTime()) errors.valid_until = 'The end must be after the start.';
+        else if (promotion.status === 'active' && date.getTime() <= now.getTime()) errors.valid_until = 'An active promotion needs an end in the future. Pause it to stop it now.';
+        else patch.valid_until = date.toISOString();
+    }
+
+    const cap = values.max_redemptions.trim();
+    if (cap !== (promotion.max_redemptions ? String(promotion.max_redemptions) : '')) {
+        const parsedCap = redemptionCap.safeParse(cap);
+        if (!cap) errors.max_redemptions = 'A cap cannot be removed once set. Enter a higher cap instead.';
+        else if (!parsedCap.success) errors.max_redemptions = parsedCap.error.issues[0]?.message;
+        else if (Number(cap) < promotion.redemption_count) errors.max_redemptions = `The cap cannot be below the ${promotion.redemption_count} uses so far.`;
+        else patch.max_redemptions = Number(cap);
+    }
+
+    if (Object.keys(errors).length > 0) return { success: false, errors };
+    if (Object.keys(patch).length === 1) return { success: false, errors: { form: 'Nothing has changed.' } };
+    return { success: true, patch };
+}
+
+// ── Server errors ──────────────────────────────────────────────────────────
+
+const ACTIVATION_REASON_MESSAGES: Record<string, string> = {
+    offer_id_missing: 'Add a Razorpay offer ID for every selected market before activating this discount.',
+    plan_unavailable: 'There is no approved plan for this tier (in each selected currency). Approve the plan version first.',
+    price_not_divisible: 'The plan price cannot be discounted exactly in paise or pence. Use a plan whose price is a whole number of rupees or pounds.',
+    window_ended: 'The end date has passed. Set a later end date before activating.',
+    redemption_cap_reached: 'The usage cap has been reached. Raise the cap before activating.',
+    invalid_terms: 'The promotion terms are not valid any more. Archive it and create a new one.',
+};
+
+export function getPromotionActivationReason(error: unknown): string | null {
+    if (!(error instanceof ApiRequestError) || error.status !== 422 || error.code !== 'promotion_activation_invalid') return null;
+    const data = error.data && typeof error.data === 'object' ? error.data as Record<string, unknown> : null;
+    return typeof data?.reason === 'string' ? data.reason : null;
+}
+
+/** The admin-facing message for a failed promotion mutation. */
+export function getPromotionErrorMessage(error: unknown): string {
+    const reason = getPromotionActivationReason(error);
+    if (reason) return ACTIVATION_REASON_MESSAGES[reason] ?? 'This promotion cannot be activated yet. Check its plan, offers, window and cap.';
+    if (error instanceof ApiRequestError && error.status === 409) {
+        return 'The promotion changed or conflicts with another one (for example a second active signup campaign or a reused code). Refresh and try again.';
+    }
+    return error instanceof Error && error.message ? error.message : 'The change could not be confirmed. Refresh before retrying.';
+}
 
 // ── List presentation ──────────────────────────────────────────────────────
 
@@ -202,6 +313,9 @@ export const formatPromotionPlan = (promotion: Pick<AdminPromotion, 'plan_code'>
 export const formatPromotionKind = (kind: AdminPromotion['kind']): string =>
     kind === 'trial_grant' ? 'Trial' : 'Percent discount';
 
+export const formatPromotionMarkets = (promotion: Pick<AdminPromotion, 'kind' | 'eligible_markets'>): string =>
+    promotion.kind === 'trial_grant' ? 'All markets' : (promotion.eligible_markets ?? []).join(', ') || '—';
+
 const ACTIONS_BY_STATUS: Record<AdminPromotionStatus, AdminPromotionAction[]> = {
     draft: ['activate', 'archive'],
     active: ['pause', 'archive'],
@@ -211,12 +325,49 @@ const ACTIONS_BY_STATUS: Record<AdminPromotionStatus, AdminPromotionAction[]> = 
 
 export const getPromotionActions = (status: AdminPromotionStatus): AdminPromotionAction[] => ACTIONS_BY_STATUS[status] ?? [];
 
+export const canEditPromotion = (promotion: Pick<AdminPromotion, 'status'>): boolean => promotion.status !== 'archived';
+
 /** The single active auto-apply trial (payment enforces at most one per mode). */
 export const findLaunchCampaign = (promotions: readonly AdminPromotion[]): AdminPromotion | null =>
     promotions.find((promotion) => promotion.kind === 'trial_grant' && promotion.auto_apply_on_signup && promotion.status === 'active') ?? null;
 
-export const canRevokeTrialRedemption = (redemption: AdminPromotionRedemption): boolean =>
-    redemption.kind === 'trial_grant' && Boolean(redemption.trial_grant_id) && redemption.status === 'applied';
+export const REDEMPTIONS_PAGE_SIZE = 50;
+
+// ── Trial grants ───────────────────────────────────────────────────────────
+
+export type AdminTrialGrantState = 'active' | 'expired' | 'superseded' | 'revoked';
+
+/** Same precedence as payment managerTrialView: revoked, superseded, expired, active. */
+export function getAdminTrialGrantState(grant: Pick<AdminTrialGrant, 'revoked_at' | 'superseded_at' | 'ends_at'>, now: Date): AdminTrialGrantState {
+    if (grant.revoked_at) return 'revoked';
+    if (grant.superseded_at) return 'superseded';
+    return new Date(grant.ends_at).getTime() <= now.getTime() ? 'expired' : 'active';
+}
+
+/** Payment refuses to revoke a superseded trial, and a revoked one is already done. */
+export const canRevokeTrialGrant = (grant: Pick<AdminTrialGrant, 'revoked_at' | 'superseded_at' | 'ends_at'>, now: Date): boolean => {
+    const state = getAdminTrialGrantState(grant, now);
+    return state === 'active' || state === 'expired';
+};
+
+export type RevokeReasonCheck = { ok: true; reason: string } | { ok: false; message: string };
+
+export function checkRevokeReason(value: string): RevokeReasonCheck {
+    const reason = value.trim();
+    if (!reason) return { ok: false, message: 'Give a short reason for revoking this trial.' };
+    if (reason.length > TRIAL_REVOKE_REASON_MAX) return { ok: false, message: `Keep the reason to ${TRIAL_REVOKE_REASON_MAX} characters.` };
+    return { ok: true, reason };
+}
+
+export function describeBackfillResult(result: AdminTrialBackfillResult, formatDate: (value: string) => string): string {
+    if (result.status === 'granted') {
+        return `Trial granted until ${result.grant?.ends_at ? formatDate(result.grant.ends_at) : 'its end date'}.`;
+    }
+    if (result.status === 'already_granted') return 'This manager already has a launch trial. Nothing changed.';
+    if (result.reason === 'existing_access') return 'Not granted: this manager already has paid access or an earlier trial. Nothing changed.';
+    if (result.reason === 'promotion') return 'Not granted: no launch campaign can be used right now (paused, outside its window, or at its cap). Nothing changed.';
+    return 'This manager is not eligible for the launch trial. Nothing changed.';
+}
 
 // ── Idempotency keys ───────────────────────────────────────────────────────
 
