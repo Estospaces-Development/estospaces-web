@@ -17,6 +17,8 @@ type FastTrackCaseLike = {
 // Legacy 'expired' is not closed: booking moves it back to in_progress on the next write.
 const CLOSED_FINAL_STATUSES = new Set(['completed', 'cancelled', 'rejected']);
 
+const PENDING_LINK_STATUSES = new Set(['uploaded', 'linked']);
+
 const text = (value: unknown) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
 
 export const getFastTrackApprovedDocumentRecordIds = (fastTrackCase: FastTrackCaseLike): Set<string> => {
@@ -51,7 +53,10 @@ export const getCaseFileDocumentReviewState = ({
     caseClosed: boolean;
 }) => {
     const status = text(linkStatus) || 'uploaded';
-    const approvedInFastTrack = status !== 'approved' && fastTrackApprovedIds.has(String(documentId || '').trim());
+    // Sync runs Fast Track -> case file only, so a Fast Track approval may only
+    // fill in a link that has no case-file decision yet. A later case-file
+    // decision (re-upload, rejected, under review) always wins.
+    const approvedInFastTrack = PENDING_LINK_STATUSES.has(status) && fastTrackApprovedIds.has(String(documentId || '').trim());
     const effectiveStatus = approvedInFastTrack ? 'approved' : status;
     return {
         effectiveStatus,

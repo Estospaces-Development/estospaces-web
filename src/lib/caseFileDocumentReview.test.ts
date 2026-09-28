@@ -115,3 +115,20 @@ test('the case file reads per-document review state from the Fast Track workspac
     assert.ok(source.includes('getFastTrackApprovedDocumentRecordIds(fastTrackWorkspaceCase)'));
     assert.ok(source.includes('countFastTrackReplacementRequests(fastTrackWorkspaceCase)'));
 });
+
+test('a later case-file decision wins over an earlier Fast Track approval', () => {
+    const approved = new Set(['doc-identity']);
+    for (const linkStatus of ['reupload_required', 'rejected', 'under_review']) {
+        const state = getCaseFileDocumentReviewState({ linkStatus, documentId: 'doc-identity', fastTrackApprovedIds: approved, caseClosed: false });
+        assert.equal(state.effectiveStatus, linkStatus, linkStatus);
+        assert.equal(state.approvedInFastTrack, false, linkStatus);
+        assert.equal(state.canApprove, true, linkStatus);
+    }
+    const linked = getCaseFileDocumentReviewState({ linkStatus: 'linked', documentId: 'doc-identity', fastTrackApprovedIds: approved, caseClosed: false });
+    assert.equal(linked.effectiveStatus, 'approved');
+});
+
+test('every case-file reload also refreshes the Fast Track review state', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
+    assert.ok(source.includes('void queryClient.invalidateQueries({ queryKey: ["case-file-fast-track-workspace", result.data?.case_id] });'));
+});

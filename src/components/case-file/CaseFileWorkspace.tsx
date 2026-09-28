@@ -5,7 +5,7 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFastTrackCaseById } from "@/services/fastTrackService";
 import {
   AlertTriangle,
@@ -713,6 +713,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   );
   // The case-file payload carries only the Fast Track summary; per-document
   // review state (with record ids) comes from the Fast Track workspace itself.
+  const queryClient = useQueryClient();
   const fastTrackWorkspaceQuery = useQuery({
     queryKey: ["case-file-fast-track-workspace", caseFile?.case_id],
     queryFn: async () => {
@@ -842,11 +843,13 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
 
       setCaseFile(result.data);
       setError(null);
+      // Keep the Fast Track review state in step with every case-file reload.
+      void queryClient.invalidateQueries({ queryKey: ["case-file-fast-track-workspace", result.data?.case_id] });
       if (!silent) {
         setLoading(false);
       }
     },
-    [caseRouteReference.error, embedded, navigate, resolvedCaseId, role, toast],
+    [caseRouteReference.error, embedded, navigate, queryClient, resolvedCaseId, role, toast],
   );
 
   useEffect(() => {
