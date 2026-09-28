@@ -71,3 +71,47 @@ test('Fast Track replacement requests count as open document requests while the 
     const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
     assert.equal(source.split('{summary.openRequestCount + fastTrackReplacementCount}').length - 1, 2);
 });
+
+test('reconciliation works on the real Fast Track workspace payload from booking', async () => {
+    const { getFastTrackCaseById } = await import('../services/fastTrackService');
+    const originalFetch = globalThis.fetch;
+    // Shape of booking GET /api/v1/fast-track/:id (buildFastTrackWorkspaceCase).
+    const workspace = (finalStatus: string, identityStatus: string) => ({
+        id: 'case-1',
+        case_id: 'case-1',
+        header: { property_id: 'property-1', client_id: 'user-1', submitted_at: '2026-05-07T08:00:00.000Z', hours_remaining: 20 },
+        stage: 'documents',
+        final_status: finalStatus,
+        documents: { items: [
+            { id: 'identity', label: 'Identity proof', status: identityStatus, document_record_id: 'doc-identity', file_name: 'passport.pdf' },
+            { id: 'address', label: 'Address proof', status: 'reupload_needed', document_record_id: 'doc-address', file_name: 'bill.pdf' },
+        ] },
+        viewing: {}, decision: {}, agreement: {}, handover: {}, activity: [],
+    });
+    const respond = (payload: unknown) => (async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ success: true, data: payload }) })) as unknown as typeof fetch;
+
+    try {
+        globalThis.fetch = respond(workspace('active', 'approved'));
+        const active = (await getFastTrackCaseById('case-1')).data;
+        assert.deepEqual([...getFastTrackApprovedDocumentRecordIds(active)], ['doc-identity']);
+        assert.equal(countFastTrackReplacementRequests(active), 1);
+        assert.equal(isFastTrackCaseClosed(active), false);
+
+        globalThis.fetch = respond(workspace('completed', 'approved'));
+        const completed = (await getFastTrackCaseById('case-1')).data;
+        assert.equal(isFastTrackCaseClosed(completed), true);
+        assert.equal(countFastTrackReplacementRequests(completed), 0);
+
+        globalThis.fetch = respond(workspace('expired', 'uploaded'));
+        assert.equal(isFastTrackCaseClosed((await getFastTrackCaseById('case-1')).data), false);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('the case file reads per-document review state from the Fast Track workspace endpoint', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
+    assert.ok(source.includes('getFastTrackCaseById(String(caseFile?.case_id || ""), { suppressErrorToast: true })'));
+    assert.ok(source.includes('getFastTrackApprovedDocumentRecordIds(fastTrackWorkspaceCase)'));
+    assert.ok(source.includes('countFastTrackReplacementRequests(fastTrackWorkspaceCase)'));
+});

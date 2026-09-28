@@ -5,6 +5,8 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getFastTrackCaseById } from "@/services/fastTrackService";
 import {
   AlertTriangle,
   ArrowRight,
@@ -709,12 +711,24 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     () => normalizeNestedFastTrackCase(caseFile?.fast_track_case || null),
     [caseFile?.fast_track_case],
   );
+  // The case-file payload carries only the Fast Track summary; per-document
+  // review state (with record ids) comes from the Fast Track workspace itself.
+  const fastTrackWorkspaceQuery = useQuery({
+    queryKey: ["case-file-fast-track-workspace", caseFile?.case_id],
+    queryFn: async () => {
+      const result = await getFastTrackCaseById(String(caseFile?.case_id || ""), { suppressErrorToast: true });
+      return result.data;
+    },
+    enabled: Boolean(caseFile?.case_id),
+    staleTime: 30_000,
+  });
+  const fastTrackWorkspaceCase = fastTrackWorkspaceQuery.data || null;
   const fastTrackApprovedDocumentIds = useMemo(
-    () => getFastTrackApprovedDocumentRecordIds(liveFastTrackCase),
-    [liveFastTrackCase],
+    () => getFastTrackApprovedDocumentRecordIds(fastTrackWorkspaceCase),
+    [fastTrackWorkspaceCase],
   );
-  const fastTrackCaseClosed = isFastTrackCaseClosed(liveFastTrackCase);
-  const fastTrackReplacementCount = countFastTrackReplacementRequests(liveFastTrackCase);
+  const fastTrackCaseClosed = isFastTrackCaseClosed(fastTrackWorkspaceCase || liveFastTrackCase);
+  const fastTrackReplacementCount = countFastTrackReplacementRequests(fastTrackWorkspaceCase);
   const linkedJourney = useMemo(
     () =>
       liveFastTrackCase

@@ -14,7 +14,8 @@ type FastTrackCaseLike = {
     documents?: { items?: unknown };
 } | null | undefined;
 
-const CLOSED_FINAL_STATUSES = new Set(['completed', 'cancelled', 'expired', 'rejected']);
+// Legacy 'expired' is not closed: booking moves it back to in_progress on the next write.
+const CLOSED_FINAL_STATUSES = new Set(['completed', 'cancelled', 'rejected']);
 
 const text = (value: unknown) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
 
