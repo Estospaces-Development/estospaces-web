@@ -104,6 +104,7 @@ import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/l
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
 import { getListingJourneyAvailability } from '@/lib/propertyAvailability';
+import { getKnownAmenityLabel } from '@/lib/amenityLabels';
 import {
     buildPropertyFastTrackStartRequest,
     mapFastTrackPropertyType,
@@ -1219,7 +1220,7 @@ const UserPropertyDetail = () => {
             ...normalizeListValue(property?.features),
             ...normalizeListValue(property?.amenities),
         ]
-            .map(formatDetailLabel)
+            .map((value) => getKnownAmenityLabel(value) || formatDetailLabel(value))
             .filter(Boolean);
 
         return Array.from(new Set(merged)).slice(0, 8);

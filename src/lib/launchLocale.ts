@@ -37,14 +37,21 @@ export function formatLaunchCurrency(
   const symbol = currency === "GBP" ? "£" : LAUNCH_CURRENCY_SYMBOL;
   const code = currency || LAUNCH_CURRENCY_CODE;
 
+  const fractionDigits = launchCurrencyFractionDigits(amount);
   const formatted = new Intl.NumberFormat(locale, {
-    maximumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(amount);
   const suffix = options.monthly ? "/mo" : "";
   const codeSuffix = options.showCode ? ` ${code}` : "";
   return `${symbol}${formatted}${codeSuffix}${suffix}`;
 }
 
+// Whole amounts show no decimals; amounts with paise/pence show exactly two,
+// so a stored 1234567.89 is never displayed as a rounded 1234568.
+export function launchCurrencyFractionDigits(amount: number): 0 | 2 {
+  return Math.abs(Math.round(amount * 100) % 100) === 0 ? 0 : 2;
+}
 
 export function formatLaunchCurrencyForCountry(
   amount: number | null | undefined,
@@ -73,9 +80,11 @@ export function formatLaunchCurrencyForCountry(
   const code = options.showCode ? ` ${currency}` : "";
 
   try {
+    const fractionDigits = launchCurrencyFractionDigits(amount);
     return `${new Intl.NumberFormat(locale, {
       currency,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
       style: "currency",
     }).format(amount)}${code}${suffix}`;
   } catch {

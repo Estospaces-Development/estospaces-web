@@ -3,7 +3,7 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   useProperties,
@@ -82,12 +82,16 @@ import {
 } from "@/services/mediaService";
 import { ApiRequestError } from "@/lib/apiUtils";
 import { getManagerPropertySubmissionBlocker } from "@/lib/managerPropertySubmission";
+import { useUnsavedChangesLinkGuard } from "@/lib/unsavedChangesLinkGuard";
 import {
   getManagerPropertyFirstErrorStep,
   PROPERTY_DESCRIPTION_MAX_LENGTH,
   PROPERTY_NUMERIC_LIMITS,
   validateManagerPropertyField,
-  validateManagerPropertyForm,
+  getManagerPropertyRoomPayload,
+  isManagerPropertyFieldApplicable,
+  isManagerPropertyFieldRequired,
+  validateManagerPropertySave,
   validateManagerPropertyStep,
   type ManagerPropertyValidationValues,
 } from "@/lib/managerPropertyFormValidation";
@@ -126,6 +130,13 @@ import {
   UK_COUNTRY_CODE,
 } from "@/lib/launchLocale";
 import { areCoordinatesInsideLaunchMarket } from "@/lib/mapCoordinates";
+import {
+  getImageFileProblem,
+  getLocalFileFingerprint,
+  getVideoFileProblem,
+  readFileHeadSafely,
+  UNREADABLE_FILE_MESSAGE,
+} from "@/lib/uploadFileSignature";
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
@@ -410,7 +421,6 @@ interface FormData {
 
   // Description
   description: string;
-  shortDescription: string;
 
   // Media
   images: (File | string)[];
@@ -438,6 +448,50 @@ interface FormData {
   featured: boolean;
   published: boolean;
   draft: boolean;
+}
+
+function toManagerPropertyValidationValues(
+  data: FormData,
+  hasImages: boolean,
+): ManagerPropertyValidationValues {
+  return {
+    title: data.title,
+    priceAmount: data.priceAmount,
+    addressLine1: data.addressLine1,
+    country: data.country,
+    countryId: data.countryId,
+    countryCode: data.countryCode,
+    state: data.state,
+    stateId: data.stateId,
+    stateCode: data.stateCode,
+    city: data.city,
+    cityId: data.cityId,
+    postalCode: data.postalCode,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    totalArea: data.totalArea,
+    carpetArea: data.carpetArea,
+    bedrooms: data.bedrooms,
+    bathrooms: data.bathrooms,
+    balconies: data.balconies,
+    parkingSpaces: data.parkingSpaces,
+    floorNumber: data.floorNumber,
+    totalFloors: data.totalFloors,
+    yearBuilt: data.yearBuilt,
+    facing: data.facing,
+    description: data.description,
+    hasImages,
+    contactName: data.contactName,
+    contactEmail: data.contactEmail,
+    contactPhone: data.contactPhone,
+    alternatePhone: data.alternatePhone,
+    availableFrom: data.availableFrom,
+    listingType: data.listingType,
+    propertyType: data.propertyType,
+    minimumLease: data.minimumLease,
+    deposit: data.deposit,
+    maintenanceCharges: data.maintenanceCharges,
+  };
 }
 
 const initialFormData: FormData = {
@@ -490,7 +544,6 @@ const initialFormData: FormData = {
   },
 
   description: "",
-  shortDescription: "",
 
   images: [],
   videos: [],
@@ -897,7 +950,6 @@ export default function AddPropertyPage() {
         amenities: buildAmenityBuckets(property.amenities),
 
         description: property.description || "",
-        shortDescription: ((property as any).short_description as string) || "",
 
         images: parseServiceList(property.image_urls),
         videos: parseServiceList(property.video_urls),
@@ -990,6 +1042,9 @@ export default function AddPropertyPage() {
     },
     [isDirty, navigateToTarget, saving],
   );
+
+  // Sidebar and other in-app links reuse the same leave-page confirmation.
+  useUnsavedChangesLinkGuard(isDirty && !saving, setPendingUnsavedNavigation);
 
   const closeUnsavedNavigationDialog = () => {
     if (saving) {
@@ -1108,7 +1163,6 @@ export default function AddPropertyPage() {
         },
 
         description: property.description || "",
-        shortDescription: property.shortDescription || "",
 
         images: property.images || [],
         videos: property.videos || [],
@@ -1179,44 +1233,24 @@ export default function AddPropertyPage() {
   ];
 
   const getValidationValues = useCallback(
-    (data: FormData): ManagerPropertyValidationValues => ({
-      title: data.title,
-      priceAmount: data.priceAmount,
-      addressLine1: data.addressLine1,
-      country: data.country,
-      countryId: data.countryId,
-      countryCode: data.countryCode,
-      state: data.state,
-      stateId: data.stateId,
-      stateCode: data.stateCode,
-      city: data.city,
-      cityId: data.cityId,
-      postalCode: data.postalCode,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      totalArea: data.totalArea,
-      carpetArea: data.carpetArea,
-      bedrooms: data.bedrooms,
-      bathrooms: data.bathrooms,
-      balconies: data.balconies,
-      parkingSpaces: data.parkingSpaces,
-      floorNumber: data.floorNumber,
-      totalFloors: data.totalFloors,
-      yearBuilt: data.yearBuilt,
-      facing: data.facing,
-      description: data.description,
-      hasImages: data.images.length > 0 || imagePreviews.length > 0,
-      contactName: data.contactName,
-      contactEmail: data.contactEmail,
-      contactPhone: data.contactPhone,
-      alternatePhone: data.alternatePhone,
-      availableFrom: data.availableFrom,
-      listingType: data.listingType,
-      minimumLease: data.minimumLease,
-      deposit: data.deposit,
-      maintenanceCharges: data.maintenanceCharges,
-    }),
+    (data: FormData): ManagerPropertyValidationValues =>
+      toManagerPropertyValidationValues(
+        data,
+        data.images.length > 0 || imagePreviews.length > 0,
+      ),
     [imagePreviews.length],
+  );
+
+  // The listing as loaded, so an edit only validates what the manager changed.
+  const baselineValidationValues = useMemo(
+    () =>
+      _originalFormData
+        ? toManagerPropertyValidationValues(
+            _originalFormData,
+            _originalFormData.images.length > 0,
+          )
+        : null,
+    [_originalFormData],
   );
 
   const syncFieldErrors = useCallback(
@@ -1333,7 +1367,13 @@ export default function AddPropertyPage() {
   };
 
   const validateAllFields = (): Record<string, string> => {
-    return validateManagerPropertyForm(getValidationValues(formData));
+    return validateManagerPropertySave(getValidationValues(formData), {
+      baseline: mode === "edit" ? baselineValidationValues : null,
+      requiresCompleteListing:
+        mode === "create" ||
+        formData.status === "draft" ||
+        formData.status === "rejected",
+    });
   };
 
   const getFieldsToRevalidate = (field: keyof FormData): string[] => {
@@ -1361,6 +1401,20 @@ export default function AddPropertyPage() {
 
   const fieldState = (field: string) =>
     getManagerPropertyFieldState(field, errors);
+
+  const showRoomFields = isManagerPropertyFieldApplicable(
+    "bedrooms",
+    formData.propertyType,
+  );
+  const isRoomFieldRequired = (field: string) =>
+    isManagerPropertyFieldRequired(field, formData.propertyType);
+  const renderRequiredMark = (field: string) =>
+    isRoomFieldRequired(field) ? (
+      <>
+        {" "}
+        <span className="text-red-500" aria-hidden="true">*</span>
+      </>
+    ) : null;
 
   const renderFieldError = (field: string) =>
     errors[field] ? (
@@ -1613,8 +1667,22 @@ export default function AddPropertyPage() {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    // Reset so choosing the same file again still fires change (and is deduped).
+    e.target.value = "";
+    const seenImageFingerprints = new Set(
+      formData.images
+        .filter((image): image is File => image instanceof File)
+        .map(getLocalFileFingerprint),
+    );
 
-    files.forEach((file) => {
+    files.forEach((file) => void (async () => {
+      const fingerprint = getLocalFileFingerprint(file);
+      if (seenImageFingerprints.has(fingerprint)) {
+        showToast(`${file.name} is already in the gallery.`, "info");
+        return;
+      }
+      seenImageFingerprints.add(fingerprint);
+
       if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
         showToast(
           `${file.name} has an unsupported format. Use JPEG, PNG, WebP, or GIF.`,
@@ -1625,6 +1693,13 @@ export default function AddPropertyPage() {
 
       if (file.size > 10 * 1024 * 1024) {
         showToast(`${file.name} is too large. Maximum size is 10MB.`, "error");
+        return;
+      }
+
+      const imageHead = await readFileHeadSafely(file);
+      const imageProblem = imageHead ? getImageFileProblem(file, imageHead) : UNREADABLE_FILE_MESSAGE;
+      if (imageProblem) {
+        showToast(`${file.name}: ${imageProblem}`, "error");
         return;
       }
 
@@ -1649,13 +1724,26 @@ export default function AddPropertyPage() {
         }
       };
       reader.readAsDataURL(file);
-    });
+    })());
   };
 
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    const seenVideoFingerprints = new Set(
+      formData.videos
+        .filter((video): video is File => video instanceof File)
+        .map(getLocalFileFingerprint),
+    );
 
-    files.forEach((file) => {
+    files.forEach((file) => void (async () => {
+      const fingerprint = getLocalFileFingerprint(file);
+      if (seenVideoFingerprints.has(fingerprint)) {
+        showToast(`${file.name} is already added.`, "info");
+        return;
+      }
+      seenVideoFingerprints.add(fingerprint);
+
       if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
         showToast(
           `${file.name} has an unsupported format. Use MP4, WebM, or MOV.`,
@@ -1669,6 +1757,13 @@ export default function AddPropertyPage() {
         return;
       }
 
+      const videoHead = await readFileHeadSafely(file);
+      const videoProblem = videoHead ? getVideoFileProblem(file, videoHead) : UNREADABLE_FILE_MESSAGE;
+      if (videoProblem) {
+        showToast(`${file.name}: ${videoProblem}`, "error");
+        return;
+      }
+
       const previewURL = createManagerPropertyVideoPreview(file);
       ownedVideoPreviewURLsRef.current.add(previewURL);
       setVideoPreviews((prev) => [...prev, previewURL]);
@@ -1677,7 +1772,7 @@ export default function AddPropertyPage() {
         videos: [...prev.videos, file],
       }));
       setIsDirty(true);
-    });
+    })());
   };
 
   const removeImage = (index: number) => {
@@ -1802,13 +1897,20 @@ export default function AddPropertyPage() {
         : undefined;
     const auditReason =
       changeReason.trim() || getManagerPropertyDefaultAuditReason(mode);
+    const roomPayload = getManagerPropertyRoomPayload(formData.propertyType, {
+      bedrooms: formData.bedrooms,
+      bathrooms: formData.bathrooms,
+      balconies: formData.balconies,
+      parkingSpaces: formData.parkingSpaces,
+      floorNumber: formData.floorNumber,
+      totalFloors: formData.totalFloors,
+    });
 
     return {
       title: formData.title,
       propertyType: formData.propertyType,
       listingType: formData.listingType,
       description: formData.description,
-      shortDescription: formData.shortDescription,
 
       location: {
         addressLine1: formData.addressLine1,
@@ -1846,17 +1948,17 @@ export default function AddPropertyPage() {
         carpetArea,
         areaUnit: formData.areaUnit,
         floors: formData.floors,
-        floorNumber: formData.floorNumber,
-        totalFloors: formData.totalFloors,
+        floorNumber: roomPayload.floorNumber,
+        totalFloors: roomPayload.totalFloors,
       },
       rooms: {
-        bedrooms: formData.bedrooms,
-        bathrooms: formData.bathrooms,
-        balconies: formData.balconies,
-        parkingSpaces: formData.parkingSpaces,
+        bedrooms: roomPayload.bedrooms,
+        bathrooms: roomPayload.bathrooms,
+        balconies: roomPayload.balconies,
+        parkingSpaces: roomPayload.parkingSpaces,
       },
-      bedrooms: formData.bedrooms,
-      bathrooms: formData.bathrooms,
+      bedrooms: roomPayload.bedrooms,
+      bathrooms: roomPayload.bathrooms,
       area: formData.totalArea,
 
       yearBuilt: formData.yearBuilt,
@@ -2125,7 +2227,7 @@ export default function AddPropertyPage() {
         isEditSubmission || mode === "create"
           ? "Please fill in all required fields before submitting for admin approval."
           : mode === "edit"
-            ? "Please fill in all required fields before saving."
+            ? "Please correct the highlighted changes before saving."
             : "Please fill in all required fields before submitting for admin approval.";
       showToast(errorMessage, "error");
       return;
@@ -3004,8 +3106,10 @@ export default function AddPropertyPage() {
               </div>
             </div>
 
-            {/* Rooms */}
+            {/* Rooms: not shown for Land, which has no rooms or floors */}
             <div>
+              {showRoomFields && (
+              <>
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                 <Bed className="w-5 h-5 text-primary" />
                 Rooms & Spaces
@@ -3017,7 +3121,7 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("bedrooms")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <Bed className="w-4 h-4 inline mr-1" /> Bedrooms *
+                    <Bed className="w-4 h-4 inline mr-1" /> Bedrooms{renderRequiredMark("bedrooms")}
                   </label>
                   <input
                     {...fieldState("bedrooms")}
@@ -3038,7 +3142,7 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("bathrooms")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <Bath className="w-4 h-4 inline mr-1" /> Bathrooms *
+                    <Bath className="w-4 h-4 inline mr-1" /> Bathrooms{renderRequiredMark("bathrooms")}
                   </label>
                   <input
                     {...fieldState("bathrooms")}
@@ -3059,11 +3163,11 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("balconies")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Balconies <span className="text-red-500" aria-hidden="true">*</span>
+                    Balconies{renderRequiredMark("balconies")}
                   </label>
                   <input
                     {...fieldState("balconies")}
-                    required
+                    required={isRoomFieldRequired("balconies")}
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.balconies)}
@@ -3081,8 +3185,7 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("parkingSpaces")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <Car className="w-4 h-4 inline mr-1" /> Parking Spaces{" "}
-                    <span className="text-red-500" aria-hidden="true">*</span>
+                    <Car className="w-4 h-4 inline mr-1" /> Parking Spaces{renderRequiredMark("parkingSpaces")}
                   </label>
                   <input
                     {...fieldState("parkingSpaces")}
@@ -3099,9 +3202,13 @@ export default function AddPropertyPage() {
                   {renderFieldError("parkingSpaces")}
                 </div>
               </div>
+              </>
+              )}
 
               {/* Floor Info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+              <div className={showRoomFields ? "grid grid-cols-1 md:grid-cols-3 gap-6 mt-6" : "grid grid-cols-1 md:grid-cols-3 gap-6"}>
+                {showRoomFields && (
+                <>
                 <div>
                   <label
                     htmlFor={getManagerPropertyFieldId("floorNumber")}
@@ -3144,6 +3251,8 @@ export default function AddPropertyPage() {
                   />
                   {renderFieldError("totalFloors")}
                 </div>
+                </>
+                )}
 
                 <div>
                   <label
@@ -3238,26 +3347,6 @@ export default function AddPropertyPage() {
               </h2>
 
               <div className="space-y-4">
-                <div>
-                  <label
-                    htmlFor={getManagerPropertyFieldId("shortDescription")}
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                  >
-                    Short Description (for cards)
-                  </label>
-                  <input
-                    id={getManagerPropertyFieldId("shortDescription")}
-                    type="text"
-                    value={formData.shortDescription}
-                    onChange={(e) =>
-                      handleInputChange("shortDescription", e.target.value)
-                    }
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
-                    placeholder="A brief summary of the property (max 150 chars)"
-                    maxLength={150}
-                  />
-                </div>
-
                 <div>
                   <label
                     htmlFor={getManagerPropertyFieldId("description")}

@@ -5,6 +5,7 @@ import {
   filterContextProperties,
   mapServicePropertyLocation,
   mapContextPropertyLocation,
+  mapContextPropertyMedia,
   type Property,
   type PropertyFilters,
 } from './PropertyContext';
@@ -157,4 +158,22 @@ test('available manager filter keeps every backend live-status alias', () => {
   const filtered = filterContextProperties(properties, { status: ['available'] });
 
   assert.deepEqual(filtered.map((item) => item.id), ['available', 'published', 'online', 'active']);
+});
+
+test("media updates always send present image and video lists, including empty ones", () => {
+  assert.deepEqual(mapContextPropertyMedia({ images: [], videos: [] }), {
+    image_urls: [],
+    video_urls: [],
+  });
+  assert.deepEqual(
+    mapContextPropertyMedia({
+      images: ["https://media.example.test/a.jpg", new File(["x"], "pending.jpg")],
+      videos: ["https://media.example.test/v.mp4"],
+    }),
+    {
+      image_urls: ["https://media.example.test/a.jpg"],
+      video_urls: ["https://media.example.test/v.mp4"],
+    },
+  );
+  assert.deepEqual(mapContextPropertyMedia({ title: "Status-only edit" }), {});
 });

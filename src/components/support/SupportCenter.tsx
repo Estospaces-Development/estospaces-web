@@ -16,7 +16,6 @@ import { SupportTranscript } from '@/components/support/SupportTranscript';
 import {
     buildPrefilledSupportComposer,
     buildUserFastTrackCasePath,
-    finalizeCreatedSupportTicket,
     focusSupportTicketComposer,
     getAutoSelectedSupportTicketId,
     getLaunchSafeSupportCategoryLabel,
@@ -511,19 +510,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     module: composer.category,
                 },
             });
-            const attachmentWarning = await finalizeCreatedSupportTicket({
-                ticketId: created.id,
-                draftId: ticketDraftId,
-                finalizeDraftAttachments: supportService.finalizeDraftAttachments,
-            });
             resetTicketDraft();
             setComposer((current) => ({ ...current, subject: '', message: '' }));
             await fetchTickets(true);
             setSearchParams(new URLSearchParams({ ticket: created.id, conversation: created.conversation_id }), { replace: true });
             toast.success('Support ticket created');
-            if (attachmentWarning) {
-                toast.warning(attachmentWarning);
-            }
         } catch (error: any) {
             toast.error(error.message || 'Failed to create ticket');
         } finally {
@@ -539,9 +530,6 @@ export function SupportCenter({ role }: SupportCenterProps) {
         }
         try {
             setSubmitting(true);
-            if (replyDraftId) {
-                await supportService.finalizeDraftAttachments(replyDraftId, selectedTicket.id);
-            }
             await supportService.sendReply(selectedTicket.conversation_id, reply.trim(), replyAttachments);
             resetReplyDraft();
             await loadDetail(selectedTicket.id);
@@ -741,7 +729,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                     <div className="flex flex-wrap gap-2"><SupportStatusBadge status={selectedTicket.status} /><SupportPriorityBadge priority={selectedTicket.priority} /></div>
                                 </div>
                                 {isAdmin && <div className="mt-5 grid gap-4 md:grid-cols-3"><select value={selectedTicket.status} onChange={(event) => void patchTicket({ status: event.target.value as SupportTicketSummary['status'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket status"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select><select value={selectedTicket.priority} onChange={(event) => void patchTicket({ priority: event.target.value as SupportTicketSummary['priority'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select><select value={selectedTicket.assignee_id || ''} onChange={(event) => void patchTicket({ assignee_id: event.target.value })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket assignee"><option value="">Unassigned</option>{adminUsers.map((adminUser, adminUserIndex) => <option key={adminAssigneeUserKeyFor(adminUser.id || adminUser.email, adminUserIndex)} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}</select></div>}
-                                {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
+                                {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{(selectedTicket.status === 'open' || selectedTicket.status === 'in_progress') && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                                 <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <ActionSpinner size={20} className="text-orange-500" label="Loading transcript" />}</div>
