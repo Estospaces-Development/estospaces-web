@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFastTrackCaseById } from "@/services/fastTrackService";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertTriangle,
   ArrowRight,
@@ -714,8 +715,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   // The case-file payload carries only the Fast Track summary; per-document
   // review state (with record ids) comes from the Fast Track workspace itself.
   const queryClient = useQueryClient();
+  const { user: signedInUser } = useAuth();
   const fastTrackWorkspaceQuery = useQuery({
-    queryKey: ["case-file-fast-track-workspace", caseFile?.case_id],
+    // Scoped to the account as well as the case (prefix invalidation still matches).
+    queryKey: ["case-file-fast-track-workspace", caseFile?.case_id, signedInUser?.id || ""],
     queryFn: async () => {
       const result = await getFastTrackCaseById(String(caseFile?.case_id || ""), { suppressErrorToast: true });
       return result.data;
