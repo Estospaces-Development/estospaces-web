@@ -187,8 +187,15 @@ export const formatLeadStage = (value?: string) => {
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+// India aliases match booking and core; India never takes the England Right to Rent path.
+const INDIA_COMPLIANCE_ALIASES = new Set(['in', 'ind', 'india', 'bharat', 'republic of india']);
+
 export const normalizeComplianceJurisdiction = (value?: string | null) => {
-    switch (String(value || '').trim().toLowerCase()) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (INDIA_COMPLIANCE_ALIASES.has(normalized)) {
+        return 'india';
+    }
+    switch (normalized) {
         case 'scotland':
             return 'scotland';
         case 'wales':
