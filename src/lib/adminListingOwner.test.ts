@@ -26,10 +26,10 @@ test('title-only draft with no contact still shows its owning manager', () => {
     );
 });
 
-test('listing owner falls back to the contact name when no manager name is returned', () => {
+test('a listing contact never stands in for the owner, so card and detail agree', () => {
     assert.deepEqual(
         resolveAdminListingOwner({ managerName: '   ', contactName: 'Alex' }),
-        { label: 'Alex', initials: 'AL', isSet: true },
+        { label: 'Owner not set', initials: '--', isSet: false },
     );
 });
 

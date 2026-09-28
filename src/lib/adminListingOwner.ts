@@ -24,13 +24,12 @@ const toInitials = (name: string) => {
 
 /**
  * Resolves the admin "Listing Owner" label. The owning manager's account name
- * (core `manager_name`, admin reads only) wins; the optional listing contact
- * name is a fallback; otherwise the owner is plainly "not set" rather than
- * implying an unknown user.
+ * (core `manager_name`, admin reads only) is the owner. Optional listing
+ * contact fields never stand in for the owner, so card and detail agree;
+ * without a name the owner is plainly "not set".
  */
 export const resolveAdminListingOwner = (property: AdminListingOwnerSource | null | undefined): AdminListingOwner => {
-    const name = cleanName(property?.managerName ?? property?.manager_name)
-        || cleanName(property?.contactName ?? property?.agent_name);
+    const name = cleanName(property?.managerName ?? property?.manager_name);
 
     if (!name) {
         return { label: ADMIN_LISTING_OWNER_NOT_SET_LABEL, initials: '--', isSet: false };
