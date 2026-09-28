@@ -88,8 +88,16 @@ const redemptionCap = z.string().trim()
     .refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= PROMOTION_REDEMPTION_CAP_MAX),
         `The usage cap must be a whole number from 1 to ${PROMOTION_REDEMPTION_CAP_MAX.toLocaleString('en-GB')}, or empty for no cap.`);
 
-const promotionName = z.string().trim().min(1, 'Enter a name admins will recognise.').max(PROMOTION_NAME_MAX, `Keep the name to ${PROMOTION_NAME_MAX} characters.`);
-const promotionDescription = z.string().trim().max(PROMOTION_DESCRIPTION_MAX, `Keep the description to ${PROMOTION_DESCRIPTION_MAX} characters.`);
+// payment-service measures these limits in UTF-8 bytes (Go len), so "₹" counts as 3.
+export const utf8ByteLength = (value: string) => new TextEncoder().encode(value).length;
+
+// payment-service only accepts canonical lowercase UUIDs.
+export const normalizeManagerID = (value: string) => value.trim().toLowerCase();
+
+const promotionName = z.string().trim().min(1, 'Enter a name admins will recognise.')
+    .refine((value) => utf8ByteLength(value) <= PROMOTION_NAME_MAX, `Keep the name shorter (up to ${PROMOTION_NAME_MAX} bytes; symbols like ₹ count as more than one).`);
+const promotionDescription = z.string().trim()
+    .refine((value) => utf8ByteLength(value) <= PROMOTION_DESCRIPTION_MAX, `Keep the description shorter (up to ${PROMOTION_DESCRIPTION_MAX} bytes; symbols like ₹ count as more than one).`);
 
 const baseShape = {
     name: promotionName,
@@ -355,7 +363,7 @@ export type RevokeReasonCheck = { ok: true; reason: string } | { ok: false; mess
 export function checkRevokeReason(value: string): RevokeReasonCheck {
     const reason = value.trim();
     if (!reason) return { ok: false, message: 'Give a short reason for revoking this trial.' };
-    if (reason.length > TRIAL_REVOKE_REASON_MAX) return { ok: false, message: `Keep the reason to ${TRIAL_REVOKE_REASON_MAX} characters.` };
+    if (utf8ByteLength(reason) > TRIAL_REVOKE_REASON_MAX) return { ok: false, message: `Keep the reason shorter (up to ${TRIAL_REVOKE_REASON_MAX} bytes).` };
     return { ok: true, reason };
 }
 

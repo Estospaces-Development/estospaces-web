@@ -25,6 +25,7 @@ import {
     getAdminTrialGrantState,
     getPromotionActions,
     getPromotionErrorMessage,
+    normalizeManagerID,
     promotionEditValues,
     shouldReuseIdempotencyKey,
     type PromotionEditResult,
@@ -170,7 +171,7 @@ export default function AdminPromotionsSection() {
         run(`${action}:${promotion.id}:${promotion.version}`, (key) => changeAdminPromotionStatus(promotion.id, action, key), actionSuccess[action]);
 
     const lookUp = (managerID: string) => {
-        const value = managerID.trim();
+        const value = normalizeManagerID(managerID);
         setLookupInput(value);
         setLookupManagerID(value);
         setRevokeTarget(null);
@@ -191,7 +192,7 @@ export default function AdminPromotionsSection() {
     };
 
     const backfill = async () => {
-        const managerID = backfillManagerID.trim();
+        const managerID = normalizeManagerID(backfillManagerID);
         if (!managerID) {
             toast.error('Enter the manager ID to grant the launch trial to.');
             return;

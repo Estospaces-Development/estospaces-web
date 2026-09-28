@@ -274,3 +274,12 @@ test('idempotency keys are reused for retries and replaced after a definite answ
     // The default key satisfies payment validCheckoutKey (16–128 of [A-Za-z0-9_-]).
     assert.match(createIdempotencyKeys().keyFor('x'), /^[A-Za-z0-9_-]{16,128}$/);
 });
+
+test('limits are counted in UTF-8 bytes and manager IDs are normalised like payment-service', async () => {
+    const { utf8ByteLength, normalizeManagerID, checkRevokeReason } = await import('./adminPromotions');
+    assert.equal(utf8ByteLength('₹'), 3);
+    assert.equal(utf8ByteLength('abc'), 3);
+    assert.equal(checkRevokeReason('₹'.repeat(200)).ok, false); // 600 bytes > 500
+    assert.equal(checkRevokeReason('a'.repeat(500)).ok, true);
+    assert.equal(normalizeManagerID('  0F8FAD5B-D9CB-469F-A165-70867728950E '), '0f8fad5b-d9cb-469f-a165-70867728950e');
+});
