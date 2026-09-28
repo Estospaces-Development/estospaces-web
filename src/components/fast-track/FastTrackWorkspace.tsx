@@ -2720,7 +2720,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const activeSelectedFile = selectedFiles[activeDocument.id] || null;
         const canPreview = Boolean(activeSelectedFile || activeDocument.documentRecordId || activeDocument.fileUrl);
-        const helperNote = activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '';
+        // A replacement request only shows the reviewer's reason, never the uploader's note.
+        const helperNote = activeDocument.status === 'reupload_needed'
+            ? (activeDocument.reviewNote || '')
+            : (activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '');
         const coreFileKeyFor = createDuplicateSafeKeyResolver('fast-track-core-file');
 
         return (
@@ -3030,7 +3033,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
                         });
                         const focused = focusedDocumentItem?.id === item.id;
-                        const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
+                        const supportingNote = item.status === 'reupload_needed'
+                            ? (item.reviewNote || '')
+                            : (item.reviewNote || item.uploadNote || item.note || '');
                         const canRequestDocument = role !== 'user'
                             && selectedCase.workspaceFinalStatus === 'active'
                             && selectedCase.stage === 'documents'

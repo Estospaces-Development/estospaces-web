@@ -77,6 +77,12 @@ import {
   type WorkspaceSection,
 } from "@/lib/liveCaseWorkspace";
 import { getCaseFileSupportCopy } from "@/lib/userJourneyCopy";
+import {
+  countFastTrackReplacementRequests,
+  getCaseFileDocumentReviewState,
+  getFastTrackApprovedDocumentRecordIds,
+  isFastTrackCaseClosed,
+} from "@/lib/caseFileDocumentReview";
 import PaginationBar from "@/components/ui/PaginationBar";
 import Modal from "@/components/ui/Modal";
 
@@ -703,6 +709,12 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     () => normalizeNestedFastTrackCase(caseFile?.fast_track_case || null),
     [caseFile?.fast_track_case],
   );
+  const fastTrackApprovedDocumentIds = useMemo(
+    () => getFastTrackApprovedDocumentRecordIds(liveFastTrackCase),
+    [liveFastTrackCase],
+  );
+  const fastTrackCaseClosed = isFastTrackCaseClosed(liveFastTrackCase);
+  const fastTrackReplacementCount = countFastTrackReplacementRequests(liveFastTrackCase);
   const linkedJourney = useMemo(
     () =>
       liveFastTrackCase
@@ -937,10 +949,19 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const summary = useMemo(
     () =>
       summarizeCaseFileDocuments(
-        caseFile?.documents || [],
+        (caseFile?.documents || []).map((document) =>
+          getCaseFileDocumentReviewState({
+            linkStatus: document.status,
+            documentId: document.document_id,
+            fastTrackApprovedIds: fastTrackApprovedDocumentIds,
+            caseClosed: fastTrackCaseClosed,
+          }).approvedInFastTrack
+            ? { ...document, status: "approved" }
+            : document,
+        ),
         caseFile?.requests || [],
       ),
-    [caseFile],
+    [caseFile, fastTrackApprovedDocumentIds, fastTrackCaseClosed],
   );
   const documentLimit = caseFile?.document_limit || 30;
   const documentCount = caseFile?.document_count ?? caseFile?.documents.length ?? 0;
@@ -1774,7 +1795,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 {role === "user" ? "Open document requests" : "Open requests"}
               </p>
               <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                {summary.openRequestCount}
+                {summary.openRequestCount + fastTrackReplacementCount}
               </p>
             </div>
             <div className={stackedHeroMetricCardClass}>
@@ -1851,7 +1872,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 {role === "user" ? "Open document requests" : "Open requests"}
               </p>
               <p className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">
-                {summary.openRequestCount}
+                {summary.openRequestCount + fastTrackReplacementCount}
               </p>
               <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
                 {summary.pendingReviewCount} document
@@ -2876,6 +2897,12 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             <div className="mt-4 space-y-4">
               {caseFile.documents.length > 0 ? (
                 caseFile.documents.map((document) => {
+                  const reviewState = getCaseFileDocumentReviewState({
+                    linkStatus: document.status,
+                    documentId: document.document_id,
+                    fastTrackApprovedIds: fastTrackApprovedDocumentIds,
+                    caseClosed: fastTrackCaseClosed,
+                  });
                   return (
                     <div
                       key={document.id}
@@ -2888,10 +2915,15 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                               {document.document.file_name}
                             </p>
                             <span
-                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(document.status)}`}
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(reviewState.effectiveStatus)}`}
                             >
-                              {formatLabel(document.status)}
+                              {formatLabel(reviewState.effectiveStatus)}
                             </span>
+                            {reviewState.approvedInFastTrack ? (
+                              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                Approved in Fast Track
+                              </span>
+                            ) : null}
                           </div>
                           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                             {formatLabel(document.document.document_category)} -{" "}
@@ -2945,8 +2977,14 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                         </div>
                       </div>
 
-                      {role === "manager" ? (
+                      {role === "manager" && !reviewState.canChangeReview ? (
+                        <p className="mt-4 text-xs font-medium text-gray-500 dark:text-gray-400">
+                          This Fast Track case is closed, so its documents are read-only.
+                        </p>
+                      ) : null}
+                      {role === "manager" && reviewState.canChangeReview ? (
                         <div className="mt-4 flex flex-wrap gap-2">
+                          {reviewState.canApprove ? (
                           <button
                             type="button"
                             onClick={() => openReviewDialog(document, "approved")}
@@ -2960,6 +2998,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                             )}
                             Approve
                           </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => openReviewDialog(document, "reupload_required")}
