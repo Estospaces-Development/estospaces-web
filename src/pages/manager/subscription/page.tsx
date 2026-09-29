@@ -10,7 +10,7 @@ import {
 import ManagerBillingHistory from '@/components/manager/ManagerBillingHistory';
 import ManagerTrialBanner from '@/components/manager/ManagerTrialBanner';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTrialCheckoutNote, managerSubscriptionSummaryQueryKey } from '@/lib/managerLaunchTrial';
+import { canRedeemTrialCode, getTrialCheckoutNote, getTrialCodeRedeemedMessage, managerSubscriptionSummaryQueryKey } from '@/lib/managerLaunchTrial';
 import { describeStoredTermsPlanName, getManagerPlanDisplayName } from '@/lib/managerPlanNames';
 import { CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -41,6 +41,7 @@ import ManagerBillingCountryNotice from './ManagerBillingCountryNotice';
 import ManagerDiscountCodeField from './ManagerDiscountCodeField';
 import ManagerRecurringConsent from './ManagerRecurringConsent';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
+import ManagerTrialCodeField, { type TrialCodeFieldResult } from './ManagerTrialCodeField';
 import { orderManagerPlans } from './managerPlanOrder';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, needsBillingCountryReview, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
@@ -56,6 +57,7 @@ import {
     previewManagerSubscriptionDiscount,
     reconcileManagerSubscriptionCheckout,
     recoverManagerSubscriptionCheckout,
+    redeemManagerTrialCode,
     startManagerSubscriptionCheckout,
     verifyManagerSubscriptionCheckout,
     type ManagerPlanOffer,
@@ -111,6 +113,9 @@ export default function ManagerSubscriptionPage() {
     const [pendingPaymentSince, setPendingPaymentSince] = useState<number | null>(null);
     const actionLock = useRef(false);
     const loadVersion = useRef(0);
+    const [trialCodeSubmitting, setTrialCodeSubmitting] = useState(false);
+    const [trialCodeResult, setTrialCodeResult] = useState<TrialCodeFieldResult | null>(null);
+    const trialCodeLock = useRef(false);
 
     const load = useCallback(async () => {
         const version = ++loadVersion.current;
@@ -258,6 +263,31 @@ export default function ManagerSubscriptionPage() {
         void queryClient.invalidateQueries({ queryKey: managerSubscriptionSummaryQueryKey(userId) });
         void queryClient.invalidateQueries({ queryKey: ['manager-subscription-paid-periods', userId] });
     }, [queryClient, userId]);
+
+    // A trial code starts a free trial now and never opens payment. On success
+    // (or an unconfirmed answer) the summary is read again from the server so
+    // the trial banner and access card show what Payment recorded.
+    const redeemTrialCode = async (code: string) => {
+        if (trialCodeLock.current) return;
+        trialCodeLock.current = true;
+        setTrialCodeSubmitting(true);
+        setTrialCodeResult(null);
+        try {
+            const result = await redeemManagerTrialCode(code);
+            if (result.error === null) {
+                setTrialCodeResult({ kind: 'success', message: getTrialCodeRedeemedMessage(result.data.grant) });
+            } else {
+                setTrialCodeResult({ kind: 'error', message: result.error.message });
+            }
+            if (result.error === null || result.error.kind === 'unconfirmed') {
+                invalidateAccountQueries();
+                await load();
+            }
+        } finally {
+            trialCodeLock.current = false;
+            setTrialCodeSubmitting(false);
+        }
+    };
 
     const reportVerification = (account: ManagerSubscriptionSummary) => {
         setSummary(account);
@@ -449,7 +479,7 @@ export default function ManagerSubscriptionPage() {
         });
     });
 
-    const busy = busyPlan !== null || loading;
+    const busy = busyPlan !== null || loading || trialCodeSubmitting;
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
     const access = getSubscriptionAccessPresentation(summary?.entitlement, summary?.trial);
     const trialCheckoutNote = getTrialCheckoutNote(summary?.trial, new Date());
@@ -476,6 +506,12 @@ export default function ManagerSubscriptionPage() {
                         <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><dt className="text-xs font-semibold text-gray-500 dark:text-gray-300">Support</dt><dd className="mt-1 text-lg font-black capitalize text-gray-900 dark:text-white">{access.support}</dd></div>
                     </dl>
                 </section> : null}
+                {trialCodeResult?.kind === 'success' || canRedeemTrialCode(summary) ? <ManagerTrialCodeField
+                    submitting={trialCodeSubmitting}
+                    disabled={busy}
+                    result={trialCodeResult}
+                    onRedeem={(code) => void redeemTrialCode(code)}
+                /> : null}
                 {!loading && billingProfile.kind === 'loaded' ? <p role="status" className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">Billing country for paid plans: <strong>{billingProfile.profile.market === 'IN' ? 'India' : 'United Kingdom'}</strong> ({billingProfile.profile.verification_status.replaceAll('_', ' ')}). This is separate from manager identity verification.</p> : null}
                 {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${new Date(summary.paid_period.billing_end).toLocaleString()}.` : ''}</div> : null}
                 {activeCheckout ? <section aria-label="Current subscription" className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">

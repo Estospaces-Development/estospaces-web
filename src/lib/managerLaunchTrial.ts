@@ -2,7 +2,9 @@ import { getManagerPlanDisplayName } from './managerPlanNames';
 import type {
     ManagerSubscriptionEntitlement,
     ManagerSubscriptionResourceLimit,
+    ManagerSubscriptionSummary,
     ManagerSubscriptionTrial,
+    ManagerTrialGrantSummary,
 } from '../services/managerSubscriptionService';
 
 // ── Signup launch offer (core POST /api/v1/auth/register → launch_offer) ────
@@ -192,4 +194,54 @@ export function getTrialCheckoutNote(
     if (!endsAt || trialDaysRemaining(endsAt, now) === 0) return null;
     const planName = trial.plan_code ? getManagerPlanDisplayName(trial.plan_code) : (trial.plan_name || DEFAULT_TRIAL_PLAN_NAME);
     return `Your ${planName} trial runs until ${formatDate(endsAt)}. If you subscribe now, billing starts today and the remaining trial days end.`;
+}
+
+// ── Trial code redemption ──────────────────────────────────────────────────
+
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['cancelled', 'completed', 'expired']);
+
+/**
+ * Mirrors payment's liveCheckoutAttempt: a trial is refused while a checkout
+ * is being created or reconciled, while a ready authorization is unexpired,
+ * or while a verified mandate's subscription has not ended.
+ */
+function checkoutBlocksTrial(summary: ManagerSubscriptionSummary, now: Date): boolean {
+    const checkout = summary.checkout;
+    if (!checkout) return false;
+    switch (checkout.status) {
+        case 'creating':
+        case 'reconciliation_required':
+            return true;
+        case 'ready': {
+            // An unknown expiry is treated as live rather than guessed.
+            const expiresAt = parseDate(checkout.authorization_expires_at);
+            return !expiresAt || expiresAt.getTime() > now.getTime();
+        }
+        case 'verified':
+            return !summary.subscription || !TERMINAL_SUBSCRIPTION_STATUSES.has(summary.subscription.status);
+        default:
+            return false;
+    }
+}
+
+/**
+ * The trial-code field is offered only to a manager on Free access with no
+ * live checkout. Payment allows one trial per manager ever, so any recorded
+ * trial (active, ended, superseded or revoked) hides it, as does paid, trial
+ * or pilot access. An unknown entitlement also hides it.
+ */
+export function canRedeemTrialCode(summary: ManagerSubscriptionSummary | null | undefined, now: Date = new Date()): boolean {
+    if (!summary || summary.trial || summary.new_paid_actions_available) return false;
+    if (checkoutBlocksTrial(summary, now)) return false;
+    return summary.entitlement?.source === 'free';
+}
+
+/** "Growth plan active until 29 November 2026. No card needed." */
+export function getTrialCodeRedeemedMessage(
+    grant: Pick<ManagerTrialGrantSummary, 'plan_code' | 'plan_name' | 'ends_at'>,
+    formatDate: TrialDateFormatter = formatTrialDate,
+): string {
+    const planName = grant.plan_code ? getManagerPlanDisplayName(grant.plan_code) : (grant.plan_name || DEFAULT_TRIAL_PLAN_NAME);
+    const endsAt = parseDate(grant.ends_at);
+    return endsAt ? `${planName} plan active until ${formatDate(endsAt)}. No card needed.` : `${planName} plan active. No card needed.`;
 }
