@@ -1,3 +1,5 @@
+require('./admin-research-availability.cjs').skipUnlessAdminResearchEnabled('admin-research-disposable-proof');
+
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');

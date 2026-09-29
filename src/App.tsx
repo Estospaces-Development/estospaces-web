@@ -98,6 +98,7 @@ const AdminNotifications = lazyPage(() => import('./pages/admin/notifications/pa
 const AdminProperties = lazyPage(() => import('./pages/admin/properties/page'));
 const AdminPropertyDetail = lazyPage(() => import('./pages/admin/properties/[id]/page'));
 const AdminResearch = lazyPage(() => import('./pages/admin/research/page'));
+const AdminResearchUnavailable = lazyPage(() => import('./pages/admin/research/unavailable'));
 const AdminSettings = lazyPage(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazyPage(() => import('./pages/admin/users/page'));
 const AdminVerifications = lazyPage(() => import('./pages/admin/verifications/page'));
@@ -161,7 +162,7 @@ import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
 import { useAuth } from './contexts/AuthContext';
 import ManagerVerificationGate from './components/routing/ManagerVerificationGate';
-import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
+import { ADMIN_RESEARCH_ENABLED, VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
 
 function RouteScrollReset() {
   const location = useLocation();
@@ -260,7 +261,7 @@ const App: React.FC = () => {
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="properties" element={<AdminProperties />} />
             <Route path="properties/:id" element={<AdminPropertyDetail />} />
-            <Route path="research" element={<AdminResearch />} />
+            <Route path="research" element={ADMIN_RESEARCH_ENABLED ? <AdminResearch /> : <AdminResearchUnavailable />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="user-management" element={<AdminUsers />} />

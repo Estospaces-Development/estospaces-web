@@ -37,6 +37,7 @@ import {
 import { getNotificationIconColorClass, getNotificationTone } from '@/lib/notificationVisuals';
 import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
+import { ADMIN_RESEARCH_ENABLED } from '@/lib/launchFlags';
 
 const snapshotIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?: number }>> = {
     activity: Activity,
@@ -498,23 +499,25 @@ export default function AdminDashboard() {
                                 </div>
                             </button>
 
-                            <button
-                                onClick={() => navigate('/admin/research')}
-                                className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/30 transition-all text-left flex items-center justify-between"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
-                                        <ClipboardList size={24} />
+                            {ADMIN_RESEARCH_ENABLED && (
+                                <button
+                                    onClick={() => navigate('/admin/research')}
+                                    className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/30 transition-all text-left flex items-center justify-between"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
+                                            <ClipboardList size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Observational Research</h3>
+                                            <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">Shadow journeys and review friction</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Observational Research</h3>
-                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">Shadow journeys and review friction</p>
+                                    <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
+                                        <ArrowRight size={16} />
                                     </div>
-                                </div>
-                                <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
-                                    <ArrowRight size={16} />
-                                </div>
-                            </button>
+                                </button>
+                            )}
                         </div>
                     </div>
 
