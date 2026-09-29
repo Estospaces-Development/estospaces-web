@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { getManagerWorkspaceAction } from '@/lib/brokerDispatchPresentation';
 import { getManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
@@ -10,6 +12,7 @@ import {
     getRequestContextCaseHeading,
     isReusableFastTrackCase,
     leadMatchesRequestContext,
+    resolveFastTrackStartNotice,
 } from '@/lib/manualFastTrackStart';
 
 const activeCase = (overrides: Record<string, unknown> = {}) => ({
@@ -117,4 +120,44 @@ test('shortcut banner wording follows how the case matched (verifier F8)', () =>
     const pairHeading = getRequestContextCaseHeading('client_property');
     assert.doesNotMatch(pairHeading, /This request/);
     assert.match(pairHeading, /client already has an active 24-hour case for this property/);
+});
+
+const FAST_TRACK_LIMIT_MESSAGE = 'the manager has reached the active Fast Track limit for their subscription';
+
+test('a Fast Track plan-limit refusal becomes an in-modal upgrade notice (web-app#655)', async () => {
+    const notice = await resolveFastTrackStartNotice(FAST_TRACK_LIMIT_MESSAGE, async () => ({
+        active_case_limit: { kind: 'finite', value: 2 },
+    } as never));
+    assert.equal(notice.title, 'Plan limit reached');
+    assert.match(notice.message, /limit of 2 active Fast Track cases/);
+    assert.deepEqual(notice.action, { label: 'Upgrade your plan', href: '/manager/subscription' });
+});
+
+test('other start failures keep a readable in-modal message', async () => {
+    assert.deepEqual(await resolveFastTrackStartNotice(new Error('Too Many Requests')), {
+        message: 'The fast-track queue is still refreshing. Please wait a moment and try again.',
+    });
+    assert.deepEqual(await resolveFastTrackStartNotice('Lead is closed'), { message: 'Lead is closed' });
+    assert.deepEqual(await resolveFastTrackStartNotice(null), { message: 'Unable to create the 24-hour fast-track case.' });
+});
+
+test('start errors render inside the Add 24h Fast Track modal, not as a global toast (web-app#655)', () => {
+    const modal = readFileSync(resolve(process.cwd(), 'src/components/manager/FastTrack/ManualFastTrackModal.tsx'), 'utf8');
+    // The only error toast is for a failure after the modal has already closed.
+    assert.equal(modal.match(/toast\.error\(/g)?.length, 1);
+    assert.match(modal, /if \(modalClosed\) \{\s*\/\/[^\n]*\n\s*toast\.error\(notice\.message\);\s*\} else \{\s*setStartNotice\(\{ leadId: lead\.id, notice \}\);/);
+    assert.match(modal, /setStartNotice\(\{ leadId: lead\.id, notice: await resolveFastTrackStartNotice\(result\.error, loadManagerPlanEntitlement\) \}\)/);
+    assert.match(modal, /const leadNotice = startNotice\?\.leadId === lead\.id \? startNotice\.notice : null/);
+    assert.match(modal, /role="alert"/);
+    // Cleared whenever the modal opens or closes, so it can never surface on the dashboard later.
+    assert.match(modal, /useEffect\(\(\) => \{\s*\/\/[^\n]*\n\s*setStartNotice\(null\);\s*if \(!open\)/);
+});
+
+test('toasts stack above modal dialogs so a toast raised from a dialog is visible in it', () => {
+    const toastSource = readFileSync(resolve(process.cwd(), 'src/contexts/ToastContext.tsx'), 'utf8');
+    const modalSource = readFileSync(resolve(process.cwd(), 'src/components/ui/Modal.tsx'), 'utf8');
+    const toastZ = Number(/top-\[calc\(env\(safe-area-inset-top\)\+1rem\)\] z-\[(\d+)\]/.exec(toastSource)?.[1]);
+    const modalZ = Number(/fixed inset-0 z-\[(\d+)\]/.exec(modalSource)?.[1]);
+    assert.ok(Number.isFinite(toastZ) && Number.isFinite(modalZ));
+    assert.ok(toastZ > modalZ, `toast z ${toastZ} must be above modal z ${modalZ}`);
 });

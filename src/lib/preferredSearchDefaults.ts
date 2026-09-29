@@ -1,5 +1,5 @@
 import { inferSearchMarketFromText, normalizeSearchMarketParam } from '@/lib/propertySearchControls';
-import type { SupportedLaunchCountryCode } from '@/lib/launchLocale';
+import { getLaunchCountryFromLocationCode, type SupportedLaunchCountryCode } from '@/lib/launchLocale';
 
 export interface PreferredSearchDefaults {
   market: SupportedLaunchCountryCode | null;
@@ -20,4 +20,28 @@ export function resolvePreferredSearchDefaults(preferredCity: string | null | un
   }
 
   return { market: null, location: '' };
+}
+
+/**
+ * Country a location form should validate and price against. A recognised
+ * city or country typed by the user wins over the account market, so London
+ * asks for a UK postcode in GBP even on an India account. A PIN code or
+ * postcode is used next, then the account market.
+ */
+export function resolveLocationFormMarket({
+  location,
+  locationCode,
+  fallback,
+}: {
+  location?: string | null;
+  locationCode?: string | null;
+  fallback: SupportedLaunchCountryCode;
+}): SupportedLaunchCountryCode {
+  return resolvePreferredSearchDefaults(location).market
+    || getLaunchCountryFromLocationCode(locationCode)
+    || fallback;
+}
+
+export function getMarketCurrencyCode(market: SupportedLaunchCountryCode): 'GBP' | 'INR' {
+  return market === 'GB' ? 'GBP' : 'INR';
 }

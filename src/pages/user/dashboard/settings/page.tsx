@@ -26,6 +26,7 @@ import Toggle from '@/components/ui/Toggle';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { LAUNCH_DEFAULT_CITY } from '@/lib/launchLocale';
 import { type PreferencesValidationErrors, validateUserPreferences, validateCityInput, hasNoSearchPreferences } from '@/lib/preferencesValidation';
+import { getMarketCurrencyCode, resolveLocationFormMarket } from '@/lib/preferredSearchDefaults';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const defaultPreferences: UserPreferences = {
@@ -49,9 +50,7 @@ export default function SettingsPage() {
     const toast = useToast();
     const authContext = useOptionalAuth();
     const geoMarket = useUserGeoMarket(authContext?.user);
-    const budgetCurrencyCode = geoMarket === 'GB' ? 'GBP' : 'INR';
     const preferredCityPlaceholder = geoMarket === 'GB' ? 'London' : LAUNCH_DEFAULT_CITY;
-    const BudgetCurrencyIcon = geoMarket === 'GB' ? PoundSterling : IndianRupee;
 
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -69,6 +68,9 @@ export default function SettingsPage() {
     const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
     const [preferenceErrors, setPreferenceErrors] = useState<PreferencesValidationErrors>({});
     const [originalPreferences, setOriginalPreferences] = useState<UserPreferences>(defaultPreferences);
+    const budgetMarket = resolveLocationFormMarket({ location: preferences.preferred_city, fallback: geoMarket });
+    const budgetCurrencyCode = getMarketCurrencyCode(budgetMarket);
+    const BudgetCurrencyIcon = budgetMarket === 'GB' ? PoundSterling : IndianRupee;
 
     useEffect(() => {
         const fetchSettings = async () => {
