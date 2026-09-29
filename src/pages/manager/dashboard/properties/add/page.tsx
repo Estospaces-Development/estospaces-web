@@ -116,6 +116,11 @@ import {
 } from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
+import { shouldResetPropertyPinForAddressChange } from "@/lib/managerPropertyPinReset";
+import {
+  getManagerPropertyActionLabels,
+  type ManagerPropertyPendingAction,
+} from "@/lib/managerPropertyActionLabels";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
 import { VIRTUAL_TOUR_ENABLED } from "@/lib/launchFlags";
 import { getCurrencySymbol } from "@/lib/utils/currency";
@@ -650,6 +655,8 @@ export default function AddPropertyPage() {
   const [mediaListLoading, setMediaListLoading] = useState(false);
   const [_mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] =
+    useState<ManagerPropertyPendingAction>(null);
   const propertySaveInFlightRef = useRef(false);
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const [locationStatusMessage, setLocationStatusMessage] = useState("");
@@ -2144,6 +2151,7 @@ export default function AddPropertyPage() {
 
     propertySaveInFlightRef.current = true;
     setSaving(true);
+    setPendingAction("draft");
     let redirectPending = false;
     try {
       const propertyData = await buildPropertyData();
@@ -2197,6 +2205,7 @@ export default function AddPropertyPage() {
       if (!redirectPending) {
         propertySaveInFlightRef.current = false;
         setSaving(false);
+        setPendingAction(null);
       }
     }
   };
@@ -2244,6 +2253,7 @@ export default function AddPropertyPage() {
 
     propertySaveInFlightRef.current = true;
     setSaving(true);
+    setPendingAction("submit");
     let redirectPending = false;
     try {
       const propertyData = await buildPropertyData();
@@ -2318,6 +2328,7 @@ export default function AddPropertyPage() {
       if (!redirectPending) {
         propertySaveInFlightRef.current = false;
         setSaving(false);
+        setPendingAction(null);
       }
     }
   };
@@ -2362,20 +2373,12 @@ export default function AddPropertyPage() {
     saving ||
     (isSubmissionAction &&
       (managerVerificationLoading || Boolean(submissionBlocker)));
-  const primaryButtonLabel =
-    mode === "edit"
-      ? isEditSubmission
-        ? saving
-          ? "Submitting..."
-          : formData.status === "rejected"
-            ? "Resubmit for Approval"
-            : "Submit for Approval"
-        : saving
-          ? "Saving..."
-          : "Save Property"
-      : saving
-        ? "Submitting..."
-        : "Submit for Approval";
+  const { draftLabel: draftButtonLabel, primaryLabel: primaryButtonLabel } =
+    getManagerPropertyActionLabels({
+      mode: mode === "edit" ? "edit" : "create",
+      status: formData.status,
+      pendingAction,
+    });
 
   const primaryButtonIcon =
     mode === "edit" ? <Save className="w-4 h-4" /> : null;
@@ -2545,7 +2548,7 @@ export default function AddPropertyPage() {
               disabled={saving}
               className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save Draft"}
+              {draftButtonLabel}
             </button>
             <button
               type="button"
@@ -2963,6 +2966,11 @@ export default function AddPropertyPage() {
                   addressData.postalCode !== formData.postalCode ||
                   addressData.neighborhood !== formData.neighborhood ||
                   addressData.landmark !== formData.landmark;
+                const resetPin =
+                  shouldResetPropertyPinForAddressChange(
+                    formData,
+                    addressData,
+                  );
 
                 const nextData = {
                   ...formData,
@@ -2980,14 +2988,17 @@ export default function AddPropertyPage() {
                   postalCode: addressData.postalCode,
                   neighborhood: addressData.neighborhood,
                   landmark: addressData.landmark,
-                  latitude: addressChanged ? "" : formData.latitude,
-                  longitude: addressChanged ? "" : formData.longitude,
+                  latitude: resetPin ? "" : formData.latitude,
+                  longitude: resetPin ? "" : formData.longitude,
                 };
                 setFormData(nextData);
                 if (addressChanged) {
+                  // Cancels any lookup started for the previous address.
                   locationRevisionRef.current += 1;
+                }
+                if (resetPin && (formData.latitude || formData.longitude)) {
                   setLocationStatusMessage(
-                    "Address changed. Find it again to place the correct map pin.",
+                    "PIN code, postcode or country changed. Find it again to place the correct map pin.",
                   );
                 }
                 // Only mark as dirty after initial load is complete

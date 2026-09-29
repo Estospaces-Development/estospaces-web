@@ -82,3 +82,22 @@ test("mapPropertyMutationFieldErrors translates api fields to form fields", () =
     },
   );
 });
+
+test("publish errors outside the form name every reason instead of highlighted fields", async () => {
+  const { describePropertyMutationError } = await import("@/lib/propertyValidationErrors");
+  assert.equal(
+    describePropertyMutationError(
+      {
+        message: "Please review the highlighted fields.",
+        fieldErrors: {
+          city: "City does not match the entered postcode or PIN code",
+          image_urls: "Add at least one photo.",
+        },
+      },
+      "Unknown error",
+    ),
+    "City does not match the entered postcode or PIN code. Add at least one photo.",
+  );
+  assert.equal(describePropertyMutationError({ message: "Network down" }, "Unknown error"), "Network down");
+  assert.equal(describePropertyMutationError(null, "Unknown error"), "Unknown error");
+});

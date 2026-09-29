@@ -10,3 +10,8 @@ test('manager property table gives mobile users a clear horizontal scroll afford
     assert.match(source, /aria-label="Scrollable property listings table"/);
     assert.match(source, /tabIndex=\{0\}/);
 });
+
+test('property search refetches never replace the page (and the search input) with the full loader', () => {
+    assert.match(source, /shouldShowManagerPropertyInitialLoader\(\s*loading,\s*properties\.length,\s*pagination\.total,\s*inventorySettled,\s*\)/);
+    assert.match(source, /setInventorySettled\(true\)/);
+});

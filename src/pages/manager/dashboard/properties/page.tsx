@@ -165,6 +165,22 @@ function PropertiesContent() {
     const [pendingDeleteProperty, setPendingDeleteProperty] = useState<Property | null>(null);
     const priceRanges = useMemo(() => buildPriceRanges(geoMarket), [geoMarket]);
 
+    // Once the first inventory request settles, later refetches (search,
+    // filters) must not swap the page for a loader: that unmounts the search
+    // input on every keystroke when a search has no matches (web-app#647).
+    const [inventorySettled, setInventorySettled] = useState(false);
+    const sawInventoryLoadRef = useRef(false);
+    useEffect(() => {
+        if (inventorySettled) return;
+        if (properties.length > 0 || pagination.total > 0) {
+            setInventorySettled(true);
+        } else if (loading) {
+            sawInventoryLoadRef.current = true;
+        } else if (sawInventoryLoadRef.current) {
+            setInventorySettled(true);
+        }
+    }, [inventorySettled, loading, pagination.total, properties.length]);
+
     // Stats
     const stats = useMemo(() => getPropertyStats(), [getPropertyStats]);
 
@@ -382,6 +398,7 @@ function PropertiesContent() {
         loading,
         properties.length,
         pagination.total,
+        inventorySettled,
     );
 
     if (!isMounted || isInitialInventoryLoading) {

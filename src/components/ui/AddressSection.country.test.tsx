@@ -60,6 +60,8 @@ async function mountAddress(initial: AddressFormData) {
     };
     return {
         value: () => latest,
+        document: window.document,
+        click: async (element: { click: () => void }) => { await act(async () => element.click()); },
         country: () => window.document.querySelector('select')!.value,
         city: cityInput,
         cityInput,
@@ -171,5 +173,43 @@ test('postcode inference still corrects a mismatched loaded country', async () =
     try {
         assert.equal(form.country(), '1');
         assert.equal(form.value().postalCode, 'SW1A1AA');
+    } finally { await form.restore(); }
+});
+
+const bengaluru: AddressFormData = {
+    ...india, stateId: '202', stateName: 'Karnataka', stateCode: 'KA',
+    cityId: '2010', cityName: 'Bengaluru', postalCode: '560001',
+};
+
+test('the city arrow opens every suggestion for the state even when a city is entered', async () => {
+    const form = await mountAddress(bengaluru);
+    try {
+        assert.equal(form.cityInput().getAttribute('list'), null, 'no native datalist arrow that cannot open');
+        const toggle = form.document.querySelector('button[aria-label="Show city suggestions"]');
+        assert.ok(toggle, 'city field offers a working suggestions button');
+        await form.click(toggle as unknown as HTMLButtonElement);
+        const options = [...form.document.querySelectorAll('[role="option"]')].map(option => option.textContent);
+        assert.deepEqual(options, ['Bengaluru', 'Mysuru', 'Mangaluru']);
+        assert.equal(form.cityInput().getAttribute('aria-expanded'), 'true');
+        await form.click(form.document.querySelectorAll('[role="option"]')[1] as unknown as HTMLElement);
+        assert.equal(form.value().cityName, 'Mysuru');
+        assert.equal(form.value().cityId, '2011');
+        assert.equal(form.document.querySelector('[role="listbox"]'), null, 'list closes after a choice');
+    } finally { await form.restore(); }
+});
+
+test('typing a former city name suggests the current name', async () => {
+    const form = await mountAddress({ ...bengaluru, cityId: '', cityName: '' });
+    try {
+        await form.changeCity('Bangalore');
+        const options = [...form.document.querySelectorAll('[role="option"]')].map(option => option.textContent);
+        assert.deepEqual(options, ['Bengaluru']);
+    } finally { await form.restore(); }
+});
+
+test('a state without suggestions shows no dead dropdown arrow', async () => {
+    const form = await mountAddress({ ...india, stateId: '999', stateName: 'Unlisted', cityId: '', cityName: 'Somewhere' });
+    try {
+        assert.equal(form.document.querySelector('button[aria-label="Show city suggestions"]'), null);
     } finally { await form.restore(); }
 });

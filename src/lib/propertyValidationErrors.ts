@@ -49,3 +49,19 @@ export function mapPropertyMutationFieldErrors(
     {},
   );
 }
+
+/**
+ * Screens without the listing form (for example the property detail page)
+ * cannot highlight fields, so the reasons are spelled out in the message
+ * instead of "Please review the highlighted fields."
+ */
+export function describePropertyMutationError(
+  error: { message?: string; fieldErrors?: Record<string, string> | null } | null | undefined,
+  fallback: string,
+): string {
+  const reasons = [...new Set(Object.values(error?.fieldErrors ?? {}).map((reason) => reason.trim()).filter(Boolean))];
+  if (reasons.length > 0) {
+    return reasons.map((reason) => (/[.!?]$/.test(reason) ? reason : `${reason}.`)).join(" ");
+  }
+  return error?.message?.trim() || fallback;
+}

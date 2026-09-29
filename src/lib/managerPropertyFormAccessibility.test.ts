@@ -218,7 +218,8 @@ test('manager property location uses address lookup, current location, and a map
   assert.match(managerPropertyFormPage, /resolvePropertyLocation/);
   assert.match(managerPropertyFormPage, /resolution\.kind === "mismatch"/);
   assert.match(managerPropertyFormPage, /getUserGeolocation/);
-  assert.match(managerPropertyFormPage, /addressChanged \? "" : formData\.latitude/);
+  assert.match(managerPropertyFormPage, /shouldResetPropertyPinForAddressChange\(\s*formData,\s*addressData,\s*\)/);
+  assert.match(managerPropertyFormPage, /resetPin \? "" : formData\.latitude/);
   assert.match(managerPropertyFormPage, /onLocationChange=\{handleMapLocationChange\}/);
   assert.match(managerPropertyFormPage, /const handleMapLocationChange[\s\S]*locationRevisionRef\.current \+= 1/);
   assert.doesNotMatch(managerPropertyFormPage, />\s*Latitude\s*</);
@@ -230,7 +231,8 @@ test('manager property location uses address lookup, current location, and a map
   assert.match(managerPropertyFormPage, /resolvePropertyLocation/);
   assert.match(managerPropertyFormPage, /resolution\.kind === "mismatch"/);
   assert.match(managerPropertyFormPage, /getUserGeolocation/);
-  assert.match(managerPropertyFormPage, /addressChanged \? "" : formData\.latitude/);
+  assert.match(managerPropertyFormPage, /shouldResetPropertyPinForAddressChange\(\s*formData,\s*addressData,\s*\)/);
+  assert.match(managerPropertyFormPage, /resetPin \? "" : formData\.latitude/);
   assert.match(managerPropertyFormPage, /onLocationChange=\{handleMapLocationChange\}/);
   assert.match(managerPropertyFormPage, /const handleMapLocationChange[\s\S]*locationRevisionRef\.current \+= 1/);
   assert.doesNotMatch(managerPropertyFormPage, />\s*Latitude\s*</);
