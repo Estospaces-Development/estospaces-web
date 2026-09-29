@@ -93,8 +93,8 @@ test('the page sends the digest with the code, re-previews once on a stale price
 
 test('consent is bound to the exact text shown, which names the discount when applied', () => {
     assert.match(page, /const recurringConsent = consentedText === consentText;/);
-    assert.match(page, /onChange=\{\(event\) => setConsentedText\(event\.target\.checked \? consentText : null\)\}/);
-    assert.match(page, /<span>\{consentText\}<\/span>/);
+    // The consent control lives in ManagerRecurringConsent (web-app#648); it shows and binds the same text.
+    assert.match(page, /<ManagerRecurringConsent text=\{consentText\} [^>]*onChange=\{\(checked\) => setConsentedText\(checked \? consentText : null\)\} \/>/);
 });
 
 test('the active checkout shows the accepted discounted price and the trial note on resume', () => {
