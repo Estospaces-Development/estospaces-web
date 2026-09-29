@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Bed, Bath, Maximize, MapPin, Edit, Eye } from 'lucide-react';
 import { useProperties, type ListingType, type PriceInfo } from '@/contexts/PropertyContext';
-import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyFloorCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import PropertyMediaImage from './PropertyMediaImage';
 import { formatLaunchPropertyText } from '@/lib/launchLocale';
@@ -47,10 +47,14 @@ interface ManagerPropertyCardProps {
         country_code?: string | null;
         currency?: string | null;
         media?: any;
+        propertyType?: string | null;
+        property_type?: string | null;
         dimensions?: {
+            floorNumber?: number;
             totalFloors?: number;
             occupiedUnits?: number;
         };
+        floor_number?: number;
         total_floors?: number;
         occupied_units?: number;
         created_at?: string;
@@ -73,10 +77,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
 
     const imageUrl = getPrimaryPropertyImage(property);
     const statusConfig = getManagerPropertyStatusBadge(property.status);
-    const inventoryCaption = formatPropertyInventoryCaption(
-        property.dimensions?.totalFloors ?? property.total_floors,
-        property.dimensions?.occupiedUnits ?? property.occupied_units,
-    );
+    const inventoryCaption = formatPropertyFloorCaption(property);
     const formattedPrice = formatManagerPropertyPrice(property);
     const canSharePublicly = isPropertyPubliclyShareable(property.status);
 
