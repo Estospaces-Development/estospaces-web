@@ -44,6 +44,7 @@ const ROLE_EQUIVALENT_PATHS: ReadonlyArray<Partial<Record<WorkspaceRole, string>
     { user: '/user/dashboard/contracts', manager: '/manager/contracts' },
     { user: '/user/dashboard/applications', manager: '/manager/applications', aliases: ['/user/applications'] },
     { user: '/user/dashboard/viewings', manager: '/manager/appointments' },
+    { user: '/user/dashboard/help', manager: '/manager/help', admin: '/admin/help' },
 ];
 
 const normalizePath = (pathname: string) => {

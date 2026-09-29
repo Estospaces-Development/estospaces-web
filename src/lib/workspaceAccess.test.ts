@@ -115,6 +115,21 @@ test('a cross-role case or thread link is remapped to the same page for the call
     assert.equal(resolveRoleEquivalentPath('/user/dashboard/messages', '', '', 'admin'), null);
 });
 
+test('help pages are remapped to the help page of the caller instead of another role', () => {
+    const cases: Array<[string, 'user' | 'manager' | 'admin', string]> = [
+        ['/manager/help', 'user', '/user/dashboard/help'],
+        ['/admin/help', 'user', '/user/dashboard/help'],
+        ['/user/dashboard/help', 'manager', '/manager/help'],
+        ['/admin/help', 'manager', '/manager/help'],
+        ['/manager/help', 'admin', '/admin/help'],
+        ['/user/dashboard/help', 'admin', '/admin/help'],
+    ];
+    for (const [pathname, role, expected] of cases) {
+        assert.deepEqual(resolveWorkspaceAccess({ pathname, loading: false, isAuthenticated: true, role }), { kind: 'redirect', to: expected }, `${role} on ${pathname}`);
+    }
+    assert.deepEqual(resolveWorkspaceAccess({ pathname: '/admin/help', loading: false, isAuthenticated: true, role: 'admin' }), { kind: 'allow' });
+});
+
 test('launch-hidden routes keep their existing same-role redirect', () => {
     assert.deepEqual(
         resolveWorkspaceAccess({ pathname: '/user/dashboard/payments', loading: false, isAuthenticated: true, role: 'user' }),
