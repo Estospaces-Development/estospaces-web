@@ -119,6 +119,15 @@ test('fast-track detail lookup distinguishes a missing case from a temporary ser
 
     assert.equal(missing.data, null);
     assert.equal(missing.notFound, true);
+    assert.equal(missing.forbidden, false);
+    assert.equal(unavailable.forbidden, false);
+
+    globalThis.fetch = (async () => buildErrorResponse(403, 'Unauthorized: you do not have access to this case')) as typeof fetch;
+    const foreign = await getFastTrackCaseById('case-foreign', { suppressErrorToast: true });
+
+    assert.equal(foreign.data, null);
+    assert.equal(foreign.notFound, false);
+    assert.equal(foreign.forbidden, true);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -275,4 +284,54 @@ test('fast-track service derives fresh SLA state from timestamps when hours rema
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('a replacement request without a reason does not show the uploader note as the reviewer note', async () => {
+  const originalFetch = globalThis.fetch;
+  const item = (overrides: Record<string, unknown>) => ({
+    id: 'identity',
+    label: 'Identity proof',
+    status: 'reupload_needed',
+    document_record_id: 'doc-id',
+    file_name: 'passport.pdf',
+    uploaded_at: '2026-05-07T08:10:00.000Z',
+    reviewed_at: '2026-05-07T09:00:00.000Z',
+    ...overrides,
+  });
+  globalThis.fetch = (async () => buildResponse([
+    {
+      id: 'case-1',
+      case_id: 'case-1',
+      header: { property_id: 'property-1', client_id: 'user-1', submitted_at: '2026-05-07T08:00:00.000Z', hours_remaining: 20 },
+      stage: 'documents',
+      final_status: 'active',
+      documents: {
+        items: [
+          // Booking fills the legacy note with the upload note when the review has none.
+          item({ upload_note: 'Scanned at the library', note: 'Scanned at the library' }),
+          item({ id: 'address', upload_note: 'Scanned at the library', review_note: 'Photo is blurred', note: 'Photo is blurred' }),
+          // Legacy record with only the combined note keeps the reviewer note.
+          item({ id: 'income', note: 'Please send the latest payslip' }),
+        ],
+      },
+      viewing: {}, decision: {}, agreement: {}, handover: {}, activity: [],
+    },
+  ])) as typeof fetch;
+
+  try {
+    const items = (await getFastTrackCases()).data?.[0]?.documents.items || [];
+    assert.equal(items[0]?.reviewNote, undefined);
+    assert.equal(items[0]?.uploadNote, 'Scanned at the library');
+    assert.equal(items[1]?.reviewNote, 'Photo is blurred');
+    assert.equal(items[2]?.reviewNote, 'Please send the latest payslip');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Fast Track document rows show only the reviewer reason on replacement requests', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(`${process.cwd()}/src/components/fast-track/FastTrackWorkspace.tsx`, 'utf8');
+  assert.ok(source.includes("const supportingNote = item.status === 'reupload_needed'\n                            ? (item.reviewNote || '')") || source.includes("const supportingNote = item.status === 'reupload_needed'\r\n                            ? (item.reviewNote || '')"));
+  assert.match(source, /const helperNote = activeDocument\.status === 'reupload_needed'\s*\? \(activeDocument\.reviewNote \|\| ''\)/);
 });

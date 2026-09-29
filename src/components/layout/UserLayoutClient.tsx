@@ -15,8 +15,9 @@ import { NotificationsProvider } from '../../contexts/NotificationsContext';
 import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
-import { getLoginPath, getRedirectPath, isPublicUserPropertyDetailPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, isPublicUserPropertyDetailPath, normalizeRole, shouldAwaitSessionResolution } from '@/lib/authUtils';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import WrongRoleNotice from '@/components/routing/WrongRoleNotice';
 
 interface UserLayoutClientProps {
     children: React.ReactNode;
@@ -26,7 +27,7 @@ interface UserLayoutClientProps {
 export default function UserLayoutClient({ children, isSubdomain = false }: UserLayoutClientProps) {
     const { user, loading, isAuthenticated } = useAuth();
     const location = useLocation();
-    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading);
     const isPublicPropertyDetail = isPublicUserPropertyDetailPath(location.pathname);
 
     const publicPropertyDetailShell = (
@@ -51,12 +52,13 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
         return <Navigate to={getLoginPath()} replace />;
     }
 
-    if (user?.role !== 'user') {
+    const currentRole = normalizeRole(user?.role);
+    if (currentRole !== 'user') {
         if (isPublicPropertyDetail) {
             return publicPropertyDetailShell;
         }
 
-        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
+        return <WrongRoleNotice requiredRole="user" currentRole={currentRole} />;
     }
 
     return (

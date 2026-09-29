@@ -12,6 +12,7 @@ import {
 } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
 import { uploadMediaFile } from "@/services/mediaService";
+import { EMPTY_FILE_MESSAGE } from "@/lib/uploadFileSignature";
 
 const CORE_URL = () => getServiceUrl("core");
 type ServiceRequestOptions = Pick<ApiFetchOptions, "suppressErrorToast">;
@@ -1020,6 +1021,7 @@ const readFileSliceAsArrayBuffer = (file: File, start: number, end: number): Pro
  */
 export const validateDocumentUpload = async (file: File): Promise<string> => {
   if (!file) throw new Error("No file selected. Please choose a document to upload.");
+  if (file.size === 0) throw new Error(EMPTY_FILE_MESSAGE);
   if (typeof file.size === "number" && file.size > MAX_DOCUMENT_SIZE_BYTES) {
     const sizeMb = (MAX_DOCUMENT_SIZE_BYTES / (1024 * 1024)).toFixed(0);
     throw new Error(`File is too large. Maximum size is ${sizeMb} MB.`);

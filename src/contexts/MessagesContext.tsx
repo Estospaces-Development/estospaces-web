@@ -15,6 +15,7 @@ import {
 import { getAuthTokenVersion } from '@/lib/authToken';
 import { formatConversationTime } from '@/lib/conversationTime';
 import { mergeLatestMessagePage } from '@/lib/messagePagination';
+import { getMessageSendFailureText } from '@/lib/messageComposerLimit';
 import {
     createUnavailableConversationThreadIssue,
     isUnavailableConversationThreadError,
@@ -51,6 +52,8 @@ interface Conversation {
     propertyAddress: string | null;
     propertyImage: string | null;
     propertyPrice: number | null;
+    /** Agent request this direct thread is scoped to, when there is one. */
+    brokerRequestId?: string | null;
     isArchived: boolean;
     isMuted: boolean;
     lastActivity: string;
@@ -374,6 +377,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             propertyAddress: backendConversation.property_address || metadata?.property_address || metadata?.propertyAddress || null,
             propertyImage: backendConversation.property_image || metadata?.property_image || metadata?.propertyImage || null,
             propertyPrice: backendConversation.property_price ?? metadata?.property_price ?? metadata?.propertyPrice ?? null,
+            brokerRequestId: backendConversation.broker_request_id || metadata?.broker_request_id || null,
             isArchived: backendConversation.is_archived ?? existingConversation?.isArchived ?? false,
             isMuted: backendConversation.is_muted ?? existingConversation?.isMuted ?? false,
             lastActivity: backendConversation.updated_at,
@@ -883,13 +887,21 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             return;
         }
 
+        let sentMessage: Awaited<ReturnType<typeof messagesService.sendMessage>>;
         try {
-            const sentMessage = await messagesService.sendMessage({
+            sentMessage = await messagesService.sendMessage({
                 conversationId,
                 content: text.trim(),
                 type: attachments.length > 0 && !text.trim() ? 'file' : 'text',
                 attachments,
             });
+        } catch (error) {
+            // The message was not sent: keep the server's explanation (e.g. the
+            // length limit) so the composer can show it and keep the draft.
+            throw new Error(getMessageSendFailureText(error));
+        }
+
+        try {
 
             const mappedMessage = mapBackendMessage(sentMessage);
             setConversations((previous) =>
@@ -918,8 +930,8 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 ids: { conversationId, messageId: sentMessage.id },
             });
         } catch {
-            // Surface the error at the caller level.
-            throw new Error('Failed to send message');
+            // The message was sent; a failed refresh must not report a send failure
+            // (that would invite a duplicate resend). Background sync catches up.
         }
     }, [loadConversationMessages, loadConversations, mapBackendMessage, publishWorkspaceSync]);
 

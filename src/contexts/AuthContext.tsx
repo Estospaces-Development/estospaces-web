@@ -6,6 +6,8 @@ import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage, getServ
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/authToken';
 import { setProductAnalyticsIdentity, trackProductEvent } from '@/lib/productAnalytics';
+import { clearPendingGuestAction } from '@/lib/pendingGuestAction';
+import { parseLaunchOffer, type LaunchOffer } from '@/lib/managerLaunchTrial';
 
 export interface User {
     id: string;
@@ -38,12 +40,12 @@ interface AuthContextType {
     error: string | null;
     login: (email: string, password: string) => Promise<{ success: boolean; role?: string; error?: string }>;
     register: (
-        name: string,
+        names: RegistrationNames,
         email: string,
         password: string,
         role: string,
         termsAcceptance: { acceptedAt: string; version: string; country?: string },
-    ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean }>;
+    ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean; launchOffer?: LaunchOffer | null }>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
     mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
@@ -128,14 +130,18 @@ const buildFullName = (
     return getEmailPrefix(fallbackEmail);
 };
 
-export const splitRegistrationName = (name: string) => {
-    const normalizedName = name.trim().replace(/\s+/g, ' ');
-    const nameParts = normalizedName ? normalizedName.split(' ') : [];
-    const first_name = nameParts[0] || '';
-    const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+export interface RegistrationNames {
+    firstName: string;
+    lastName: string;
+}
 
-    return { first_name, last_name };
-};
+// First and last name are sent exactly as entered (trimmed, inner whitespace
+// collapsed). Joining and re-splitting them would move the second word of a
+// multi-word first name into the last name, and let a blank last name through.
+export const normalizeRegistrationNames = ({ firstName, lastName }: RegistrationNames) => ({
+    first_name: String(firstName || '').trim().replace(/\s+/g, ' '),
+    last_name: String(lastName || '').trim().replace(/\s+/g, ' '),
+});
 
 export const resolveVerificationEmailSent = (payload: unknown): boolean => {
     if (!payload || typeof payload !== 'object') {
@@ -203,37 +209,91 @@ const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User
     };
 };
 
+/**
+ * Each tab keeps its own token in sessionStorage, but role-scoped user slots
+ * live in shared localStorage. This per-tab binding records which slot belongs
+ * to this tab's token so a slot written by another tab (or left over from an
+ * earlier role in this browser) is never presented as this tab's user.
+ */
+const SESSION_USER_BINDING_KEY = 'esto_session_user';
+
+interface SessionUserBinding {
+    id: string;
+    role: string;
+}
+
+const readSessionUserBinding = (): SessionUserBinding | null => {
+    try {
+        const raw = globalThis.sessionStorage?.getItem(SESSION_USER_BINDING_KEY);
+        if (!raw) {
+            return null;
+        }
+        const parsed = JSON.parse(raw) as Partial<SessionUserBinding> | null;
+        if (!parsed || typeof parsed.id !== 'string' || typeof parsed.role !== 'string' || !parsed.role) {
+            return null;
+        }
+        return { id: parsed.id, role: parsed.role };
+    } catch {
+        return null;
+    }
+};
+
+const writeSessionUserBinding = (nextUser: User) => {
+    try {
+        globalThis.sessionStorage?.setItem(
+            SESSION_USER_BINDING_KEY,
+            JSON.stringify({ id: nextUser.id, role: nextUser.role }),
+        );
+    } catch {
+        // Without the binding the cached slot is ignored and /auth/me decides.
+    }
+};
+
+const clearSessionUserBinding = () => {
+    try {
+        globalThis.sessionStorage?.removeItem(SESSION_USER_BINDING_KEY);
+    } catch {
+        // Nothing to clear when sessionStorage is unavailable.
+    }
+};
+
+const clearStoredUserSlots = () => {
+    try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key === AUTH_STORAGE_BASE_KEY || key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`))) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+        localStorage.removeItem(AUTH_STORAGE_BASE_KEY);
+    }
+};
+
 function getCachedUser(): User | null {
     if (typeof window === 'undefined') {
         return null;
     }
 
-    const keysToCheck = new Set<string>([AUTH_STORAGE_BASE_KEY]);
-    try {
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`)) {
-                keysToCheck.add(key);
-            }
-        }
-    } catch {
-        // localStorage iteration may throw in some envs; fall back to base key
+    const binding = readSessionUserBinding();
+    if (!binding) {
+        return null;
     }
 
-    for (const key of keysToCheck) {
-        const rawUser = localStorage.getItem(key);
+    try {
+        const rawUser = localStorage.getItem(roleStorageKey(binding.role));
         if (!rawUser) {
-            continue;
+            return null;
         }
-        try {
-            const parsed = JSON.parse(rawUser) as User;
-            if (parsed && (parsed.isAuthenticated || parsed.role)) {
-                refreshAuthStorageKey(parsed.role);
-                return parsed;
-            }
-        } catch {
-            // ignore malformed entries
+        const parsed = JSON.parse(rawUser) as User | null;
+        if (parsed?.isAuthenticated && parsed.id === binding.id && parsed.role === binding.role) {
+            refreshAuthStorageKey(parsed.role);
+            return parsed;
         }
+    } catch {
+        // ignore malformed entries
     }
 
     return null;
@@ -246,18 +306,8 @@ const persistUser = (nextUser: User | null) => {
 
     if (!nextUser) {
         // Clear every role-scoped slot so the next login doesn't inherit a stale role.
-        try {
-            const keysToRemove: string[] = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && (key === AUTH_STORAGE_BASE_KEY || key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`))) {
-                    keysToRemove.push(key);
-                }
-            }
-            keysToRemove.forEach((key) => localStorage.removeItem(key));
-        } catch {
-            localStorage.removeItem(AUTH_STORAGE_BASE_KEY);
-        }
+        clearStoredUserSlots();
+        clearSessionUserBinding();
         return;
     }
 
@@ -276,8 +326,15 @@ const persistUser = (nextUser: User | null) => {
         country_code: nextUser.country_code,
     };
 
+    const previousBinding = readSessionUserBinding();
     const targetKey = refreshAuthStorageKey(nextUser.role);
+    if (previousBinding && roleStorageKey(previousBinding.role) !== targetKey) {
+        localStorage.removeItem(roleStorageKey(previousBinding.role));
+    }
+    // The unscoped legacy slot is never read any more; drop it so it cannot linger.
+    localStorage.removeItem(AUTH_STORAGE_BASE_KEY);
     localStorage.setItem(targetKey, JSON.stringify(storedUser));
+    writeSessionUserBinding(nextUser);
 };
 
 const clearStoredAuth = () => {
@@ -286,18 +343,8 @@ const clearStoredAuth = () => {
         return;
     }
 
-    try {
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key === AUTH_STORAGE_BASE_KEY || key.startsWith(`${AUTH_STORAGE_BASE_KEY}:`))) {
-                keysToRemove.push(key);
-            }
-        }
-        keysToRemove.forEach((key) => localStorage.removeItem(key));
-    } catch {
-        localStorage.removeItem(AUTH_STORAGE_BASE_KEY);
-    }
+    clearStoredUserSlots();
+    clearSessionUserBinding();
 };
 
 const resolveSignedOutError = () => {
@@ -460,6 +507,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [applySignedOutState, refreshUser, user?.role]);
 
     const getExistingRole = useCallback((): string | null => {
+        // Only this tab's live session counts; slots left by other tabs or
+        // earlier roles must not block or colour a new sign-in.
+        if (!getAuthToken()) {
+            return null;
+        }
         const cached = getCachedUser();
         return cached?.isAuthenticated ? cached.role : null;
     }, []);
@@ -472,11 +524,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return existing !== nextRole;
     }, [getExistingRole]);
 
-    // Cross-role session detection: detects when a different role is already signed in
-    // (e.g., admin tab followed by manager/user login in another tab). The shared
-    // AUTH_STORAGE_KEY + session-token storage mean a new login silently replaces the
-    // existing session in every other open tab. The role-mismatch guard below warns
-    // before persist so user/manager/admin sessions don't trample each other.
+    // Cross-role session detection: refuses a login while THIS tab still holds a live
+    // session for a different role. Tokens are per tab, so other tabs keep their own
+    // sessions; on success every cached user slot is cleared before the new user is
+    // stored, so no stale role slot can later be presented as this tab's user.
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
         try {
@@ -511,6 +562,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setAuthToken(token);
+            clearStoredUserSlots();
             persistUser(userObj);
             resetAuthExpiryState();
             setUser(userObj);
@@ -546,7 +598,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
 };
 
     const register = useCallback(async (
-        name: string,
+        names: RegistrationNames,
         email: string,
         password: string,
         role: string,
@@ -554,7 +606,12 @@ const sanitizeRegistrationError = (err: unknown): string => {
     ) => {
         setError(null);
         try {
-            const { first_name, last_name } = splitRegistrationName(name);
+            const { first_name, last_name } = normalizeRegistrationNames(names);
+            if (!first_name || !last_name) {
+                const message = !first_name ? 'First name is required.' : 'Last name is required.';
+                setError(message);
+                return { success: false, error: message };
+            }
 
             const payload: Record<string, any> = {
                 first_name,
@@ -590,6 +647,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
             const userData = data.user || data.data?.user || { email, first_name, last_name, role };
             const userObj = buildStoredUser(userData, email);
 			const verificationEmailSent = resolveVerificationEmailSent(data);
+            const launchOffer = parseLaunchOffer(data);
 
             setProductAnalyticsIdentity({
                 email: userObj.email,
@@ -605,6 +663,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
 
             if (token) {
                 setAuthToken(token);
+                clearStoredUserSlots();
                 persistUser(userObj);
                 resetAuthExpiryState();
                 setUser(userObj);
@@ -614,7 +673,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
                 }, 100);
             }
 
-			return { success: true, verificationEmailSent };
+			return { success: true, verificationEmailSent, launchOffer };
         } catch (err: any) {
             const errorMessage = sanitizeRegistrationError(err);
             setError(errorMessage);
@@ -635,6 +694,8 @@ const sanitizeRegistrationError = (err: unknown): string => {
             }
         }
 
+        // A guest action stored before sign-in must never carry over to the next account.
+        clearPendingGuestAction(typeof window !== 'undefined' ? window.sessionStorage : null);
         applySignedOutState(null);
     }, [applySignedOutState]);
 

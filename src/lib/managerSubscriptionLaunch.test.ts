@@ -19,5 +19,5 @@ test('manager subscription checkout is authenticated, consented, and verified', 
     assert.match(page, /crypto\.randomUUID/);
     assert.match(page, /verifyManagerSubscriptionCheckout/);
     assert.match(checkout, /subscription_id: checkout\.checkout\.provider_subscription_id/);
-    assert.match(app, /path="subscription" element=\{<VerifiedManagerRoute><ManagerSubscription \/><\/VerifiedManagerRoute>\}/);
+    assert.match(app, /path="subscription" element=\{<ManagerVerificationGate area="subscription"><ManagerSubscription \/><\/ManagerVerificationGate>\}/);
 });

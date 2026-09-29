@@ -141,6 +141,23 @@ export const mapServicePropertyLocation = (p: propertyService.Property): Propert
   longitude: toOptionalNumber(p.longitude),
 });
 
+// A present media list is always sent, including [], because core only clears
+// stored images or videos when it receives an empty array. Omitting it would
+// silently keep media the manager removed. Core still refuses to leave a
+// non-draft listing without images and returns a field error for that.
+export const mapContextPropertyMedia = (
+  p: Partial<Property>,
+): Pick<Partial<propertyService.Property>, "image_urls" | "video_urls"> => {
+  const result: Pick<Partial<propertyService.Property>, "image_urls" | "video_urls"> = {};
+  if (Array.isArray(p.images)) {
+    result.image_urls = p.images.filter((image): image is string => typeof image === "string");
+  }
+  if (Array.isArray(p.videos)) {
+    result.video_urls = p.videos.filter((video): video is string => typeof video === "string");
+  }
+  return result;
+};
+
 export const mapContextPropertyLocation = (p: Partial<Property>): Partial<propertyService.Property> => {
   const result: Partial<propertyService.Property> = {};
   if (p.location?.addressLine1 !== undefined) result.address_line_1 = p.location.addressLine1;
@@ -273,6 +290,8 @@ export interface Property {
     licenseNumber?: string;
   };
   contactName?: string;
+  /** Owning manager's account name (admin reads only). */
+  managerName?: string;
   phoneNumber?: string;
   emailAddress?: string;
 
@@ -493,6 +512,14 @@ export interface Pagination {
   totalPages: number;
 }
 
+export interface PropertyByIdResult {
+  data: Property | null;
+  /** Backend `manager_id`, used to confirm manager ownership. */
+  ownerId: string | null;
+  error: string | null;
+  status?: number;
+}
+
 interface PropertyContextType {
   properties: Property[];
   filteredProperties: Property[];
@@ -515,8 +542,12 @@ interface PropertyContextType {
   ) => Promise<Property | null>;
   deleteProperty: (id: string) => Promise<void>;
   deleteProperties: (ids: string[]) => Promise<void>;
-  duplicateProperty: (id: string) => Promise<Property | null>;
+  /** `source` is used when the property is not on the loaded inventory page. */
+  duplicateProperty: (id: string, source?: Property) => Promise<Property | null>;
+  /** Only searches the currently loaded inventory page. */
   getProperty: (id: string) => Property | undefined;
+  /** Authoritative single-property read, independent of list pagination. */
+  fetchPropertyById: (id: string) => Promise<PropertyByIdResult>;
   uploadImages: (entityId: string, files: File[]) => Promise<string[]>;
   uploadVideos: (entityId: string, files: File[]) => Promise<string[]>;
 
@@ -784,6 +815,7 @@ export const PropertyProvider = ({
         licenseNumber: p.license_number || "",
       },
       contactName: p.agent_name,
+      managerName: p.manager_name?.trim() || undefined,
       phoneNumber: p.agent_phone,
       emailAddress: p.agent_email,
       financial: {
@@ -865,23 +897,7 @@ export const PropertyProvider = ({
       serviceProps.parking_spaces = p.rooms.parkingSpaces;
     if (p.featured !== undefined) serviceProps.featured = p.featured;
 
-    // Media
-    if (p.images) {
-      const stringImages = p.images.filter(
-        (img) => typeof img === "string",
-      );
-      if (stringImages.length > 0) {
-        serviceProps.image_urls = stringImages;
-      }
-    }
-    if (p.videos) {
-      const stringVideos = p.videos.filter(
-        (vid) => typeof vid === "string",
-      );
-      if (stringVideos.length > 0) {
-        serviceProps.video_urls = stringVideos;
-      }
-    }
+    Object.assign(serviceProps, mapContextPropertyMedia(p));
     if (p.virtualTourUrl !== undefined)
       serviceProps.virtual_tour_url = p.virtualTourUrl;
     if (
@@ -1223,8 +1239,10 @@ export const PropertyProvider = ({
             setLoading(false);
           }
         },
-        duplicateProperty: async (id: string) => {
-          const propertyToDuplicate = properties.find((p) => p.id === id);
+        duplicateProperty: async (id: string, source?: Property) => {
+          const propertyToDuplicate =
+            properties.find((p) => p.id === id) ||
+            (source?.id === id ? source : undefined);
           if (!propertyToDuplicate) return null;
 
           setLoading(true);
@@ -1265,6 +1283,19 @@ export const PropertyProvider = ({
           }
         },
         getProperty: (id) => properties.find((p) => p.id === id),
+        fetchPropertyById: async (id: string) => {
+          // Manager views must reflect the latest owner/admin changes.
+          propertyService.invalidatePropertyDetailCache(id);
+          const { data, error, status } = await propertyService.getPropertyById(id, {
+            suppressErrorToast: true,
+          });
+          return {
+            data: data && !error ? mapServiceToContextProperty(data) : null,
+            ownerId: data?.manager_id?.trim() || null,
+            error,
+            status,
+          };
+        },
         uploadImages: async (entityId, files) => {
           return uploadPropertyMedia(entityId, files);
         },

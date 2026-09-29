@@ -30,6 +30,7 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
+import { getFastTrackViewingCompletionBlockReason } from '@/lib/fastTrackWorkspace';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
 const FILTERS = [
@@ -40,6 +41,34 @@ const FILTERS = [
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' },
 ];
+
+export type AppointmentDateScope = 'all' | 'today' | 'upcoming' | 'past';
+
+const DATE_SCOPES: Array<{ value: AppointmentDateScope; label: string }> = [
+    { value: 'all', label: 'All dates' },
+    { value: 'today', label: 'Today' },
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'past', label: 'Past' },
+];
+
+// Scopes use the manager's local day; an appointment without a valid time only matches "All dates".
+export const matchesAppointmentDateScope = (
+    scheduledAt: string | null | undefined,
+    scope: AppointmentDateScope,
+    now: Date = new Date(),
+): boolean => {
+    if (scope === 'all') {
+        return true;
+    }
+    const scheduled = scheduledAt ? new Date(scheduledAt) : null;
+    if (!scheduled || Number.isNaN(scheduled.getTime())) {
+        return false;
+    }
+    if (scope === 'today') {
+        return scheduled.toDateString() === now.toDateString();
+    }
+    return scope === 'upcoming' ? scheduled.getTime() >= now.getTime() : scheduled.getTime() < now.getTime();
+};
 
 type FetchAppointmentsOptions = {
     background?: boolean;
@@ -203,6 +232,45 @@ function getStatusBadge(status: Viewing['status']) {
     }
 }
 
+export type AppointmentMutationOutcome =
+    | { status: 'saved' }
+    | { status: 'mutation_failed'; error: string }
+    | { status: 'saved_sync_failed'; error: string };
+
+const errorMessageOf = (error: unknown, fallback: string) => (
+    error instanceof Error && error.message ? error.message : fallback
+);
+
+/**
+ * Commits the appointment change first, then syncs the linked Fast Track
+ * case. A companion-sync failure must never be reported as a failed
+ * appointment update, because the appointment change is already saved
+ * (QA-MB-20260926-01-006).
+ */
+export async function runAppointmentMutationWithCompanionSync(
+    mutate: () => Promise<void>,
+    syncCompanion?: () => Promise<void>,
+): Promise<AppointmentMutationOutcome> {
+    try {
+        await mutate();
+    } catch (error) {
+        return { status: 'mutation_failed', error: errorMessageOf(error, 'Unable to update this appointment.') };
+    }
+    if (!syncCompanion) {
+        return { status: 'saved' };
+    }
+    try {
+        await syncCompanion();
+    } catch (error) {
+        return { status: 'saved_sync_failed', error: errorMessageOf(error, 'Unable to sync the linked fast-track case.') };
+    }
+    return { status: 'saved' };
+}
+
+export function describeCompanionSyncFailure(successMessage: string, error: string) {
+    return `${successMessage} The linked Fast Track case was not updated: ${error}`;
+}
+
 export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -214,6 +282,17 @@ export default function ManagerAppointmentsPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [dateScope, setDateScope] = useState<AppointmentDateScope>('all');
+    // Re-evaluate Today/Upcoming/Past each minute while a date scope is active.
+    const [dateScopeNow, setDateScopeNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (dateScope === 'all') {
+            return undefined;
+        }
+        setDateScopeNow(Date.now());
+        const timer = window.setInterval(() => setDateScopeNow(Date.now()), 60_000);
+        return () => window.clearInterval(timer);
+    }, [dateScope]);
     const [searchQuery, setSearchQuery] = useState('');
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
@@ -322,6 +401,11 @@ export default function ManagerAppointmentsPage() {
             filtered = filtered.filter((appointment) => appointment.status === statusFilter);
         }
 
+        if (dateScope !== 'all') {
+            const now = new Date(dateScopeNow);
+            filtered = filtered.filter((appointment) => matchesAppointmentDateScope(appointment.scheduled_at, dateScope, now));
+        }
+
         // Search Filter
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
@@ -344,7 +428,7 @@ export default function ManagerAppointmentsPage() {
             }
             return 0;
         });
-    }, [appointments, focusedAppointmentId, searchQuery, statusFilter]);
+    }, [appointments, dateScope, dateScopeNow, focusedAppointmentId, searchQuery, statusFilter]);
 
     const summary = useMemo(() => ({
         total: appointments.length,
@@ -366,31 +450,43 @@ export default function ManagerAppointmentsPage() {
         setActingID(appointmentID);
         try {
             const appointment = appointments.find((item) => item.id === appointmentID);
-            await action();
-            if (appointment && fastTrackSync) {
-                const linkedFastTrackCase = findLinkedFastTrackCase(fastTrackCases, {
+            const linkedFastTrackCase = appointment && fastTrackSync
+                ? findLinkedFastTrackCase(fastTrackCases, {
                     caseId: appointment.fast_track_case_id,
                     viewingId: appointment.id,
                     applicationId: appointment.application_id,
                     leadId: appointment.lead_id,
                     propertyId: appointment.property_id,
-                });
-                if (linkedFastTrackCase) {
-                    const syncResult = await syncFastTrackCompanionAction({
-                        fastTrackCase: linkedFastTrackCase,
-                        request: fastTrackSync,
-                        publishWorkspaceSync,
-                        reason: `Manager appointments companion action: ${fastTrackSync.action}`,
-                    });
-                    if (syncResult.error || !syncResult.data) {
-                        throw new Error(syncResult.error || 'Unable to sync the linked fast-track case.');
+                })
+                : null;
+            const outcome = await runAppointmentMutationWithCompanionSync(
+                action,
+                linkedFastTrackCase && fastTrackSync
+                    ? async () => {
+                        const syncResult = await syncFastTrackCompanionAction({
+                            fastTrackCase: linkedFastTrackCase,
+                            request: fastTrackSync,
+                            publishWorkspaceSync,
+                            reason: `Manager appointments companion action: ${fastTrackSync.action}`,
+                        });
+                        if (syncResult.error || !syncResult.data) {
+                            throw new Error(syncResult.error || 'Unable to sync the linked fast-track case.');
+                        }
+                        setFastTrackCases((previous) => previous.map((caseItem) => (
+                            caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem
+                        )));
                     }
-                    setFastTrackCases((previous) => previous.map((caseItem) => (
-                        caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem
-                    )));
-                }
+                    : undefined,
+            );
+            if (outcome.status === 'mutation_failed') {
+                toast.error(outcome.error);
+                return;
             }
-            toast.success(successMessage);
+            if (outcome.status === 'saved_sync_failed') {
+                toast.warning(describeCompanionSyncFailure(successMessage, outcome.error));
+            } else {
+                toast.success(successMessage);
+            }
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -586,7 +682,17 @@ export default function ManagerAppointmentsPage() {
                             className="block w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl text-sm placeholder-gray-400 focus:ring-2 focus:ring-orange-500 transition-all font-medium"
                         />
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                    <select
+                        aria-label="Appointment dates"
+                        value={dateScope}
+                        onChange={(event) => setDateScope(event.target.value as AppointmentDateScope)}
+                        className="rounded-full border-none bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-orange-500 dark:bg-gray-900 dark:text-gray-300"
+                    >
+                        {DATE_SCOPES.map((scope) => (
+                            <option key={scope.value} value={scope.value}>{scope.label}</option>
+                        ))}
+                    </select>
                     {FILTERS.map((filter) => (
                         <button
                             key={filter.value}
@@ -651,6 +757,12 @@ export default function ManagerAppointmentsPage() {
                             const { date, time } = formatDateTime(appointment.scheduled_at);
                             const isBusy = actingID === appointment.id;
                             const isWorkflowLocked = Boolean(appointment.workflow_locked);
+                            // Only the links booking-service uses (case, application, viewing) gate completion.
+                            const completionBlockReason = getFastTrackViewingCompletionBlockReason(findLinkedFastTrackCase(fastTrackCases, {
+                                caseId: appointment.fast_track_case_id,
+                                viewingId: appointment.id,
+                                applicationId: appointment.application_id,
+                            }));
 
                             return (
                                 <div
@@ -766,12 +878,23 @@ export default function ManagerAppointmentsPage() {
                                                             },
                                                         },
                                                     )}
-                                                    disabled={isBusy}
+                                                    disabled={isBusy || Boolean(completionBlockReason)}
+                                                    title={completionBlockReason || undefined}
+                                                    aria-describedby={completionBlockReason ? `appointment-completion-hint-${appointment.id}` : undefined}
                                                     className="rounded-2xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30"
                                                 >
                                                     Mark Completed
                                                 </button>
                                             )}
+                                            {!isWorkflowLocked && appointment.status === 'confirmed' && completionBlockReason ? (
+                                                <p
+                                                    id={`appointment-completion-hint-${appointment.id}`}
+                                                    data-appointment-completion-hint
+                                                    className="w-full text-xs font-medium text-amber-700 dark:text-amber-300"
+                                                >
+                                                    {completionBlockReason}
+                                                </p>
+                                            ) : null}
 
                                             {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button

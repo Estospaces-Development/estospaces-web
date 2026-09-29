@@ -1,12 +1,29 @@
 import type { BrokerRequestRecord } from '@/services/leadsService';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { buildManagerFastTrackRequestPath } from '@/lib/managerFastTrackRequestNavigation';
+import {
+    getSelectedHomeJourneyCopy,
+    selectedHomeJourneyOverridesRequestCopy,
+    type SelectedHomeJourneyState,
+} from '@/lib/existingFastTrackJourney';
 
 export type DispatchWorkspaceSummary = {
     title: string;
     subtitle: string;
     helper: string;
+    /** When true, core's request status_reason / next_action must not replace this copy. */
+    overridesRequestCopy?: boolean;
 };
+
+/** Header subtitle/helper, preferring core's request copy unless the journey state must win. */
+export const resolveDispatchWorkspaceHeaderCopy = (
+    summary: DispatchWorkspaceSummary,
+    request: Pick<BrokerRequestRecord, 'status_reason' | 'next_action'> | null | undefined,
+) => ({
+    title: summary.title,
+    subtitle: summary.overridesRequestCopy ? summary.subtitle : request?.status_reason || summary.subtitle,
+    helper: summary.overridesRequestCopy ? summary.helper : request?.next_action || summary.helper,
+});
 
 export type MatchedExperienceStep = {
     id: string;
@@ -79,7 +96,10 @@ const formatRequestArea = (request: Pick<BrokerRequestRecord, 'location' | 'loca
     return [request.location, request.location_postcode].filter(Boolean).join(' - ');
 };
 
-export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null): DispatchWorkspaceSummary => {
+export const getDispatchWorkspaceSummary = (
+    request: BrokerRequestRecord | null,
+    selectedHomeJourneyState: SelectedHomeJourneyState = 'active',
+): DispatchWorkspaceSummary => {
     if (!request) {
         return {
             title: 'Agent request sent',
@@ -91,12 +111,13 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
     const requestArea = formatRequestArea(request);
 
     if (request.handoff_status === 'property_selected' || request.selected_fast_track_case_id || request.selected_property_id) {
+        // Follows the linked journey state so a finished case is never shown as live.
+        const copy = getSelectedHomeJourneyCopy(selectedHomeJourneyState, request.selected_property?.title);
         return {
-            title: 'Home selected',
-            subtitle: request.selected_property?.title
-                ? `${request.selected_property.title} is ready for your 24-hour journey`
-                : 'Your chosen home is ready for the 24-hour journey.',
-            helper: 'Continue with your chosen home.',
+            title: copy.headerTitle,
+            subtitle: copy.headerSubtitle,
+            helper: copy.headerHelper,
+            ...(selectedHomeJourneyOverridesRequestCopy(selectedHomeJourneyState) ? { overridesRequestCopy: true } : {}),
         };
     }
 
@@ -145,7 +166,10 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
     };
 };
 
-export const getMatchedExperienceSteps = (request: BrokerRequestRecord): MatchedExperienceStep[] => {
+export const getMatchedExperienceSteps = (
+    request: BrokerRequestRecord,
+    selectedHomeJourneyState: SelectedHomeJourneyState = 'active',
+): MatchedExperienceStep[] => {
     const brokerName = request.matched_broker?.name || 'Your broker';
     const requestTypeLabel = formatRequestTypeLabel(request.request_type).toLowerCase();
     const sharedCount = request.property_shares?.length || 0;
@@ -162,10 +186,11 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
     }
 
     if (hasSelectedProperty) {
-        handoffTitle = 'Home selected';
-        handoffDescription = request.selected_property?.title
-            ? `${request.selected_property.title} is ready for your 24-hour journey and all next steps continue there.`
-            : 'Your chosen home is ready for your 24-hour journey.';
+        // A request keeps its linked case after the case closes, so the step
+        // must follow the journey state rather than always read as live.
+        const copy = getSelectedHomeJourneyCopy(selectedHomeJourneyState, request.selected_property?.title);
+        handoffTitle = copy.stepTitle;
+        handoffDescription = copy.stepDescription;
     }
 
     return [
@@ -200,6 +225,7 @@ export const getManagerWorkspaceAction = (request: BrokerRequestRecord): Manager
                 path: buildManagerFastTrackRequestPath({
                     brokerRequestId: request.id,
                     leadId: request.selected_lead_id,
+                    clientId: request.user_id,
                     propertyId: request.selected_property_id,
                 }),
             };

@@ -42,12 +42,27 @@ test("manager property filters do not show hardcoded dollar price ranges", () =>
 
 test("user search preferences follow the signed-in user's market instead of hardcoding UK defaults", () => {
   const settingsSource = readSource("pages/user/dashboard/settings/page.tsx");
+  const dashboardSource = readSource("pages/user/dashboard/DashboardClient.tsx");
+  const discoverSource = readSource("pages/user/dashboard/discover/page.tsx");
+  const publicSearchSource = readSource("pages/user/search/page.tsx");
 
   assert.match(settingsSource, /useUserGeoMarket\(authContext\?\.user\)/);
   assert.match(settingsSource, /preferredCityPlaceholder/);
   assert.match(settingsSource, /budgetCurrencyCode/);
   assert.match(settingsSource, /BudgetCurrencyIcon/);
   assert.doesNotMatch(settingsSource, /placeholder="London"/);
+  for (const source of [dashboardSource, discoverSource, publicSearchSource]) {
+    assert.match(source, /usePreferredSearchDefaults/);
+  }
+  assert.match(dashboardSource, /countryCode: preferredSearchDefaults\.market/);
+  assert.match(dashboardSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)\s*\{\s*setNearbyProperties\(\[\]\)/);
+  assert.match(dashboardSource, /const activeMapProperties = showFilteredResults \? visibleFilteredProperties : visibleNearbyProperties/);
+  assert.match(discoverSource, /market: preferredSearchDefaults\.market \|\| requestedMarket/);
+  assert.match(discoverSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)\s*\{[\s\S]*setAllSectionProperties\(\[\]\)/);
+  assert.match(discoverSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)\s*\{\s*return \[\]/);
+  assert.match(publicSearchSource, /countryCode: preferredSearchDefaults\.market/);
+  assert.match(publicSearchSource, /const isInitialSearchLoading = \(loading && !hasLoadedSearch\)\s*\|\| \(isAuthenticated && !preferredSearchDefaults\.failed && !preferredSearchDefaults\.ready\)/);
+  assert.match(publicSearchSource, /if \(isAuthenticated && \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)\)\s*\{[\s\S]*setProperties\(\[\]\)[\s\S]*setHasLoadedSearch\(preferredSearchDefaults\.failed\)/);
 });
 
 test("shared search ranges and property cards format money by country context", () => {
@@ -124,9 +139,11 @@ test("active user manager and admin flows avoid default launch money on property
   assert.match(publicSearchSource, /Min Price \(\{currencySymbol\}\)/);
   assert.match(publicSearchSource, /Max Price \(\{currencySymbol\}\)/);
 
-  for (const source of [brokerRequestSource, brokerResponseSource, timelineSource, savedSource, managerContractsSource, adminPropertiesSource]) {
+  for (const source of [brokerRequestSource, brokerResponseSource, timelineSource, savedSource, managerContractsSource]) {
     assert.match(source, /formatLaunchCurrencyForCountry/);
   }
+  // Admin properties uses the shared country-aware helper, which wraps formatLaunchCurrencyForCountry.
+  assert.match(adminPropertiesSource, /formatManagerPropertyPrice\(\{[\s\S]*?country: propertyRecord\.country,[\s\S]*?location: property\.location,/);
 
   assert.match(fastTrackSource, /formatLaunchCurrencyForCountry\(selectedCase\.agreement\.amountDue/);
   assert.match(managerAddSource, /resolveCountryCurrency\(property\.location\?\.countryCode \|\| ""\)/);

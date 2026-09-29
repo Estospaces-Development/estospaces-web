@@ -36,6 +36,7 @@ import { useToast } from '@/contexts/ToastContext';
 import * as managerVerificationService from '@/services/managerVerificationService';
 import { openDocumentAccessUrl } from '@/services/documentAccessService';
 import Avatar from '@/components/ui/Avatar';
+import ManagerBillingMarketReview from '@/components/admin/ManagerBillingMarketReview';
 import {
     ManagerProfile,
     ManagerDocument,
@@ -619,6 +620,8 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         )}
                     </div>
                 </div>
+
+                {profile.verification_status === 'approved' ? <ManagerBillingMarketReview managerID={managerId} /> : null}
 
                 {/* Audit Log */}
                 <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">

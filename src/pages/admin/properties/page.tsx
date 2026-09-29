@@ -36,7 +36,8 @@ import {
     getAdminPropertySortControlLabel,
     sortAdminPropertyRegistry,
 } from '@/lib/adminPropertyRegistry';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
+import { resolveAdminListingOwner } from '@/lib/adminListingOwner';
 
 function PropertyManagementContent() {
     const navigate = useNavigate();
@@ -626,6 +627,7 @@ function PropertyManagementContent() {
                             const propertyCardKey = resolvePropertyCardKey(propertyId, index);
                             const isBusy = propertyId !== null && updatingPropertyId === propertyId;
                             const propertyImage = getPrimaryPropertyImage(property);
+                            const listingOwner = resolveAdminListingOwner(property);
 
                             return (
                                 <div
@@ -666,13 +668,14 @@ function PropertyManagementContent() {
                                         <span className="max-w-full text-lg font-black leading-tight text-blue-500 min-[360px]:shrink-0 min-[360px]:text-xl">
                                             {(() => {
                                                 const propertyRecord = property as any;
-                                                return typeof property.price?.amount === 'number'
-                                                    ? formatLaunchCurrencyForCountry(property.price.amount, {
-                                                        countryCode: propertyRecord.countryCode || propertyRecord.country_code || propertyRecord.country || property.location?.countryCode || property.location?.country,
-                                                        countryName: propertyRecord.country || property.location?.country,
-                                                        currencyCode: property.price.currency || propertyRecord.currency,
-                                                    })
-                                                    : property.priceString || 'POA';
+                                                return formatManagerPropertyPrice({
+                                                    price: property.price,
+                                                    listingType: property.listingType,
+                                                    countryCode: propertyRecord.countryCode || propertyRecord.country_code,
+                                                    country: propertyRecord.country,
+                                                    currency: propertyRecord.currency,
+                                                    location: property.location,
+                                                }) || 'POA';
                                             })()}
                                         </span>
                                     </div>
@@ -707,11 +710,11 @@ function PropertyManagementContent() {
 
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-400 dark:bg-gray-700">
-                                                {(property.contactName || 'AG').substring(0, 2).toUpperCase()}
+                                            <div aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-400 dark:bg-gray-700">
+                                                {listingOwner.initials}
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black text-gray-900 dark:text-white">{property.contactName || 'Unknown Owner'}</p>
+                                                <p className={`text-[10px] font-black ${listingOwner.isSet ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{listingOwner.label}</p>
                                                 <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400">Listing Owner</p>
                                             </div>
                                         </div>

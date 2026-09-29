@@ -25,6 +25,7 @@ import {
   isFastTrackStageReadOnly,
 } from "./FastTrackWorkspace";
 import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
+import { getFastTrackDocumentItemPermissions } from "@/lib/fastTrackWorkspace";
 import type { Message } from "@/services/messagesService";
 import type { FastTrackCase } from "@/services/fastTrackService";
 
@@ -155,6 +156,43 @@ test("approved fast-track documents cannot be approved twice", () => {
 
   assert.match(readOnlyMarkup, /<button[^>]*disabled=""[^>]*aria-label="Approve Address"/);
   assert.match(readOnlyMarkup, /<button[^>]*disabled=""[^>]*aria-label="Request replacement for Address"/);
+});
+
+// QA-MB-20260923-01-006: a user on a closed case must not see review mutations.
+test("user document rows render no review actions when permissions deny them", () => {
+  const closedCase = buildFastTrackCase({ workspaceFinalStatus: "cancelled", stage: "documents" });
+  for (const status of ["uploaded", "approved", "pending"] as const) {
+    const markup = renderToStaticMarkup(
+      <FastTrackDocumentReviewControls
+        item={{ id: "identity", label: "Identity", status }}
+        hasAttachedFile={status !== "pending"}
+        busy={false}
+        permissions={getFastTrackDocumentItemPermissions(closedCase, "user", status, status !== "pending")}
+        viewer="user"
+        onReview={() => {}}
+      />,
+    );
+    assert.doesNotMatch(markup, /<button/);
+    assert.doesNotMatch(markup, /Waiting for the user to upload/);
+  }
+
+  const source = workspaceSource();
+  assert.match(source, /permissions=\{documentPermissions\}/);
+  assert.match(source, /role === 'user' && isFastTrackUserActionBlockedOnClosedCase\(selectedCase, action\)/);
+});
+
+test("manager sees truthful copy when an uploaded file cannot be reviewed at this stage", () => {
+  const markup = renderToStaticMarkup(
+    <FastTrackDocumentReviewControls
+      item={{ id: "identity", label: "Identity", status: "uploaded" }}
+      hasAttachedFile
+      busy={false}
+      permissions={{ canApprove: false, canRequestReplacement: false }}
+      onReview={() => {}}
+    />,
+  );
+  assert.doesNotMatch(markup, /<button/);
+  assert.match(markup, /Review is not available at this stage/);
 });
 
 test("manager Fast Track document request collects a reason and deadline", () => {
@@ -656,4 +694,12 @@ test("fast-track preserves deep-linked stage while the requested case changes", 
     assert.ok(source.includes('Confirm previous payment'));
     assert.ok(source.includes('shouldRemoveFastTrackStaleCaseLink({'),
         'stale-link recovery must use the deferred lookup state machine');
+});
+
+test("document rows use role-aware presentation for guidance and the note field", () => {
+  const source = workspaceSource();
+  assert.match(source, /const rowPresentation = getFastTrackDocumentRowPresentation\(/);
+  assert.match(source, /\{supportingNote \|\| rowPresentation\.guidance\}/);
+  assert.match(source, /\{rowPresentation\.noteField \? <input/);
+  assert.doesNotMatch(source, /canUpload \|\| canPreview \? <input/);
 });

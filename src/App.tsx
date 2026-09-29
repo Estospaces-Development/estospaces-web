@@ -127,7 +127,7 @@ const ManagerNotifications = lazyPage(() => import('./pages/manager/notification
 const ManagerProfile = lazyPage(() => import('./pages/manager/profile/page'));
 const ManagerUserVerifications = lazyPage(() => import('./pages/manager/user-verifications/page'));
 const ManagerVerification = lazyPage(() => import('./pages/manager/verification/page'));
-// Payment collection is protected by the manager verification boundary and backend JWT checks.
+// Payment collection sits behind the manager verification gate and backend JWT checks.
 const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
 const ManagerSubscription = lazyPage(() => import('./pages/manager/subscription/page'));
 
@@ -160,7 +160,7 @@ import SubdomainRouter from './components/routing/SubdomainRouter';
 import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
 import { useAuth } from './contexts/AuthContext';
-import { useManagerVerification } from './contexts/ManagerVerificationContext';
+import ManagerVerificationGate from './components/routing/ManagerVerificationGate';
 import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
 
 function RouteScrollReset() {
@@ -175,20 +175,6 @@ function RouteScrollReset() {
   }, [location.pathname, location.search, location.hash]);
 
   return null;
-}
-
-function VerifiedManagerRoute({ children }: { children: ReactNode }) {
-  const { isLoading, isVerified } = useManagerVerification();
-
-  if (isLoading) {
-    return <BrandLoadingScreen label="Checking manager access..." />;
-  }
-
-  if (!isVerified) {
-    return <Navigate to="/manager/dashboard" replace />;
-  }
-
-  return <>{children}</>;
 }
 
 function PublicRootEntry() {
@@ -291,17 +277,17 @@ const App: React.FC = () => {
             <Route path="dashboard/properties/add" element={<ManagerAddProperty />} />
             <Route path="dashboard/properties/edit/:id" element={<ManagerEditProperty />} />
             <Route path="dashboard/properties/:id" element={<ManagerPropertyDetail />} />
-            <Route path="analytics" element={<VerifiedManagerRoute><ManagerAnalytics /></VerifiedManagerRoute>} />
+            <Route path="analytics" element={<ManagerVerificationGate area="analytics"><ManagerAnalytics /></ManagerVerificationGate>} />
             <Route path="applications" element={<ManagerApplications />} />
-            <Route path="appointments" element={<VerifiedManagerRoute><ManagerAppointments /></VerifiedManagerRoute>} />
+            <Route path="appointments" element={<ManagerVerificationGate area="appointments"><ManagerAppointments /></ManagerVerificationGate>} />
             <Route path="case-files" element={<ManagerCaseFiles />} />
-            <Route path="contracts" element={<VerifiedManagerRoute><ManagerContracts /></VerifiedManagerRoute>} />
+            <Route path="contracts" element={<ManagerVerificationGate area="contracts"><ManagerContracts /></ManagerVerificationGate>} />
             <Route path="docs" element={<ManagerDocs />} />
             <Route path="billing/*" element={<ManagerBilling />} />
-            <Route path="subscription" element={<VerifiedManagerRoute><ManagerSubscription /></VerifiedManagerRoute>} />
+            <Route path="subscription" element={<ManagerVerificationGate area="subscription"><ManagerSubscription /></ManagerVerificationGate>} />
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<ManagerCommunity />} />
-            <Route path="fast-track" element={<VerifiedManagerRoute><ManagerFastTrack /></VerifiedManagerRoute>} />
+            <Route path="fast-track" element={<ManagerVerificationGate area="fast-track"><ManagerFastTrack /></ManagerVerificationGate>} />
             <Route path="help" element={<ManagerHelp />} />
             <Route path="leads" element={<ManagerLeads />} />
             <Route path="messages" element={<ManagerMessages />} />

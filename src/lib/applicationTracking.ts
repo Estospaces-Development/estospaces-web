@@ -147,6 +147,20 @@ export const isLiveBrokerRequest = (
     return !CLOSED_REQUEST_STATUSES.has(status) && !CLOSED_REQUEST_STATUSES.has(dispatchStatus);
 };
 
+export type BrokerRequestListStatus = 'active' | 'expired' | 'closed';
+
+/** Groups a request for the Agent requests history filter. */
+export const getBrokerRequestListStatus = (
+    request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,
+): BrokerRequestListStatus => {
+    if (isLiveBrokerRequest(request)) {
+        return 'active';
+    }
+    const status = normalizeStatus(request?.status);
+    const dispatchStatus = normalizeStatus(request?.dispatch_status);
+    return status === 'expired' || dispatchStatus === 'expired' ? 'expired' : 'closed';
+};
+
 export const getBrokerRequestTrackingSummary = (
     request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status' | 'dispatch_wave' | 'dispatched_broker_count' | 'matched_broker' | 'handoff_status' | 'selected_property_id' | 'selected_fast_track_case_id' | 'property_shares'>,
 ): BrokerRequestTrackingSummary => {
@@ -163,6 +177,20 @@ export const getBrokerRequestTrackingSummary = (
             totalStages: 5,
             progress: 100,
             nextAction: 'Open live fast-track',
+        };
+    }
+
+    // A closed request must never read as live or still searching.
+    const listStatus = getBrokerRequestListStatus(request);
+    if (listStatus !== 'active') {
+        return {
+            currentStage: listStatus === 'expired' ? 'Request expired' : 'Request closed',
+            currentStageNumber: 1,
+            totalStages: 5,
+            progress: 0,
+            nextAction: listStatus === 'expired'
+                ? 'No agent accepted in time. Start a new request if you still need help'
+                : 'This request is closed. Start a new request if you still need help',
         };
     }
 
@@ -204,3 +232,17 @@ export const getBrokerRequestTrackingSummary = (
         nextAction: 'Wait for broker responses',
     };
 };
+
+export type BrokerRequestStatusFilter = 'all' | BrokerRequestListStatus;
+
+export const BROKER_REQUEST_STATUS_FILTER_OPTIONS: Array<{ value: BrokerRequestStatusFilter; label: string }> = [
+    { value: 'all', label: 'All requests' },
+    { value: 'active', label: 'Active' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'closed', label: 'Closed' },
+];
+
+export const filterBrokerRequestsByListStatus = <T extends { requestStatus?: BrokerRequestListStatus }>(
+    items: T[],
+    filter: BrokerRequestStatusFilter,
+): T[] => (filter === 'all' ? items : items.filter((item) => item.requestStatus === filter));

@@ -126,8 +126,8 @@ test('admin users CSV export keeps visible rows safe', () => {
 
 test('admin users expose visible sort and global search control copy', () => {
   assert.equal(getAdminUserSortControlLabel(), 'Sort users');
-  assert.equal(getAdminUsersGlobalSearchLabel(), 'Search users and lead reassignment leads');
-  assert.equal(getAdminUsersGlobalSearchPlaceholder(), 'Search users and leads...');
+  assert.equal(getAdminUsersGlobalSearchLabel(), 'Search users');
+  assert.equal(getAdminUsersGlobalSearchPlaceholder(), 'Search users...');
 });
 
 test('admin users page title matches the admin navigation label', () => {
@@ -154,12 +154,26 @@ test('admin users page keeps reassignment refresh manual or event driven', async
   assert.doesNotMatch(source, /useDashboardWorkspaceRefresh/);
 });
 
-test('admin users global search also drives lead reassignment filtering', async () => {
+test('admin user search and lead reassignment search stay independent', async () => {
   const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
 
   assert.match(source, /aria-label=\{getAdminUsersGlobalSearchLabel\(\)\}/);
   assert.match(source, /placeholder=\{getAdminUsersGlobalSearchPlaceholder\(\)\}/);
-  assert.match(source, /const normalizedValue = normalizeAdminUserSearchInput\(value\);[\s\S]*setLeadPage\(1\);[\s\S]*setSearchQuery\(normalizedValue\);[\s\S]*setLeadSearchQuery\(normalizedValue\);/);
+  assert.doesNotMatch(getAdminUsersGlobalSearchPlaceholder(), /lead/i);
+
+  const userSearchHandler = source.slice(
+    source.indexOf('const handleUserSearchChange = '),
+    source.indexOf('const handleRoleTabChange = '),
+  );
+  assert.match(userSearchHandler, /setSearchQuery\(normalizeAdminUserSearchInput\(value\)\)/);
+  assert.doesNotMatch(userSearchHandler, /setLeadSearchQuery|setLeadPage/);
+
+  const leadSearchHandler = source.slice(
+    source.indexOf('const handleLeadSearchChange = '),
+    source.indexOf('const handleLeadStatusFilterChange = '),
+  );
+  assert.match(leadSearchHandler, /setLeadSearchQuery\(normalizeAdminUserSearchInput\(value\)\)/);
+  assert.doesNotMatch(leadSearchHandler, /setSearchQuery|setCurrentPage/);
 });
 
 test('admin add user path opens the registration form while signed in', () => {

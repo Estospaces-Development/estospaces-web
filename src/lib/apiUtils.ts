@@ -164,6 +164,7 @@ export interface ApiEnvelope<T> {
     error?: string;
     message?: string;
     field_errors?: Record<string, string>;
+    code?: string;
 }
 
 export const AUTH_EXPIRED_EVENT = 'esto-auth-expired';
@@ -176,9 +177,12 @@ export interface ManagerWorkflowErrorPresentation {
 
 export class ApiRequestError extends Error {
     status?: number;
+    code?: string;
     userMessage: string;
     fieldErrors?: Record<string, string>;
     unauthorizedState?: UnauthorizedResponseState;
+    /** The error envelope's `data`, for structured detail such as a machine-readable reason. */
+    data?: unknown;
 
     constructor(
         message: string,
@@ -186,6 +190,8 @@ export class ApiRequestError extends Error {
         status?: number,
         fieldErrors?: Record<string, string>,
         unauthorizedState?: UnauthorizedResponseState,
+        code?: string,
+        data?: unknown,
     ) {
         super(message);
         this.name = 'ApiRequestError';
@@ -193,6 +199,8 @@ export class ApiRequestError extends Error {
         this.userMessage = userMessage;
         this.fieldErrors = fieldErrors;
         this.unauthorizedState = unauthorizedState;
+        this.code = code;
+        this.data = data;
     }
 }
 
@@ -538,10 +546,14 @@ export async function apiFetchEnvelope<T>(
 
     if (!response.ok) {
         let errorMsg = `API error: ${response.status}`;
+        let errorCode: string | undefined;
         let fieldErrors: Record<string, string> | undefined;
+        let errorData: unknown;
         try {
             const errorJson = await parseJsonResponse<any>(response, responseText);
             errorMsg = errorJson.error || errorJson.message || errorMsg;
+            if (typeof errorJson.code === 'string') errorCode = errorJson.code;
+            if (errorJson.data !== undefined && errorJson.data !== null) errorData = errorJson.data;
             if (errorJson.field_errors && typeof errorJson.field_errors === 'object') {
                 fieldErrors = errorJson.field_errors as Record<string, string>;
             }
@@ -564,6 +576,8 @@ export async function apiFetchEnvelope<T>(
             response.status,
             fieldErrors,
             unauthorizedState,
+            errorCode,
+            errorData,
         );
     }
 

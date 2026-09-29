@@ -8,6 +8,7 @@ import {
     getMessages,
     getTicket,
     markAsRead,
+    openConversationAttachment,
     openSupportAttachment,
     sendMessage,
     subscribeToDirectConversationUpserts,
@@ -222,5 +223,84 @@ test('support attachment closes its reserved tab when signed access fails', asyn
         assert.equal(popup.closed, true);
     } finally {
         browser.restore();
+    }
+});
+
+test('chat attachments open through the participant-checked access-url endpoint', async () => {
+    const popup: FakePopup = {
+        closed: false,
+        opener: {},
+        location: { href: '' },
+        document: { write: () => undefined, close: () => undefined },
+        close: () => undefined,
+    };
+    const requestedUrls: string[] = [];
+    const browser = installAttachmentBrowser(popup, (async (input: RequestInfo | URL) => {
+        requestedUrls.push(String(input));
+        return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({
+                success: true,
+                data: { access_url: 'https://media.test/api/v1/media/access/m1?token=signed', expires_at: '2026-09-27T10:10:00Z' },
+            }),
+        } as Response;
+    }) as typeof fetch);
+
+    try {
+        await openConversationAttachment('att-42');
+    } finally {
+        browser.restore();
+    }
+
+    assert.equal(requestedUrls.length, 1);
+    assert.match(requestedUrls[0], /\/api\/v1\/attachments\/att-42\/access-url$/);
+    assert.doesNotMatch(requestedUrls[0], /\/support\//);
+    assert.equal(popup.location.href, 'https://media.test/api/v1/media/access/m1?token=signed');
+    assert.equal(popup.opener, null);
+});
+
+test('a refused chat attachment does not open anything', async () => {
+    let closed = false;
+    const popup: FakePopup = {
+        closed: false,
+        opener: {},
+        location: { href: '' },
+        document: { write: () => undefined, close: () => undefined },
+        close: () => { closed = true; },
+    };
+    const browser = installAttachmentBrowser(popup, (async () => buildErrorResponse(404, 'Attachment not found')) as typeof fetch);
+
+    try {
+        await assert.rejects(() => openConversationAttachment('att-foreign'));
+    } finally {
+        browser.restore();
+    }
+
+    assert.equal(popup.location.href, '');
+    assert.equal(closed, true);
+});
+
+test('direct conversation upsert sends the broker request scope only when one is given', async () => {
+    const originalFetch = globalThis.fetch;
+    const bodies: Array<Record<string, any>> = [];
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body || '{}')));
+        return new Response(JSON.stringify({ success: true, data: { id: 'conversation-1', type: 'direct' } }), {
+            status: 201, headers: { 'Content-Type': 'application/json' },
+        });
+    }) as typeof fetch;
+
+    try {
+        await upsertDirectConversation('manager-1', {
+            brokerRequestId: '6ab09306-fea4-467e-9e52-f77266a3ca63',
+            propertyTitle: 'Rent request',
+        });
+        await upsertDirectConversation('manager-1', { propertyId: 'property-1' });
+        assert.equal(bodies[0].context.broker_request_id, '6ab09306-fea4-467e-9e52-f77266a3ca63');
+        assert.equal(bodies[0].context.property_title, 'Rent request');
+        assert.equal('broker_request_id' in bodies[1].context, false, 'unscoped callers keep the legacy payload');
+    } finally {
+        globalThis.fetch = originalFetch;
     }
 });

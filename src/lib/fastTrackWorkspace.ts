@@ -342,6 +342,45 @@ export const shouldDeferFastTrackSelectionURLSync = ({
     && !requestedCaseLookupMissed
 );
 
+// While a linked case has not been confirmed as accessible, no other case may be
+// rendered under that URL: the workspace fails closed until the lookup resolves.
+export const resolveFastTrackDisplayedCaseId = ({
+    requestedCaseId,
+    requestedCaseIsAvailable,
+    requestedCaseLookupMissed,
+    selectedCaseId,
+}: {
+    requestedCaseId: string | null | undefined;
+    requestedCaseIsAvailable: boolean;
+    requestedCaseLookupMissed: boolean;
+    selectedCaseId: string | null | undefined;
+}) => {
+    if (shouldDeferFastTrackSelectionURLSync({
+        requestedCaseId,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+    })) {
+        return null;
+    }
+    return selectedCaseId || null;
+};
+
+// Mirrors booking-service's documents hold: an open case whose required
+// documents are not all approved is held at the documents stage, whatever its
+// stored decision, agreement or handover progress.
+export const isFastTrackHeldForDocuments = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'documents'> | null | undefined,
+) => {
+    if (!fastTrackCase || fastTrackCase.workspaceFinalStatus !== 'active') {
+        return false;
+    }
+    const items = fastTrackCase.documents?.items || [];
+    const allApproved = items.length > 0
+        ? items.every((item) => item.status === 'approved')
+        : Boolean(fastTrackCase.documents?.allApproved);
+    return !allApproved;
+};
+
 export const isFastTrackStageUnlocked = (
     fastTrackCase: FastTrackCase | null | undefined,
     targetStage: FastTrackStage,
@@ -362,6 +401,13 @@ export const isFastTrackStageUnlocked = (
 
     if (targetStage === 'documents') {
         return fastTrackCase.workspaceFinalStatus === 'active';
+    }
+
+    // While documents are held, only an existing appointment keeps the
+    // viewing tab visible (read-only); decision, agreement and handover stay
+    // locked until the documents are approved.
+    if (isFastTrackHeldForDocuments(fastTrackCase) && targetStage !== 'viewing') {
+        return false;
     }
 
     const viewingStatus = String(fastTrackCase.viewing.status || '').trim().toLowerCase();
@@ -502,6 +548,108 @@ export const getFastTrackDocumentReviewActions = (
     canApprove: hasAttachedFile && status === 'uploaded',
     canRequestReplacement: hasAttachedFile && (status === 'uploaded' || status === 'approved'),
 });
+
+// Closed cases accept no workflow mutation from a user except confirming a
+// handover the manager already completed (and the completion refresh, which
+// has its own participant check). Mirrors errFastTrackCaseClosed in booking.
+export const isFastTrackUserActionBlockedOnClosedCase = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
+    action: string,
+) => fastTrackCase.workspaceFinalStatus !== 'active'
+    && action !== 'retry_handover_sync'
+    && !(action === 'confirm_handover' && fastTrackCase.workspaceFinalStatus === 'completed');
+
+// Per-document permissions derived from case state and role. Mirrors the
+// booking-service rules: only managers/admins review, only on open cases;
+// approval happens during document collection, and a replacement can also be
+// requested while the viewing is still unscheduled. Users only upload.
+export const getFastTrackDocumentItemPermissions = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'stage' | 'viewing'>,
+    role: FastTrackWorkspaceRole,
+    status: FastTrackCase['documents']['items'][number]['status'],
+    hasAttachedFile: boolean,
+) => {
+    const isOpen = fastTrackCase.workspaceFinalStatus === 'active';
+    const isReviewer = role === 'manager' || role === 'admin';
+    const reviewActions = getFastTrackDocumentReviewActions(status, hasAttachedFile);
+    const viewingUnscheduled = fastTrackCase.stage === 'viewing'
+        && String(fastTrackCase.viewing?.status || '').trim().toLowerCase() === 'pending';
+
+    return {
+        canUpload: role === 'user' && canUserPrepareFastTrackDocuments(fastTrackCase),
+        canApprove: isOpen && isReviewer && fastTrackCase.stage === 'documents' && reviewActions.canApprove,
+        canRequestReplacement: isOpen
+            && isReviewer
+            && (fastTrackCase.stage === 'documents' || viewingUnscheduled)
+            && reviewActions.canRequestReplacement,
+    };
+};
+
+export const FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE =
+    'Approve the required Fast Track documents before marking this viewing completed.';
+export const FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE =
+    'This Fast Track has expired. The user can revive it by uploading the requested documents; approve them before marking this viewing completed.';
+
+// A linked appointment cannot be completed while its active Fast Track still
+// has unapproved documents; booking-service refuses the completion (and
+// reports an expired case as closed).
+export const getFastTrackViewingCompletionBlockReason = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'documents'> & Partial<Pick<FastTrackCase, 'finalStatus'>> | null | undefined,
+) => {
+    if (!fastTrackCase || fastTrackCase.workspaceFinalStatus !== 'active') {
+        return null;
+    }
+    const items = fastTrackCase.documents?.items || [];
+    const allApproved = items.length > 0
+        ? items.every((item) => item.status === 'approved')
+        : Boolean(fastTrackCase.documents?.allApproved);
+    if (allApproved) {
+        return null;
+    }
+    return fastTrackCase.finalStatus === 'expired'
+        ? FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE
+        : FAST_TRACK_DOCUMENTS_PENDING_FOR_VIEWING_MESSAGE;
+};
+
+// Copy and note-field visibility for one document row, by what the viewer can
+// actually do. Users never see reviewer wording or the review note field.
+export const getFastTrackDocumentRowPresentation = ({
+    role,
+    workspaceFinalStatus,
+    canUpload,
+    canReview,
+    hasFile,
+}: {
+    role: FastTrackWorkspaceRole;
+    workspaceFinalStatus: FastTrackCase['workspaceFinalStatus'];
+    canUpload: boolean;
+    canReview: boolean;
+    hasFile: boolean;
+}) => {
+    if (canUpload) {
+        return { guidance: 'Add a file and one short upload note.', noteField: 'upload' as const };
+    }
+    if (role === 'user') {
+        return {
+            guidance: workspaceFinalStatus !== 'active'
+                ? 'This Fast Track is closed. Your files stay available to view.'
+                : 'Files can only be changed while documents are being collected.',
+            noteField: null,
+        };
+    }
+    if (canReview) {
+        return {
+            guidance: 'Review the file, leave one short note, and move on.',
+            noteField: hasFile ? 'review' as const : null,
+        };
+    }
+    return {
+        guidance: workspaceFinalStatus !== 'active'
+            ? 'This Fast Track is closed. Files stay available to view.'
+            : 'No review action is available for this file at this stage.',
+        noteField: null,
+    };
+};
 
 export const resolveFastTrackDocumentSearchParam = (
     params: URLSearchParams,
@@ -787,3 +935,12 @@ export const describeFastTrackWorkspaceStatus = (
                     : 'Claim the case, then open documents here so the rest of the journey stays on one page.';
     }
 };
+
+// Identity of the file behind a document preview. Polling returns new objects for
+// the same document, so previews re-resolve only when this key changes.
+export const getFastTrackPreviewSourceKey = (
+    item: { id: string; documentRecordId?: string | null; fileUrl?: string | null } | null | undefined,
+    hasLocalFile: boolean,
+) => (item
+    ? [item.id, item.documentRecordId || '', item.fileUrl || '', hasLocalFile ? 'local' : ''].join('|')
+    : '');

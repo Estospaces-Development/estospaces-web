@@ -61,6 +61,47 @@ export function validateViewingCancellationReason(value: string) {
     return null;
 }
 
+/**
+ * Status filters match the appointment's own status only. A Pending or
+ * Confirmed viewing whose slot has passed is not "Completed" until the
+ * booking service records it as completed (QA-MB-20260922-01-003).
+ */
+export function viewingMatchesFilter(
+    viewing: { date?: string | null; status?: string | null },
+    filter: string,
+    now: Date = new Date(),
+) {
+    if (!viewing.date) {
+        return filter === 'all';
+    }
+
+    const status = String(viewing.status || '').trim().toLowerCase();
+    const viewingDate = new Date(viewing.date);
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    switch (filter) {
+        case 'today':
+            return viewingDate >= today && viewingDate < tomorrow && status !== 'cancelled';
+        case 'this_week':
+            return viewingDate >= today && viewingDate < weekEnd && status !== 'cancelled';
+        case 'upcoming':
+            return viewingDate >= today && status !== 'cancelled';
+        case 'pending':
+            return status === 'pending' || status === 'rescheduled';
+        case 'completed':
+            return status === 'completed';
+        case 'cancelled':
+            return status === 'cancelled';
+        default:
+            return true;
+    }
+}
+
 export default function ViewingsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -195,12 +236,6 @@ export default function ViewingsPage() {
 
     const filteredViewings = [...viewings]
         .filter(viewing => {
-            const viewingDate = new Date(viewing.date);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(today);
-            weekEnd.setDate(weekEnd.getDate() + 7);
-
             const matchesSearch = !searchQuery.trim() || [
                 viewing.propertyTitle,
                 viewing.propertyAddress,
@@ -213,26 +248,7 @@ export default function ViewingsPage() {
                 return false;
             }
 
-            if (!viewing.date) {
-                return filter === 'all';
-            }
-
-            switch (filter) {
-                case 'today':
-                    return viewingDate >= today && viewingDate < new Date(today.getTime() + 24 * 60 * 60 * 1000) && viewing.status !== 'cancelled';
-                case 'this_week':
-                    return viewingDate >= today && viewingDate < weekEnd && viewing.status !== 'cancelled';
-                case 'upcoming':
-                    return viewingDate >= today && viewing.status !== 'cancelled';
-                case 'pending':
-                    return viewing.status === 'pending' || viewing.status === 'rescheduled';
-                case 'completed':
-                    return viewing.status === 'completed' || viewingDate < today;
-                case 'cancelled':
-                    return viewing.status === 'cancelled';
-                default:
-                    return true;
-            }
+            return viewingMatchesFilter(viewing, filter);
         })
         .sort((left, right) => {
             if (!focusedViewingId) {
@@ -335,7 +351,8 @@ export default function ViewingsPage() {
                     viewing.propertyTitle,
                     viewing.property_id,
                     viewing.date,
-                    normalizedReason
+                    normalizedReason,
+                    viewing.id,
                 );
             }
             publishWorkspaceSync({

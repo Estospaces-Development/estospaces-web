@@ -41,7 +41,8 @@ const BarChart = ({ data, title, height = 200, showValues = true, formatValue, s
 
     const formatAxisLabel = (value: number): string => {
         if (showCurrency) {
-            return formatLaunchCurrency(value);
+            // Axis ticks are derived values, so they are shown as whole amounts.
+            return formatLaunchCurrency(Math.round(value));
         }
         return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value.toFixed(0)}`;
     };

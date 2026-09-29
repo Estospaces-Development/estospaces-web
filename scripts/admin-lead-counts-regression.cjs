@@ -207,7 +207,7 @@ test('admin lead refresh updates the global card and filtered queue without stal
           await closeSidebar.waitFor({ state: 'hidden' });
         }
         const refresh = queue.getByRole('button', { name: 'Refresh', exact: true });
-        const controls = [refresh, page.getByRole('button', { name: 'Export CSV', exact: true }), page.getByRole('textbox', { name: 'Search users and lead reassignment leads', exact: true }), page.getByText('Active Leads', { exact: true })];
+        const controls = [refresh, page.getByRole('button', { name: 'Export CSV', exact: true }), page.getByRole('textbox', { name: 'Search users', exact: true }), page.getByText('Active Leads', { exact: true })];
         for (const control of controls) {
           const rendered = await renderedContrast(control);
           assert.ok(rendered.ratio >= 4.5, `${theme}/${width}: ${await control.getAttribute('aria-label') || await control.textContent()} contrast ${JSON.stringify(rendered)}`);

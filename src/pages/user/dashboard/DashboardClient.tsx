@@ -46,6 +46,7 @@ import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 import { inferSearchMarketFromText, serializeSearchMarketParam } from '@/lib/propertySearchControls';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import {
   getDashboardMapHeightClass,
@@ -286,7 +287,13 @@ const DashboardClient = () => {
   }
   const initialDashboardSearchParams = initialDashboardSearchParamsRef.current;
   const { user } = useAuth();
-  const geoMarket = useUserGeoMarket(user);
+  const preferredSearchDefaults = usePreferredSearchDefaults(user?.id);
+  const geoMarket = useUserGeoMarket(user, {
+    countryCode: preferredSearchDefaults.market || undefined,
+    locationCode: preferredSearchDefaults.market
+      ? preferredSearchDefaults.location || undefined
+      : user?.postcode,
+  });
   const toast = useToast();
   const {
     activeLocation,
@@ -430,6 +437,15 @@ const DashboardClient = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
+      setNearbyProperties([]);
+      setNearbyPropertiesLoading(!preferredSearchDefaults.failed);
+      if (preferredSearchDefaults.failed) {
+        setError('Could not load your saved search location. Please refresh and try again.');
+      }
+      return;
+    }
+
     if (locationLoading) {
       return;
     }
@@ -474,7 +490,7 @@ const DashboardClient = () => {
     return () => {
       active = false;
     };
-  }, [activeLocation, geoMarket, locationLoading]);
+  }, [activeLocation, geoMarket, locationLoading, preferredSearchDefaults.failed, preferredSearchDefaults.ready]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -655,6 +671,18 @@ const DashboardClient = () => {
   }, [activeBrokerRequest, activeJourney, completedJourney, dashboardCopy, navigate]);
 
   const fetchFilteredProperties = useCallback(async () => {
+    if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
+      setFilteredProperties([]);
+      setFilteredCount(0);
+      setFilteredTotalPages(0);
+      setFilteredSearchCompleted(false);
+      setSearchLoading(!preferredSearchDefaults.failed);
+      if (preferredSearchDefaults.failed) {
+        setError('Could not load your saved search location. Please refresh and try again.');
+      }
+      return;
+    }
+
     if (!shouldFetchFilteredResults) {
       setFilteredProperties([]);
       setFilteredCount(0);
@@ -724,7 +752,7 @@ const DashboardClient = () => {
       setSearchLoading(false);
       setFilteredSearchCompleted(true);
     }
-  }, [currentFilteredPage, dashboardSearchFilters, geoMarket, selectedFilters, selectedPropertyType, shouldFetchFilteredResults]);
+  }, [currentFilteredPage, dashboardSearchFilters, geoMarket, preferredSearchDefaults.failed, preferredSearchDefaults.ready, selectedFilters, selectedPropertyType, shouldFetchFilteredResults]);
 
   useEffect(() => {
     if (!shouldFetchFilteredResults) {
@@ -823,7 +851,10 @@ const DashboardClient = () => {
   }, [clearDashboardSearchParams, clearFilteredResults]);
 
   const mapLocation = activeLocation || null;
-  const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
+  const marketResultsReady = preferredSearchDefaults.ready && !preferredSearchDefaults.failed;
+  const visibleFilteredProperties = marketResultsReady ? filteredProperties : [];
+  const visibleNearbyProperties = marketResultsReady ? nearbyProperties : [];
+  const activeMapProperties = showFilteredResults ? visibleFilteredProperties : visibleNearbyProperties;
   const mapProperties = useMemo(() => (
     activeMapProperties.filter((property): property is SearchResult & { latitude: number; longitude: number } => (
       Boolean(property) && hasValidMapCoordinates(property)
@@ -1179,9 +1210,9 @@ const DashboardClient = () => {
                 <PropertyCardSkeleton key={index} />
               ))}
             </div>
-          ) : filteredProperties.length > 0 ? (
+          ) : visibleFilteredProperties.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProperties.map((property) => (
+              {visibleFilteredProperties.map((property) => (
                 <PropertyCard
                   key={property.id}
                   property={property}
@@ -1215,13 +1246,13 @@ const DashboardClient = () => {
                 onPageChange={setCurrentFilteredPage}
                 totalItems={filteredCount}
                 pageSize={FILTERED_RESULTS_PAGE_SIZE}
-                currentItemCount={filteredProperties.length}
+                currentItemCount={visibleFilteredProperties.length}
                 itemLabel="properties"
               />
             </div>
           )}
 
-          {filteredProperties.length > 0 && filteredCount > FILTERED_RESULTS_PAGE_SIZE && (
+          {visibleFilteredProperties.length > 0 && filteredCount > FILTERED_RESULTS_PAGE_SIZE && (
             <div className="text-center mt-6">
               <button
                 onClick={() => {

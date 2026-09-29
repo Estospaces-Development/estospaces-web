@@ -49,6 +49,8 @@ import {
     fastTrackCaseMatchesQuery,
     FAST_TRACK_AGREEMENT_PUBLISHED_MESSAGE,
     getFastTrackDecisionGuard,
+    getFastTrackDocumentItemPermissions,
+    getFastTrackDocumentRowPresentation,
     getFastTrackDocumentReviewActions,
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
@@ -58,6 +60,7 @@ import {
     isFastTrackCaseCompleteForRole,
     isFastTrackManagerReviewEligible,
     isFastTrackStageUnlocked,
+    isFastTrackUserActionBlockedOnClosedCase,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackDocumentFocusAfterRefresh,
     resolveFastTrackStageSearchParam,
@@ -68,8 +71,10 @@ import {
     resolveFastTrackVisibleStage,
     shouldDeferFastTrackStageResolution,
     shouldDeferFastTrackSelectionURLSync,
+    resolveFastTrackDisplayedCaseId,
     shouldRemoveFastTrackStaleCaseLink,
     shouldStartDocumentsWhenSelectingStage,
+    getFastTrackPreviewSourceKey,
 } from '@/lib/fastTrackWorkspace';
 import {
     WORKSPACE_SYNC_INTERVALS,
@@ -105,6 +110,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
+import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -259,7 +265,7 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
         return role === 'user' ? '24 hours' : '24h window';
     }
     if (hoursRemaining <= 0) {
-        return role === 'user' ? 'Needs attention' : 'Overdue';
+        return role === 'user' ? 'Deadline passed' : 'Overdue';
     }
     return `${hoursRemaining}h left`;
 };
@@ -533,17 +539,32 @@ interface FastTrackDocumentReviewControlsProps {
     hasAttachedFile: boolean;
     busy: boolean;
     readOnly?: boolean;
+    /** Case/role-derived permissions; when omitted only the file status is considered. */
+    permissions?: { canApprove: boolean; canRequestReplacement: boolean };
+    viewer?: 'reviewer' | 'user';
     onReview: (outcome: 'approved' | 'reupload_needed') => void;
 }
+
+const describeFastTrackDocumentReviewStatus = (
+    status: FastTrackDocumentItem['status'],
+    viewer: 'reviewer' | 'user',
+) => {
+    if (status === 'uploaded') {
+        return viewer === 'user' ? 'File uploaded.' : 'Uploaded. Review is not available at this stage.';
+    }
+    return viewer === 'user' ? 'No file uploaded.' : 'Waiting for the user to upload this file.';
+};
 
 export const FastTrackDocumentReviewControls = ({
     item,
     hasAttachedFile,
     busy,
     readOnly = false,
+    permissions,
+    viewer = 'reviewer',
     onReview,
 }: FastTrackDocumentReviewControlsProps) => {
-    const actions = getFastTrackDocumentReviewActions(item.status, hasAttachedFile);
+    const actions = permissions ?? getFastTrackDocumentReviewActions(item.status, hasAttachedFile);
 
     return (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -567,7 +588,7 @@ export const FastTrackDocumentReviewControls = ({
                 </p>
             ) : (
                 <p className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                    Waiting for the user to upload this file.
+                    {describeFastTrackDocumentReviewStatus(item.status, viewer)}
                 </p>
             )}
             {actions.canRequestReplacement && item.status !== 'approved' ? (
@@ -762,7 +783,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
         caseId: string;
-        status: 'loading' | 'miss' | 'unavailable';
+        status: 'loading' | 'miss' | 'unavailable' | 'forbidden';
     } | null>(null);
     const [requestedCaseRetryToken, setRequestedCaseRetryToken] = useState(0);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
@@ -1101,6 +1122,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 return;
             }
 
+            if (result.forbidden) {
+                setError(null);
+                setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'forbidden' });
+                return;
+            }
+
             setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'unavailable' });
             setError(result.error || 'The Fast Track service is temporarily unavailable. Please try again.');
         };
@@ -1299,9 +1326,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setSearchParams,
     ]);
 
+    const displayedCaseId = resolveFastTrackDisplayedCaseId({
+        requestedCaseId: requestedCaseParam,
+        requestedCaseIsAvailable,
+        requestedCaseLookupMissed,
+        selectedCaseId,
+    });
+    const requestedCaseForbidden = Boolean(
+        normalizedRequestedCaseParam
+        && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
+        && requestedCaseLookup.status === 'forbidden',
+    );
     const selectedCase = useMemo(
-        () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
-        [filteredCases, selectedCaseId],
+        () => filteredCases.find((item) => item.caseId === displayedCaseId) || null,
+        [filteredCases, displayedCaseId],
     );
     const selectedCaseDisplayTitle = selectedCase
         ? getFastTrackWorkspaceDisplayTitle(selectedCase, role)
@@ -1577,7 +1615,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const completionRefreshAllowed = action === 'retry_handover_sync'
             && canRefreshFastTrackCompletion(selectedCase, role, user?.id);
         if ((action === 'retry_handover_sync' && !completionRefreshAllowed)
-            || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)) {
+            || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)
+            || (role === 'user' && isFastTrackUserActionBlockedOnClosedCase(selectedCase, action))) {
             setPendingAdminOverrideAction(null);
             setStageConfirmDialog(null);
             setCancelCaseDialogOpen(false);
@@ -1852,8 +1891,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        setViewingDate(selectedCase.viewing.scheduledAt ? selectedCase.viewing.scheduledAt.slice(0, 10) : '');
-        setViewingTime(selectedCase.viewing.scheduledAt ? selectedCase.viewing.scheduledAt.slice(11, 16) : '');
+        setViewingDate(formatFastTrackDocumentRequestInputValue(selectedCase.viewing.scheduledAt).slice(0, 10));
+        setViewingTime(formatFastTrackDocumentRequestInputValue(selectedCase.viewing.scheduledAt).slice(11, 16));
         setViewingNote(selectedCase.viewing.note || '');
         setDecisionAmount(selectedCase.decision.amount ? String(selectedCase.decision.amount) : '');
         setDecisionNote(selectedCase.decision.note || '');
@@ -2256,23 +2295,34 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         };
     }, [releasePreviewObjectUrl]);
 
+    // Background polling hands back new document objects every few seconds.
+    // Re-resolve the preview only when the previewed file itself changes, so an
+    // access error stays visible and the signed URL isn't re-requested per poll.
+    const previewSourceKey = getFastTrackPreviewSourceKey(
+        previewItem,
+        previewItem ? Boolean(selectedFiles[previewItem.id]) : false,
+    );
+    const latestPreviewRef = useRef({ previewItem, ensureDocumentPreview, selectedFiles });
+    latestPreviewRef.current = { previewItem, ensureDocumentPreview, selectedFiles };
+
     useEffect(() => {
-        if (!previewItem) {
+        const { previewItem: currentPreviewItem, ensureDocumentPreview: ensurePreview, selectedFiles: currentFiles } = latestPreviewRef.current;
+        if (!currentPreviewItem) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError(null);
             setPreviewZoom(0);
             return;
         }
-        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
-        if (!selectedPreviewFile && !previewItem.documentRecordId && !previewItem.fileUrl) {
+        const selectedPreviewFile = currentFiles[currentPreviewItem.id] || null;
+        if (!selectedPreviewFile && !currentPreviewItem.documentRecordId && !currentPreviewItem.fileUrl) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError('Choose a document to preview once a file has been attached.');
             return;
         }
-        void ensureDocumentPreview(previewItem);
-    }, [ensureDocumentPreview, previewItem, previewItemId, releasePreviewObjectUrl, selectedFiles]);
+        void ensurePreview(currentPreviewItem);
+    }, [previewSourceKey, releasePreviewObjectUrl]);
 
     useEffect(() => {
         if (previewModalOpen) {
@@ -2670,7 +2720,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const activeSelectedFile = selectedFiles[activeDocument.id] || null;
         const canPreview = Boolean(activeSelectedFile || activeDocument.documentRecordId || activeDocument.fileUrl);
-        const helperNote = activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '';
+        // A replacement request only shows the reviewer's reason, never the uploader's note.
+        const helperNote = activeDocument.status === 'reupload_needed'
+            ? (activeDocument.reviewNote || '')
+            : (activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '');
         const coreFileKeyFor = createDuplicateSafeKeyResolver('fast-track-core-file');
 
         return (
@@ -2958,16 +3011,31 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item, itemIndex) => {
-                        const canUpload = role === 'user' && canUserPrepareFastTrackDocuments(selectedCase);
                         const busyKey = `upload-${item.id}`;
                         const selectedFile = selectedFiles[item.id] || null;
                         const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
+                        const documentPermissions = getFastTrackDocumentItemPermissions(
+                            selectedCase,
+                            role,
+                            item.status,
+                            Boolean(item.documentRecordId || item.fileUrl),
+                        );
+                        const canUpload = documentPermissions.canUpload;
+                        const rowPresentation = getFastTrackDocumentRowPresentation({
+                            role,
+                            workspaceFinalStatus: selectedCase.workspaceFinalStatus,
+                            canUpload,
+                            canReview: documentPermissions.canApprove || documentPermissions.canRequestReplacement,
+                            hasFile: canPreview,
+                        });
                         const uploadCopy = getFastTrackDocumentUploadCopy({
                             status: item.status,
                             hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
                         });
                         const focused = focusedDocumentItem?.id === item.id;
-                        const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
+                        const supportingNote = item.status === 'reupload_needed'
+                            ? (item.reviewNote || '')
+                            : (item.reviewNote || item.uploadNote || item.note || '');
                         const canRequestDocument = role !== 'user'
                             && selectedCase.workspaceFinalStatus === 'active'
                             && selectedCase.stage === 'documents'
@@ -3043,9 +3111,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 : 'border-gray-100 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300')
                                             : 'border-dashed border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-500',
                                     )}>
-                                        {supportingNote || (canUpload
-                                            ? 'Add a file and one short upload note.'
-                                            : 'Review the file, leave one short note, and move on.')}
+                                        {supportingNote || rowPresentation.guidance}
                                     </div>
                                     {item.requestReason || item.requestDueAt ? (
                                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
@@ -3104,7 +3170,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                     </div>
 
-                                    {canUpload || canPreview ? <input
+                                    {rowPresentation.noteField ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
                                         readOnly={isFastTrackStageReadOnly(selectedCase, role)}
@@ -3114,7 +3180,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             [item.id]: event.target.value,
                                         }))}
                                         aria-label={`Note for ${item.label}`}
-                                        placeholder={canUpload ? 'Short upload note' : 'Short review note'}
+                                        placeholder={rowPresentation.noteField === 'upload' ? 'Short upload note' : 'Short review note'}
                                         className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 read-only:cursor-default read-only:bg-gray-50 read-only:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:read-only:bg-gray-900 dark:read-only:text-gray-400"
                                     /> : null}
 
@@ -3175,6 +3241,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             hasAttachedFile={canPreview}
                                             busy={activeAction === 'review_document'}
                                             readOnly={isFastTrackStageReadOnly(selectedCase, role)}
+                                            permissions={documentPermissions}
+                                            viewer={role === 'user' ? 'user' : 'reviewer'}
                                             onReview={(outcome) => void runAction(
                                                 'review_document',
                                                 {
@@ -4035,10 +4103,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 deadlineLabel: formatFastTrackCaseDeadline(item, role, deadlineNow),
                 statusLabel: chip.label,
                 statusTone: chip.tone,
-                selected: selectedCaseId === item.caseId,
+                selected: displayedCaseId === item.caseId,
             };
         }),
-        [deadlineNow, paginatedCases, role, selectedCaseId],
+        [deadlineNow, displayedCaseId, paginatedCases, role],
     );
 
     const caseRailLayout = useMemo(
@@ -4131,7 +4199,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const selectedCaseSubtitle = selectedCase
         ? role === 'user'
-            ? `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`
+            ? [
+                `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`,
+                formatJourneyStartedLabel(selectedCase.submittedAt),
+            ].filter(Boolean).join(' · ')
             : `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
         : '';
     const workspaceStatusMessage = recoveredCaseLink
@@ -4468,6 +4539,43 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 ) : null}
                             </div>
                         </>
+                    ) : requestedCaseForbidden ? (
+                        <div
+                            role="alert"
+                            data-fast-track-case-forbidden
+                            className="rounded-[32px] border border-red-200 bg-white px-6 py-16 text-center text-sm text-gray-600 shadow-sm dark:border-red-900/40 dark:bg-gray-950 dark:text-gray-300"
+                        >
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                                You do not have access to this journey.
+                            </p>
+                            <p className="mt-2">
+                                This link belongs to a journey that is not shared with your account.
+                            </p>
+                            <div className="mt-6 flex flex-wrap justify-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setRequestedCaseLookup(null);
+                                        setSearchParams((previous) => stripCaseSearchParam(previous), { replace: true });
+                                    }}
+                                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
+                                >
+                                    View your journeys
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
+                                    className="inline-flex items-center justify-center rounded-xl bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950"
+                                >
+                                    Back to dashboard
+                                </button>
+                            </div>
+                        </div>
+                    ) : requestedCaseParam && !displayedCaseId ? (
+                        <div role="status" className="flex items-center justify-center gap-3 rounded-[32px] border border-gray-200 bg-white px-6 py-20 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
+                            <ActionSpinner size={16} aria-hidden />
+                            Opening the linked journey...
+                        </div>
                     ) : (
                         <div className="rounded-[32px] border border-dashed border-gray-300 bg-white px-6 py-20 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
                             <p className="font-semibold text-gray-900 dark:text-white">

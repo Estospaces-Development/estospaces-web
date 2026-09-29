@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
-    ArrowLeft, Edit, Trash2, MapPin, Home, Copy, Share2, Heart,
+    ArrowLeft, Edit, Trash2, MapPin, Copy, Share2, Heart,
     Bed, Bath, Car, Maximize, CheckCircle, Globe, TrendingUp, Eye, MessageCircle,
     ChevronLeft, ChevronRight, Settings,
     Send, Video, ExternalLink
@@ -17,7 +18,16 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { formatAmenityLabel } from '@/lib/amenityLabels';
+import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
+import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
+import {
+    loadManagerPropertyDetail,
+    managerPropertyDetailQueryKey,
+    type ManagerPropertyDetailResult,
+} from '@/lib/managerPropertyDetail';
+import type { Property } from '@/contexts/PropertyContext';
 
 // Helper for currency formatting
 const formatPrice = (price: any, property?: any) => {
@@ -39,9 +49,9 @@ export default function PropertyDetailPage() {
     const navigate = useNavigate();
     const appToast = useToast();
 
-    const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementShares } = useProperties();
+    const { getProperty, fetchPropertyById, deleteProperty, updateProperty, duplicateProperty, incrementShares } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
-    const { user: _user } = useAuth();
+    const { user } = useAuth();
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
@@ -60,7 +70,18 @@ export default function PropertyDetailPage() {
     });
 
 
-    const property = id ? getProperty(id) : undefined;
+    // The inventory context only holds the loaded list page, so the detail is
+    // always read by ID; a listed copy is only a placeholder while it loads.
+    const listedProperty = id ? getProperty(id) : undefined;
+    const detailQuery = useQuery<ManagerPropertyDetailResult<Property>>({
+        queryKey: managerPropertyDetailQueryKey(id || '', user?.id),
+        queryFn: () => loadManagerPropertyDetail(id, user, fetchPropertyById),
+        enabled: Boolean(id),
+        placeholderData: listedProperty ? { kind: 'found', property: listedProperty } : undefined,
+        retry: false,
+    });
+    const detail = id ? detailQuery.data : { kind: 'not_found' as const };
+    const property = detail?.kind === 'found' ? detail.property : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
     const amenities = flattenPropertyAmenities(property?.amenities);
@@ -76,20 +97,13 @@ export default function PropertyDetailPage() {
 
     if (!property) {
         return (
-            <div className="min-h-[400px] flex flex-col items-center justify-center p-8">
-                <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
-                    <Home className="w-10 h-10 text-gray-400" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Property not found</h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">The property you're looking for doesn't exist or has been removed.</p>
-                <button
-                    onClick={() => navigate('/manager/dashboard/properties')}
-                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    Back to Properties
-                </button>
-            </div>
+            <ManagerPropertyLoadState
+                kind={!detail ? 'loading' : detail.kind === 'found' ? 'not_found' : detail.kind}
+                errorMessage={detail?.kind === 'error' ? detail.message : undefined}
+                onBack={() => navigate('/manager/dashboard/properties')}
+                onRetry={() => { void detailQuery.refetch(); }}
+                retrying={detailQuery.isFetching}
+            />
         );
     }
 
@@ -108,7 +122,7 @@ export default function PropertyDetailPage() {
         if (id && !duplicating) {
             setDuplicating(true);
             try {
-                const duplicate = await duplicateProperty(id);
+                const duplicate = await duplicateProperty(id, property);
                 if (duplicate) {
                     appToast.success(`Draft copy created. You are now editing ${duplicate.title}.`);
                     navigate(`/manager/dashboard/properties/edit/${duplicate.id}`);
@@ -141,9 +155,8 @@ export default function PropertyDetailPage() {
                     type: 'success',
                     visible: true,
                 });
-                // In React Router, we don't have router.refresh(). 
-                // Since this component uses context state (useProperties), 
-                // the updateProperty call should already trigger a re-render.
+                // updateProperty invalidates the detail cache; re-read the saved state.
+                void detailQuery.refetch();
             } else {
                 setToast({
                     message: 'Failed to publish property. Please try again.',
@@ -152,6 +165,15 @@ export default function PropertyDetailPage() {
                 });
             }
         } catch (error: any) {
+            const planLimit = await resolvePlanLimitNotice(error, loadManagerPlanEntitlement);
+            if (planLimit) {
+                appToast.error(planLimit.message, {
+                    title: planLimit.title,
+                    action: planLimit.action,
+                    duration: 10000,
+                });
+                return;
+            }
             setToast({
                 message: `Failed to publish property: ${error?.message || 'Unknown error'}`,
                 type: 'error',
@@ -533,7 +555,7 @@ export default function PropertyDetailPage() {
                                         {amenities.map((amenity) => (
                                             <div key={amenity} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                                 <CheckCircle size={16} className="text-orange-600" />
-                                                <span className="capitalize text-sm">{amenity}</span>
+                                                <span className="text-sm">{formatAmenityLabel(amenity)}</span>
                                             </div>
                                         ))}
                                     </div>

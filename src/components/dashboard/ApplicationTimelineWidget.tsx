@@ -9,17 +9,23 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
+    BROKER_REQUEST_STATUS_FILTER_OPTIONS,
+    filterBrokerRequestsByListStatus,
     getApplicationTimelineTimestamp,
+    getBrokerRequestListStatus,
     getBrokerRequestTrackingSummary,
     getStableActivityTimestamp,
     getMissingTimelinePropertyCopy,
     hasStableActivityTimestamp,
     hasTimelinePropertyDetails,
-    isLiveBrokerRequest,
     resolveTimelinePropertyContext,
+    type BrokerRequestListStatus,
+    type BrokerRequestStatusFilter,
     type TimelinePropertyContext,
 } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import { describeRequestEntryJourney, findRequestEntryJourney } from '@/lib/existingFastTrackJourney';
+import { getFastTrackCases } from '@/services/fastTrackService';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
@@ -53,6 +59,7 @@ interface TimelineEventType {
 interface ApplicationItem {
     id: string;
     source?: 'application' | 'viewing' | 'contract' | 'broker_request' | 'listing' | 'sale_progression';
+    requestStatus?: BrokerRequestListStatus;
     type: 'buy' | 'rent' | 'sell';
     currentStage: string;
     currentStageNumber: number;
@@ -82,6 +89,8 @@ interface ApplicationItem {
     stats?: { views: number; inquiries: number; saved: number };
     primaryActionPath?: string;
     primaryActionLabel?: string;
+    /** Existing-journey summary for a request linked to a (possibly reused) Fast Track case. */
+    primaryActionSummary?: string;
     requestedLabel?: string;
 }
 
@@ -277,19 +286,23 @@ const ApplicationTimelineWidget = () => {
     const [listingsPage, setListingsPage] = useState(1);
     const [timelineFilter, setTimelineFilter] = useState('');
     const [timelineSort, setTimelineSort] = useState<TimelineSort>('updated_desc');
+    const [requestStatusFilter, setRequestStatusFilter] = useState<BrokerRequestStatusFilter>('all');
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes, contractsRes] = await Promise.all([
+                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes, contractsRes, fastTrackCasesRes] = await Promise.all([
                     getApplications({ suppressErrorToast: true }),
                     getUserBrokerRequests({ suppressErrorToast: true }),
                     getUserProperties({ limit: 50 }),
                     getSaleProgressions({ suppressErrorToast: true }),
                     getViewings({ suppressErrorToast: true }).catch(() => []),
                     getContracts().catch(() => []),
+                    // Only used to describe linked cases; never blocks the timeline.
+                    getFastTrackCases({ suppressErrorToast: true }).catch(() => ({ data: null, error: null })),
                 ]);
+                const fastTrackCases = fastTrackCasesRes.data || [];
 
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
                 const contracts = Array.isArray(contractsRes) ? contractsRes : [];
@@ -439,13 +452,19 @@ const ApplicationTimelineWidget = () => {
                     };
                 });
 
+                // History keeps expired and closed requests reachable; the status filter narrows it.
                 const mappedBrokerRequests: ApplicationItem[] = dedupeBrokerRequestsForTimeline(
-                    (brokerRequestsRes.data || []).filter((request) => (
-                        isLiveBrokerRequest(request) && isUserVisibleBrokerRequest(request)
-                    )),
+                    (brokerRequestsRes.data || []).filter(isUserVisibleBrokerRequest),
                 )
                     .map((request) => {
                         const summary = getBrokerRequestTrackingSummary(request);
+                        const requestStatus = getBrokerRequestListStatus(request);
+                        const linkedCase = request.selected_fast_track_case_id
+                            ? findRequestEntryJourney(fastTrackCases, { linkedCaseId: request.selected_fast_track_case_id })
+                            : null;
+                        const linkedJourney = linkedCase
+                            ? describeRequestEntryJourney(linkedCase, { brokerRequestId: request.id })
+                            : null;
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                         const requestTimeline: TimelineEventType[] = [
                             {
@@ -490,6 +509,7 @@ const ApplicationTimelineWidget = () => {
                         return {
                             id: `broker-request-${request.id}`,
                             source: 'broker_request',
+                            requestStatus,
                             type: request.request_type === 'rent' ? 'rent' : request.request_type === 'sell' ? 'sell' : 'buy',
                             currentStage: summary.currentStage,
                             currentStageNumber: summary.currentStageNumber,
@@ -497,7 +517,11 @@ const ApplicationTimelineWidget = () => {
                             progress: summary.progress,
                             lastUpdated: getStableActivityTimestamp(request.updated_at, request.created_at),
                             nextAction: summary.nextAction,
-                            estimatedCompletion: 'Property agent search is live',
+                            estimatedCompletion: requestStatus === 'expired'
+                                ? 'Request expired'
+                                : requestStatus === 'closed'
+                                    ? 'Request closed'
+                                    : 'Property agent search is live',
                             requestedLabel: getBrokerRequestRequestedLabel(request),
                             property: {
                                 id: request.selected_property_id || request.selected_property?.id || request.id,
@@ -523,10 +547,13 @@ const ApplicationTimelineWidget = () => {
                                 ? `/user/dashboard/fast-track?case=${request.selected_fast_track_case_id}`
                                 : buildBrokerRequestWorkspacePath(request.id),
                             primaryActionLabel: request.selected_fast_track_case_id
-                                ? 'Continue 24-hour journey'
+                                ? linkedJourney?.actionLabel || 'Open linked 24-hour journey'
+                                : requestStatus !== 'active'
+                                    ? 'View request'
                                 : request.matched_broker
                                     ? 'Open agent request'
                                     : 'Track agent request',
+                            primaryActionSummary: linkedJourney?.text,
                         };
                     });
 
@@ -819,10 +846,14 @@ const ApplicationTimelineWidget = () => {
         viewingsPage,
     ]);
 
+    const filteredBrokerRequests = useMemo(
+        () => filterBrokerRequestsByListStatus(brokerRequests, requestStatusFilter),
+        [brokerRequests, requestStatusFilter],
+    );
     const sourceItems = activeTab === 'applications'
         ? applications
         : activeTab === 'requests'
-            ? brokerRequests
+            ? filteredBrokerRequests
             : activeTab === 'viewings'
                 ? viewingItems
                 : activeTab === 'contracts'
@@ -860,7 +891,7 @@ const ApplicationTimelineWidget = () => {
             setListingsPage(1);
         }
         setExpandedId(null);
-    }, [activeTab, timelineFilter, timelineSort]);
+    }, [activeTab, timelineFilter, timelineSort, requestStatusFilter]);
 
     const handleTabChange = (tab: TimelineTab) => {
         setActiveTab(tab);
@@ -897,6 +928,7 @@ const ApplicationTimelineWidget = () => {
         { id: 'listings', label: 'My Homes', count: listings.length, itemLabel: 'listings' },
     ];
     const activeTabConfig = timelineTabs.find((tab) => tab.id === activeTab) || timelineTabs[0];
+    const hasActiveListFilter = Boolean(timelineFilter.trim()) || (activeTab === 'requests' && requestStatusFilter !== 'all');
     const statusSummary = loading
         ? 'Loading portfolio journeys.'
         : `${dataToShow.length} ${activeTabConfig.itemLabel} shown, sorted by ${timelineSort.replace('_', ' ')}.`;
@@ -964,7 +996,7 @@ const ApplicationTimelineWidget = () => {
                         <span className="inline-flex items-center gap-2"><SlidersHorizontal size={16} /> Filter and sort</span>
                         <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
                     </summary>
-                    <div className="hidden gap-3 pt-3 group-open:grid sm:grid sm:pt-0 md:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className={`hidden gap-3 pt-3 group-open:grid sm:grid sm:pt-0 ${activeTab === 'requests' ? 'md:grid-cols-[minmax(0,1fr)_200px_220px]' : 'md:grid-cols-[minmax(0,1fr)_220px]'}`}>
                     <div>
                         <label htmlFor="portfolio-journey-filter" className="sr-only">Filter portfolio journeys</label>
                         <div className="relative">
@@ -979,6 +1011,22 @@ const ApplicationTimelineWidget = () => {
                             />
                         </div>
                     </div>
+                    {activeTab === 'requests' ? (
+                        <div>
+                            <label htmlFor="agent-request-status-filter" className="sr-only">Filter agent requests by status</label>
+                            <select
+                                id="agent-request-status-filter"
+                                aria-label="Filter agent requests by status"
+                                value={requestStatusFilter}
+                                onChange={(event) => setRequestStatusFilter(event.target.value as BrokerRequestStatusFilter)}
+                                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-orange-700 dark:focus:ring-orange-900/40"
+                            >
+                                {BROKER_REQUEST_STATUS_FILTER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : null}
                     <div>
                         <label htmlFor="portfolio-journey-sort" className="sr-only">Sort portfolio journeys</label>
                         <div className="relative">
@@ -1010,10 +1058,10 @@ const ApplicationTimelineWidget = () => {
                             <FileText className="w-8 h-8 text-gray-400" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                            {timelineFilter.trim() ? `No matching ${activeTabConfig.itemLabel}` : `No ${activeTabConfig.itemLabel} yet`}
+                            {hasActiveListFilter ? `No matching ${activeTabConfig.itemLabel}` : `No ${activeTabConfig.itemLabel} yet`}
                         </h3>
                         <p className="text-gray-500 dark:text-gray-400 mb-4">
-                            {timelineFilter.trim() ? 'Try a different property, location, or stage.' : 'Start with one simple next step.'}
+                            {hasActiveListFilter ? 'Try a different property, location, stage, or status.' : 'Start with one simple next step.'}
                         </p>
                     </div>
                 ) : (
@@ -1119,6 +1167,11 @@ const ApplicationTimelineWidget = () => {
                                             >
                                                 {item.primaryActionLabel || 'View Property'} <ExternalLink size={14} />
                                             </button>
+                                            {item.primaryActionSummary ? (
+                                                <p className="text-xs leading-5 text-gray-600 dark:text-gray-300 sm:self-center" data-testid="existing-fast-track-journey-summary">
+                                                    {item.primaryActionSummary}
+                                                </p>
+                                            ) : null}
                                             {item.source !== 'broker_request' && (
                                                 <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
                                             )}

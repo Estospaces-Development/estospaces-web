@@ -25,6 +25,11 @@ test('manager review modal blocks approval when manager evidence is incomplete',
     assert.match(source, /disabled=\{approvalBlocker !== null\}/);
 });
 
+test('billing-country review remains available to approved managers with legacy readiness gaps', () => {
+    assert.match(source, /profile\.verification_status === 'approved' \? <ManagerBillingMarketReview managerID=\{managerId\}/);
+    assert.doesNotMatch(source, /isApproved \? <ManagerBillingMarketReview/);
+});
+
 test('manager review modal exposes every manager professional field to admins', () => {
     const details = getManagerProfessionalDetails({
         id: 'manager-1',

@@ -29,6 +29,8 @@ import {
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 
+const MANAGER_NOTIFICATION_PAGE_SIZE = 25;
+
 const getManagerNotificationIcon = (notification: Notification) => {
     const iconClass = getNotificationIconColorClass(notification);
 
@@ -103,6 +105,7 @@ export default function ManagerNotificationsPage() {
 
     const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [visibleLimit, setVisibleLimit] = useState(MANAGER_NOTIFICATION_PAGE_SIZE);
 
     const safeNotifications = useMemo(() => {
         if (!notifications || !Array.isArray(notifications)) return [];
@@ -150,6 +153,10 @@ export default function ManagerNotificationsPage() {
             return matchesFilter && matchesSearch;
         });
     }, [safeNotifications, filter, searchQuery]);
+    const visibleNotifications = useMemo(
+        () => filteredNotifications.slice(0, visibleLimit),
+        [filteredNotifications, visibleLimit],
+    );
 
     // Format time safely to prevent "Invalid Date" crashes
     const formatSafeTime = (dateStr: any) => {
@@ -208,7 +215,10 @@ export default function ManagerNotificationsPage() {
                     {(['all', 'unread', 'read'] as const).map(f => (
                         <button
                             key={f}
-                            onClick={() => setFilter(f)}
+                            onClick={() => {
+                                setFilter(f);
+                                setVisibleLimit(MANAGER_NOTIFICATION_PAGE_SIZE);
+                            }}
                             className={`px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
                                 filter === f ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'
                             }`}
@@ -223,7 +233,10 @@ export default function ManagerNotificationsPage() {
                         type="text"
                         placeholder="Search notifications..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setVisibleLimit(MANAGER_NOTIFICATION_PAGE_SIZE);
+                        }}
                         className="w-full pl-10 pr-4 py-2 text-sm bg-transparent border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all dark:text-white"
                     />
                 </div>
@@ -236,8 +249,9 @@ export default function ManagerNotificationsPage() {
                     <p className="text-gray-500 mt-2">Try adjusting your filters or search query</p>
                 </div>
             ) : (
+                <div className="space-y-4">
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm divide-y divide-gray-50 dark:divide-gray-700 overflow-hidden">
-                    {filteredNotifications.map(n => {
+                    {visibleNotifications.map(n => {
                         const displayCopy = getLaunchSafeNotificationCopy(n);
 
                         return (
@@ -274,6 +288,18 @@ export default function ManagerNotificationsPage() {
                             </div>
                         );
                     })}
+                </div>
+                {visibleNotifications.length < filteredNotifications.length && (
+                    <div className="flex justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setVisibleLimit((current) => current + MANAGER_NOTIFICATION_PAGE_SIZE)}
+                            className="min-h-11 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                            Load more notifications ({visibleNotifications.length} of {filteredNotifications.length})
+                        </button>
+                    </div>
+                )}
                 </div>
             )}
         </div>

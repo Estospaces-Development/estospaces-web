@@ -38,7 +38,7 @@ const formatCaseHoursRemaining = (hoursRemaining?: number) => {
   }
 
   if ((hoursRemaining || 0) <= 0) {
-    return "Needs attention";
+    return "Deadline passed";
   }
 
   return `${hoursRemaining}h left`;

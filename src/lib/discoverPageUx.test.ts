@@ -65,7 +65,8 @@ test('discover property navigation restores browser search state and scroll posi
     assert.match(discoverPage, /onStartFastTrack=\{requestFastTrackFromDiscover\}/);
     assert.match(discoverPage, /backTo: discoverReturnPath/);
     assert.match(discoverPage, /backState: markDiscoverReturnHistoryState\(null\)/);
-    assert.match(propertyDetailPage, /navigate\(navigationState\.backTo, \{ state: navigationState\.backState \}\)/);
+    assert.match(propertyDetailPage, /const safeBackTo = sanitizeInternalReturnPath\(navigationState\?\.backTo\)/);
+    assert.match(propertyDetailPage, /navigate\(safeBackTo, \{ state: navigationState\?\.backState \}\)/);
 });
 
 test('discover Fast Track action submits the request instead of opening property details', () => {

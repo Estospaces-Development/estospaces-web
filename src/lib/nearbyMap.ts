@@ -22,6 +22,16 @@ interface MapCandidatePage<T> {
 export const DASHBOARD_NEARBY_RADIUS_KM = 100;
 export const DASHBOARD_NEARBY_PROPERTY_LIMIT = 20;
 
+export const getNearbyMapDefaultView = (market: 'GB' | 'IN') => market === 'GB'
+    ? { center: [54.5, -3] as [number, number], zoom: 5 }
+    : { center: [20.5937, 78.9629] as [number, number], zoom: 5 };
+
+export const shouldRenderNearbyMap = (options: {
+    hasCoordinates: boolean;
+    compact: boolean;
+    matchingPropertyCount: number;
+}) => options.hasCoordinates || (!options.compact && options.matchingPropertyCount > 0);
+
 export const getDashboardMapHeightClass = (hasMapPreview: boolean): string => (
     hasMapPreview
         ? 'h-[260px] min-[340px]:h-[280px] sm:h-[350px] lg:h-[400px]'

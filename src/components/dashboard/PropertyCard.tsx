@@ -22,6 +22,7 @@ import ShareModal from './ShareModal';
 import PropertyMediaImage from './PropertyMediaImage';
 import PropertyShareAction from './PropertyShareAction';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
+import { isListingClosedForNewJourneys } from '@/lib/propertyAvailability';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
@@ -145,12 +146,15 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         })
     );
 
+    const isRentalListing = property.listing_type === 'rent' || property.listingType === 'rent'
+        || property.property_type === 'rent' || property.type?.toLowerCase() === 'rent';
+
     const formatPrice = (price: number | string | any) => {
         if (typeof price === 'object' && price !== null && 'amount' in price) {
             const { amount, currency } = price;
             const formatted = formatPropertyAmount(Number(amount), currency);
 
-            if (property.property_type === 'rent' || property.listingType === 'rent' || property.type?.toLowerCase() === 'rent') {
+            if (isRentalListing) {
                 return `${formatted}/month`;
             }
             return formatted;
@@ -158,7 +162,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
         if (typeof price === 'number') {
             const formatted = formatPropertyAmount(price);
-            if (property.property_type === 'rent' || property.type?.toLowerCase() === 'rent') {
+            if (isRentalListing) {
                 return `${formatted}/month`;
             }
             return formatted;
@@ -213,7 +217,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         );
     };
 
-    const fastTrackAction = onStartFastTrack ? (
+    const fastTrackAction = onStartFastTrack && !isListingClosedForNewJourneys(property?.status) ? (
         <button
             type="button"
             onClick={handleStartFastTrack}

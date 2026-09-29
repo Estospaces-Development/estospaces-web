@@ -7,6 +7,7 @@ import {
     getManagerWorkspaceAction,
     getManagerWorkspaceStateLabel,
     getMatchedExperienceSteps,
+    resolveDispatchWorkspaceHeaderCopy,
     selectManagerTrackerItems,
     sortManagerTrackerItems,
 } from './brokerDispatchPresentation';
@@ -167,7 +168,7 @@ test('manager workspace helpers keep same-user repeated sessions distinguishable
         } as any),
         {
             label: 'Start Fast Track workflow',
-            path: '/manager/dashboard?fast-track=request&broker-request=request-1&lead=lead-1',
+            path: '/manager/dashboard?fast-track=request&broker-request=request-1&lead=lead-1&property=property-1',
         },
     );
 
@@ -303,4 +304,71 @@ test('manager tracker selection reserves visible slots for the newest share-need
     ]);
 
     assert.deepEqual(selected.map((item) => item.id), ['workspace-newest', 'workspace-next', 'lead-1', 'lead-2']);
+});
+
+test('matched steps describe a finished linked journey as finished (verifier F-A)', () => {
+    const request = {
+        request_type: 'rent',
+        fast_track_enabled: true,
+        matched_broker: { id: 'broker-1', name: 'Asha Realty' },
+        handoff_status: 'property_selected',
+        selected_property_id: 'property-1',
+        selected_fast_track_case_id: 'case-1',
+        selected_property: { id: 'property-1', title: 'Selected Rental Home' },
+    } as any;
+    const handoff = (state?: Parameters<typeof getMatchedExperienceSteps>[1]) => (
+        getMatchedExperienceSteps(request, state).find((step) => step.id === 'handoff')
+    );
+
+    assert.deepEqual(handoff('completed'), {
+        id: 'handoff',
+        title: 'Journey complete',
+        description: 'The 24-hour journey for Selected Rental Home is complete.',
+    });
+    assert.deepEqual(handoff('closed'), {
+        id: 'handoff',
+        title: 'Journey closed',
+        description: 'The 24-hour journey for Selected Rental Home was closed and is no longer active.',
+    });
+    assert.doesNotMatch(handoff('loading')!.description, /ready for your 24-hour journey/);
+    assert.equal(handoff('active')!.description, 'Selected Rental Home is ready for your 24-hour journey and all next steps continue there.');
+    assert.equal(handoff()!.description, 'Selected Rental Home is ready for your 24-hour journey and all next steps continue there.');
+});
+
+test('workspace header follows the linked journey state over core request copy (verifier F-A2)', () => {
+    const request = {
+        request_type: 'rent',
+        fast_track_enabled: true,
+        handoff_status: 'property_selected',
+        selected_property_id: 'property-1',
+        selected_fast_track_case_id: 'case-1',
+        selected_property: { id: 'property-1', title: 'Selected Rental Home' },
+        status_reason: 'Your live fast-track journey is running for this home.',
+        next_action: 'Open live fast-track',
+    } as any;
+    const live = /live fast-track|ready for your 24-hour journey|Continue with your chosen home/i;
+
+    const completed = resolveDispatchWorkspaceHeaderCopy(getDispatchWorkspaceSummary(request, 'completed'), request);
+    assert.deepEqual(completed, {
+        title: 'Journey complete',
+        subtitle: 'The 24-hour journey for Selected Rental Home is complete.',
+        helper: 'View the completed journey from your chosen home.',
+    });
+    const closed = resolveDispatchWorkspaceHeaderCopy(getDispatchWorkspaceSummary(request, 'closed'), request);
+    assert.deepEqual(closed, {
+        title: 'Journey closed',
+        subtitle: 'The 24-hour journey for Selected Rental Home was closed and is no longer active.',
+        helper: 'View the closed journey from your chosen home.',
+    });
+    const loading = resolveDispatchWorkspaceHeaderCopy(getDispatchWorkspaceSummary(request, 'loading'), request);
+    for (const copy of [completed, closed, loading]) {
+        for (const text of Object.values(copy)) assert.doesNotMatch(text, live);
+    }
+
+    // Active journeys keep core's request copy, as before.
+    const active = resolveDispatchWorkspaceHeaderCopy(getDispatchWorkspaceSummary(request, 'active'), request);
+    assert.equal(active.subtitle, 'Your live fast-track journey is running for this home.');
+    assert.equal(active.helper, 'Open live fast-track');
+    // Default (no state passed) is unchanged for other callers.
+    assert.equal(getDispatchWorkspaceSummary(request).subtitle, 'Selected Rental Home is ready for your 24-hour journey');
 });

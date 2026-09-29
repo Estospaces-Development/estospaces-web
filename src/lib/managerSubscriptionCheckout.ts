@@ -1,10 +1,25 @@
 import type { AcceptedSubscriptionTerms, ManagerSubscriptionSummary, StartCheckoutResponse } from '../services/managerSubscriptionService';
+import { getManagerPlanDisplayName } from './managerPlanNames';
+
+/** The amount the provider charges each month: tax is added only when the price excludes it. */
+export function subscriptionGrossMinor(terms: Pick<AcceptedSubscriptionTerms, 'amount_minor' | 'tax_minor' | 'tax_inclusive'>): number {
+    return terms.amount_minor + (terms.tax_inclusive ? 0 : (terms.tax_minor ?? 0));
+}
+
+/**
+ * Formats integer minor units (paise, pence) in the market's locale. With
+ * `trimWholeUnits`, a whole amount drops its ".00" (₹999, £49) so discount
+ * copy reads naturally; anything else always shows two decimals.
+ */
+export function formatMinorCurrency(amountMinor: number, currency: string, options: { trimWholeUnits?: boolean } = {}): string {
+    const digits = options.trimWholeUnits && amountMinor % 100 === 0 ? 0 : 2;
+    return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-GB', {
+        style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits,
+    }).format(amountMinor / 100);
+}
 
 export function formatSubscriptionPrice(terms: Pick<AcceptedSubscriptionTerms, 'amount_minor' | 'currency' | 'tax_minor' | 'tax_inclusive'>): string {
-    const gross = terms.amount_minor + (terms.tax_inclusive ? 0 : (terms.tax_minor ?? 0));
-    return new Intl.NumberFormat(terms.currency === 'INR' ? 'en-IN' : 'en-GB', {
-        style: 'currency', currency: terms.currency, minimumFractionDigits: 2, maximumFractionDigits: 2,
-    }).format(gross / 100);
+    return formatMinorCurrency(subscriptionGrossMinor(terms), terms.currency);
 }
 
 export interface SubscriptionPaymentProof {
@@ -74,6 +89,14 @@ export function canResumeSubscription(account: ManagerSubscriptionSummary): bool
         && (!account.subscription || account.subscription.status === 'created');
 }
 
+/** The line shown on Razorpay's own screen, naming the accepted discount when there is one. */
+export function describeCheckoutForProvider(checkout: Pick<StartCheckoutResponse, 'terms' | 'price'>): string {
+    const base = `${getManagerPlanDisplayName(checkout.terms.code)} manager subscription`;
+    const price = checkout.price;
+    if (!price) return base;
+    return `${base} · ${price.percent_off}% off for ${price.discount_cycles} ${price.discount_cycles === 1 ? 'month' : 'months'}`;
+}
+
 // The promise owns the SDK callback, so asynchronous verification failures reach
 // the page's error handling rather than becoming unhandled rejections.
 export function openSubscriptionCheckout(
@@ -91,7 +114,7 @@ export function openSubscriptionCheckout(
             key: checkout.key_id,
             subscription_id: checkout.checkout.provider_subscription_id,
             name: 'Estospaces',
-            description: `${checkout.terms.code === 'growth' ? 'Growth' : 'Pro'} manager subscription`,
+            description: describeCheckoutForProvider(checkout),
             handler: (response) => {
                 if (settled || verifying) return;
                 verifying = true;

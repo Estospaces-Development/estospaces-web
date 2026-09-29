@@ -11,6 +11,7 @@ import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText, Shield } f
 import axios from 'axios';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import { getLaunchOfferMessage, type LaunchOffer } from '@/lib/managerLaunchTrial';
 
 const API_URL = getServiceUrl('core');
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -360,6 +361,7 @@ export default function RegisterPage() {
     const [countryError, setCountryError] = useState('');
     const [success, setSuccess] = useState(false);
 	const [verificationEmailSent, setVerificationEmailSent] = useState(true);
+    const [launchOffer, setLaunchOffer] = useState<LaunchOffer | null>(null);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
     const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
@@ -527,7 +529,7 @@ export default function RegisterPage() {
         setEmail(normalizedEmail);
 
         try {
-            const result = await register(buildRegisterFullName(firstName, lastName), normalizedEmail, password, role, {
+            const result = await register({ firstName, lastName }, normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
                 country: role === 'manager' ? country : undefined,
@@ -541,6 +543,7 @@ export default function RegisterPage() {
 
             clearRegisterDraft();
 			setVerificationEmailSent(result.verificationEmailSent !== false);
+            setLaunchOffer(role === 'manager' ? result.launchOffer ?? null : null);
             setSuccess(true);
         } catch {
             setError('An unexpected error occurred. Please try again.');
@@ -608,6 +611,7 @@ export default function RegisterPage() {
 			);
 		}
 		const deliveryCopy = getRegistrationDeliveryCopy(email, verificationEmailSent);
+        const launchOfferMessage = getLaunchOfferMessage(launchOffer);
         return (
             <div className="flex flex-col items-center text-center">
                 <AuthBrand />
@@ -623,6 +627,12 @@ export default function RegisterPage() {
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
 					{deliveryCopy.message}
                 </p>
+
+                {launchOfferMessage ? (
+                    <p role="status" data-launch-offer={launchOffer?.status} className="mb-4 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-semibold text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100">
+                        {launchOfferMessage}
+                    </p>
+                ) : null}
 
 				<div className={`rounded-lg border px-4 py-3 mb-6 w-full text-left ${verificationEmailSent ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'}`}>
 					<p className={`text-xs font-medium mb-1 ${verificationEmailSent ? 'text-blue-700 dark:text-blue-300' : 'text-amber-800 dark:text-amber-200'}`}>

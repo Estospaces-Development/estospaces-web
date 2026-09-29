@@ -57,3 +57,13 @@ test('a paused initial catalog request is treated as loading instead of an empty
     assert.equal(getCatalogReadState(false, true), 'error');
     assert.equal(getCatalogReadState(true, false), 'ready');
 });
+
+test('percent-discount Activate goes through the Razorpay offer checklist; trials activate directly', () => {
+    const section = source('pages/admin/subscriptions/AdminPromotionsSection.tsx');
+    assert.match(section, /action === 'activate' && promotion\.kind === 'percent_discount'\s*\? <button[^\n]*setOfferCheck\(/);
+    assert.match(section, /<button type="button" disabled=\{!complete \|\| busy !== null\}[^\n]*onClick=\{onActivate\}/);
+    assert.match(section, /\{OFFER_CHECKLIST_EXPLANATION\}/);
+    assert.match(section, /onActivate=\{async \(\) => \{ if \(await changeStatus\(promotion, 'activate'\)\) setOfferCheck\(null\); \}\}/);
+    // The checklist is bound to one promotion version, so an edit resets it.
+    assert.match(section, /key: `\$\{promotion\.id\}:\$\{promotion\.version\}`, ticked: \[\]/);
+});

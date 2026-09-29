@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
+  describeCompanionSyncFailure,
+  matchesAppointmentDateScope,
+  runAppointmentMutationWithCompanionSync,
   MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH,
   MAX_MANAGER_APPOINTMENT_NOTE_LENGTH,
   normalizeManagerAppointmentCancelReason,
@@ -96,4 +99,83 @@ test("manager cancellation modal enforces reason limit in the textarea", () => {
 test("manager cancellation submit stays disabled until the reason is valid", () => {
   assert.match(source, /const isCancelReasonValid = validateManagerAppointmentCancelReason\(cancelReason\) === null;/);
   assert.match(source, /disabled=\{isSavingCancel \|\| !isCancelReasonValid\}/);
+});
+
+test("appointment confirm that saves but fails Fast Track sync is reported as saved", async () => {
+  const calls: string[] = [];
+  const outcome = await runAppointmentMutationWithCompanionSync(
+    async () => { calls.push("confirm"); },
+    async () => {
+      calls.push("sync");
+      throw new Error("approve all required documents before scheduling a viewing");
+    },
+  );
+  assert.deepEqual(calls, ["confirm", "sync"]);
+  assert.deepEqual(outcome, {
+    status: "saved_sync_failed",
+    error: "approve all required documents before scheduling a viewing",
+  });
+  assert.equal(
+    describeCompanionSyncFailure("Appointment confirmed successfully.", outcome.status === "saved_sync_failed" ? outcome.error : ""),
+    "Appointment confirmed successfully. The linked Fast Track case was not updated: approve all required documents before scheduling a viewing",
+  );
+});
+
+test("appointment mutation failure skips the Fast Track sync and reports failure", async () => {
+  let synced = false;
+  const outcome = await runAppointmentMutationWithCompanionSync(
+    async () => { throw new Error("viewing slot already booked"); },
+    async () => { synced = true; },
+  );
+  assert.equal(synced, false);
+  assert.deepEqual(outcome, { status: "mutation_failed", error: "viewing slot already booked" });
+});
+
+test("appointment mutation with no linked case or a clean sync is saved", async () => {
+  assert.deepEqual(await runAppointmentMutationWithCompanionSync(async () => undefined), { status: "saved" });
+  assert.deepEqual(
+    await runAppointmentMutationWithCompanionSync(async () => undefined, async () => undefined),
+    { status: "saved" },
+  );
+});
+
+test("manager appointments refresh the list after a saved change even when the companion sync fails", () => {
+  const runActionBody = source.slice(source.indexOf("const runAction = async"), source.indexOf("const updateRescheduleFormField"));
+  assert.match(runActionBody, /outcome\.status === 'mutation_failed'[\s\S]*return;/);
+  assert.match(runActionBody, /toast\.warning\(describeCompanionSyncFailure\(successMessage, outcome\.error\)\)/);
+  assert.ok(runActionBody.indexOf("toast.warning") < runActionBody.indexOf("await fetchAppointments({ background: true })"));
+});
+
+test("manager Mark Completed is disabled while the linked Fast Track awaits documents", () => {
+  assert.match(source, /getFastTrackViewingCompletionBlockReason\(findLinkedFastTrackCase\(fastTrackCases, \{/);
+  assert.match(source, /disabled=\{isBusy \|\| Boolean\(completionBlockReason\)\}/);
+  assert.match(source, /title=\{completionBlockReason \|\| undefined\}/);
+  assert.match(source, /data-appointment-completion-hint/);
+  assert.match(source, /aria-describedby=\{completionBlockReason \? `appointment-completion-hint-\$\{appointment\.id\}` : undefined\}/);
+  assert.match(source, /\{completionBlockReason\}\s*<\/p>/);
+});
+
+test("manager appointments can be scoped to today, upcoming or past dates", () => {
+  const now = new Date("2026-05-01T12:00:00");
+  assert.equal(matchesAppointmentDateScope("2026-05-01T09:00:00", "today", now), true);
+  assert.equal(matchesAppointmentDateScope("2026-05-02T09:00:00", "today", now), false);
+  assert.equal(matchesAppointmentDateScope("2026-05-01T15:00:00", "upcoming", now), true);
+  assert.equal(matchesAppointmentDateScope("2026-04-30T15:00:00", "upcoming", now), false);
+  assert.equal(matchesAppointmentDateScope("2026-04-30T15:00:00", "past", now), true);
+  assert.equal(matchesAppointmentDateScope("2026-05-01T15:00:00", "past", now), false);
+  assert.equal(matchesAppointmentDateScope(undefined, "upcoming", now), false);
+  assert.equal(matchesAppointmentDateScope("not-a-date", "past", now), false);
+  assert.equal(matchesAppointmentDateScope(undefined, "all", now), true);
+  assert.match(source, /aria-label="Appointment dates"/);
+  assert.match(source, /matchesAppointmentDateScope\(appointment\.scheduled_at, dateScope, now\)/);
+});
+
+test("appointment date scopes compare UTC times against the local day and refresh each minute", () => {
+  const now = new Date(2026, 4, 1, 12, 0, 0);
+  const localMidnight = new Date(2026, 4, 1, 0, 0, 0);
+  const justBefore = new Date(localMidnight.getTime() - 60_000).toISOString();
+  const justAfter = new Date(localMidnight.getTime() + 60_000).toISOString();
+  assert.equal(matchesAppointmentDateScope(justAfter, "today", now), true);
+  assert.equal(matchesAppointmentDateScope(justBefore, "today", now), false);
+  assert.match(source, /window\.setInterval\(\(\) => setDateScopeNow\(Date\.now\(\)\), 60_000\)/);
 });

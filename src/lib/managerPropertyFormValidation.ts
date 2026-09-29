@@ -1,4 +1,4 @@
-import type { ListingType } from "@/contexts/PropertyContext";
+import type { ListingType, PropertyType } from "@/contexts/PropertyContext";
 import {
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
@@ -108,9 +108,110 @@ export interface ManagerPropertyValidationValues {
   alternatePhone: string;
   availableFrom: string;
   listingType: ListingType;
+  /** Missing means residential, the create-form default. */
+  propertyType?: PropertyType;
   minimumLease: number;
   deposit: number;
   maintenanceCharges: number;
+}
+
+export type ManagerPropertyTypeCategory =
+  | "residential"
+  | "non_residential"
+  | "land";
+
+const NON_RESIDENTIAL_PROPERTY_TYPES: ReadonlySet<string> = new Set([
+  "commercial",
+  "industrial",
+  "office",
+]);
+
+// Fields that do not describe the category at all. They are hidden, never
+// validated and not sent as room metadata.
+const NOT_APPLICABLE_FIELDS: Record<ManagerPropertyTypeCategory, ReadonlySet<string>> = {
+  residential: new Set(),
+  non_residential: new Set(),
+  land: new Set([
+    "bedrooms",
+    "bathrooms",
+    "balconies",
+    "parkingSpaces",
+    "floorNumber",
+    "totalFloors",
+  ]),
+};
+
+// Fields that are shown and validated when entered, but not required.
+const OPTIONAL_FIELDS: Record<ManagerPropertyTypeCategory, ReadonlySet<string>> = {
+  residential: new Set(),
+  non_residential: new Set(["bedrooms", "bathrooms", "balconies"]),
+  land: new Set(),
+};
+
+const PROPERTY_TYPE_DEPENDENT_FIELDS = [
+  "bedrooms",
+  "bathrooms",
+  "balconies",
+  "parkingSpaces",
+  "floorNumber",
+  "totalFloors",
+];
+
+export function getManagerPropertyTypeCategory(
+  propertyType: PropertyType | string | undefined,
+): ManagerPropertyTypeCategory {
+  const normalized = (propertyType ?? "").trim().toLowerCase();
+  if (normalized === "land") {
+    return "land";
+  }
+  return NON_RESIDENTIAL_PROPERTY_TYPES.has(normalized)
+    ? "non_residential"
+    : "residential";
+}
+
+export function isManagerPropertyFieldApplicable(
+  field: string,
+  propertyType: PropertyType | string | undefined,
+): boolean {
+  return !NOT_APPLICABLE_FIELDS[getManagerPropertyTypeCategory(propertyType)].has(field);
+}
+
+export function isManagerPropertyFieldRequired(
+  field: string,
+  propertyType: PropertyType | string | undefined,
+): boolean {
+  const category = getManagerPropertyTypeCategory(propertyType);
+  return !NOT_APPLICABLE_FIELDS[category].has(field) && !OPTIONAL_FIELDS[category].has(field);
+}
+
+export interface ManagerPropertyRoomValues {
+  bedrooms: number | undefined;
+  bathrooms: number | undefined;
+  balconies: number | undefined;
+  parkingSpaces: number | undefined;
+  floorNumber: number | undefined;
+  totalFloors: number | undefined;
+}
+
+/**
+ * Room values to save for a property type. The form keeps residential values
+ * across a type switch so switching back restores them, but a Land listing
+ * saves no room counts (0) and omits floors, because core rejects
+ * total_floors 0 on update and keeps an omitted value.
+ */
+export function getManagerPropertyRoomPayload(
+  propertyType: PropertyType | string | undefined,
+  values: ManagerPropertyRoomValues,
+): ManagerPropertyRoomValues {
+  const applies = (field: string) => isManagerPropertyFieldApplicable(field, propertyType);
+  return {
+    bedrooms: applies("bedrooms") ? values.bedrooms : 0,
+    bathrooms: applies("bathrooms") ? values.bathrooms : 0,
+    balconies: applies("balconies") ? values.balconies : 0,
+    parkingSpaces: applies("parkingSpaces") ? values.parkingSpaces : 0,
+    floorNumber: applies("floorNumber") ? values.floorNumber : undefined,
+    totalFloors: applies("totalFloors") ? values.totalFloors : undefined,
+  };
 }
 
 export function getManagerPropertyFirstErrorStep(
@@ -127,6 +228,9 @@ export function validateManagerPropertyField(
   field: string,
   values: ManagerPropertyValidationValues,
 ): string | null {
+  if (!isManagerPropertyFieldApplicable(field, values.propertyType)) {
+    return null;
+  }
   switch (field) {
     case "title":
       return values.title.trim() ? null : "Property title is required";
@@ -197,13 +301,13 @@ export function validateManagerPropertyField(
       return null;
     }
     case "bedrooms":
-      return validateWholeNumber(values.bedrooms, "Bedrooms", true);
+      return validateWholeNumber(values.bedrooms, "Bedrooms", isManagerPropertyFieldRequired("bedrooms", values.propertyType));
     case "bathrooms":
-      return validateWholeNumber(values.bathrooms, "Bathrooms", true);
+      return validateWholeNumber(values.bathrooms, "Bathrooms", isManagerPropertyFieldRequired("bathrooms", values.propertyType));
     case "balconies":
-      return validateWholeNumber(values.balconies, "Balconies", true);
+      return validateWholeNumber(values.balconies, "Balconies", isManagerPropertyFieldRequired("balconies", values.propertyType));
     case "parkingSpaces":
-      return validateWholeNumber(values.parkingSpaces, "Parking spaces", true);
+      return validateWholeNumber(values.parkingSpaces, "Parking spaces", isManagerPropertyFieldRequired("parkingSpaces", values.propertyType));
     case "floorNumber": {
       const floorNumber = values.floorNumber ?? 0;
       const totalFloors = values.totalFloors ?? 0;
@@ -321,6 +425,85 @@ export function validateManagerPropertyForm(
   values: ManagerPropertyValidationValues,
 ): Record<string, string> {
   return validateFields(Object.values(STEP_FIELDS).flat(), values);
+}
+
+// Value keys each validated field reads. A field is re-validated on edit when
+// any of them changes, so cross-field rules (carpet vs total area, PIN vs
+// state, pin inside the selected country) still apply to the edited side.
+const FIELD_DEPENDENCIES: Record<string, (keyof ManagerPropertyValidationValues)[]> = {
+  country: ["country", "countryId", "countryCode"],
+  state: ["state", "stateId", "stateCode"],
+  city: ["city", "cityId"],
+  postalCode: ["postalCode", "countryCode", "country", "stateCode"],
+  latitude: ["latitude", "longitude", "countryCode", "country"],
+  longitude: ["latitude", "longitude", "countryCode", "country"],
+  carpetArea: ["carpetArea", "totalArea"],
+  floorNumber: ["floorNumber", "totalFloors", "propertyType"],
+  totalFloors: ["floorNumber", "totalFloors", "propertyType"],
+  images: ["hasImages"],
+  minimumLease: ["minimumLease", "listingType"],
+};
+
+function getFieldDependencies(field: string): (keyof ManagerPropertyValidationValues)[] {
+  const dependencies = FIELD_DEPENDENCIES[field] ?? [field as keyof ManagerPropertyValidationValues];
+  return PROPERTY_TYPE_DEPENDENT_FIELDS.includes(field) && !dependencies.includes("propertyType")
+    ? [...dependencies, "propertyType"]
+    : dependencies;
+}
+
+/**
+ * Lists the validated fields whose inputs differ from the saved listing.
+ */
+export function getManagerPropertyChangedFields(
+  baseline: ManagerPropertyValidationValues,
+  current: ManagerPropertyValidationValues,
+): string[] {
+  return Object.values(STEP_FIELDS)
+    .flat()
+    .filter((field) =>
+      getFieldDependencies(field).some(
+        (key) => !Object.is(normalizeComparable(baseline[key]), normalizeComparable(current[key])),
+      ),
+    );
+}
+
+export interface ManagerPropertySaveValidationOptions {
+  /**
+   * The listing as loaded for editing. Omit for a new listing.
+   */
+  baseline?: ManagerPropertyValidationValues | null;
+  /**
+   * True when the save moves the listing into review (create, draft or
+   * rejected submission). Every current requirement then applies.
+   */
+  requiresCompleteListing: boolean;
+}
+
+/**
+ * Validates a property save. New listings and submissions for review must meet
+ * every current requirement. Saving an existing listing without changing its
+ * status only validates what the manager changed, so a listing saved before a
+ * newer requirement (map pin, State) is not blocked by a field nobody touched.
+ * Core applies the same rule to updates.
+ */
+export function validateManagerPropertySave(
+  values: ManagerPropertyValidationValues,
+  options: ManagerPropertySaveValidationOptions,
+): Record<string, string> {
+  if (options.requiresCompleteListing || !options.baseline) {
+    return validateManagerPropertyForm(values);
+  }
+  return validateFields(getManagerPropertyChangedFields(options.baseline, values), values);
+}
+
+function normalizeComparable(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (value === null || (typeof value === "number" && Number.isNaN(value))) {
+    return undefined;
+  }
+  return value;
 }
 
 function validateFields(

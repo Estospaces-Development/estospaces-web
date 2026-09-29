@@ -53,6 +53,7 @@ export interface Conversation {
     listing_type?: string;
     property_price?: number;
     fast_track_case_id?: string;
+    broker_request_id?: string;
 }
 
 export interface SupportRequesterContext {
@@ -139,6 +140,8 @@ export interface ConversationContext {
     listingType?: string | null;
     propertyPrice?: number | null;
     fastTrackCaseId?: string | null;
+    /** Scopes a direct thread to one agent request. */
+    brokerRequestId?: string | null;
     senderName?: string;
     senderEmail?: string;
     senderPhone?: string;
@@ -159,6 +162,7 @@ const mapConversationContext = (context?: ConversationContext) => (
             listing_type: context.listingType,
             property_price: context.propertyPrice,
             fast_track_case_id: context.fastTrackCaseId,
+            broker_request_id: context.brokerRequestId || undefined,
             sender_name: context.senderName,
             sender_email: context.senderEmail,
             sender_phone: context.senderPhone,
@@ -304,12 +308,30 @@ export async function updateTicketStatus(
 }
 
 export async function getSupportAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
-    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${attachmentId}/access-url`, {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${encodeURIComponent(attachmentId)}/access-url`, {
+        suppressErrorToast: true,
+    });
+}
+
+export type AttachmentAccessUrlLoader = (attachmentId: string) => Promise<{ access_url: string; expires_at: string }>;
+
+// Chat attachments are private: the messaging service checks conversation
+// membership and returns a short-lived signed URL.
+export async function getConversationAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/attachments/${encodeURIComponent(attachmentId)}/access-url`, {
         suppressErrorToast: true,
     });
 }
 
 export async function openSupportAttachment(attachmentId: string): Promise<void> {
+    return openAttachmentWithAccessUrl(attachmentId, getSupportAttachmentAccessUrl);
+}
+
+export async function openConversationAttachment(attachmentId: string): Promise<void> {
+    return openAttachmentWithAccessUrl(attachmentId, getConversationAttachmentAccessUrl);
+}
+
+async function openAttachmentWithAccessUrl(attachmentId: string, loadAccessUrl: AttachmentAccessUrlLoader): Promise<void> {
     const reservedWindow = typeof window === 'undefined' ? null : window.open('about:blank', '_blank');
     if (reservedWindow) {
         reservedWindow.opener = null;
@@ -322,7 +344,7 @@ export async function openSupportAttachment(attachmentId: string): Promise<void>
     }
 
     try {
-        const data = await getSupportAttachmentAccessUrl(attachmentId);
+        const data = await loadAccessUrl(attachmentId);
         if (!data.access_url) {
             throw new Error('Attachment access URL is unavailable.');
         }
@@ -362,4 +384,6 @@ export const messagesService = {
     updateTicketStatus,
     getSupportAttachmentAccessUrl,
     openSupportAttachment,
+    getConversationAttachmentAccessUrl,
+    openConversationAttachment,
 };

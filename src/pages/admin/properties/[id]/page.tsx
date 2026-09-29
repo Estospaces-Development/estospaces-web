@@ -34,7 +34,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
 import { getAdminPropertyWorkflowFallbackLabel } from '@/lib/adminPropertyRegistry';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
+import { formatAmenityLabel } from '@/lib/amenityLabels';
+import { resolveAdminListingOwner } from '@/lib/adminListingOwner';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -64,15 +66,14 @@ const parseStringArray = (value: unknown): string[] => {
 };
 
 const formatPrice = (property: Property) => {
-    if (typeof property.price !== 'number') {
-        return 'Price on request';
-    }
-
-    return formatLaunchCurrencyForCountry(property.price, {
-        countryCode: (property as any).country || (property as any).location?.countryCode || (property as any).location?.country,
-        countryName: (property as any).country || (property as any).location?.country,
-        currencyCode: (property as any).currency,
-    });
+    const record = property as any;
+    return formatManagerPropertyPrice({
+        price: typeof property.price === 'number' ? property.price : undefined,
+        listing_type: property.listing_type,
+        country: record.country,
+        currency: record.currency,
+        location: record.location,
+    }) || 'Price on request';
 };
 
 const formatDate = (value?: string) => {
@@ -614,7 +615,7 @@ export default function AdminPropertyDetailPage() {
                                             key={amenity}
                                             className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                                         >
-                                            {amenity.replace(/_/g, ' ')}
+                                            {formatAmenityLabel(amenity)}
                                         </span>
                                     ))}
                                 </div>
@@ -709,6 +710,13 @@ export default function AdminPropertyDetailPage() {
                     <div className="rounded-[2rem] border bg-white p-8 shadow-xl shadow-gray-200/40 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
                         <h2 className="text-xl font-black text-gray-900 dark:text-white">Manager Contact</h2>
                         <div className="mt-6 space-y-4">
+                            <div className="flex items-start gap-3">
+                                <User className="mt-0.5 h-4 w-4 text-blue-500" />
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Listing Owner</p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{resolveAdminListingOwner({ manager_name: property.manager_name }).label}</p>
+                                </div>
+                            </div>
                             <div className="flex items-start gap-3">
                                 <User className="mt-0.5 h-4 w-4 text-blue-500" />
                                 <div>

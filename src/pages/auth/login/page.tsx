@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect, resolveLoginReturnLocation, resolveLoginReturnNavigationState } from '@/lib/authUtils';
+import { clearPendingGuestAction } from '@/lib/pendingGuestAction';
 import { getPublicHomeHref } from '@/lib/utils/hostUtils';
 import { ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
@@ -41,12 +42,30 @@ export default function LoginPage() {
 
   const continueWithRole = async (role?: string) => {
     if (requiresHostedLoginRedirect(role)) {
+      clearPendingGuestAction(window.sessionStorage);
       await signOut();
       window.location.replace(getHostedLoginRedirectUrl(role));
       return;
     }
 
-    navigate(getPostLoginRedirectPath(role, location.state?.from));
+    const requestedLocation = resolveLoginReturnLocation(location.state, location.search);
+    const redirectPath = getPostLoginRedirectPath(role, requestedLocation);
+    const isRequestedReturn = Boolean(requestedLocation)
+      && redirectPath === `${requestedLocation?.pathname || ''}${requestedLocation?.search || ''}${requestedLocation?.hash || ''}`;
+    // A guest's pending action may only resume for a seeker account returning
+    // through this exact handoff; any other outcome discards it.
+    const returnState = isRequestedReturn ? resolveLoginReturnNavigationState(location.state) : undefined;
+    const resumesSeekerHandoff = isRequestedReturn
+      // Strict match, as on the consuming pages: an unknown or empty role never resumes.
+      && String(role || '').trim().toLowerCase() === 'user'
+      && Boolean(returnState?.pendingActionNonce);
+    if (!resumesSeekerHandoff) {
+      clearPendingGuestAction(window.sessionStorage);
+    }
+    const forwardedState = returnState && !resumesSeekerHandoff
+      ? resolveLoginReturnNavigationState({ from: { state: { backTo: returnState.backTo, backLabel: returnState.backLabel } } })
+      : returnState;
+    navigate(redirectPath, forwardedState ? { state: forwardedState } : undefined);
   };
 
   const handleLogin = async (e: React.FormEvent) => {

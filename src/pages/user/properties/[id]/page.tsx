@@ -67,6 +67,7 @@ import {
     isActiveFastTrackCase,
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
+import { describeExistingFastTrackJourney } from '@/lib/existingFastTrackJourney';
 import {
     resolvePropertyFastTrackSummaryDocuments,
     resolvePropertyFastTrackPanelLabels,
@@ -87,11 +88,23 @@ import {
     shouldResetPropertyDetailScroll,
 } from '@/lib/propertyDetailScroll';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
-import { getLoginPath } from '@/lib/authUtils';
+import { sanitizeInternalReturnPath } from '@/lib/authUtils';
+import {
+    buildGuestLoginNavigation,
+    clearPendingGuestAction,
+    consumePendingGuestAction,
+    isPendingGuestActionForProperty,
+    storePendingGuestAction,
+    type PendingGuestAction,
+    type PendingGuestActionType,
+} from '@/lib/pendingGuestAction';
+import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
 import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
+import { getListingJourneyAvailability } from '@/lib/propertyAvailability';
+import { getKnownAmenityLabel } from '@/lib/amenityLabels';
 import {
     buildPropertyFastTrackStartRequest,
     mapFastTrackPropertyType,
@@ -375,6 +388,24 @@ export function getPropertyDetailFallbackBackTarget(fastTrackQuery: string | nul
     }
 
     return fastTrackQuery === '1' ? '/user/dashboard' : '/user/dashboard/discover';
+}
+
+/**
+ * "Back to Search" recovery target. Guests always recover to the public
+ * search (never the protected user search); the originating search query is
+ * kept when the page was opened from a search result.
+ */
+export function getPropertyDetailSearchRecoveryTarget(backTo: unknown, user?: unknown) {
+    const safeBackTo = sanitizeInternalReturnPath(backTo);
+    const backToPathname = safeBackTo ? new URL(safeBackTo, 'https://return-path.invalid').pathname : '';
+
+    if (!user) {
+        return safeBackTo && backToPathname === '/search' ? safeBackTo : '/search';
+    }
+
+    return safeBackTo && (backToPathname === '/search' || backToPathname === USER_SEARCH_PATH)
+        ? safeBackTo
+        : USER_SEARCH_PATH;
 }
 
 export function shouldUseBrowserHistoryForPropertyDetailBack(user?: unknown) {
@@ -979,11 +1010,13 @@ const UserPropertyDetail = () => {
         ? location.state
         : null) as { backTo?: string; backLabel?: string; backState?: unknown } | null;
     const fallbackBackTarget = getPropertyDetailFallbackBackTarget(fastTrackQuery, user);
-    const backLabel = navigationState?.backLabel || 'Back';
+    // Router state is caller-controlled; only a validated internal path may be followed.
+    const safeBackTo = sanitizeInternalReturnPath(navigationState?.backTo);
+    const backLabel = (safeBackTo && navigationState?.backLabel) || 'Back';
 
     const handleBackNavigation = () => {
-        if (navigationState?.backTo) {
-            navigate(navigationState.backTo, { state: navigationState.backState });
+        if (safeBackTo) {
+            navigate(safeBackTo, { state: navigationState?.backState });
             return;
         }
 
@@ -1187,7 +1220,7 @@ const UserPropertyDetail = () => {
             ...normalizeListValue(property?.features),
             ...normalizeListValue(property?.amenities),
         ]
-            .map(formatDetailLabel)
+            .map((value) => getKnownAmenityLabel(value) || formatDetailLabel(value))
             .filter(Boolean);
 
         return Array.from(new Set(merged)).slice(0, 8);
@@ -1226,7 +1259,18 @@ const UserPropertyDetail = () => {
     ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
     const propertyFastTrackCase = activeFastTrackCase?.propertyId === property?.id ? activeFastTrackCase : null;
     const hasActiveFastTrackJourney = isActiveFastTrackCase(propertyFastTrackCase);
+    const existingFastTrackJourney = hasActiveFastTrackJourney && propertyFastTrackCase
+        ? describeExistingFastTrackJourney(propertyFastTrackCase, {
+            brokerRequestId: brokerRequestQuery || undefined,
+            leadId: activeLead?.id,
+        })
+        : null;
     const isFastTrackApprovalPending = Boolean(fastTrackRequestPending) && !hasActiveFastTrackJourney;
+    // Sold/let listings stay readable but must not start new journeys; an
+    // already-active Fast Track case can still be opened.
+    const listingAvailability = getListingJourneyAvailability(property?.status);
+    const isNewJourneyBlocked = listingAvailability.isClosed && !hasActiveFastTrackJourney;
+    const closedFastTrackActionLabel = `${listingAvailability.label}: Fast Track closed`;
     const fastTrackCtaState = resolvePropertyFastTrackCtaState({
         isAuthenticated: Boolean(user),
         propertyId: property?.id,
@@ -1237,25 +1281,30 @@ const UserPropertyDetail = () => {
     const isFastTrackLookupPending = fastTrackCtaState === 'checking';
     const {
         isBusy: isFastTrackCtaBusy,
-        isDisabled: isFastTrackCtaDisabled,
+        isDisabled: isFastTrackRequestControlDisabled,
     } = resolveFastTrackRequestControlState({
         isStarting: isStartingFastTrack,
         isLookupPending: isFastTrackLookupPending,
         isApprovalPending: isFastTrackApprovalPending,
     });
-    const fastTrackSidebarActionLabel = isFastTrackApprovalPending
+    const isFastTrackCtaDisabled = isFastTrackRequestControlDisabled || isNewJourneyBlocked;
+    const fastTrackSidebarActionLabel = isNewJourneyBlocked
+        ? closedFastTrackActionLabel
+        : isFastTrackApprovalPending
         ? 'Fast Track requested'
         : fastTrackCtaState === 'continue'
-        ? 'Continue 24-hour journey'
+        ? 'Continue existing 24-hour journey'
         : fastTrackCtaState === 'retry'
             ? 'Check fast-track status'
             : fastTrackCtaState === 'checking'
                 ? 'Checking fast-track status...'
                 : '24-hour fast track';
-    const fastTrackPrimaryActionLabel = isFastTrackApprovalPending
+    const fastTrackPrimaryActionLabel = isNewJourneyBlocked
+        ? closedFastTrackActionLabel
+        : isFastTrackApprovalPending
         ? 'Waiting for manager approval'
         : fastTrackCtaState === 'continue'
-        ? 'Continue Fast Track'
+        ? 'Continue existing Fast Track'
         : fastTrackCtaState === 'retry'
             ? 'Check Fast Track Status'
             : fastTrackCtaState === 'checking'
@@ -1269,7 +1318,7 @@ const UserPropertyDetail = () => {
     const fastTrackConciergeActionLabel = isFastTrackApprovalPending
         ? 'Waiting for manager approval'
         : fastTrackCtaState === 'continue'
-        ? 'Continue your fast-track workspace'
+        ? 'Continue your existing fast-track workspace'
         : fastTrackCtaState === 'retry'
             ? 'Check your fast-track status'
             : fastTrackCtaState === 'checking'
@@ -1755,13 +1804,25 @@ const UserPropertyDetail = () => {
         property?.agent_company ||
         '';
 
-    const ensureAuthenticated = () => {
+    const ensureAuthenticated = (pendingActionType?: PendingGuestActionType) => {
         if (user) {
             return true;
         }
 
+        // Only the latest guest intent is kept; an action without a type clears it.
+        const pendingActionNonce = pendingActionType && property?.id
+            ? storePendingGuestAction(window.sessionStorage, {
+                type: pendingActionType,
+                origin: 'property',
+                propertyId: property.id,
+            }, location)
+            : null;
+        if (!pendingActionNonce) {
+            clearPendingGuestAction(window.sessionStorage);
+        }
+        const loginNavigation = buildGuestLoginNavigation(location, pendingActionNonce);
         toast.error('Please sign in to continue.');
-        navigate(getLoginPath());
+        navigate(loginNavigation.to, { state: loginNavigation.state });
         return false;
     };
 
@@ -1776,7 +1837,7 @@ const UserPropertyDetail = () => {
     };
 
     const handleSaveToggle = async () => {
-        if (!property || !id || !ensureAuthenticated()) {
+        if (!property || !id || !ensureAuthenticated('save')) {
             return;
         }
         if (isUpdatingSavedProperty) {
@@ -1881,7 +1942,7 @@ const UserPropertyDetail = () => {
     };
 
     const handleStartFastTrack = async () => {
-        if (fastTrackRequestInFlightRef.current || !property || !ensureAuthenticated()) {
+        if (fastTrackRequestInFlightRef.current || !property || !ensureAuthenticated('fast_track')) {
             return;
         }
 
@@ -1965,7 +2026,7 @@ const UserPropertyDetail = () => {
                 if (recoveredWorkspace.fastTrackCase) {
                     openFastTrackDashboard(recoveredWorkspace.fastTrackCase);
                 }
-                toast.success('Your live fast-track journey is already active for this property.');
+                toast.success('You already have an existing fast-track journey for this property. Opening it now; no new 24-hour clock has started.');
             } else {
                 toast.error(message);
             }
@@ -1977,6 +2038,10 @@ const UserPropertyDetail = () => {
 
     const handleFastTrackEntryAction = (trigger: HTMLButtonElement) => {
         fastTrackTriggerRef.current = trigger;
+        if (isNewJourneyBlocked) {
+            toast.info(listingAvailability.message);
+            return;
+        }
         if (
             fastTrackCtaState === 'start'
             && user
@@ -1994,6 +2059,86 @@ const UserPropertyDetail = () => {
         setIsFastTrackRequestConfirmationOpen(false);
         void handleStartFastTrack();
     };
+
+    const isSeekerAccount = String(user?.role || '').trim().toLowerCase() === 'user';
+    const [resumedGuestAction, setResumedGuestAction] = useState<PendingGuestAction | null>(null);
+    useEffect(() => {
+        if (!isSeekerAccount || !property?.id) {
+            return;
+        }
+        const pendingAction = consumePendingGuestAction(
+            window.sessionStorage,
+            location,
+            (action) => action.origin === 'property' && isPendingGuestActionForProperty(action, property.id),
+        );
+        if (pendingAction) {
+            setResumedGuestAction(pendingAction);
+        }
+    }, [isSeekerAccount, location, property?.id]);
+
+    useEffect(() => {
+        if (!resumedGuestAction || !property || !isPendingGuestActionForProperty(resumedGuestAction, property.id)) {
+            return;
+        }
+
+        if (resumedGuestAction.type === 'save') {
+            setResumedGuestAction(null);
+            if (isPropertySaved(property.id)) {
+                setSavedPropertyStatusMessage('This property is already in your saved list.');
+                return;
+            }
+            void (async () => {
+                const result = await saveProperty(property.id);
+                const message = result?.success
+                    ? 'Property saved successfully.'
+                    : result?.error || 'Unable to update your saved properties.';
+                setSavedPropertyStatusMessage(message);
+                if (result?.success) {
+                    toast.success(message);
+                } else {
+                    toast.error(message);
+                }
+            })();
+            return;
+        }
+
+        if (isNewJourneyBlocked) {
+            setResumedGuestAction(null);
+            toast.info(listingAvailability.message);
+            return;
+        }
+
+        if (resumedGuestAction.type === 'enquire') {
+            setResumedGuestAction(null);
+            toast.success('You are signed in. Choose a time to send your viewing request.');
+            window.setTimeout(() => {
+                viewingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                viewingFormRef.current
+                    ?.querySelector<HTMLButtonElement>('button[aria-label^="Select "]:not(:disabled)')
+                    ?.focus({ preventScroll: true });
+            }, 0);
+            return;
+        }
+
+        // Fast Track: wait for the journey lookup, then offer the existing confirmation step.
+        if (fastTrackCtaState === 'checking') {
+            return;
+        }
+        setResumedGuestAction(null);
+        if (fastTrackCtaState === 'start' && !isFastTrackCtaDisabled && mapFastTrackPropertyType(property.listing_type)) {
+            setIsFastTrackRequestConfirmationOpen(true);
+            return;
+        }
+        if (fastTrackCtaState === 'continue') {
+            toast.success('You already have a Fast Track journey for this property. Use the Fast Track button to continue it.');
+            return;
+        }
+        if (isFastTrackApprovalPending) {
+            toast.success('Your Fast Track request for this property is already waiting for manager approval.');
+            return;
+        }
+        toast.error('You are signed in, but Fast Track is not available to request right now. Use the Fast Track button to try again.');
+    }, [fastTrackCtaState, isFastTrackApprovalPending, isFastTrackCtaDisabled, isNewJourneyBlocked, isPropertySaved, listingAvailability.message, property, resumedGuestAction, saveProperty, toast]);
 
     const handleOpenConversation = async () => {
         if (!property || !ensureAuthenticated()) {
@@ -2045,6 +2190,10 @@ const UserPropertyDetail = () => {
 
     const handleSubmitRentalApplication = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (listingAvailability.isClosed) {
+            toast.error(listingAvailability.message);
+            return;
+        }
         if (!property || !ensureAuthenticated()) {
             return;
         }
@@ -2141,7 +2290,11 @@ const UserPropertyDetail = () => {
     const handleScheduleViewing = async (event: React.FormEvent) => {
         event.preventDefault();
 
-        if (!property || !ensureAuthenticated()) {
+        if (listingAvailability.isClosed) {
+            toast.error(listingAvailability.message);
+            return;
+        }
+        if (!property || !ensureAuthenticated('enquire')) {
             return;
         }
 
@@ -2233,7 +2386,7 @@ const UserPropertyDetail = () => {
                     <p className="text-gray-500 dark:text-gray-400 mb-8">The property you are looking for might have been removed or is temporarily unavailable.</p>
                     <button
                         type="button"
-                        onClick={() => navigate('/user/search')}
+                        onClick={() => navigate(getPropertyDetailSearchRecoveryTarget(navigationState?.backTo, user))}
                         className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-md"
                     >
                         Back to Search
@@ -2420,6 +2573,11 @@ const UserPropertyDetail = () => {
                                             {isFastTrackCtaBusy ? <ActionSpinner size={15} className="" /> : <Upload size={15} />}
                                             <span>{isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackSidebarActionLabel}</span>
                                         </button>
+                                        {existingFastTrackJourney ? (
+                                            <p className="mt-2 text-[11px] leading-4 text-gray-600 dark:text-gray-300" data-testid="existing-fast-track-journey-summary">
+                                                {existingFastTrackJourney.summary}
+                                            </p>
+                                        ) : null}
                                     </div>
                                     <p className="mt-3 line-clamp-3 max-w-2xl text-[13px] leading-5 text-gray-500 dark:text-gray-400 sm:mt-4 sm:line-clamp-none sm:text-sm sm:leading-7">
                                         {propertyHeroSummary}
@@ -2858,11 +3016,15 @@ const UserPropertyDetail = () => {
                     <div className="overflow-hidden rounded-[2.2rem] border border-stone-200/80 bg-white/95 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.32)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92 md:p-7">
                         <div className="rounded-[1.8rem] border border-stone-200/80 bg-[#f8f3eb] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing concierge</p>
-                            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Interested in this property?</h3>
-                            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                Request manager-approved Fast Track or send a polished viewing request without leaving the page.
+                            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                                {listingAvailability.isClosed ? `${listingAvailability.label}: no longer available` : 'Interested in this property?'}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300" role={listingAvailability.isClosed ? 'status' : undefined}>
+                                {listingAvailability.isClosed
+                                    ? listingAvailability.message
+                                    : 'Request manager-approved Fast Track or send a polished viewing request without leaving the page.'}
                             </p>
-                            <div className="mt-5 grid gap-2.5">
+                            <div className={listingAvailability.isClosed ? 'hidden' : 'mt-5 grid gap-2.5'}>
                                 {conciergeHighlights.map((item) => {
                                     const Icon = item.icon;
                                     const isResponseAction = item.label === 'Response window';
@@ -2911,20 +3073,29 @@ const UserPropertyDetail = () => {
                             >
                                 {isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackPrimaryActionLabel}
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => openFastTrackDashboard()}
-                                disabled={!hasActiveFastTrackJourney}
-                                className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
-                            >
-                                {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
-                            </button>
+                            {!isNewJourneyBlocked && (
+                                <button
+                                    type="button"
+                                    onClick={() => openFastTrackDashboard()}
+                                    disabled={!hasActiveFastTrackJourney}
+                                    className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                                >
+                                    {hasActiveFastTrackJourney ? 'Open live workspace' : 'Workspace opens after manager approval'}
+                                </button>
+                            )}
                         </div>
+                        {existingFastTrackJourney ? (
+                            <div className="mt-4 rounded-[1.35rem] border border-orange-200 bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100" role="status">
+                                <p className="font-semibold">{existingFastTrackJourney.heading}</p>
+                                <p>{existingFastTrackJourney.summary}</p>
+                                <p className="mt-1 text-orange-800 dark:text-orange-200">{existingFastTrackJourney.notice}</p>
+                            </div>
+                        ) : null}
                         <div className="mt-4 rounded-[1.35rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
                             Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
                         </div>
 
-                        {property.listing_type === 'rent' && (
+                        {property.listing_type === 'rent' && !listingAvailability.isClosed && (
                             <div className="mt-5">
                                 <RentalApplicationEntryCard
                                     minimumMoveInDate={minimumRentalApplicationMoveInDate}
@@ -2938,6 +3109,7 @@ const UserPropertyDetail = () => {
                             </div>
                         )}
 
+                        {!listingAvailability.isClosed && (
                         <form ref={viewingFormRef} onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full scroll-mt-24 overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
                             <div className="border-b border-stone-200/80 px-5 py-5 dark:border-zinc-800 md:px-6 md:py-6">
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -3136,6 +3308,7 @@ const UserPropertyDetail = () => {
                                 </div>
                             </div>
                         </form>
+                        )}
 
                         <div className="mt-8 border-t border-stone-200/80 pt-7 dark:border-zinc-800">
                             <div className="flex items-center gap-4 rounded-[1.4rem] border border-stone-200/80 bg-stone-50 px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -3165,6 +3338,7 @@ const UserPropertyDetail = () => {
                 propertyAddress={propertyAddress || locationLabel}
                 lead={activeLead}
                 fastTrackCase={activeFastTrackCase}
+                existingJourney={existingFastTrackJourney}
                 userDocuments={userDocuments}
                 isRefreshing={isFastTrackPanelLoading}
                 uploadingType={uploadingFastTrackDocumentType}

@@ -19,14 +19,15 @@ test("manager operational providers retain approval gate while owned inventory s
   assert.match(managerLayoutSource, /<ManagerVerificationProvider>\s*<ManagerOperationalProviders>/);
 });
 
-test("reported direct operational routes require manager approval", () => {
+test("reported direct operational routes sit behind the explicit manager verification gate", () => {
   const appSource = readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8");
 
-  assert.match(appSource, /function VerifiedManagerRoute/);
-  assert.match(appSource, /if \(!isVerified\) \{\s*return <Navigate to="\/manager\/dashboard" replace \/>/);
-  assert.match(appSource, /path="analytics" element=\{<VerifiedManagerRoute><ManagerAnalytics \/><\/VerifiedManagerRoute>\}/);
-  assert.match(appSource, /path="appointments" element=\{<VerifiedManagerRoute><ManagerAppointments \/><\/VerifiedManagerRoute>\}/);
-  assert.match(appSource, /path="contracts" element=\{<VerifiedManagerRoute><ManagerContracts \/><\/VerifiedManagerRoute>\}/);
+  // QA-MB-20260922-01-001: the gate replaces the silent dashboard redirect.
+  assert.doesNotMatch(appSource, /VerifiedManagerRoute/);
+  assert.match(appSource, /path="analytics" element=\{<ManagerVerificationGate area="analytics"><ManagerAnalytics \/><\/ManagerVerificationGate>\}/);
+  assert.match(appSource, /path="appointments" element=\{<ManagerVerificationGate area="appointments"><ManagerAppointments \/><\/ManagerVerificationGate>\}/);
+  assert.match(appSource, /path="contracts" element=\{<ManagerVerificationGate area="contracts"><ManagerContracts \/><\/ManagerVerificationGate>\}/);
+  assert.match(appSource, /path="fast-track" element=\{<ManagerVerificationGate area="fast-track"><ManagerFastTrack \/><\/ManagerVerificationGate>\}/);
 });
 
 test("manager provider loaders remain empty whenever their access gate is disabled", () => {

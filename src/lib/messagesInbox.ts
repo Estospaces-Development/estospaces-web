@@ -1,4 +1,5 @@
 import { getErrorMessage, getErrorStatus } from '@/lib/apiUtils';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 
 export interface ConversationThreadIssue {
     conversationId: string;
@@ -21,6 +22,20 @@ export const buildConversationPropertyPath = (propertyId?: string | null, role?:
         return `/admin/properties/${encodedPropertyId}`;
     }
     return `/user/properties/${encodedPropertyId}`;
+};
+
+/**
+ * Path back to the agent request a thread is scoped to. Only the requesting
+ * user has a request workspace route; other roles see the thread context only.
+ */
+export const buildConversationBrokerRequestPath = (brokerRequestId?: string | null, role?: string | null) => {
+    const normalized = String(brokerRequestId || '').trim();
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    if (!normalized || normalizedRole !== 'user') {
+        return null;
+    }
+
+    return buildBrokerRequestWorkspacePath(normalized);
 };
 
 export function getConversationPropertyNavigationMessage(status?: number) {
