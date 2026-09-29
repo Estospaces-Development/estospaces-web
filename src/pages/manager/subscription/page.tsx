@@ -35,10 +35,14 @@ import {
     resolveDiscountCodePrefill,
     type AppliedDiscount,
 } from '@/lib/managerDiscountCode';
+import ActionSpinner from '@/components/ui/ActionSpinner';
+import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
+import ManagerBillingCountryNotice from './ManagerBillingCountryNotice';
 import ManagerDiscountCodeField from './ManagerDiscountCodeField';
+import ManagerRecurringConsent from './ManagerRecurringConsent';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
 import { orderManagerPlans } from './managerPlanOrder';
-import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
+import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, needsBillingCountryReview, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
 import { SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON, resolveManagerVerificationGate } from '@/lib/managerVerificationGate';
@@ -85,6 +89,7 @@ export default function ManagerSubscriptionPage() {
     const [planPreviews, setPlanPreviews] = useState<ManagerPlanPreview[]>([]);
     const [summary, setSummary] = useState<ManagerSubscriptionSummary | null>(null);
     const [billingProfile, setBillingProfile] = useState<BillingProfileLookup>({ kind: 'unavailable' });
+    const [billingMarketBlocked, setBillingMarketBlocked] = useState(false);
     const [loading, setLoading] = useState(true);
     const [busyPlan, setBusyPlan] = useState<string | null>(null);
     // Consent is bound to the exact text the manager ticked: applying, changing
@@ -114,6 +119,7 @@ export default function ManagerSubscriptionPage() {
         setOffersError(null);
         setPreviewError(false);
         setBillingProfile({ kind: 'unavailable' });
+        setBillingMarketBlocked(false);
         try {
             const [offerResult, previewResult, summaryResult] = await Promise.allSettled([
                 getManagerSubscriptionOffers(), getManagerSubscriptionPlanPreviews(), getManagerSubscriptionSummary(),
@@ -132,6 +138,7 @@ export default function ManagerSubscriptionPage() {
                     void Promise.allSettled([getMyManagerBillingProfile()]).then(([result]) => {
                         if (version !== loadVersion.current) return;
                         const billingLookup = classifyBillingProfileLookup(result);
+                        setBillingMarketBlocked(true);
                         setBillingProfile(billingLookup);
                         setOffersError(getSubscriptionOffersErrorMessage(offerResult.reason, billingLookup));
                     });
@@ -447,6 +454,8 @@ export default function ManagerSubscriptionPage() {
     const access = getSubscriptionAccessPresentation(summary?.entitlement, summary?.trial);
     const trialCheckoutNote = getTrialCheckoutNote(summary?.trial, new Date());
     const plansToShow: (ManagerPlanOffer | ManagerPlanPreview)[] = orderManagerPlans(offers.length > 0 ? offers : planPreviews);
+    const checkingStatus = busyPlan === 'status';
+    const billingDocuments = verification.requiredDocuments.map((type) => ({ name: getManagerDocumentTypeName(type), status: verification.getDocumentStatus(type) }));
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12 dark:bg-gray-950">
@@ -478,13 +487,14 @@ export default function ManagerSubscriptionPage() {
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
                     <div className="mt-4 flex flex-wrap gap-3">
                         {summary && canResumeSubscription(summary) && acceptedCheckout && !pendingProof && !checkoutBlockedByVerification ? <button disabled={busy || Boolean(error)} type="button" onClick={() => void resume()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Resume secure checkout</button> : null}
-                        <button disabled={busy} type="button" onClick={() => void checkStatus()} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Check payment status</button>
+                        <button disabled={busy} aria-busy={checkingStatus} type="button" onClick={() => void checkStatus()} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-3 font-semibold disabled:cursor-not-allowed ${checkingStatus ? '' : 'disabled:opacity-50'}`}>{checkingStatus ? <><ActionSpinner size="sm" aria-hidden /> Checking with Razorpay…</> : 'Check payment status'}</button>
                         {activeCheckout.provider_subscription_id && !terminal && summary?.cancellation?.status !== 'confirmed' ? <button disabled={busy} type="button" onClick={() => setConfirmCancel(true)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Cancel subscription / renewal</button> : null}
                     </div>
+                    {checkingStatus ? <p role="status" className="mt-3">Checking your payment with Razorpay. This can take up to a minute; please do not pay again.</p> : null}
                     {confirmCancel ? <div className="mt-4 rounded-xl border p-4"><p>Stop this subscription’s future charges? Any verified paid-through access remains until its end date. Cancelling does not delete your documents or ongoing cases.</p><div className="mt-3 flex flex-wrap gap-3"><button disabled={busy} type="button" onClick={() => void cancel()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Confirm cancellation</button><button disabled={busy} type="button" onClick={() => setConfirmCancel(false)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Keep subscription</button></div></div> : null}
                 </section> : null}
                 {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{error}</div> : null}
-                {offersError ? <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">{offersError}</p> : null}
+                {offersError ? <ManagerBillingCountryNotice message={offersError} reviewNeeded={needsBillingCountryReview(billingMarketBlocked, billingProfile)} billingProfile={billingProfile} documents={billingDocuments} managerVerified={verification.isVerified} /> : null}
                 {!loading && plansToShow.length === 0 && previewError ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Plan descriptions could not be loaded. Refresh to try again; your existing access is unchanged.</p> : null}
                 {!loading && !error && plansToShow.length === 0 && !previewError ? <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">No approved plans are currently available to compare. Contact support or refresh later. Any existing subscription can still be managed above.</p> : null}
                 {summary?.new_checkouts_paused ? <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">New subscriptions are temporarily paused. You can still manage an existing subscription.</p> : null}
@@ -511,7 +521,7 @@ export default function ManagerSubscriptionPage() {
                 </section> : null}
                 {offers.length > 0 && trialCheckoutNote ? <p role="note" className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">{trialCheckoutNote}</p> : null}
                 {offers.length > 0 && discountNotice ? <p role="alert" className="mt-8 rounded-2xl border border-orange-300 bg-orange-50 p-4 text-sm font-semibold text-orange-950 dark:border-orange-800/60 dark:bg-orange-950/30 dark:text-orange-100">{discountNotice}</p> : null}
-                {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setConsentedText(event.target.checked ? consentText : null)} className="mt-1 h-4 w-4 accent-orange-600" /><span>{consentText}</span></label> : null}
+                {offers.length > 0 ? <ManagerRecurringConsent text={consentText} disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(checked) => setConsentedText(checked ? consentText : null)} /> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
                 <ManagerBillingHistory />
             </div>
