@@ -198,14 +198,41 @@ export function getTrialCheckoutNote(
 
 // ── Trial code redemption ──────────────────────────────────────────────────
 
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set(['cancelled', 'completed', 'expired']);
+
+/**
+ * Mirrors payment's liveCheckoutAttempt: a trial is refused while a checkout
+ * is being created or reconciled, while a ready authorization is unexpired,
+ * or while a verified mandate's subscription has not ended.
+ */
+function checkoutBlocksTrial(summary: ManagerSubscriptionSummary, now: Date): boolean {
+    const checkout = summary.checkout;
+    if (!checkout) return false;
+    switch (checkout.status) {
+        case 'creating':
+        case 'reconciliation_required':
+            return true;
+        case 'ready': {
+            // An unknown expiry is treated as live rather than guessed.
+            const expiresAt = parseDate(checkout.authorization_expires_at);
+            return !expiresAt || expiresAt.getTime() > now.getTime();
+        }
+        case 'verified':
+            return !summary.subscription || !TERMINAL_SUBSCRIPTION_STATUSES.has(summary.subscription.status);
+        default:
+            return false;
+    }
+}
+
 /**
  * The trial-code field is offered only to a manager on Free access with no
- * checkout in progress. Payment allows one trial per manager ever, so any
- * recorded trial (active, ended, superseded or revoked) hides it, as does
- * paid, trial or pilot access. An unknown entitlement also hides it.
+ * live checkout. Payment allows one trial per manager ever, so any recorded
+ * trial (active, ended, superseded or revoked) hides it, as does paid, trial
+ * or pilot access. An unknown entitlement also hides it.
  */
-export function canRedeemTrialCode(summary: ManagerSubscriptionSummary | null | undefined): boolean {
-    if (!summary || summary.trial || summary.checkout || summary.new_paid_actions_available) return false;
+export function canRedeemTrialCode(summary: ManagerSubscriptionSummary | null | undefined, now: Date = new Date()): boolean {
+    if (!summary || summary.trial || summary.new_paid_actions_available) return false;
+    if (checkoutBlocksTrial(summary, now)) return false;
     return summary.entitlement?.source === 'free';
 }
 

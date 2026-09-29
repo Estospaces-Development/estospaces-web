@@ -149,9 +149,22 @@ test('the trial-code field is offered only on Free access with no trial, paid ac
         ['paid access', summary({ entitlement: paidEntitlement }), false],
         ['pilot access', summary({ entitlement: pilotEntitlement }), false],
         ['verified payment', summary({ new_paid_actions_available: true }), false],
-        ['checkout in progress', summary({ checkout: { id: 'c1', plan_version_id: 'p1', terms_digest: 'd', consent_version: 'v1', status: 'created' } }), false],
     ];
-    for (const [name, input, expected] of cases) assert.equal(canRedeemTrialCode(input), expected, name);
+    const now = new Date('2026-09-30T12:00:00Z');
+    const checkout = (status: string, authorization_expires_at?: string) => ({ id: 'c1', plan_version_id: 'p1', terms_digest: 'd', consent_version: 'v1', status, authorization_expires_at });
+    // Mirrors payment liveCheckoutAttempt: only a live checkout blocks a trial.
+    cases.push(
+        ['checkout being created', summary({ checkout: checkout('creating') }), false],
+        ['checkout awaiting reconciliation', summary({ checkout: checkout('reconciliation_required') }), false],
+        ['ready checkout with an unexpired authorization', summary({ checkout: checkout('ready', '2026-10-01T12:00:00Z') }), false],
+        ['ready checkout with an unknown expiry', summary({ checkout: checkout('ready') }), false],
+        ['ready checkout whose authorization expired unpaid', summary({ checkout: checkout('ready', '2026-09-29T12:00:00Z') }), true],
+        ['verified checkout with no subscription state yet', summary({ checkout: checkout('verified') }), false],
+        ['verified checkout with a live subscription', summary({ checkout: checkout('verified'), subscription: { status: 'active' } }), false],
+        ['verified checkout whose subscription ended', summary({ checkout: checkout('verified'), subscription: { status: 'cancelled' } }), true],
+        ['failed checkout', summary({ checkout: checkout('failed') }), true],
+    );
+    for (const [name, input, expected] of cases) assert.equal(canRedeemTrialCode(input, now), expected, name);
 });
 
 test('a redeemed code confirms the customer-facing plan and end date with no card', () => {

@@ -40,6 +40,7 @@ export interface SubscriptionCheckout {
     consent_version: string;
     provider_subscription_id?: string;
     status: string;
+    authorization_expires_at?: string;
 }
 
 export interface ManagerSubscriptionResourceLimit {
