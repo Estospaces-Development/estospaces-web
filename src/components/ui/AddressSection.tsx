@@ -837,6 +837,7 @@ const AddressSection = ({
                                 aria-label={citySuggestionsOpen ? 'Hide city suggestions' : 'Show city suggestions'}
                                 aria-controls={citySuggestionsId}
                                 aria-expanded={showCitySuggestions}
+                                onMouseDown={(event) => event.preventDefault()}
                                 onClick={toggleCitySuggestions}
                                 className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
                             >
@@ -856,7 +857,7 @@ const AddressSection = ({
                                     key={city.id}
                                     id={`${citySuggestionsId}-${index}`}
                                     role="option"
-                                    aria-selected={city.name === value.cityName}
+                                    aria-selected={index === activeCityIndex}
                                     onMouseDown={(event) => event.preventDefault()}
                                     onClick={() => chooseCitySuggestion(city.name)}
                                     className={`flex min-h-11 cursor-pointer items-center px-3 text-sm text-gray-900 dark:text-gray-100 ${index === activeCityIndex ? 'bg-primary/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} ${city.name === value.cityName ? 'font-semibold' : ''}`}

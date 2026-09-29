@@ -177,4 +177,6 @@ test('custom manager overlays stay usable on phone viewports', () => {
     assert.doesNotMatch(propertyDetail, /fixed inset-x-4 top-4/);
     assert.match(propertyDetail, /appToast\.error\(message, \{ duration: 10000 \}\)/);
     assert.match(propertyDetail, /describePropertyMutationError\(error, 'Unknown error'\)/);
+    // "Edit the listing to fix this." only follows field reasons.
+    assert.match(propertyDetail, /getPropertyMutationFieldReasons\(error\)\.length > 0\s*\?[^\n]*Edit the listing to fix this\./);
 });

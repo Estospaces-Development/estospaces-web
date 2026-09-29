@@ -21,7 +21,7 @@ import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
-import { describePropertyMutationError } from '@/lib/propertyValidationErrors';
+import { describePropertyMutationError, getPropertyMutationFieldReasons } from '@/lib/propertyValidationErrors';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
 import {
     loadManagerPropertyDetail,
@@ -170,7 +170,9 @@ export default function PropertyDetailPage() {
                 return;
             }
             setToast({
-                message: `Failed to publish property: ${describePropertyMutationError(error, 'Unknown error')} Edit the listing to fix this.`,
+                message: getPropertyMutationFieldReasons(error).length > 0
+                    ? `Failed to publish property: ${describePropertyMutationError(error, 'Unknown error')} Edit the listing to fix this.`
+                    : `Failed to publish property: ${describePropertyMutationError(error, 'Unknown error')}`,
                 type: 'error',
                 visible: true,
             });

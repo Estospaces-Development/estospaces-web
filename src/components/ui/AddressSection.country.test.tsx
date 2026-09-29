@@ -60,6 +60,7 @@ async function mountAddress(initial: AddressFormData) {
     };
     return {
         value: () => latest,
+        window,
         document: window.document,
         click: async (element: { click: () => void }) => { await act(async () => element.click()); },
         country: () => window.document.querySelector('select')!.value,
@@ -187,10 +188,20 @@ test('the city arrow opens every suggestion for the state even when a city is en
         assert.equal(form.cityInput().getAttribute('list'), null, 'no native datalist arrow that cannot open');
         const toggle = form.document.querySelector('button[aria-label="Show city suggestions"]');
         assert.ok(toggle, 'city field offers a working suggestions button');
+        const press = new form.window.MouseEvent('mousedown', { bubbles: true, cancelable: true });
+        await act(async () => { toggle.dispatchEvent(press); });
+        assert.equal(press.defaultPrevented, true, 'pressing the arrow does not blur the city input');
         await form.click(toggle as unknown as HTMLButtonElement);
         const options = [...form.document.querySelectorAll('[role="option"]')].map(option => option.textContent);
         assert.deepEqual(options, ['Bengaluru', 'Mysuru', 'Mangaluru']);
         assert.equal(form.cityInput().getAttribute('aria-expanded'), 'true');
+        assert.equal(form.document.querySelectorAll('[role="option"][aria-selected="true"]').length, 0, 'selection follows the keyboard-active option');
+        await act(async () => {
+            form.cityInput().dispatchEvent(new form.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        });
+        const selected = [...form.document.querySelectorAll('[role="option"][aria-selected="true"]')].map(option => option.textContent);
+        assert.deepEqual(selected, ['Bengaluru']);
+        assert.equal(form.cityInput().getAttribute('aria-activedescendant'), 'country-test-city-suggestions-0');
         await form.click(form.document.querySelectorAll('[role="option"]')[1] as unknown as HTMLElement);
         assert.equal(form.value().cityName, 'Mysuru');
         assert.equal(form.value().cityId, '2011');
