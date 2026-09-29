@@ -34,7 +34,7 @@ test('check payment status shows immediate progress and cannot be sent twice (we
     assert.match(source, /\{checkingStatus \? <p role="status"[^>]*>Checking your payment with Razorpay\./);
     // One action at a time: the lock is taken before any request, and busy disables every action button.
     assert.match(source, /const runAction = async \(name: string, action: \(\) => Promise<void>\) => \{\s*if \(actionLock\.current\) return;\s*actionLock\.current = true;\s*setBusyPlan\(name\);/);
-    assert.match(source, /const busy = busyPlan !== null \|\| loading;/);
+    assert.match(source, /const busy = busyPlan !== null \|\| loading \|\| trialCodeSubmitting;/);
 });
 
 test('unverified managers can compare plans but cannot start or resume checkout (QA-MB-20260922-01-001)', () => {

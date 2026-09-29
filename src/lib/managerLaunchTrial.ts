@@ -2,7 +2,9 @@ import { getManagerPlanDisplayName } from './managerPlanNames';
 import type {
     ManagerSubscriptionEntitlement,
     ManagerSubscriptionResourceLimit,
+    ManagerSubscriptionSummary,
     ManagerSubscriptionTrial,
+    ManagerTrialGrantSummary,
 } from '../services/managerSubscriptionService';
 
 // ── Signup launch offer (core POST /api/v1/auth/register → launch_offer) ────
@@ -192,4 +194,27 @@ export function getTrialCheckoutNote(
     if (!endsAt || trialDaysRemaining(endsAt, now) === 0) return null;
     const planName = trial.plan_code ? getManagerPlanDisplayName(trial.plan_code) : (trial.plan_name || DEFAULT_TRIAL_PLAN_NAME);
     return `Your ${planName} trial runs until ${formatDate(endsAt)}. If you subscribe now, billing starts today and the remaining trial days end.`;
+}
+
+// ── Trial code redemption ──────────────────────────────────────────────────
+
+/**
+ * The trial-code field is offered only to a manager on Free access with no
+ * checkout in progress. Payment allows one trial per manager ever, so any
+ * recorded trial (active, ended, superseded or revoked) hides it, as does
+ * paid, trial or pilot access. An unknown entitlement also hides it.
+ */
+export function canRedeemTrialCode(summary: ManagerSubscriptionSummary | null | undefined): boolean {
+    if (!summary || summary.trial || summary.checkout || summary.new_paid_actions_available) return false;
+    return summary.entitlement?.source === 'free';
+}
+
+/** "Growth plan active until 29 November 2026. No card needed." */
+export function getTrialCodeRedeemedMessage(
+    grant: Pick<ManagerTrialGrantSummary, 'plan_code' | 'plan_name' | 'ends_at'>,
+    formatDate: TrialDateFormatter = formatTrialDate,
+): string {
+    const planName = grant.plan_code ? getManagerPlanDisplayName(grant.plan_code) : (grant.plan_name || DEFAULT_TRIAL_PLAN_NAME);
+    const endsAt = parseDate(grant.ends_at);
+    return endsAt ? `${planName} plan active until ${formatDate(endsAt)}. No card needed.` : `${planName} plan active. No card needed.`;
 }

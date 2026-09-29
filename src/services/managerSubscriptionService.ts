@@ -1,5 +1,5 @@
-import { apiFetch, getServiceUrl, type ApiFetchOptions } from '@/lib/apiUtils';
-import { assertCheckoutPromotionPair, type CheckoutPromotionFields } from '@/lib/managerDiscountCode';
+import { apiFetch, getErrorStatus, getServiceUrl, type ApiFetchOptions } from '@/lib/apiUtils';
+import { assertCheckoutPromotionPair, normalizeDiscountCode, type CheckoutPromotionFields } from '@/lib/managerDiscountCode';
 
 const PAYMENT_URL = () => getServiceUrl('payment');
 
@@ -147,6 +147,90 @@ export function previewManagerSubscriptionDiscount(code: string, planVersionId: 
     const query = new URLSearchParams({ code, plan_version_id: planVersionId });
     // The page explains refusals next to the field; a generic toast would contradict it.
     return apiFetch<ManagerDiscountPreview>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/promotions/preview?${query.toString()}`, { suppressErrorToast: true });
+}
+
+// POST /promotions/redeem (payment trial codes). 201 `granted` starts the
+// trial; 200 `already_granted` is an exact replay of the same code. Every
+// refusal, including an existing trial or paid access, is the uniform 409
+// promotion_unavailable, and the route allows 10 attempts per 10 minutes.
+export interface ManagerTrialGrantSummary {
+    plan_code: string;
+    plan_name: string;
+    starts_at: string;
+    ends_at: string;
+}
+
+export interface ManagerTrialCodeRedemption {
+    status: 'granted' | 'already_granted';
+    grant: ManagerTrialGrantSummary;
+    trial: ManagerSubscriptionTrial | null;
+}
+
+export const TRIAL_CODE_MAX_LENGTH = 32;
+export const TRIAL_CODE_UNAVAILABLE_MESSAGE = "This code can't be used on your account.";
+export const TRIAL_CODE_RATE_LIMITED_MESSAGE = 'Too many attempts, try again in a few minutes.';
+export const TRIAL_CODE_FAILED_MESSAGE = 'The code could not be checked right now. Please try again.';
+export const TRIAL_CODE_SIGN_IN_MESSAGE = 'Your session has ended. Sign in again to redeem a code.';
+export const TRIAL_CODE_UNCONFIRMED_MESSAGE = 'We could not confirm the result. Refresh this page to check your plan.';
+
+// Statuses that mean the code itself was refused; the server keeps them
+// uniform so a code cannot be probed, and so does this page.
+const TRIAL_CODE_REFUSAL_STATUSES = new Set([400, 403, 404, 409, 422]);
+
+export type TrialCodeRedeemErrorKind = 'unavailable' | 'rate_limited' | 'sign_in' | 'failed' | 'unconfirmed';
+
+export type TrialCodeRedeemResult =
+    | { data: ManagerTrialCodeRedemption; error: null }
+    | { data: null; error: { kind: TrialCodeRedeemErrorKind; message: string } };
+
+const TRIAL_CODE_ERROR_MESSAGES: Record<TrialCodeRedeemErrorKind, string> = {
+    unavailable: TRIAL_CODE_UNAVAILABLE_MESSAGE,
+    rate_limited: TRIAL_CODE_RATE_LIMITED_MESSAGE,
+    sign_in: TRIAL_CODE_SIGN_IN_MESSAGE,
+    failed: TRIAL_CODE_FAILED_MESSAGE,
+    unconfirmed: TRIAL_CODE_UNCONFIRMED_MESSAGE,
+};
+
+const trialCodeError = (kind: TrialCodeRedeemErrorKind): TrialCodeRedeemResult => ({ data: null, error: { kind, message: TRIAL_CODE_ERROR_MESSAGES[kind] } });
+
+export function classifyTrialCodeError(error: unknown): TrialCodeRedeemErrorKind {
+    const status = getErrorStatus(error);
+    if (status === 429) return 'rate_limited';
+    if (status === 401) return 'sign_in';
+    if (status !== undefined && TRIAL_CODE_REFUSAL_STATUSES.has(status)) return 'unavailable';
+    return 'failed';
+}
+
+function isTrialCodeRedemption(value: unknown): value is ManagerTrialCodeRedemption {
+    if (!value || typeof value !== 'object') return false;
+    const { status, grant } = value as { status?: unknown; grant?: unknown };
+    if (status !== 'granted' && status !== 'already_granted') return false;
+    if (!grant || typeof grant !== 'object') return false;
+    const { plan_code: planCode, ends_at: endsAt } = grant as { plan_code?: unknown; ends_at?: unknown };
+    return typeof planCode === 'string' && planCode !== '' && typeof endsAt === 'string' && !Number.isNaN(new Date(endsAt).getTime());
+}
+
+/** Redeems a hand-typed trial code; never surfaces the server's own error text. */
+export async function redeemManagerTrialCode(rawCode: string): Promise<TrialCodeRedeemResult> {
+    // The server refuses any code outside its pattern the same way, so a
+    // malformed code is answered here without spending a rate-limited attempt.
+    const code = normalizeDiscountCode(rawCode);
+    if (!code) return trialCodeError('unavailable');
+    try {
+        const data = await apiFetch<unknown>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/promotions/redeem`, {
+            method: 'POST',
+            body: JSON.stringify({ code }),
+            // The page explains every outcome next to the field.
+            suppressErrorToast: true,
+        });
+        if (!isTrialCodeRedemption(data)) return trialCodeError('unconfirmed');
+        // A replay of a trial that has since ended, been replaced or revoked
+        // grants nothing now, so it is not reported as an active plan.
+        if (data.trial && data.trial.state !== 'active') return trialCodeError('unavailable');
+        return { data: { ...data, trial: data.trial ?? null }, error: null };
+    } catch (error) {
+        return trialCodeError(classifyTrialCodeError(error));
+    }
 }
 
 export function startManagerSubscriptionCheckout(input: {

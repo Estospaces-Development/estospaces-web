@@ -4,15 +4,17 @@ import test from 'node:test';
 import {
     DAY_MS,
     TRIAL_NO_CHARGE_NOTE,
+    canRedeemTrialCode,
     getLaunchOfferMessage,
     getTrialCheckoutNote,
     getTrialBanner,
+    getTrialCodeRedeemedMessage,
     managerSubscriptionSummaryQueryKey,
     parseLaunchOffer,
     trialBannerDays,
     trialDaysRemaining,
 } from './managerLaunchTrial';
-import type { ManagerSubscriptionEntitlement, ManagerSubscriptionTrial } from '../services/managerSubscriptionService';
+import type { ManagerSubscriptionEntitlement, ManagerSubscriptionSummary, ManagerSubscriptionTrial } from '../services/managerSubscriptionService';
 
 const formatDate = (date: Date) => date.toISOString().slice(0, 10);
 const endsAt = '2026-11-27T10:00:00.000Z';
@@ -127,4 +129,32 @@ test('checkout note warns that subscribing during a trial starts billing now', (
     assert.equal(getTrialCheckoutNote(trial({ state: 'superseded' }), before(10 * DAY_MS), formatDate), null);
     assert.equal(getTrialCheckoutNote(trial(), end, formatDate), null);
     assert.equal(getTrialCheckoutNote(null, end, formatDate), null);
+});
+
+test('the trial-code field is offered only on Free access with no trial, paid access or checkout', () => {
+    const summary = (overrides: Partial<ManagerSubscriptionSummary> = {}): ManagerSubscriptionSummary => ({
+        mode: 'test', entitlement: freeEntitlement, trial: null, checkout: null, new_paid_actions_available: false, ...overrides,
+    });
+    const paidEntitlement: ManagerSubscriptionEntitlement = { ...trialEntitlement, state: 'paid_active', source: 'paid', reason: 'paid' };
+    const pilotEntitlement: ManagerSubscriptionEntitlement = { ...trialEntitlement, state: 'pilot_active', source: 'pilot', reason: 'pilot' };
+    const cases: Array<[string, ManagerSubscriptionSummary | null, boolean]> = [
+        ['free, never trialled', summary(), true],
+        ['trial field absent from an older summary', summary({ trial: undefined }), true],
+        ['summary not loaded', null, false],
+        ['entitlement unknown', summary({ entitlement: null }), false],
+        ['active trial', summary({ entitlement: trialEntitlement, trial: trial() }), false],
+        ['ended trial (one trial per manager)', summary({ trial: trial({ state: 'expired' }) }), false],
+        ['superseded trial', summary({ entitlement: paidEntitlement, trial: trial({ state: 'superseded' }) }), false],
+        ['revoked trial', summary({ trial: trial({ state: 'revoked' }) }), false],
+        ['paid access', summary({ entitlement: paidEntitlement }), false],
+        ['pilot access', summary({ entitlement: pilotEntitlement }), false],
+        ['verified payment', summary({ new_paid_actions_available: true }), false],
+        ['checkout in progress', summary({ checkout: { id: 'c1', plan_version_id: 'p1', terms_digest: 'd', consent_version: 'v1', status: 'created' } }), false],
+    ];
+    for (const [name, input, expected] of cases) assert.equal(canRedeemTrialCode(input), expected, name);
+});
+
+test('a redeemed code confirms the customer-facing plan and end date with no card', () => {
+    assert.equal(getTrialCodeRedeemedMessage({ plan_code: 'pro', plan_name: 'Growth', ends_at: endsAt }, formatDate), 'Growth plan active until 2026-11-27. No card needed.');
+    assert.equal(getTrialCodeRedeemedMessage({ plan_code: '', plan_name: 'Growth', ends_at: 'soon' }, formatDate), 'Growth plan active. No card needed.');
 });
