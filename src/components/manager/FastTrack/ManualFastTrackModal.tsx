@@ -4,6 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, Search, Zap } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,7 +17,7 @@ import {
 import { getBrokerLeads, type Lead } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import type { ManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
-import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
+import { loadManagerPlanEntitlement } from '@/lib/planLimit';
 import {
     findRequestContextCaseMatch,
     getFastTrackStartSuccessMessage,
@@ -24,6 +25,8 @@ import {
     hasManagerFastTrackRequestContext,
     isReusableFastTrackCase,
     leadMatchesRequestContext,
+    resolveFastTrackStartNotice,
+    type FastTrackStartNotice,
 } from '@/lib/manualFastTrackStart';
 
 interface ManualFastTrackModalProps {
@@ -92,8 +95,11 @@ export default function ManualFastTrackModal({
     const [searchQuery, setSearchQuery] = useState('');
     const [actingLeadId, setActingLeadId] = useState<string | null>(null);
     const [contextFilterActive, setContextFilterActive] = useState(false);
+    const [startNotice, setStartNotice] = useState<{ leadId: string; notice: FastTrackStartNotice } | null>(null);
 
     useEffect(() => {
+        // A start error belongs to this modal session; never carry it to the next screen.
+        setStartNotice(null);
         if (!open) {
             setSearchQuery('');
             setError(null);
@@ -218,11 +224,13 @@ export default function ManualFastTrackModal({
         }
 
         if (!lead.property_id || !lead.user_id) {
-            toast.error('This lead needs both a linked property and a linked client account before fast-track can start.');
+            setStartNotice({ leadId: lead.id, notice: { message: 'This lead needs both a linked property and a linked client account before fast-track can start.' } });
             return;
         }
 
+        setStartNotice(null);
         setActingLeadId(lead.id);
+        let modalClosed = false;
 
         try {
             const basePayload = {
@@ -262,35 +270,29 @@ export default function ManualFastTrackModal({
                 const existingCase = activeCaseByLeadKey.get(getLeadKey(lead.property_id, lead.user_id)) || null;
                 if (existingCase && (result.error || '').toLowerCase().includes('active fast-track case')) {
                     toast.success('An active 24-hour case already exists for this client. Opening it now.');
+                    modalClosed = true;
                     await handleOpenCase(existingCase);
                     return;
                 }
 
-                const planLimit = await resolvePlanLimitNotice(result.error, loadManagerPlanEntitlement);
-                if (planLimit) {
-                    toast.error(planLimit.message, {
-                        title: planLimit.title,
-                        action: planLimit.action,
-                        duration: 10000,
-                    });
-                    return;
-                }
-
-                throw new Error(result.error || 'Unable to create the 24-hour fast-track case.');
+                setStartNotice({ leadId: lead.id, notice: await resolveFastTrackStartNotice(result.error, loadManagerPlanEntitlement) });
+                return;
             }
 
             const createdCase = result.data;
             const reused = result.reused || existingCases.some((caseItem) => caseItem.id === createdCase.id);
             toast.success(getFastTrackStartSuccessMessage({ reused, requestedLeadId: result.requestedLeadId }));
+            modalClosed = true;
             onClose();
             await onCreated?.(createdCase);
-        } catch (createError: any) {
-            const message = String(createError?.message || '');
-            toast.error(
-                message.toLowerCase().includes('too many requests')
-                    ? 'The fast-track queue is still refreshing. Please wait a moment and try again.'
-                    : createError?.message || 'Unable to create the 24-hour fast-track case.',
-            );
+        } catch (createError: unknown) {
+            const notice = await resolveFastTrackStartNotice(createError);
+            if (modalClosed) {
+                // The modal is gone, so only a toast can reach the screen the manager returned to.
+                toast.error(notice.message);
+            } else {
+                setStartNotice({ leadId: lead.id, notice });
+            }
         } finally {
             setActingLeadId(null);
         }
@@ -411,6 +413,7 @@ export default function ManualFastTrackModal({
                         {filteredLeads.map(({ lead, stage, activeCase }) => {
                             const isBusy = actingLeadId === lead.id;
                             const shouldDisableStart = isBusy || (!activeCase && backgroundBusy);
+                            const leadNotice = startNotice?.leadId === lead.id ? startNotice.notice : null;
 
                             return (
                                 <div
@@ -476,6 +479,24 @@ export default function ManualFastTrackModal({
                                             {!isBusy ? <ArrowRight className="h-4 w-4" /> : null}
                                         </button>
                                     </div>
+                                    {leadNotice ? (
+                                        <div
+                                            role="alert"
+                                            className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
+                                        >
+                                            {leadNotice.title ? <p className="font-semibold">{leadNotice.title}</p> : null}
+                                            <p className={leadNotice.title ? 'mt-1' : undefined}>{leadNotice.message}</p>
+                                            {leadNotice.action ? (
+                                                <Link
+                                                    to={leadNotice.action.href}
+                                                    onClick={onClose}
+                                                    className="mt-2 inline-flex font-semibold text-orange-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-orange-300"
+                                                >
+                                                    {leadNotice.action.label}
+                                                </Link>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
                                 </div>
                             );
                         })}
