@@ -22,7 +22,7 @@ import {
     managerPropertyStatusFiltersEqual,
     normalizeManagerPropertyStatusFilters,
 } from '@/lib/managerPropertyDashboard';
-import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyFloorCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
@@ -716,10 +716,7 @@ function PropertiesContent() {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {tabFilteredProperties.map((property) => {
                                 const statusBadge = getManagerPropertyStatusBadge(property.status);
-                                const inventoryCaption = formatPropertyInventoryCaption(
-                                    property.dimensions?.totalFloors ?? property.total_floors,
-                                    property.dimensions?.occupiedUnits ?? property.occupied_units,
-                                );
+                                const inventoryCaption = formatPropertyFloorCaption(property);
 
                                 return (
                                     <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}>

@@ -9,8 +9,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import Avatar from '../ui/Avatar';
 import { getProfileLinkLabel } from '@/lib/profileMenuAccessibility';
 import { ADMIN_FEATURE_LABELS, matchesAdminPageQuery } from '@/lib/adminFeatureLabels';
+import { filterAdminResearchNavItems } from '@/lib/adminResearchAvailability';
 
-const ADMIN_PAGES = [
+const ADMIN_PAGES = filterAdminResearchNavItems([
     { label: 'Dashboard', path: '/admin/dashboard' },
     { label: 'Notifications', path: '/admin/notifications' },
     { label: ADMIN_FEATURE_LABELS.users, path: '/admin/users' },
@@ -24,7 +25,7 @@ const ADMIN_PAGES = [
     { label: 'Analytics', path: '/admin/analytics' },
     { label: 'Profile', path: '/admin/profile' },
     { label: 'System Settings', path: '/admin/settings' },
-];
+]);
 
 const normalizeCommandSearch = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 

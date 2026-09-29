@@ -39,6 +39,62 @@ export const formatPropertyInventoryCaption = (totalFloors?: number | null, occu
     return `${inventory.totalUnits} floors available`;
 };
 
+// Property types whose floors are rentable units tracked by `occupied_units`.
+// Every other type is a single unit (a flat, a house) inside a building.
+const MULTI_UNIT_PROPERTY_TYPES: ReadonlySet<string> = new Set([
+    'commercial',
+    'industrial',
+    'office',
+]);
+
+export interface PropertyFloorCaptionInput {
+    propertyType?: string | null;
+    property_type?: string | null;
+    floor_number?: number | null;
+    total_floors?: number | null;
+    occupied_units?: number | null;
+    dimensions?: {
+        floorNumber?: number | null;
+        totalFloors?: number | null;
+        occupiedUnits?: number | null;
+    } | null;
+}
+
+/**
+ * Floor caption for a manager property card or row.
+ *
+ * Commercial, industrial and office listings keep the whole-building occupancy
+ * caption. Land has no floors. Every other type (residential, and a missing
+ * type, which the create form treats as residential) is one unit, so it shows
+ * its position in the building rather than "N floors available".
+ */
+export const formatPropertyFloorCaption = (property: PropertyFloorCaptionInput) => {
+    const propertyType = (property.propertyType ?? property.property_type ?? '').trim().toLowerCase();
+    const totalFloors = property.dimensions?.totalFloors ?? property.total_floors;
+
+    if (MULTI_UNIT_PROPERTY_TYPES.has(propertyType)) {
+        return formatPropertyInventoryCaption(
+            totalFloors,
+            property.dimensions?.occupiedUnits ?? property.occupied_units,
+        );
+    }
+    if (propertyType === 'land') {
+        return null;
+    }
+
+    // The API and the property context both default unknown values to 0 or 1,
+    // so a single-storey building and floor 0 carry no usable information.
+    const total = normalizeInteger(totalFloors);
+    if (total <= 1) {
+        return null;
+    }
+    const floor = normalizeInteger(property.dimensions?.floorNumber ?? property.floor_number);
+    if (floor >= 1 && floor <= total) {
+        return `Floor ${floor} of ${total}`;
+    }
+    return `${total}-floor building`;
+};
+
 export const formatPropertyStatusLabel = (status?: string) => {
     const normalizedStatus = status?.trim().toLowerCase();
 

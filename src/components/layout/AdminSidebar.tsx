@@ -22,6 +22,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLoginPath } from '@/lib/authUtils';
 import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
+import { filterAdminResearchNavItems } from '@/lib/adminResearchAvailability';
 
 interface AdminSidebarProps {
     isOpen?: boolean;
@@ -46,7 +47,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
         return pathname === checkPath || pathname?.startsWith(checkPath + '/');
     };
 
-    const menuItems = [
+    const menuItems = filterAdminResearchNavItems([
         { icon: LayoutDashboard, label: 'Overview', path: '/admin/dashboard' },
         { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
         { icon: Users, label: ADMIN_FEATURE_LABELS.users, path: '/admin/users' },
@@ -60,7 +61,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain: _useSubdomain = f
         { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
         { icon: User, label: 'Profile', path: '/admin/profile' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
-    ];
+    ]);
 
     return (
         <aside

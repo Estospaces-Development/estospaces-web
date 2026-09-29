@@ -44,16 +44,46 @@ const expectDirectiveTokens = (directives: Map<string, string[]>, name: string, 
   }
 };
 
+// Razorpay origins are pinned per directive. Checkout loads its risk-detection
+// script from cdn.razorpay.com and sends fraud telemetry to lumberjack.razorpay.com.
+// No other Razorpay origin, wildcard, or directive placement is allowed.
+const ALLOWED_RAZORPAY_ORIGINS: Record<string, ReadonlySet<string>> = {
+  'script-src': new Set(['https://checkout.razorpay.com', 'https://cdn.razorpay.com']),
+  'connect-src': new Set([
+    'https://checkout.razorpay.com',
+    'https://api.razorpay.com',
+    'https://lumberjack.razorpay.com',
+  ]),
+  'frame-src': new Set(['https://checkout.razorpay.com', 'https://api.razorpay.com']),
+};
+
 const expectOnlyKnownRazorpayOrigins = (directives: Map<string, string[]>) => {
-  const allowed = new Set(['https://checkout.razorpay.com', 'https://api.razorpay.com']);
-  for (const tokens of directives.values()) {
+  for (const [name, tokens] of directives) {
+    const allowed = ALLOWED_RAZORPAY_ORIGINS[name] ?? new Set<string>();
     for (const token of tokens) {
       if (token.toLowerCase().includes('razorpay')) {
-        assert.ok(allowed.has(token), `unexpected Razorpay CSP source ${token}`);
+        assert.ok(allowed.has(token), `unexpected Razorpay CSP source ${token} in ${name}`);
       }
     }
   }
 };
+
+test('Razorpay CSP allowlist rejects unknown origins, wildcards and misplaced sources', () => {
+  const rejected = [
+    "script-src 'self' https://*.razorpay.com",
+    "script-src 'self' https://lumberjack.razorpay.com",
+    "connect-src 'self' https://cdn.razorpay.com",
+    "img-src 'self' https://cdn.razorpay.com",
+    "connect-src 'self' http://lumberjack.razorpay.com",
+    "script-src 'self' https://evil.razorpay.com.example",
+  ];
+  for (const csp of rejected) {
+    assert.throws(() => expectOnlyKnownRazorpayOrigins(getDirectiveTokens(csp)), /unexpected Razorpay CSP source/, csp);
+  }
+  assert.doesNotThrow(() => expectOnlyKnownRazorpayOrigins(getDirectiveTokens(
+    "script-src 'self' https://checkout.razorpay.com https://cdn.razorpay.com; connect-src 'self' https://lumberjack.razorpay.com",
+  )));
+});
 
 test('dev server sends the same release-blocking security headers as production', () => {
   assert.match(viteConfigSource, /'X-Frame-Options': 'DENY'/);
@@ -64,7 +94,11 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /microphone=\(\)/);
   assert.match(viteConfigSource, /frame-ancestors 'none'/);
   assert.doesNotMatch(viteConfigSource, /unsafe-eval/);
-  expectDirectiveTokens(viteCspDirectives, 'script-src', ['https://checkout.razorpay.com']);
+  expectDirectiveTokens(viteCspDirectives, 'script-src', [
+    'https://checkout.razorpay.com',
+    'https://cdn.razorpay.com',
+  ]);
+  expectDirectiveTokens(viteCspDirectives, 'connect-src', ['https://lumberjack.razorpay.com']);
   assert.match(viteConfigSource, /img-src 'self' data: blob: https: http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/);
   assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
@@ -89,7 +123,11 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
   assert.doesNotMatch(nginxSecurityHeadersSource, /stripe/i);
-  expectDirectiveTokens(nginxCspDirectives, 'script-src', ['https://checkout.razorpay.com']);
+  assert.doesNotMatch(nginxSecurityHeadersSource, /unsafe-eval/);
+  expectDirectiveTokens(nginxCspDirectives, 'script-src', [
+    'https://checkout.razorpay.com',
+    'https://cdn.razorpay.com',
+  ]);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
@@ -102,6 +140,7 @@ test('production security headers allow signed and blob backed document previews
   expectDirectiveTokens(nginxCspDirectives, 'connect-src', [
     'https://checkout.razorpay.com',
     'https://api.razorpay.com',
+    'https://lumberjack.razorpay.com',
   ]);
   expectOnlyKnownRazorpayOrigins(nginxCspDirectives);
   assert.doesNotMatch(nginxSecurityHeadersSource, /salesiq\.zoho\.in/);
