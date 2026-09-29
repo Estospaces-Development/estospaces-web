@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -21,6 +21,7 @@ import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
+import { describePropertyMutationError, getPropertyMutationFieldReasons } from '@/lib/propertyValidationErrors';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
 import {
     loadManagerPropertyDetail,
@@ -62,12 +63,15 @@ export default function PropertyDetailPage() {
     const [publishing, setPublishing] = useState(false);
     const [activeTab, setActiveTab] = useState<'details' | 'location'>('details');
 
-    // Toast state
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
-        message: '',
-        type: 'success',
-        visible: false,
-    });
+    // Page messages use the app toast, which sits above the workspace header,
+    // wraps long text and can be dismissed (web-app#660).
+    const setToast = ({ message, type }: { message: string; type: 'success' | 'error'; visible: boolean }) => {
+        if (type === 'error') {
+            appToast.error(message, { duration: 10000 });
+        } else {
+            appToast.success(message);
+        }
+    };
 
 
     // The inventory context only holds the loaded list page, so the detail is
@@ -85,15 +89,6 @@ export default function PropertyDetailPage() {
     const isFavorited = id ? isPropertySaved(id) : false;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
     const amenities = flattenPropertyAmenities(property?.amenities);
-
-    useEffect(() => {
-        if (toast.visible) {
-            const timer = setTimeout(() => {
-                setToast(prev => ({ ...prev, visible: false }));
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast.visible]);
 
     if (!property) {
         return (
@@ -175,7 +170,9 @@ export default function PropertyDetailPage() {
                 return;
             }
             setToast({
-                message: `Failed to publish property: ${error?.message || 'Unknown error'}`,
+                message: getPropertyMutationFieldReasons(error).length > 0
+                    ? `Failed to publish property: ${describePropertyMutationError(error, 'Unknown error')} Edit the listing to fix this.`
+                    : `Failed to publish property: ${describePropertyMutationError(error, 'Unknown error')}`,
                 type: 'error',
                 visible: true,
             });
@@ -250,14 +247,6 @@ export default function PropertyDetailPage() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 font-sans p-4 lg:p-6 pb-8">
-            {/* Toast Notification */}
-            {toast.visible && (
-                <div className={`fixed inset-x-4 top-4 z-50 min-w-0 rounded-lg px-4 py-3 text-center shadow-lg sm:left-auto sm:right-4 sm:max-w-sm sm:px-6 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-                    } text-white font-medium`}>
-                    {toast.message}
-                </div>
-            )}
-
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <button

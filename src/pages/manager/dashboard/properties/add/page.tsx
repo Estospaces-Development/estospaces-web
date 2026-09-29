@@ -116,6 +116,14 @@ import {
 } from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
+import {
+  applyAddressSectionChange,
+  buildPropertyLocationPayload,
+} from "@/lib/managerPropertyAddressForm";
+import {
+  getManagerPropertyActionLabels,
+  type ManagerPropertyPendingAction,
+} from "@/lib/managerPropertyActionLabels";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
 import { VIRTUAL_TOUR_ENABLED } from "@/lib/launchFlags";
 import { getCurrencySymbol } from "@/lib/utils/currency";
@@ -650,6 +658,8 @@ export default function AddPropertyPage() {
   const [mediaListLoading, setMediaListLoading] = useState(false);
   const [_mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] =
+    useState<ManagerPropertyPendingAction>(null);
   const propertySaveInFlightRef = useRef(false);
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const [locationStatusMessage, setLocationStatusMessage] = useState("");
@@ -1880,14 +1890,6 @@ export default function AddPropertyPage() {
   const buildPropertyData = async (): Promise<Partial<Property>> => {
     const images = await processImages(formData.images);
     const videos = await processVideos(formData.videos);
-    const latitude =
-      formData.latitude.trim() === ""
-        ? undefined
-        : parseFloat(formData.latitude);
-    const longitude =
-      formData.longitude.trim() === ""
-        ? undefined
-        : parseFloat(formData.longitude);
     const carpetArea =
       (formData.carpetArea ?? 0) > 0 ? formData.carpetArea : undefined;
     const deposit = formData.deposit > 0 ? formData.deposit : undefined;
@@ -1916,23 +1918,7 @@ export default function AddPropertyPage() {
       listingType: formData.listingType,
       description: formData.description,
 
-      location: {
-        addressLine1: formData.addressLine1,
-        addressLine2: formData.addressLine2,
-        city: formData.city,
-        cityId: formData.cityId,
-        state: formData.state,
-        stateId: formData.stateId,
-        stateCode: formData.stateCode,
-        postalCode: formData.postalCode,
-        country: formData.country,
-        countryCode: formData.countryCode,
-        countryId: formData.countryId,
-        latitude: Number.isFinite(latitude as number) ? latitude : undefined,
-        longitude: Number.isFinite(longitude as number) ? longitude : undefined,
-        neighborhood: formData.neighborhood,
-        landmark: formData.landmark,
-      },
+      location: buildPropertyLocationPayload(formData, _originalFormData),
       address: formData.addressLine1,
       city: formData.city,
       state: formData.state,
@@ -2144,6 +2130,7 @@ export default function AddPropertyPage() {
 
     propertySaveInFlightRef.current = true;
     setSaving(true);
+    setPendingAction("draft");
     let redirectPending = false;
     try {
       const propertyData = await buildPropertyData();
@@ -2197,6 +2184,7 @@ export default function AddPropertyPage() {
       if (!redirectPending) {
         propertySaveInFlightRef.current = false;
         setSaving(false);
+        setPendingAction(null);
       }
     }
   };
@@ -2244,6 +2232,7 @@ export default function AddPropertyPage() {
 
     propertySaveInFlightRef.current = true;
     setSaving(true);
+    setPendingAction("submit");
     let redirectPending = false;
     try {
       const propertyData = await buildPropertyData();
@@ -2318,6 +2307,7 @@ export default function AddPropertyPage() {
       if (!redirectPending) {
         propertySaveInFlightRef.current = false;
         setSaving(false);
+        setPendingAction(null);
       }
     }
   };
@@ -2362,20 +2352,12 @@ export default function AddPropertyPage() {
     saving ||
     (isSubmissionAction &&
       (managerVerificationLoading || Boolean(submissionBlocker)));
-  const primaryButtonLabel =
-    mode === "edit"
-      ? isEditSubmission
-        ? saving
-          ? "Submitting..."
-          : formData.status === "rejected"
-            ? "Resubmit for Approval"
-            : "Submit for Approval"
-        : saving
-          ? "Saving..."
-          : "Save Property"
-      : saving
-        ? "Submitting..."
-        : "Submit for Approval";
+  const { draftLabel: draftButtonLabel, primaryLabel: primaryButtonLabel } =
+    getManagerPropertyActionLabels({
+      mode: mode === "edit" ? "edit" : "create",
+      status: formData.status,
+      pendingAction,
+    });
 
   const primaryButtonIcon =
     mode === "edit" ? <Save className="w-4 h-4" /> : null;
@@ -2545,7 +2527,7 @@ export default function AddPropertyPage() {
               disabled={saving}
               className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save Draft"}
+              {draftButtonLabel}
             </button>
             <button
               type="button"
@@ -2954,40 +2936,17 @@ export default function AddPropertyPage() {
                 const currency = addressData.countryCode
                   ? resolveCountryCurrency(addressData.countryCode)
                   : formData.currency;
-                const addressChanged =
-                  addressData.countryCode !== formData.countryCode ||
-                  addressData.stateName !== formData.state ||
-                  addressData.cityName !== formData.city ||
-                  addressData.addressLine1 !== formData.addressLine1 ||
-                  addressData.addressLine2 !== formData.addressLine2 ||
-                  addressData.postalCode !== formData.postalCode ||
-                  addressData.neighborhood !== formData.neighborhood ||
-                  addressData.landmark !== formData.landmark;
-
-                const nextData = {
-                  ...formData,
-                  countryId: addressData.countryId,
-                  country: addressData.countryName,
-                  countryCode: addressData.countryCode,
-                  currency,
-                  stateId: addressData.stateId,
-                  state: addressData.stateName,
-                  stateCode: addressData.stateCode,
-                  cityId: addressData.cityId,
-                  city: addressData.cityName,
-                  addressLine1: addressData.addressLine1,
-                  addressLine2: addressData.addressLine2,
-                  postalCode: addressData.postalCode,
-                  neighborhood: addressData.neighborhood,
-                  landmark: addressData.landmark,
-                  latitude: addressChanged ? "" : formData.latitude,
-                  longitude: addressChanged ? "" : formData.longitude,
-                };
+                const { next, addressChanged, pinReset } =
+                  applyAddressSectionChange(formData, addressData);
+                const nextData = { ...next, currency };
                 setFormData(nextData);
                 if (addressChanged) {
+                  // Cancels any lookup started for the previous address.
                   locationRevisionRef.current += 1;
+                }
+                if (pinReset) {
                   setLocationStatusMessage(
-                    "Address changed. Find it again to place the correct map pin.",
+                    "PIN code, postcode or country changed. Find it again to place the correct map pin.",
                   );
                 }
                 // Only mark as dirty after initial load is complete
@@ -4048,7 +4007,7 @@ export default function AddPropertyPage() {
                 disabled={saving}
                 className="px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50"
               >
-                Save as Draft
+                {draftButtonLabel}
               </button>
               <button
                 type="submit"

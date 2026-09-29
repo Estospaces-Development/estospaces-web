@@ -107,6 +107,8 @@ export interface Property {
   country: string;
   latitude?: number | string;
   longitude?: number | string;
+  /** Update-only: clears the stored map pin (core web-app#656). */
+  clear_location?: boolean;
   available_from?: string;
   minimum_lease?: number;
   inclusions?: string;

@@ -21,6 +21,7 @@ import {
     sanitizeLaunchLocationCodeInput,
     UK_COUNTRY_CODE,
 } from '@/lib/launchLocale';
+import { indiaCityNamesMatch } from '@/lib/indiaCityAliases';
 
 export interface AddressFormData {
     countryId: string;
@@ -114,6 +115,10 @@ const AddressSection = ({
     // Track if we've initialized with IDs to avoid re-initialization
     const initializedRef = useRef<string | null>(null);
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+    const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
+    const [citySuggestionQuery, setCitySuggestionQuery] = useState('');
+    const [activeCityIndex, setActiveCityIndex] = useState(-1);
 
     // Load countries on mount
     useEffect(() => {
@@ -577,6 +582,62 @@ const AddressSection = ({
     ), [fieldIdPrefix]);
 
     const getFieldErrorId = useCallback((field: string) => `${getFieldId(field)}-error`, [getFieldId]);
+
+    const stateCities = useMemo(
+        () => cities.filter(city => city.state_id === value.stateId),
+        [cities, value.stateId],
+    );
+    const citySuggestions = useMemo(() => {
+        const query = citySuggestionQuery.trim().toLowerCase();
+        if (!query) return stateCities;
+        return stateCities.filter(city => (
+            city.name.toLowerCase().includes(query) || indiaCityNamesMatch(query, city.name)
+        ));
+    }, [citySuggestionQuery, stateCities]);
+    const citySuggestionsId = getFieldId('city-suggestions');
+    const showCitySuggestions = citySuggestionsOpen && !isCityDisabled && citySuggestions.length > 0;
+
+    const toggleCitySuggestions = useCallback(() => {
+        // The arrow always lists every suggestion for the state, not only
+        // the ones matching the city already entered.
+        setCitySuggestionQuery('');
+        setActiveCityIndex(-1);
+        setCitySuggestionsOpen(open => !open);
+        document.getElementById(getFieldId('city'))?.focus();
+    }, [getFieldId]);
+
+    const chooseCitySuggestion = useCallback((cityName: string) => {
+        handleCityChange(cityName);
+        setCitySuggestionsOpen(false);
+        setActiveCityIndex(-1);
+    }, [handleCityChange]);
+
+    const handleCityKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!citySuggestionsOpen) {
+                setCitySuggestionsOpen(true);
+                return;
+            }
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            setActiveCityIndex(index => {
+                const count = citySuggestions.length;
+                if (count === 0) return -1;
+                return (index + step + count) % count;
+            });
+            return;
+        }
+        if (event.key === 'Enter' && showCitySuggestions && activeCityIndex >= 0) {
+            event.preventDefault();
+            chooseCitySuggestion(citySuggestions[activeCityIndex].name);
+            return;
+        }
+        if (event.key === 'Escape' && citySuggestionsOpen) {
+            event.preventDefault();
+            setCitySuggestionsOpen(false);
+        }
+    }, [activeCityIndex, chooseCitySuggestion, citySuggestions, citySuggestionsOpen, showCitySuggestions]);
+
     const postalCodeLabel = useMemo(() => getLaunchLocationCodeLabel(
         value.countryCode,
         value.countryName,
@@ -732,29 +793,84 @@ const AddressSection = ({
                     errors.state
                 )}
 
-                {/* City */}
-                <div>
+                {/* City: free text with a suggestion list for the selected state */}
+                <div
+                    className="relative"
+                    onBlur={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                            setCitySuggestionsOpen(false);
+                        }
+                    }}
+                >
                     <label htmlFor={getFieldId('city')} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         City {required && <span className="text-red-500">*</span>}
                     </label>
-                    <input
-                        id={getFieldId('city')}
-                        type="text"
-                        autoComplete="address-level2"
-                        list={getFieldId('city-suggestions')}
-                        value={value.cityName}
-                        onInput={(event) => handleCityChange(event.currentTarget.value)}
-                        disabled={isCityDisabled}
-                        placeholder={value.stateId ? 'Enter city or town' : administrativeAreaCopy.cityFirstPlaceholder}
-                        aria-invalid={Boolean(errors.city)}
-                        aria-describedby={[getFieldId('city-help'), errors.city ? getFieldErrorId('city') : null].filter(Boolean).join(' ')}
-                        className={`w-full min-w-0 px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed ${errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                    />
-                    <datalist id={getFieldId('city-suggestions')}>
-                        {cities.filter(city => city.state_id === value.stateId).map(city => <option key={city.id} value={city.name} />)}
-                    </datalist>
+                    <div className="relative">
+                        <input
+                            id={getFieldId('city')}
+                            type="text"
+                            role="combobox"
+                            autoComplete="address-level2"
+                            aria-autocomplete="list"
+                            aria-expanded={showCitySuggestions}
+                            aria-controls={citySuggestionsId}
+                            aria-activedescendant={showCitySuggestions && activeCityIndex >= 0 ? `${citySuggestionsId}-${activeCityIndex}` : undefined}
+                            value={value.cityName}
+                            onInput={(event) => {
+                                handleCityChange(event.currentTarget.value);
+                                setCitySuggestionQuery(event.currentTarget.value);
+                                setActiveCityIndex(-1);
+                                setCitySuggestionsOpen(true);
+                            }}
+                            onKeyDown={handleCityKeyDown}
+                            disabled={isCityDisabled}
+                            placeholder={value.stateId ? 'Enter city or town' : administrativeAreaCopy.cityFirstPlaceholder}
+                            aria-invalid={Boolean(errors.city)}
+                            aria-describedby={[getFieldId('city-help'), errors.city ? getFieldErrorId('city') : null].filter(Boolean).join(' ')}
+                            className={`w-full min-w-0 px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed ${stateCities.length > 0 ? 'pr-12' : ''} ${errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                        />
+                        {stateCities.length > 0 && (
+                            <button
+                                type="button"
+                                tabIndex={-1}
+                                disabled={isCityDisabled}
+                                aria-label={citySuggestionsOpen ? 'Hide city suggestions' : 'Show city suggestions'}
+                                aria-controls={citySuggestionsId}
+                                aria-expanded={showCitySuggestions}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={toggleCitySuggestions}
+                                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                                <ChevronDown className={`h-4 w-4 transition-transform ${citySuggestionsOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                            </button>
+                        )}
+                    </div>
+                    {showCitySuggestions && (
+                        <ul
+                            id={citySuggestionsId}
+                            role="listbox"
+                            aria-label="City suggestions"
+                            className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                        >
+                            {citySuggestions.map((city, index) => (
+                                <li
+                                    key={city.id}
+                                    id={`${citySuggestionsId}-${index}`}
+                                    role="option"
+                                    aria-selected={index === activeCityIndex}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={() => chooseCitySuggestion(city.name)}
+                                    className={`flex min-h-11 cursor-pointer items-center px-3 text-sm text-gray-900 dark:text-gray-100 ${index === activeCityIndex ? 'bg-primary/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} ${city.name === value.cityName ? 'font-semibold' : ''}`}
+                                >
+                                    {city.name}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                     <p id={getFieldId('city-help')} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Choose a suggestion or enter your city or town.
+                        {stateCities.length > 0
+                            ? 'Choose a suggestion or enter your city or town.'
+                            : 'Enter your city or town.'}
                     </p>
                     {loadingCities && <p role="status" className="mt-1 text-sm text-gray-500 dark:text-gray-400">Loading suggestions...</p>}
                     {cityError && (

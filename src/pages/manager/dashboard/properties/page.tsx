@@ -13,6 +13,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import PaginationBar from '@/components/ui/PaginationBar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
+import ActionSpinner from '@/components/ui/ActionSpinner';
 import {
     MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
@@ -134,6 +135,8 @@ function PropertiesContent() {
         sort,
         pagination,
         loading,
+        error: inventoryError,
+        fetchProperties,
         deleteProperty,
         deleteProperties: _deleteProperties,
         duplicateProperty: _duplicateProperty,
@@ -164,6 +167,22 @@ function PropertiesContent() {
     const [selectedPropertyForShare, setSelectedPropertyForShare] = useState<Property | null>(null);
     const [pendingDeleteProperty, setPendingDeleteProperty] = useState<Property | null>(null);
     const priceRanges = useMemo(() => buildPriceRanges(geoMarket), [geoMarket]);
+
+    // Once the first inventory request settles, later refetches (search,
+    // filters) must not swap the page for a loader: that unmounts the search
+    // input on every keystroke when a search has no matches (web-app#647).
+    const [inventorySettled, setInventorySettled] = useState(false);
+    const sawInventoryLoadRef = useRef(false);
+    useEffect(() => {
+        if (inventorySettled) return;
+        if (properties.length > 0 || pagination.total > 0) {
+            setInventorySettled(true);
+        } else if (loading) {
+            sawInventoryLoadRef.current = true;
+        } else if (sawInventoryLoadRef.current) {
+            setInventorySettled(true);
+        }
+    }, [inventorySettled, loading, pagination.total, properties.length]);
 
     // Stats
     const stats = useMemo(() => getPropertyStats(), [getPropertyStats]);
@@ -382,7 +401,10 @@ function PropertiesContent() {
         loading,
         properties.length,
         pagination.total,
+        inventorySettled,
     );
+
+    const isRefreshingInventory = loading && inventorySettled;
 
     if (!isMounted || isInitialInventoryLoading) {
         return <BrandLoadingScreen variant="section" label="Loading properties..." />;
@@ -433,8 +455,17 @@ function PropertiesContent() {
                             placeholder="Search by title, address, city..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 transition-all"
+                            className="w-full pl-10 pr-16 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 transition-all"
                         />
+                        {isRefreshingInventory && (
+                            <span
+                                role="status"
+                                aria-label="Updating properties"
+                                className="pointer-events-none absolute right-9 top-1/2 -translate-y-1/2 text-gray-400"
+                            >
+                                <ActionSpinner size="sm" aria-hidden />
+                            </span>
+                        )}
                         {searchQuery && (
                             <button
                                 type="button"
@@ -801,8 +832,21 @@ function PropertiesContent() {
                 />
             )}
 
-            {/* Empty State */}
-            {tabFilteredProperties.length === 0 && (
+            {/* Load error, or empty state once the request has settled */}
+            {/* A failed list load empties the inventory; mutation errors keep the list and use toasts. */}
+            {inventoryError && !loading && tabFilteredProperties.length === 0 ? (
+                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-center text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
+                    <p className="font-medium">Your properties could not be loaded.</p>
+                    <p className="mt-1 text-sm">{inventoryError}</p>
+                    <button
+                        type="button"
+                        onClick={() => { void fetchProperties(); }}
+                        className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
+                    >
+                        Try again
+                    </button>
+                </div>
+            ) : tabFilteredProperties.length === 0 && !loading && (
                 <div className="text-center py-12">
                     <p className="text-gray-500 dark:text-gray-400">No properties found matching your criteria.</p>
                 </div>

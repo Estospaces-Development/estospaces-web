@@ -14,3 +14,7 @@ test('does not hide an existing inventory during a background refresh', () => {
 test('shows the empty state only after an empty inventory request settles', () => {
   assert.equal(shouldShowManagerPropertyInitialLoader(false, 0, 0), false);
 });
+
+test('a search refetch with no matches keeps the page and search input mounted', () => {
+  assert.equal(shouldShowManagerPropertyInitialLoader(true, 0, 0, true), false);
+});

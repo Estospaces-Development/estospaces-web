@@ -49,3 +49,34 @@ export function mapPropertyMutationFieldErrors(
     {},
   );
 }
+
+/**
+ * Screens without the listing form (for example the property detail page)
+ * cannot highlight fields, so the reasons are spelled out in the message
+ * instead of "Please review the highlighted fields."
+ */
+type PropertyMutationErrorLike =
+  | { message?: unknown; fieldErrors?: Record<string, unknown> | null }
+  | null
+  | undefined;
+
+/** The distinct, non-empty field reasons a failed property save returned. */
+export function getPropertyMutationFieldReasons(error: PropertyMutationErrorLike): string[] {
+  return [...new Set(
+    Object.values(error?.fieldErrors ?? {})
+      .filter((reason): reason is string => typeof reason === "string")
+      .map((reason) => reason.trim())
+      .filter(Boolean),
+  )];
+}
+
+export function describePropertyMutationError(
+  error: PropertyMutationErrorLike,
+  fallback: string,
+): string {
+  const reasons = getPropertyMutationFieldReasons(error);
+  if (reasons.length > 0) {
+    return reasons.map((reason) => (/[.!?]$/.test(reason) ? reason : `${reason}.`)).join(" ");
+  }
+  return (typeof error?.message === "string" && error.message.trim()) || fallback;
+}

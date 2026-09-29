@@ -171,6 +171,8 @@ export const mapContextPropertyLocation = (p: Partial<Property>): Partial<proper
   if (p.location?.country !== undefined) result.country = p.location.country;
   if (p.location?.latitude !== undefined) result.latitude = p.location.latitude;
   if (p.location?.longitude !== undefined) result.longitude = p.location.longitude;
+  // Omitted coordinates keep the stored pin; clearing one must be explicit.
+  if (p.location?.clearLocation) result.clear_location = true;
   if (!result.city && p.city) result.city = p.city;
   if (!result.address_line_1 && p.address) result.address_line_1 = p.address;
   if (!result.postcode && p.zipCode) result.postcode = p.zipCode;
@@ -209,6 +211,8 @@ export interface Property {
     countryId?: string;
     latitude?: number;
     longitude?: number;
+    /** Send-only: removes the stored map pin on save. */
+    clearLocation?: boolean;
     neighborhood?: string;
     landmark?: string;
   };
