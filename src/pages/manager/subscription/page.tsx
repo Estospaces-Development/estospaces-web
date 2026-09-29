@@ -37,14 +37,17 @@ import {
 } from '@/lib/managerDiscountCode';
 import ManagerDiscountCodeField from './ManagerDiscountCodeField';
 import ManagerSubscriptionPlanCard from './ManagerSubscriptionPlanCard';
+import ManagerPilotRedemption from './ManagerPilotRedemption';
 import { orderManagerPlans } from './managerPlanOrder';
 import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, isBillingMarketUnavailable, type BillingProfileLookup } from '@/lib/managerSubscriptionReadiness';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
 import { SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON, resolveManagerVerificationGate } from '@/lib/managerVerificationGate';
 import { canResumeSubscription, formatSubscriptionPrice as formatPlanPrice, loadRazorpayScript, openSubscriptionCheckout, type SubscriptionPaymentProof } from '@/lib/managerSubscriptionCheckout';
+import { formatPilotDate, getPilotRedeemErrorMessage, getPilotRedemptionAvailability } from '@/lib/managerPilotRedemption';
 import {
     cancelManagerSubscriptionCheckout,
+    getManagerPilotStatus,
     getManagerSubscriptionCheckout,
     getManagerSubscriptionOffers,
     getManagerSubscriptionPlanPreviews,
@@ -52,9 +55,11 @@ import {
     previewManagerSubscriptionDiscount,
     reconcileManagerSubscriptionCheckout,
     recoverManagerSubscriptionCheckout,
+    redeemManagerPilotCoupon,
     startManagerSubscriptionCheckout,
     verifyManagerSubscriptionCheckout,
     type ManagerPlanOffer,
+    type ManagerPilotStatus,
     type ManagerPlanPreview,
     type ManagerSubscriptionSummary,
     type StartCheckoutResponse,
@@ -104,6 +109,9 @@ export default function ManagerSubscriptionPage() {
     const [pendingProof, setPendingProof] = useState<{ checkoutId: string; proof: SubscriptionPaymentProof } | null>(null);
     // Set when checkout closes with the first charge still pending (UPI Autopay, eMandate).
     const [pendingPaymentSince, setPendingPaymentSince] = useState<number | null>(null);
+    const [pilotStatus, setPilotStatus] = useState<ManagerPilotStatus | null>(null);
+    const [pilotStatusFailed, setPilotStatusFailed] = useState(false);
+    const [pilotCheckedAt, setPilotCheckedAt] = useState(0);
     const actionLock = useRef(false);
     const loadVersion = useRef(0);
 
@@ -115,10 +123,16 @@ export default function ManagerSubscriptionPage() {
         setPreviewError(false);
         setBillingProfile({ kind: 'unavailable' });
         try {
+            // Pilot status is supplemental: its failure only disables pilot redemption.
+            const pilotRequest = Promise.allSettled([getManagerPilotStatus()]);
             const [offerResult, previewResult, summaryResult] = await Promise.allSettled([
                 getManagerSubscriptionOffers(), getManagerSubscriptionPlanPreviews(), getManagerSubscriptionSummary(),
             ]);
+            const [pilotResult] = await pilotRequest;
             if (version !== loadVersion.current) return;
+            setPilotStatus(pilotResult.status === 'fulfilled' ? pilotResult.value : null);
+            setPilotStatusFailed(pilotResult.status === 'rejected');
+            setPilotCheckedAt(Date.now());
             if (previewResult.status === 'fulfilled') setPlanPreviews(previewResult.value);
             else {
                 setPlanPreviews([]);
@@ -442,7 +456,28 @@ export default function ManagerSubscriptionPage() {
         });
     });
 
+    // Shares the page action lock, and always re-reads the summary and pilot
+    // status from the server afterwards, whether the code was accepted or not.
+    const redeemPilot = async (code: string): Promise<string | null> => {
+        if (actionLock.current) return 'Another subscription action is still running. Wait for it to finish, then try again.';
+        actionLock.current = true;
+        setBusyPlan('pilot');
+        try {
+            const grant = await redeemManagerPilotCoupon(code);
+            const endsAt = formatPilotDate(grant.ends_at);
+            toast.success(endsAt ? `Pilot started. It is active until ${endsAt}.` : 'Pilot started.');
+            return null;
+        } catch (err) {
+            return getPilotRedeemErrorMessage(err);
+        } finally {
+            await load();
+            actionLock.current = false;
+            setBusyPlan(null);
+        }
+    };
+
     const busy = busyPlan !== null || loading;
+    const pilotAvailability = getPilotRedemptionAvailability({ pilotStatus, pilotStatusFailed, summary, now: pilotCheckedAt });
     const terminal = ['cancelled', 'completed', 'expired'].includes(summary?.subscription?.status ?? '');
     const access = getSubscriptionAccessPresentation(summary?.entitlement, summary?.trial);
     const trialCheckoutNote = getTrialCheckoutNote(summary?.trial, new Date());
@@ -513,6 +548,7 @@ export default function ManagerSubscriptionPage() {
                 {offers.length > 0 && discountNotice ? <p role="alert" className="mt-8 rounded-2xl border border-orange-300 bg-orange-50 p-4 text-sm font-semibold text-orange-950 dark:border-orange-800/60 dark:bg-orange-950/30 dark:text-orange-100">{discountNotice}</p> : null}
                 {offers.length > 0 ? <label className="mt-8 flex items-start gap-3 rounded-2xl border bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"><input type="checkbox" disabled={checkoutBlockedByVerification} checked={recurringConsent && !checkoutBlockedByVerification} onChange={(event) => setConsentedText(event.target.checked ? consentText : null)} className="mt-1 h-4 w-4 accent-orange-600" /><span>{consentText}</span></label> : null}
                 {offers.length > 0 || activeCheckout ? <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-gray-600 dark:text-gray-300"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> Payment details are collected by Razorpay. Estospaces never receives or stores card or bank credentials.</div> : null}
+                {summary || error ? <ManagerPilotRedemption availability={pilotAvailability} disabled={busy} redeeming={busyPlan === 'pilot'} onRedeem={redeemPilot} /> : null}
                 <ManagerBillingHistory />
             </div>
         </div>

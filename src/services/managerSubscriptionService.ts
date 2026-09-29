@@ -196,3 +196,36 @@ export function getManagerSubscriptionPaidPeriods(limit = 12, offset = 0) {
         { suppressErrorToast: true },
     );
 }
+// payment-service GET /manager/subscriptions/pilot (PilotStatus). The grant is
+// present only while it is active; it never contains the coupon code or hash.
+export interface ManagerPilotGrant {
+    campaign: string;
+    starts_at: string;
+    ends_at: string;
+}
+
+export interface ManagerPilotPromotion {
+    slot: number;
+    status: 'requested' | 'scheduled' | 'completed';
+    scheduled_at?: string;
+    completed_at?: string;
+}
+
+export interface ManagerPilotStatus {
+    grant?: ManagerPilotGrant | null;
+    promotions: ManagerPilotPromotion[];
+}
+
+export function getManagerPilotStatus() {
+    return apiFetch<ManagerPilotStatus>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/pilot`, { suppressErrorToast: true });
+}
+
+// Redeeming the same coupon again returns the original grant, so a retry after
+// an unclear result cannot create a second pilot. The page reports errors itself.
+export function redeemManagerPilotCoupon(code: string) {
+    return apiFetch<ManagerPilotGrant>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/pilot/redeem`, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+        suppressErrorToast: true,
+    });
+}
