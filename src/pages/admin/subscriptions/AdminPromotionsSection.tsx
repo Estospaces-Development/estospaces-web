@@ -80,7 +80,7 @@ const statusClasses: Record<AdminPromotion['status'], string> = {
 
 const inputClass = 'mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white';
 const buttonPrimary = 'min-h-11 rounded-xl bg-orange-700 px-4 font-bold text-white disabled:opacity-60';
-const buttonSecondary = 'min-h-11 rounded-lg border border-gray-300 px-3 font-bold dark:border-gray-700 disabled:opacity-60';
+const buttonSecondary = 'min-h-11 rounded-lg border border-gray-300 px-3 font-bold text-gray-900 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800';
 
 function FieldError({ id, message }: { id: string; message?: string }) {
     return message ? <p id={id} className="mt-1 text-xs font-semibold text-red-700 dark:text-red-300">{message}</p> : null;
@@ -255,9 +255,9 @@ export default function AdminPromotionsSection() {
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Trials and percent discounts. Commercial terms are fixed; only the name, description, end date and cap can be edited.</p>
             {promotions.isLoading ? <p className="mt-4 inline-flex items-center gap-2 text-sm"><ActionSpinner size="sm" aria-hidden /> Loading promotions…</p>
                 : promotions.isError ? <p role="alert" className="mt-4 text-sm text-red-800 dark:text-red-200">Unable to load promotions. Use Refresh to retry.</p>
-                    : promotionList.length === 0 ? <p className="mt-4 text-sm text-gray-500">No promotions yet.</p>
+                    : promotionList.length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">No promotions yet.</p>
                         : <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm">
-                            <thead className="text-xs uppercase text-gray-500"><tr><th scope="col" className="py-2 pr-4">Name</th><th scope="col" className="py-2 pr-4">Kind</th><th scope="col" className="py-2 pr-4">Plan</th><th scope="col" className="py-2 pr-4">Benefit</th><th scope="col" className="py-2 pr-4">Window</th><th scope="col" className="py-2 pr-4">Used/cap</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2">Actions</th></tr></thead>
+                            <thead className="text-xs uppercase text-gray-500 dark:text-gray-400"><tr><th scope="col" className="py-2 pr-4">Name</th><th scope="col" className="py-2 pr-4">Kind</th><th scope="col" className="py-2 pr-4">Plan</th><th scope="col" className="py-2 pr-4">Benefit</th><th scope="col" className="py-2 pr-4">Window</th><th scope="col" className="py-2 pr-4">Used/cap</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2">Actions</th></tr></thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{promotionList.map((promotion) => <tr key={promotion.id} className="align-top">
                                 <td className="py-3 pr-4"><p className="font-bold">{promotion.name}</p>{promotion.code ? <code className="text-xs">{promotion.code}</code> : null}{promotion.auto_apply_on_signup ? <p className="text-xs text-emerald-700 dark:text-emerald-300">Auto-applies on signup</p> : null}</td>
                                 <td className="py-3 pr-4">{formatPromotionKind(promotion.kind)}</td>
@@ -291,9 +291,9 @@ export default function AdminPromotionsSection() {
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">To revoke a trial, open it with “Find trial”; its current state decides whether it can be revoked.</p>
             {redemptions.isLoading ? <p className="mt-4 inline-flex items-center gap-2 text-sm"><ActionSpinner size="sm" aria-hidden /> Loading redemptions…</p>
                 : redemptions.isError ? <p role="alert" className="mt-4 text-sm text-red-800 dark:text-red-200">Unable to load redemptions. Use Refresh to retry.</p>
-                    : redemptionRows.length === 0 ? <p className="mt-4 text-sm text-gray-500">{redemptionOffset > 0 ? 'No more redemptions.' : 'No redemptions yet.'}</p>
+                    : redemptionRows.length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">{redemptionOffset > 0 ? 'No more redemptions.' : 'No redemptions yet.'}</p>
                         : <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm">
-                            <thead className="text-xs uppercase text-gray-500"><tr><th scope="col" className="py-2 pr-4">Manager</th><th scope="col" className="py-2 pr-4">Source</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2 pr-4">Created</th><th scope="col" className="py-2">Trial</th></tr></thead>
+                            <thead className="text-xs uppercase text-gray-500 dark:text-gray-400"><tr><th scope="col" className="py-2 pr-4">Manager</th><th scope="col" className="py-2 pr-4">Source</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2 pr-4">Created</th><th scope="col" className="py-2">Trial</th></tr></thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{redemptionRows.map((redemption) => <tr key={redemption.id} className="align-top">
                                 <td className="py-3 pr-4"><code className="break-all text-xs">{redemption.manager_id}</code></td>
                                 <td className="py-3 pr-4">{redemption.source.replaceAll('_', ' ')}</td>
@@ -301,7 +301,7 @@ export default function AdminPromotionsSection() {
                                 <td className="py-3 pr-4 text-xs">{asDateTime(redemption.created_at) ?? '—'}</td>
                                 <td className="py-3">{redemption.kind === 'trial_grant' && redemption.trial_grant_id
                                     ? <button type="button" onClick={() => lookUp(redemption.manager_id)} className={buttonSecondary}>Find trial</button>
-                                    : <span className="text-xs text-gray-500">—</span>}</td>
+                                    : <span className="text-xs text-gray-500 dark:text-gray-400">—</span>}</td>
                             </tr>)}</tbody>
                         </table></div>}
             <div className="mt-4 flex items-center gap-3 text-sm">
@@ -319,7 +319,7 @@ export default function AdminPromotionsSection() {
             </form>
             {lookupManagerID ? (trialGrants.isLoading ? <p className="mt-4 inline-flex items-center gap-2 text-sm"><ActionSpinner size="sm" aria-hidden /> Loading trial…</p>
                 : trialGrants.isError ? <p role="alert" className="mt-4 text-sm text-red-800 dark:text-red-200">Unable to load trials for this manager. Check the ID, then retry.</p>
-                    : (trialGrants.data ?? []).length === 0 ? <p className="mt-4 text-sm text-gray-500">This manager has no trial.</p>
+                    : (trialGrants.data ?? []).length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">This manager has no trial.</p>
                         : <ul className="mt-4 space-y-3">{(trialGrants.data ?? []).map((grant) => {
                             const state = getAdminTrialGrantState(grant, now);
                             return <li key={grant.id} className="rounded-xl border p-4 text-sm dark:border-gray-800">
@@ -328,10 +328,10 @@ export default function AdminPromotionsSection() {
                                 {canRevokeTrialGrant(grant, now) ? (revokeTarget === grant.id
                                     ? <div className="mt-3 flex flex-col gap-2">
                                         <label className="text-xs font-semibold">Reason for revoking<textarea value={revokeReason} maxLength={TRIAL_REVOKE_REASON_MAX} rows={2} aria-describedby={`revoke-${grant.id}-count`} onChange={(event) => setRevokeReason(event.target.value)} className={`${inputClass} py-2`} /></label>
-                                        <p id={`revoke-${grant.id}-count`} className="text-xs text-gray-500">{revokeReason.length}/{TRIAL_REVOKE_REASON_MAX}</p>
+                                        <p id={`revoke-${grant.id}-count`} className="text-xs text-gray-500 dark:text-gray-400">{revokeReason.length}/{TRIAL_REVOKE_REASON_MAX}</p>
                                         <div className="flex gap-2"><button type="button" disabled={busy !== null} onClick={() => void revoke(grant.id)} className="min-h-11 rounded-lg bg-red-700 px-3 font-bold text-white disabled:opacity-60">{busy?.startsWith(`revoke:${grant.id}:`) ? 'Revoking…' : 'Confirm revoke'}</button><button type="button" disabled={busy !== null} onClick={() => { setRevokeTarget(null); setRevokeReason(''); }} className={buttonSecondary}>Keep trial</button></div>
                                     </div>
-                                    : <button type="button" disabled={busy !== null} onClick={() => { setRevokeTarget(grant.id); setRevokeReason(''); }} className="mt-3 min-h-11 rounded-lg border border-red-300 px-3 font-bold text-red-800 disabled:opacity-60 dark:text-red-200">Revoke trial</button>)
+                                    : <button type="button" disabled={busy !== null} onClick={() => { setRevokeTarget(grant.id); setRevokeReason(''); }} className="mt-3 min-h-11 rounded-lg border border-red-300 px-3 font-bold text-red-800 disabled:opacity-60 dark:border-red-800 dark:text-red-200">Revoke trial</button>)
                                     : null}
                             </li>;
                         })}</ul>) : null}
