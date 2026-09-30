@@ -1,3 +1,4 @@
+import { resolvePlanLimitNotice, type EntitlementLoader } from '@/lib/planLimit';
 import type { ManagerFastTrackRequestContext } from '@/lib/managerFastTrackRequestNavigation';
 import type { FastTrackCase } from '@/services/fastTrackService';
 import type { Lead } from '@/services/leadsService';
@@ -96,3 +97,32 @@ export const getFastTrackStartSuccessMessage = ({
     const base = 'Opened existing Fast Track case for this client and property. No new 24-hour case was created.';
     return requestedLeadId ? `${base} It stays linked to its original lead.` : base;
 };
+
+/** An error from starting a case, shown inside the modal that started it. */
+export interface FastTrackStartNotice {
+    title?: string;
+    message: string;
+    action?: { label: string; href: string };
+}
+
+const FAST_TRACK_START_FALLBACK_ERROR = 'Unable to create the 24-hour fast-track case.';
+
+/**
+ * Turns a failed start into the notice shown inside the "Add 24h Fast Track"
+ * modal. The modal stays open on failure, so a global toast would sit behind
+ * its backdrop and only appear once the manager is back on the dashboard.
+ */
+export async function resolveFastTrackStartNotice(
+    error: unknown,
+    loadEntitlement?: EntitlementLoader,
+): Promise<FastTrackStartNotice> {
+    const planLimit = await resolvePlanLimitNotice(error, loadEntitlement);
+    if (planLimit) {
+        return { title: planLimit.title, message: planLimit.message, action: planLimit.action };
+    }
+    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+    if (message.toLowerCase().includes('too many requests')) {
+        return { message: 'The fast-track queue is still refreshing. Please wait a moment and try again.' };
+    }
+    return { message: message.trim() || FAST_TRACK_START_FALLBACK_ERROR };
+}

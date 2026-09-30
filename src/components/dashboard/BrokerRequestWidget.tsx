@@ -82,11 +82,11 @@ import {
     getLaunchLocationCodePlaceholder,
     isValidLaunchLocationCode,
     isValidLaunchLocationCodeForCountry,
-    LAUNCH_CURRENCY_CODE,
     normalizeLaunchLocationCode,
     normalizeLaunchLocationCodeErrorMessage,
     getLaunchCountryFromLocationCode,
 } from '@/lib/launchLocale';
+import { getMarketCurrencyCode, resolveLocationFormMarket } from '@/lib/preferredSearchDefaults';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
@@ -361,9 +361,14 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
     const geoMarket = useUserGeoMarket(user, {
         locationCode: activeRequest?.location_postcode || locationPostcode || user?.postcode,
     });
-    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationPostcode);
-    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationPostcode);
-    const geoMarketCurrencyCode = geoMarket === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;
+    const locationMarket = resolveLocationFormMarket({
+        location,
+        locationCode: locationPostcode,
+        fallback: geoMarket,
+    });
+    const locationCodeLabel = getLaunchLocationCodeLabel(locationMarket, undefined, locationPostcode);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(locationMarket, undefined, locationPostcode);
+    const geoMarketCurrencyCode = getMarketCurrencyCode(locationMarket);
     const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
     const beginAsyncAction = useCallback((requestId: string | null) => {
         const generation = beginBrokerRequestAction(asyncActionStateRef.current);
@@ -618,7 +623,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
             return;
         }
 
-        if (!isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
+        if (!isValidLaunchLocationCodeForCountry(trimmedPostcode, locationMarket)) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
             return;
@@ -659,7 +664,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [fastTrackEnabled, geoMarket, locationPostcode]);
+    }, [fastTrackEnabled, locationMarket, locationPostcode]);
 
     const refreshActiveRequest = useCallback(async () => {
         if (!activeRequest?.id || hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
@@ -1025,13 +1030,13 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
         }
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
-            setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
+        if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, locationMarket)) {
+            setPostcodeError(getLaunchLocationCodeErrorMessage(locationMarket, undefined, trimmedPostcode));
             return;
         }
         const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
         if (!formattedPostcode) {
-            setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
+            setPostcodeError(getLaunchLocationCodeErrorMessage(locationMarket, undefined, trimmedPostcode));
             return;
         }
 
@@ -1962,7 +1967,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                 setLocationPostcode(nextValue);
                                 if (postcodeError) {
                                     const trimmedNextValue = normalizePostcode(nextValue);
-                                    if (!trimmedNextValue || isValidLaunchLocationCodeForCountry(trimmedNextValue, geoMarket)) {
+                                    if (!trimmedNextValue || isValidLaunchLocationCodeForCountry(trimmedNextValue, locationMarket)) {
                                         setPostcodeError(null);
                                     }
                                 }

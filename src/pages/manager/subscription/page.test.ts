@@ -11,7 +11,7 @@ test('a supplemental Core billing lookup does not block Payment summary renderin
 
 test('plan benefits remain visible without checkout offers while payment consent stays hidden', () => {
     assert.match(source, /offers\.length > 0 \? offers : planPreviews/);
-    assert.match(source, /offers\.length > 0 \? <label/);
+    assert.match(source, /offers\.length > 0 \? <ManagerRecurringConsent/);
     assert.match(source, /onStart=\{\(offer\) => void start\(offer\)\}/);
     const card = readFileSync(new URL('./ManagerSubscriptionPlanCard.tsx', import.meta.url), 'utf8');
     assert.match(card, /const offer = 'id' in plan \? plan : null/);
@@ -21,7 +21,20 @@ test('plan benefits remain visible without checkout offers while payment consent
 
 test('unverified billing notice and refresh control retain readable dark-mode text', () => {
     assert.match(source, /onClick=\{\(\) => void load\(\)\} className="[^"]*dark:text-gray-100/);
-    assert.match(source, /offersError \? <p role="status" className="[^"]*dark:bg-gray-900 dark:text-gray-200/);
+    // The notice markup itself is covered by ManagerBillingCountryNotice.test.tsx (web-app#651).
+    assert.match(source, /offersError \? <ManagerBillingCountryNotice message=\{offersError\} reviewNeeded=\{needsBillingCountryReview\(billingMarketBlocked, billingProfile\)\}/);
+    assert.match(source, /const billingLookup = classifyBillingProfileLookup\(result\);\s*setBillingMarketBlocked\(true\);\s*setBillingProfile\(billingLookup\);/);
+    assert.match(source, /setBillingProfile\(\{ kind: 'unavailable' \}\);\s*setBillingMarketBlocked\(false\);/);
+});
+
+test('check payment status shows immediate progress and cannot be sent twice (web-app#649)', () => {
+    assert.match(source, /const checkingStatus = busyPlan === 'status';/);
+    assert.match(source, /<button disabled=\{busy\} aria-busy=\{checkingStatus\} type="button" onClick=\{\(\) => void checkStatus\(\)\}/);
+    assert.match(source, /\{checkingStatus \? <><ActionSpinner size="sm" aria-hidden \/> Checking with Razorpay…<\/> : 'Check payment status'\}/);
+    assert.match(source, /\{checkingStatus \? <p role="status"[^>]*>Checking your payment with Razorpay\./);
+    // One action at a time: the lock is taken before any request, and busy disables every action button.
+    assert.match(source, /const runAction = async \(name: string, action: \(\) => Promise<void>\) => \{\s*if \(actionLock\.current\) return;\s*actionLock\.current = true;\s*setBusyPlan\(name\);/);
+    assert.match(source, /const busy = busyPlan !== null \|\| loading \|\| trialCodeSubmitting;/);
 });
 
 test('unverified managers can compare plans but cannot start or resume checkout (QA-MB-20260922-01-001)', () => {

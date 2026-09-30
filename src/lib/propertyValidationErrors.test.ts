@@ -82,3 +82,30 @@ test("mapPropertyMutationFieldErrors translates api fields to form fields", () =
     },
   );
 });
+
+test("publish errors outside the form name every reason instead of highlighted fields", async () => {
+  const { describePropertyMutationError } = await import("@/lib/propertyValidationErrors");
+  assert.equal(
+    describePropertyMutationError(
+      {
+        message: "Please review the highlighted fields.",
+        fieldErrors: {
+          city: "City does not match the entered postcode or PIN code",
+          image_urls: "Add at least one photo.",
+        },
+      },
+      "Unknown error",
+    ),
+    "City does not match the entered postcode or PIN code. Add at least one photo.",
+  );
+  assert.equal(describePropertyMutationError({ message: "Network down" }, "Unknown error"), "Network down");
+  assert.equal(describePropertyMutationError(null, "Unknown error"), "Unknown error");
+});
+
+test("non-string field error values are ignored instead of crashing", async () => {
+  const { describePropertyMutationError, getPropertyMutationFieldReasons } = await import("@/lib/propertyValidationErrors");
+  const error = { message: "Please review the highlighted fields.", fieldErrors: { city: 42, state: null, title: " Title is required " } as Record<string, unknown> };
+  assert.deepEqual(getPropertyMutationFieldReasons(error), ["Title is required"]);
+  assert.equal(describePropertyMutationError(error, "Unknown error"), "Title is required.");
+  assert.deepEqual(getPropertyMutationFieldReasons({ fieldErrors: { city: 42 } as Record<string, unknown> }), []);
+});

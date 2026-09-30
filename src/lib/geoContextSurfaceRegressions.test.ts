@@ -151,3 +151,23 @@ test("active user manager and admin flows avoid default launch money on property
   assert.doesNotMatch(brokerRequestSource, /formatLaunchCurrency\(price\)/);
   assert.doesNotMatch(brokerResponseSource, /formatLaunchCurrency\(price\)/);
 });
+
+test("Ask us to help postcode rules and budget follow the Preferred Location country (web-app#661)", () => {
+  const source = readSource("components/dashboard/BrokerRequestWidget.tsx");
+
+  assert.match(source, /const locationMarket = resolveLocationFormMarket\(\{\s*location,\s*locationCode: locationPostcode,\s*fallback: geoMarket,\s*\}\)/);
+  assert.match(source, /getLaunchLocationCodeLabel\(locationMarket/);
+  assert.match(source, /getLaunchLocationCodePlaceholder\(locationMarket/);
+  assert.match(source, /getMarketCurrencyCode\(locationMarket\)/);
+  assert.doesNotMatch(source, /isValidLaunchLocationCodeForCountry\([^)]*geoMarket\)/);
+  assert.doesNotMatch(source, /getLaunchLocationCodeErrorMessage\(geoMarket/);
+});
+
+test("Search Defaults budget currency follows the Preferred City country (web-app#662)", () => {
+  const source = readSource("pages/user/dashboard/settings/page.tsx");
+
+  assert.match(source, /const budgetMarket = resolveLocationFormMarket\(\{ location: preferences\.preferred_city, fallback: geoMarket \}\)/);
+  assert.match(source, /const budgetCurrencyCode = getMarketCurrencyCode\(budgetMarket\)/);
+  assert.match(source, /const BudgetCurrencyIcon = budgetMarket === 'GB' \? PoundSterling : IndianRupee/);
+  assert.doesNotMatch(source, /budgetCurrencyCode = geoMarket/);
+});

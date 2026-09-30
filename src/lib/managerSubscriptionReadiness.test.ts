@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { ApiRequestError, apiFetch } from './apiUtils';
-import { classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage } from './managerSubscriptionReadiness';
+import { buildBillingCountryVerificationSupportPath, classifyBillingProfileLookup, getSubscriptionAccessPresentation, getSubscriptionOffersErrorMessage, needsBillingCountryReview } from './managerSubscriptionReadiness';
 
 test('account entitlement is shown as the authoritative Free-plan access', () => {
     assert.deepEqual(getSubscriptionAccessPresentation({
@@ -119,4 +119,43 @@ test('trial access is named with the customer-facing plan and keeps its snapshot
     assert.match(access?.detail || '', /nothing is charged automatically/);
     assert.equal(access?.publishedProperties, '8');
     assert.equal(access?.activeFastTrackCases, '10');
+});
+
+test('billing country review is requested only when paid plans are blocked by an unverified country (web-app#650)', () => {
+    const profile = (verification_status: 'verified' | 'pending' | 'rejected' | 'revoked') => ({ kind: 'loaded' as const, profile: {
+        market: 'IN' as const, verification_status, verification_source: 'admin_document_review', effective_at: '2026-09-25T00:00:00Z', profile_version: 1,
+    } });
+    assert.equal(needsBillingCountryReview(true, { kind: 'missing' }), true);
+    assert.equal(needsBillingCountryReview(true, profile('pending')), true);
+    assert.equal(needsBillingCountryReview(true, profile('rejected')), true);
+    assert.equal(needsBillingCountryReview(true, profile('verified')), false);
+    assert.equal(needsBillingCountryReview(true, { kind: 'unavailable' }), false);
+    assert.equal(needsBillingCountryReview(false, { kind: 'missing' }), false);
+});
+
+test('the billing verification support link carries the category and billing context, not personal data', () => {
+    const path = buildBillingCountryVerificationSupportPath({ kind: 'loaded', profile: {
+        market: 'GB', verification_status: 'pending', verification_source: 'admin_document_review', effective_at: '2026-09-25T00:00:00Z', profile_version: 2,
+    } }, [{ name: 'Government ID', status: 'reupload_required' }]);
+    const url = new URL(path, 'https://app.test');
+    assert.equal(url.pathname, '/manager/help');
+    assert.equal(url.searchParams.get('category'), 'Verification');
+    const message = url.searchParams.get('message') || '';
+    assert.match(message, /verify my billing country/);
+    assert.match(message, /Current billing country: recorded as United Kingdom \(pending\)\./);
+    assert.match(message, /- Government ID: needs a new upload/);
+    assert.doesNotMatch(path, /@|email|name=/i);
+    const empty = new URL(buildBillingCountryVerificationSupportPath({ kind: 'missing' }, []), 'https://app.test');
+    assert.match(empty.searchParams.get('message') || '', /No manager verification documents are on file yet/);
+});
+
+test('the billing notice no longer sends managers to support with no path', () => {
+    const error = new ApiRequestError('private', 'private', 409, undefined, undefined, 'billing_market_unavailable');
+    for (const lookup of [{ kind: 'missing' as const }, { kind: 'loaded' as const, profile: {
+        market: 'IN' as const, verification_status: 'pending' as const, verification_source: 'x', effective_at: '2026-09-25T00:00:00Z', profile_version: 1,
+    } }]) {
+        const message = getSubscriptionOffersErrorMessage(error, lookup);
+        assert.match(message, /An Estospaces admin verifies it after reviewing your business documents/);
+        assert.doesNotMatch(message, /Ask support/);
+    }
 });

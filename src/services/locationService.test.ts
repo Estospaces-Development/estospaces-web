@@ -376,3 +376,31 @@ test('property resolution accepts Preston in the North West England catalogue re
     }), { kind: 'resolved', latitude: 53.761599, longitude: -2.683707 });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+for (const city of ['Bengaluru', 'Bangalore']) {
+  test(`property lookup accepts ${city} for Bengaluru Urban PIN 560001`, async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({ success: true, data: {
+      pincode: '560001',
+      post_offices: [{ pincode: '560001', district: 'Bengaluru Urban', state: 'Karnataka', latitude: 12.9811389, longitude: 77.5953611 }],
+    } }));
+    try {
+      assert.deepEqual(
+        await resolvePropertyLocation({ postalCode: '560001', countryCode: 'IN', city, state: 'Karnataka' }),
+        { kind: 'resolved', latitude: 12.9811389, longitude: 77.5953611 },
+      );
+    } finally { globalThis.fetch = originalFetch; }
+  });
+}
+
+test('property lookup still reports a different India city for the PIN', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ success: true, data: {
+    pincode: '560001',
+    post_offices: [{ pincode: '560001', district: 'Bengaluru Urban', state: 'Karnataka', latitude: 12.98, longitude: 77.59 }],
+  } }));
+  try {
+    const resolution = await resolvePropertyLocation({ postalCode: '560001', countryCode: 'IN', city: 'Mysuru', state: 'Karnataka' });
+    assert.equal(resolution.kind, 'mismatch');
+  } finally { globalThis.fetch = originalFetch; }
+});

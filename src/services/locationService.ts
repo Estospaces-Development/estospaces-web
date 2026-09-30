@@ -1,5 +1,6 @@
 import { getSupportedLaunchCountry, isValidLaunchLocationCodeForCountry } from '@/lib/launchLocale';
 import { areCoordinatesInsideLaunchMarket } from '@/lib/mapCoordinates';
+import { indiaCityNamesMatch } from '@/lib/indiaCityAliases';
 
 /**
  * Location Service
@@ -363,7 +364,9 @@ export const resolvePropertyLocation = async (
     const selectedCity = location.city ?? '';
     const providerCity = typeof coordinates.city === 'string' ? coordinates.city : '';
     const providerState = typeof coordinates.state === 'string' ? coordinates.state : '';
-    const cityMatchesProvider = !selectedCity || !providerCity || locationLabelsMatch(selectedCity, providerCity);
+    const cityMatchesProvider = !selectedCity || !providerCity || locationLabelsMatch(selectedCity, providerCity)
+        // India Post reports districts and current names; managers may enter a former name.
+        || (market === 'IN' && indiaCityNamesMatch(selectedCity, providerCity));
     // UK postcodes.io reports London boroughs (for example Westminster) as the
     // district while the product's city selection is London. Other regions
     // (for example North West) are not cities and cannot bypass district checks.
