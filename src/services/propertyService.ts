@@ -87,7 +87,7 @@ export interface Property {
   bathrooms: number;
   property_size_sqft?: number;
   carpet_area?: number;
-  floor_number?: number;
+  floor_number?: number | null;
   total_floors?: number;
   occupied_units?: number;
   year_built?: number;

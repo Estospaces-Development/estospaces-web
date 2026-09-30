@@ -50,11 +50,11 @@ interface ManagerPropertyCardProps {
         propertyType?: string | null;
         property_type?: string | null;
         dimensions?: {
-            floorNumber?: number;
+            floorNumber?: number | null;
             totalFloors?: number;
             occupiedUnits?: number;
         };
-        floor_number?: number;
+        floor_number?: number | null;
         total_floors?: number;
         occupied_units?: number;
         created_at?: string;
