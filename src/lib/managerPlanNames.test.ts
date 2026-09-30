@@ -24,3 +24,22 @@ test('stored consent text with the old plan name is labelled, never rewritten', 
     assert.equal(describeStoredTermsPlanName('growth', 'Estospaces Premium India monthly subscription.'), null);
     assert.equal(describeStoredTermsPlanName('free', 'Estospaces Pro'), null);
 });
+
+test('the legacy "manager subscription" phrasing is also labelled for each code', () => {
+    const cases: Array<[code: string, terms: string | null, expected: string | null]> = [
+        ['pro', 'Pro manager subscription: eight published properties.', 'Growth plan (internal plan name in these terms: Pro manager subscription)'],
+        ['growth', 'Growth manager subscription: twenty published properties.', 'Premium plan (internal plan name in these terms: Growth manager subscription)'],
+        // Renamed text is current for its own code.
+        ['pro', 'Growth manager subscription: eight published properties.', null],
+        ['growth', 'Premium manager subscription: twenty published properties.', null],
+        // Whole phrases, case-sensitive as stored.
+        ['pro', 'pro manager subscription', null],
+        ['pro', 'Estospaces Professional services', null],
+        ['pro', 'Pro manager subscriptions', null],
+        ['pro', '', null],
+        ['growth', null, null],
+    ];
+    for (const [code, terms, expected] of cases) {
+        assert.equal(describeStoredTermsPlanName(code, terms), expected, `${code}: ${terms}`);
+    }
+});
