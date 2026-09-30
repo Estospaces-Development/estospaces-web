@@ -144,6 +144,7 @@ import {
     getFastTrackWorkspacePreferences,
     updateFastTrackWorkspacePreferences,
 } from '@/services/workspacePreferencesService';
+import { createSequentialSaver } from '@/lib/sequentialSave';
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
@@ -812,6 +813,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const celebratedCaseIdRef = useRef<string | null>(null);
     const workspacePreferencesLoadedRef = useRef(false);
     const lastSavedWorkspacePreferencesRef = useRef('');
+    const latestWorkspacePreferencesRef = useRef(workspacePreferences);
+    latestWorkspacePreferencesRef.current = workspacePreferences;
+    const saveWorkspacePreferencesRef = useRef(createSequentialSaver(
+        ({ role: saveRole, preferences }: { role: FastTrackWorkspaceRole; preferences: FastTrackWorkspacePreferences }) =>
+            updateFastTrackWorkspacePreferences(saveRole, preferences),
+    ));
     const lastCasesSignatureRef = useRef('');
     const pendingSelectedCaseIdRef = useRef<string | null>(null);
     const previousBackendStageRef = useRef<{ caseId: string; stage: FastTrackStage } | null>(null);
@@ -986,13 +993,24 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         const timeoutId = window.setTimeout(async () => {
-            const { data } = await updateFastTrackWorkspacePreferences(role, workspacePreferences);
+            let saved;
+            try {
+                saved = await saveWorkspacePreferencesRef.current({ role, preferences: workspacePreferences });
+            } catch {
+                return;
+            }
+            const { data } = saved.result;
             if (!data) {
                 return;
             }
 
             const normalized = normalizeFastTrackWorkspacePreferences(data, role);
             lastSavedWorkspacePreferencesRef.current = JSON.stringify(normalized);
+            // A newer edit made while this save was in flight has its own save
+            // queued; applying this older response would overwrite it.
+            if (!saved.isLatest || JSON.stringify(latestWorkspacePreferencesRef.current) !== serializedPreferences) {
+                return;
+            }
             setWorkspacePreferences(normalized);
             setActiveUtilityModule((previous) =>
                 normalized.visibleModules.includes(previous)
