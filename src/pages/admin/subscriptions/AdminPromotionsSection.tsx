@@ -27,9 +27,11 @@ import {
     getOfferChecklist,
     getPromotionActions,
     getPromotionErrorMessage,
+    isManagerEmailInput,
     isOfferChecklistComplete,
     normalizeManagerID,
     promotionEditValues,
+    resolveManagerIdentifier,
     shouldReuseIdempotencyKey,
     type PromotionEditResult,
     type PromotionEditValues,
@@ -49,6 +51,7 @@ import {
     type AdminPromotion,
     type AdminPromotionAction,
 } from '@/services/adminSubscriptionService';
+import { userService } from '@/services/userService';
 
 export const promotionQueryKeys = {
     all: ['admin-subscriptions', 'promotions'] as const,
@@ -116,6 +119,8 @@ export default function AdminPromotionsSection() {
     const queryClient = useQueryClient();
     const idempotency = useRef(createIdempotencyKeys()).current;
     const [busy, setBusy] = useState<string | null>(null);
+    // Mirrors busy synchronously: an action awaited across an email search must not overlap another one.
+    const busyRef = useRef<string | null>(null);
     const [form, setForm] = useState<PromotionFormValues>(() => emptyPromotionForm());
     const [formErrors, setFormErrors] = useState<PromotionFormErrors>({});
     const [editing, setEditing] = useState<{ id: string; values: PromotionEditValues; errors: EditErrors } | null>(null);
@@ -126,6 +131,12 @@ export default function AdminPromotionsSection() {
     const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
     const [revokeReason, setRevokeReason] = useState('');
     const [backfillManagerID, setBackfillManagerID] = useState('');
+    const [lookupError, setLookupError] = useState<string | null>(null);
+    const [backfillError, setBackfillError] = useState<string | null>(null);
+    const [lookupResolving, setLookupResolving] = useState(false);
+    const [backfillResolving, setBackfillResolving] = useState(false);
+    // Only the latest lookup may apply its result; an older email search can finish last.
+    const lookupRequest = useRef(0);
     // Ticked Razorpay offer settings, bound to one promotion version so an edit resets them.
     const [offerCheck, setOfferCheck] = useState<{ key: string; ticked: string[] } | null>(null);
 
@@ -149,7 +160,11 @@ export default function AdminPromotionsSection() {
     const refresh = () => queryClient.invalidateQueries({ queryKey: promotionQueryKeys.all });
 
     const run = async <T,>(scope: string, action: (key: string) => Promise<T>, success: string | ((result: T) => string)): Promise<boolean> => {
-        if (busy) return false;
+        if (busy || busyRef.current) {
+            toast.error('Another admin action is still saving. Wait for it to finish, then retry.');
+            return false;
+        }
+        busyRef.current = scope;
         setBusy(scope);
         try {
             const result = await action(idempotency.keyFor(scope));
@@ -162,6 +177,7 @@ export default function AdminPromotionsSection() {
             return false;
         } finally {
             await refresh();
+            busyRef.current = null;
             setBusy(null);
         }
     };
@@ -198,12 +214,21 @@ export default function AdminPromotionsSection() {
     const changeStatus = (promotion: AdminPromotion, action: AdminPromotionAction) =>
         run(`${action}:${promotion.id}:${promotion.version}`, (key) => changeAdminPromotionStatus(promotion.id, action, key), actionSuccess[action]);
 
-    const lookUp = (managerID: string) => {
-        const value = normalizeManagerID(managerID);
-        setLookupInput(value);
-        setLookupManagerID(value);
+    // Accepts a manager ID or email; an email is resolved to the ID first.
+    const lookUp = async (input: string) => {
+        const request = ++lookupRequest.current;
+        const isEmail = isManagerEmailInput(input.trim());
+        setLookupInput(isEmail ? input.trim() : normalizeManagerID(input));
+        setLookupError(null);
         setRevokeTarget(null);
         setRevokeReason('');
+        if (isEmail) setLookupManagerID('');
+        setLookupResolving(isEmail);
+        const resolved = await resolveManagerIdentifier(input, userService.getAllUsers);
+        if (request !== lookupRequest.current) return;
+        setLookupResolving(false);
+        if (resolved.ok) setLookupManagerID(resolved.managerID);
+        else setLookupError(resolved.message);
     };
 
     const revoke = async (trialGrantID: string) => {
@@ -220,11 +245,19 @@ export default function AdminPromotionsSection() {
     };
 
     const backfill = async () => {
-        const managerID = normalizeManagerID(backfillManagerID);
-        if (!managerID) {
-            toast.error('Enter the manager ID to grant the launch trial to.');
+        setBackfillError(null);
+        if (!backfillManagerID.trim()) {
+            toast.error('Enter the manager ID or email to grant the launch trial to.');
             return;
         }
+        setBackfillResolving(true);
+        const resolved = await resolveManagerIdentifier(backfillManagerID, userService.getAllUsers);
+        setBackfillResolving(false);
+        if (!resolved.ok) {
+            setBackfillError(resolved.message);
+            return;
+        }
+        const { managerID } = resolved;
         const done = await run(`backfill:${managerID}`, (key) => backfillAdminTrialGrant(managerID, key), (result) => describeBackfillResult(result, (value) => asDateTime(value) ?? value));
         if (done) setBackfillManagerID('');
     };
@@ -300,7 +333,7 @@ export default function AdminPromotionsSection() {
                                 <td className="py-3 pr-4 capitalize">{redemption.status}</td>
                                 <td className="py-3 pr-4 text-xs">{asDateTime(redemption.created_at) ?? '—'}</td>
                                 <td className="py-3">{redemption.kind === 'trial_grant' && redemption.trial_grant_id
-                                    ? <button type="button" onClick={() => lookUp(redemption.manager_id)} className={buttonSecondary}>Find trial</button>
+                                    ? <button type="button" onClick={() => void lookUp(redemption.manager_id)} className={buttonSecondary}>Find trial</button>
                                     : <span className="text-xs text-gray-500 dark:text-gray-400">—</span>}</td>
                             </tr>)}</tbody>
                         </table></div>}
@@ -313,10 +346,11 @@ export default function AdminPromotionsSection() {
 
         <section aria-labelledby="trial-lookup-heading" className="mb-6 rounded-2xl border bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
             <h2 id="trial-lookup-heading" className="text-lg font-black text-gray-900 dark:text-white">Find a manager’s trial</h2>
-            <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); lookUp(lookupInput); }}>
-                <label className="flex-1 text-sm font-semibold">Manager ID<input value={lookupInput} onChange={(event) => setLookupInput(event.target.value)} autoComplete="off" className={`${inputClass} font-mono`} /></label>
-                <button type="submit" disabled={!lookupInput.trim()} className={buttonSecondary}>Look up</button>
+            <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); void lookUp(lookupInput); }}>
+                <label className="flex-1 text-sm font-semibold">Manager ID or email<input value={lookupInput} onChange={(event) => { setLookupInput(event.target.value); setLookupError(null); }} autoComplete="off" spellCheck={false} aria-invalid={lookupError ? true : undefined} aria-describedby={lookupError ? 'trial-lookup-error' : undefined} className={`${inputClass} font-mono`} /></label>
+                <button type="submit" disabled={!lookupInput.trim() || lookupResolving} className={buttonSecondary}>{lookupResolving ? 'Finding manager…' : 'Look up'}</button>
             </form>
+            {lookupError ? <p id="trial-lookup-error" role="alert" className="mt-4 text-sm font-semibold text-red-800 dark:text-red-200">{lookupError}</p> : null}
             {lookupManagerID ? (trialGrants.isLoading ? <p className="mt-4 inline-flex items-center gap-2 text-sm"><ActionSpinner size="sm" aria-hidden /> Loading trial…</p>
                 : trialGrants.isError ? <p role="alert" className="mt-4 text-sm text-red-800 dark:text-red-200">Unable to load trials for this manager. Check the ID, then retry.</p>
                     : (trialGrants.data ?? []).length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">This manager has no trial.</p>
@@ -341,9 +375,10 @@ export default function AdminPromotionsSection() {
             <h2 id="backfill-heading" className="text-lg font-black text-gray-900 dark:text-white">Grant the launch trial to an existing manager</h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Uses the active launch campaign and starts now. Each manager can receive one trial, ever; repeating this is safe and changes nothing.</p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-                <label className="flex-1 text-sm font-semibold">Manager ID<input value={backfillManagerID} onChange={(event) => setBackfillManagerID(event.target.value)} autoComplete="off" className={`${inputClass} font-mono`} /></label>
-                <button type="button" disabled={busy !== null || !launchCampaign} onClick={() => void backfill()} className={buttonPrimary}>{busy?.startsWith('backfill:') ? 'Granting…' : 'Grant trial'}</button>
+                <label className="flex-1 text-sm font-semibold">Manager ID or email<input value={backfillManagerID} onChange={(event) => { setBackfillManagerID(event.target.value); setBackfillError(null); }} readOnly={backfillResolving || busy !== null} autoComplete="off" spellCheck={false} aria-invalid={backfillError ? true : undefined} aria-describedby={backfillError ? 'backfill-error' : undefined} className={`${inputClass} font-mono`} /></label>
+                <button type="button" disabled={busy !== null || backfillResolving || !launchCampaign} onClick={() => void backfill()} className={buttonPrimary}>{backfillResolving ? 'Finding manager…' : busy?.startsWith('backfill:') ? 'Granting…' : 'Grant trial'}</button>
             </div>
+            {backfillError ? <p id="backfill-error" role="alert" className="mt-2 text-sm font-semibold text-red-800 dark:text-red-200">{backfillError}</p> : null}
             {!launchCampaign && !promotions.isLoading ? <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">Activate a launch campaign first.</p> : null}
         </section>
 

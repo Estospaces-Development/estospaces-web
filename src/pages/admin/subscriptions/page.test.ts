@@ -166,3 +166,19 @@ test('no light-only text or background colours remain on the subscriptions page'
         }
     }
 });
+
+test('trial lookup and grant resolve a manager email before calling payment', () => {
+    const section = source('pages/admin/subscriptions/AdminPromotionsSection.tsx');
+    assert.match(section, /Manager ID or email<input value=\{lookupInput\}/);
+    assert.match(section, /Manager ID or email<input value=\{backfillManagerID\}/);
+    // Both paths go through the resolver, and payment only sees its resolved ID.
+    assert.equal(section.match(/resolveManagerIdentifier\([^)]*userService\.getAllUsers\)/g)?.length, 2);
+    assert.match(section, /if \(resolved\.ok\) setLookupManagerID\(resolved\.managerID\)/);
+    assert.match(section, /const \{ managerID \} = resolved;\s*const done = await run\(`backfill:\$\{managerID\}`, \(key\) => backfillAdminTrialGrant\(managerID, key\)/);
+    assert.doesNotMatch(section, /backfillAdminTrialGrant\(backfillManagerID/);
+    assert.doesNotMatch(section, /setLookupManagerID\(value\)/);
+    // A grant awaited across an email search must not overlap another admin action.
+    assert.match(section, /if \(busy \|\| busyRef\.current\) \{/);
+    assert.match(section, /busyRef\.current = scope;\s*setBusy\(scope\);/);
+    assert.match(section, /busyRef\.current = null;\s*setBusy\(null\);/);
+});
