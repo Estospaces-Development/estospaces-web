@@ -953,7 +953,7 @@ export default function AddPropertyPage() {
         balconies: ((property as any).balconies as number) || 0,
         parkingSpaces: property.parking_spaces || 0,
         floors: property.total_floors || 1,
-        floorNumber: property.floor_number || 0,
+        floorNumber: property.floor_number ?? undefined,
         totalFloors: property.total_floors || 1,
 
         yearBuilt: property.year_built || currentYear,
@@ -1161,7 +1161,7 @@ export default function AddPropertyPage() {
         balconies: property.rooms?.balconies || 0,
         parkingSpaces: property.rooms?.parkingSpaces || 0,
         floors: property.dimensions?.floors || 1,
-        floorNumber: property.dimensions?.floorNumber || 0,
+        floorNumber: property.dimensions?.floorNumber ?? undefined,
         totalFloors: property.dimensions?.totalFloors || 1,
 
         yearBuilt: property.yearBuilt || new Date().getFullYear(),

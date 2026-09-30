@@ -193,23 +193,31 @@ export interface ManagerPropertyRoomValues {
   totalFloors: number | undefined;
 }
 
+export interface ManagerPropertyRoomPayload
+  extends Omit<ManagerPropertyRoomValues, "floorNumber"> {
+  /** null = the manager left the floor empty (send null so core clears it);
+   *  undefined = not applicable, omit. 0 is a real ground floor. */
+  floorNumber: number | null | undefined;
+}
+
 /**
  * Room values to save for a property type. The form keeps residential values
  * across a type switch so switching back restores them, but a Land listing
  * saves no room counts (0) and omits floors, because core rejects
- * total_floors 0 on update and keeps an omitted value.
+ * total_floors 0 on update and keeps an omitted value. For other types an
+ * empty floor is sent as null (not provided), never coerced to 0 (ground floor).
  */
 export function getManagerPropertyRoomPayload(
   propertyType: PropertyType | string | undefined,
   values: ManagerPropertyRoomValues,
-): ManagerPropertyRoomValues {
+): ManagerPropertyRoomPayload {
   const applies = (field: string) => isManagerPropertyFieldApplicable(field, propertyType);
   return {
     bedrooms: applies("bedrooms") ? values.bedrooms : 0,
     bathrooms: applies("bathrooms") ? values.bathrooms : 0,
     balconies: applies("balconies") ? values.balconies : 0,
     parkingSpaces: applies("parkingSpaces") ? values.parkingSpaces : 0,
-    floorNumber: applies("floorNumber") ? values.floorNumber : undefined,
+    floorNumber: applies("floorNumber") ? (values.floorNumber ?? null) : undefined,
     totalFloors: applies("totalFloors") ? values.totalFloors : undefined,
   };
 }
