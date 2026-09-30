@@ -29,16 +29,19 @@ export interface AdminSubscriptionPlan {
     retired_at?: string;
 }
 
+// POST /plans body. Payment decodes it strictly (unknown fields are rejected)
+// into PlanVersion plus provider_plan_id, then validates schema v2 terms.
+// Terms schema v2 requires the four legacy fields to be zero or false.
 export interface AdminSubscriptionPlanDraft {
     code: 'pro' | 'growth';
     version: number;
     provider_plan_id: string;
     amount_minor: number;
     tax_minor: number;
-    currency: 'INR';
+    currency: 'INR' | 'GBP';
     billing_period: 'monthly';
-    billing_interval: 1;
-    total_cycles: 12;
+    billing_interval: number;
+    total_cycles: number;
     published_property_limit: number;
     property_upload_bytes: 0;
     supplied_leads: 0;
@@ -46,11 +49,11 @@ export interface AdminSubscriptionPlanDraft {
     fast_track_discount_bps: 0;
     support_level: 'standard' | 'dedicated';
     featured: boolean;
-    terms_schema_version: 2;
-    image_upload_limit_bytes: 52000000;
+    terms_schema_version: number;
+    image_upload_limit_bytes: number;
     active_case_limit: number;
     lead_delivery_policy: 'best_effort';
-    tax_inclusive: true;
+    tax_inclusive: boolean;
     terms_version: string;
     terms_text: string;
 }

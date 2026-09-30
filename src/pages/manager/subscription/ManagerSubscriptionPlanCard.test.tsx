@@ -67,3 +67,23 @@ test('a verification-blocked offer keeps its price visible but disables checkout
     assert.match(markup, /<button type="button" disabled="" aria-describedby="plan-approved-plan-checkout-reason"/);
     assert.match(markup, /<p id="plan-approved-plan-checkout-reason"[^>]*>Checkout is available once your manager verification is approved\.<\/p>/);
 });
+
+test('an offer whose stored terms use a legacy plan name explains the current name to the manager', () => {
+    for (const [plan, terms, note] of [
+        [pro, 'Pro manager subscription: eight published properties.', 'Growth plan (internal plan name in these terms: Pro manager subscription)'],
+        [growth, 'Growth manager subscription: twenty published properties.', 'Premium plan (internal plan name in these terms: Growth manager subscription)'],
+    ] as const) {
+        const offer: ManagerPlanOffer = {
+            ...plan, id: `approved-${plan.code}`, version: 1, amount_minor: 99900, currency: 'INR',
+            billing_period: 'monthly', billing_interval: 1, total_cycles: 12,
+            tax_inclusive: true, terms_version: 'approved-v1', terms_text: terms,
+            terms_digest: 'approved-digest',
+        };
+        const markup = renderToStaticMarkup(createElement(ManagerSubscriptionPlanCard, {
+            plan: offer, checkoutDisabled: false, busy: false, onStart: () => {},
+        }));
+        assert.ok(markup.includes(`>${note}</p>`), note);
+        // The accepted consent text itself is shown unchanged.
+        assert.ok(markup.includes(`>${terms}</p>`), terms);
+    }
+});

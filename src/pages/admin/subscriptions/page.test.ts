@@ -154,9 +154,9 @@ test('no light-only text or background colours remain on the subscriptions page'
         { light: /(?:^|\s)text-gray-[5-9]00(?:\s|$)/, dark: /dark:text-/ },
         { light: /(?:^|\s)text-(?:red|orange|green|emerald|amber)-[6-9]00(?:\s|$)/, dark: /dark:text-/ },
     ];
-    for (const file of ['pages/admin/subscriptions/page.tsx', 'pages/admin/subscriptions/AdminPromotionsSection.tsx']) {
+    for (const file of ['pages/admin/subscriptions/page.tsx', 'pages/admin/subscriptions/AdminPromotionsSection.tsx', 'pages/admin/subscriptions/RenamedPlanVersion.tsx']) {
         const classLists = [...source(file).matchAll(/className="([^"]*)"|= '([^']*min-h-11[^']*)'/g)].map((match) => match[1] ?? match[2]);
-        assert.ok(classLists.length > 20, `expected to scan class lists in ${file}`);
+        assert.ok(classLists.length > (file.endsWith('RenamedPlanVersion.tsx') ? 10 : 20), `expected to scan class lists in ${file}`);
         for (const classes of classLists) {
             for (const { light, dark } of lightOnly) {
                 if (light.test(classes) && !dark.test(classes) && !/\btext-white\b/.test(classes)) {
