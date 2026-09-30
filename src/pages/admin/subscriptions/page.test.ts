@@ -154,9 +154,9 @@ test('no light-only text or background colours remain on the subscriptions page'
         { light: /(?:^|\s)text-gray-[5-9]00(?:\s|$)/, dark: /dark:text-/ },
         { light: /(?:^|\s)text-(?:red|orange|green|emerald|amber)-[6-9]00(?:\s|$)/, dark: /dark:text-/ },
     ];
-    for (const file of ['pages/admin/subscriptions/page.tsx', 'pages/admin/subscriptions/AdminPromotionsSection.tsx']) {
+    for (const file of ['pages/admin/subscriptions/page.tsx', 'pages/admin/subscriptions/AdminPromotionsSection.tsx', 'pages/admin/subscriptions/RenamedPlanVersion.tsx']) {
         const classLists = [...source(file).matchAll(/className="([^"]*)"|= '([^']*min-h-11[^']*)'/g)].map((match) => match[1] ?? match[2]);
-        assert.ok(classLists.length > 20, `expected to scan class lists in ${file}`);
+        assert.ok(classLists.length > (file.endsWith('RenamedPlanVersion.tsx') ? 10 : 20), `expected to scan class lists in ${file}`);
         for (const classes of classLists) {
             for (const { light, dark } of lightOnly) {
                 if (light.test(classes) && !dark.test(classes) && !/\btext-white\b/.test(classes)) {
@@ -165,4 +165,20 @@ test('no light-only text or background colours remain on the subscriptions page'
             }
         }
     }
+});
+
+test('trial lookup and grant resolve a manager email before calling payment', () => {
+    const section = source('pages/admin/subscriptions/AdminPromotionsSection.tsx');
+    assert.match(section, /Manager ID or email<input value=\{lookupInput\}/);
+    assert.match(section, /Manager ID or email<input value=\{backfillManagerID\}/);
+    // Both paths go through the resolver, and payment only sees its resolved ID.
+    assert.equal(section.match(/resolveManagerIdentifier\([^)]*userService\.getAllUsers\)/g)?.length, 2);
+    assert.match(section, /if \(resolved\.ok\) setLookupManagerID\(resolved\.managerID\)/);
+    assert.match(section, /const \{ managerID \} = resolved;\s*const done = await run\(`backfill:\$\{managerID\}`, \(key\) => backfillAdminTrialGrant\(managerID, key\)/);
+    assert.doesNotMatch(section, /backfillAdminTrialGrant\(backfillManagerID/);
+    assert.doesNotMatch(section, /setLookupManagerID\(value\)/);
+    // A grant awaited across an email search must not overlap another admin action.
+    assert.match(section, /if \(busy \|\| busyRef\.current\) \{/);
+    assert.match(section, /busyRef\.current = scope;\s*setBusy\(scope\);/);
+    assert.match(section, /busyRef\.current = null;\s*setBusy\(null\);/);
 });
