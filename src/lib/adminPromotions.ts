@@ -94,6 +94,74 @@ export const utf8ByteLength = (value: string) => new TextEncoder().encode(value)
 // payment-service only accepts canonical lowercase UUIDs.
 export const normalizeManagerID = (value: string) => value.trim().toLowerCase();
 
+// ── Manager ID or email ────────────────────────────────────────────────────
+
+export const MANAGER_EMAIL_NOT_FOUND = 'No manager account with that email';
+export const MANAGER_EMAIL_NOT_MANAGER = 'That account is not a manager';
+export const MANAGER_EMAIL_AMBIGUOUS = 'More than one manager account uses that email. Enter the manager ID instead.';
+export const MANAGER_EMAIL_TOO_MANY = 'Too many accounts match that email. Enter the manager ID instead.';
+export const MANAGER_EMAIL_LOOKUP_FAILED = 'Unable to look up that email. Retry, or enter the manager ID.';
+// core GET /api/v1/users caps limit at 100.
+export const MANAGER_EMAIL_SEARCH_PAGE_SIZE = 100;
+export const MANAGER_EMAIL_SEARCH_MAX_PAGES = 5;
+
+export const isManagerEmailInput = (value: string) => value.includes('@');
+
+export interface ManagerEmailSearchUser {
+    id: string;
+    email?: string | null;
+    role?: string | null;
+}
+
+/** Shape of userService.getAllUsers (core admin GET /api/v1/users). */
+export type ManagerEmailSearch = (
+    page: number,
+    limit: number,
+    filters: { search: string },
+) => Promise<{ data: ManagerEmailSearchUser[]; pagination: { total?: number } | null; error: string | null }>;
+
+export type ManagerIdentifierResult = { ok: true; managerID: string } | { ok: false; message: string };
+
+const lower = (value?: string | null) => (value ?? '').trim().toLowerCase();
+
+/**
+ * Turns what an admin typed into a manager user ID for the payment trial
+ * endpoints, which only accept IDs. An email is resolved through core's admin
+ * user search, which matches substrings, so only an exact case-insensitive
+ * email match counts. The email itself is never returned as an ID.
+ */
+export async function resolveManagerIdentifier(input: string, searchUsers: ManagerEmailSearch): Promise<ManagerIdentifierResult> {
+    const value = input.trim();
+    if (!isManagerEmailInput(value)) return { ok: true, managerID: normalizeManagerID(value) };
+
+    const email = value.toLowerCase();
+    let sawExactNonManager = false;
+    for (let page = 1; page <= MANAGER_EMAIL_SEARCH_MAX_PAGES; page += 1) {
+        let response: Awaited<ReturnType<ManagerEmailSearch>>;
+        try {
+            response = await searchUsers(page, MANAGER_EMAIL_SEARCH_PAGE_SIZE, { search: email });
+        } catch {
+            return { ok: false, message: MANAGER_EMAIL_LOOKUP_FAILED };
+        }
+        const { data, pagination, error } = response;
+        if (error || !Array.isArray(data)) return { ok: false, message: MANAGER_EMAIL_LOOKUP_FAILED };
+
+        const matches = data.filter((user) => lower(user.email) === email);
+        const managers = matches.filter((user) => lower(user.role) === 'manager' && user.id.trim() !== '');
+        if (managers.length > 1) return { ok: false, message: MANAGER_EMAIL_AMBIGUOUS };
+        if (managers.length === 1) return { ok: true, managerID: normalizeManagerID(managers[0].id) };
+        if (matches.length > 0) sawExactNonManager = true;
+
+        const total = pagination?.total;
+        const exhausted = data.length < MANAGER_EMAIL_SEARCH_PAGE_SIZE
+            || (typeof total === 'number' && page * MANAGER_EMAIL_SEARCH_PAGE_SIZE >= total);
+        if (exhausted) {
+            return { ok: false, message: sawExactNonManager ? MANAGER_EMAIL_NOT_MANAGER : MANAGER_EMAIL_NOT_FOUND };
+        }
+    }
+    return { ok: false, message: sawExactNonManager ? MANAGER_EMAIL_NOT_MANAGER : MANAGER_EMAIL_TOO_MANY };
+}
+
 const promotionName = z.string().trim().min(1, 'Enter a name admins will recognise.')
     .refine((value) => utf8ByteLength(value) <= PROMOTION_NAME_MAX, `Keep the name shorter (up to ${PROMOTION_NAME_MAX} bytes; symbols like ₹ count as more than one).`);
 const promotionDescription = z.string().trim()

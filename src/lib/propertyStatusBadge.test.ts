@@ -20,6 +20,13 @@ const floorCaptionCases: Array<{ name: string; input: PropertyFloorCaptionInput;
     { name: 'townhouse with only total floors', input: { property_type: 'townhouse', total_floors: 3 }, expected: '3-floor building' },
     { name: 'villa with only total floors', input: { property_type: 'villa', total_floors: 2 }, expected: '2-floor building' },
     { name: 'house with floor 0 (unset) uses the building caption', input: { property_type: 'house', floor_number: 0, total_floors: 2 }, expected: '2-floor building' },
+    // core returns floor_number 0 for both a ground-floor flat and a missing
+    // value (non-null int, default 0), so all three stay the building caption
+    // until core can send null for "not provided".
+    { name: 'apartment with floor 0 is ambiguous and uses the building caption', input: { property_type: 'apartment', floor_number: 0, total_floors: 6 }, expected: '6-floor building' },
+    { name: 'apartment with a null floor uses the building caption', input: { property_type: 'apartment', floor_number: null, total_floors: 6 }, expected: '6-floor building' },
+    { name: 'apartment with no floor field uses the building caption', input: { property_type: 'apartment', total_floors: 6 }, expected: '6-floor building' },
+    { name: 'apartment floor 0 from the property context shape is ambiguous too', input: { propertyType: 'apartment', dimensions: { floorNumber: 0, totalFloors: 6, occupiedUnits: 0 } }, expected: '6-floor building' },
     { name: 'triplex is single-unit', input: { property_type: 'triplex', total_floors: 3 }, expected: '3-floor building' },
     { name: 'missing type defaults to single-unit', input: { floor_number: 3, total_floors: 6 }, expected: 'Floor 3 of 6' },
     { name: 'floor above total falls back to the building caption', input: { property_type: 'apartment', floor_number: 9, total_floors: 6 }, expected: '6-floor building' },
