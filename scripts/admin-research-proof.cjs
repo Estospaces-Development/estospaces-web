@@ -1,5 +1,3 @@
-require('./admin-research-availability.cjs').skipUnlessAdminResearchEnabled('admin-research-proof');
-
 const fs = require('node:fs');
 const { chromium } = require('playwright');
 const {

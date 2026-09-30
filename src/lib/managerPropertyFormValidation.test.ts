@@ -413,3 +413,24 @@ test("getManagerPropertyRoomPayload clears room metadata for Land only", () => {
   assert.deepEqual(getManagerPropertyRoomPayload("office", rooms), rooms);
   assert.deepEqual(getManagerPropertyRoomPayload("apartment", rooms), rooms);
 });
+
+test("getManagerPropertyRoomPayload keeps a ground floor of 0 and sends null for an empty floor", () => {
+  const rooms = {
+    bedrooms: 2,
+    bathrooms: 1,
+    balconies: 0,
+    parkingSpaces: 0,
+    floorNumber: 0,
+    totalFloors: 3,
+  };
+
+  assert.equal(getManagerPropertyRoomPayload("apartment", rooms).floorNumber, 0);
+  assert.equal(
+    getManagerPropertyRoomPayload("apartment", { ...rooms, floorNumber: undefined }).floorNumber,
+    null,
+  );
+  assert.equal(
+    getManagerPropertyRoomPayload("land", { ...rooms, floorNumber: undefined }).floorNumber,
+    undefined,
+  );
+});

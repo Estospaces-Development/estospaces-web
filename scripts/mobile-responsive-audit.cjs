@@ -122,18 +122,10 @@ const representativeRoutes = new Set([
 
 const crashPattern = /unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const safeName = (value) => value.replace(/^\//, '').replace(/[^a-z0-9]+/gi, '-').replace(/-+$/g, '');
-const optionalCompatibilityPaths = new Set([
-  '/api/v1/admin/research/summary',
-  '/api/v1/admin/research/sessions',
-  '/__dev_proxy/core/api/v1/admin/research/summary',
-  '/__dev_proxy/core/api/v1/admin/research/sessions',
-]);
-
 const staleCatalogPathPattern = /^(?:\/__dev_proxy\/core)?\/api\/v1\/properties\/catalog\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isExpectedFallbackResponse(response, url) {
   if (response.status() !== 404) return false;
-  if (optionalCompatibilityPaths.has(url.pathname)) return true;
   if (response.request().method() === 'GET' && staleCatalogPathPattern.test(url.pathname)) return true;
   return url.pathname.startsWith('/__dev_proxy/media/uploads/')
     && ['image', 'media'].includes(response.request().resourceType());

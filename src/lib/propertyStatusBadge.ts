@@ -82,20 +82,22 @@ export const formatPropertyFloorCaption = (property: PropertyFloorCaptionInput) 
         return null;
     }
 
-    // The API and the property context both default unknown values to 0 or 1,
-    // so a single-storey building and floor 0 carry no usable information.
-    // Floor 0 cannot be shown as "Ground floor": core stores floor_number as a
-    // non-null int with default 0 (Property.FloorNumber `gorm:"default:0"
-    // json:"floor_number"`), the create request is an `omitempty` int, and the
-    // form omits an empty field, so "ground floor" and "not provided" both come
-    // back as 0. Showing "Ground floor of Y" needs a nullable floor number in
-    // core first.
+    // Total floors defaults to 1 when unknown, so a single-storey building
+    // carries no usable information. Core sends floor_number as null when the
+    // manager did not provide a floor and as 0 for a real ground floor, so 0 is
+    // shown as "Ground floor of Y" while null/undefined keep the building caption.
     const total = normalizeInteger(totalFloors);
     if (total <= 1) {
         return null;
     }
-    const floor = normalizeInteger(property.dimensions?.floorNumber ?? property.floor_number);
-    if (floor >= 1 && floor <= total) {
+    const rawFloor = property.dimensions?.floorNumber ?? property.floor_number;
+    const floor = typeof rawFloor === 'number' && Number.isFinite(rawFloor) && rawFloor >= 0
+        ? Math.trunc(rawFloor)
+        : null;
+    if (floor === 0) {
+        return `Ground floor of ${total}`;
+    }
+    if (floor !== null && floor <= total) {
         return `Floor ${floor} of ${total}`;
     }
     return `${total}-floor building`;

@@ -36,6 +36,15 @@ test('manager card shows the flat position instead of building floors as availab
     assert.doesNotMatch(markup, /floors available/);
 });
 
+test('manager card shows a ground-floor flat as the ground floor, and an unknown floor as the building', () => {
+    const ground = renderCard({ ...baseProperty, property_type: 'apartment', floor_number: 0, total_floors: 6, occupied_units: 0 });
+    assert.match(ground, /Ground floor of 6/);
+
+    const unknown = renderCard({ ...baseProperty, property_type: 'apartment', floor_number: null, total_floors: 6, occupied_units: 0 });
+    assert.match(unknown, /6-floor building/);
+    assert.doesNotMatch(unknown, /Ground floor/);
+});
+
 test('manager card keeps whole-building occupancy captions for commercial listings', () => {
     const markup = renderCard({ ...baseProperty, property_type: 'commercial', floor_number: 3, total_floors: 6, occupied_units: 2 });
 

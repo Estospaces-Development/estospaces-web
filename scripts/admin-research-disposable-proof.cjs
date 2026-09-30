@@ -1,5 +1,3 @@
-require('./admin-research-availability.cjs').skipUnlessAdminResearchEnabled('admin-research-disposable-proof');
-
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -108,13 +106,19 @@ async function main() {
   };
 
   const adminSession = await loginViaApi(target, 'admin');
-  const listPayload = await apiJson(`${target.services.core}/api/v1/admin/research/sessions`, adminSession.token, {
-    label: 'list research sessions',
+  const sessionPayload = await apiJson(`${target.services.core}/api/v1/admin/research/sessions`, adminSession.token, {
+    method: 'POST',
+    label: 'create disposable research session',
+    body: JSON.stringify({
+      track: 'in_app_journey',
+      title: `QA disposable research session ${stamp}`,
+      participant_role: 'user',
+      summary: 'Created by admin-research-disposable-proof; archived at the end of the run.',
+    }),
   });
-  const sessions = listItems(listPayload?.data || listPayload);
-  const session = sessions[0];
+  const session = unwrapData(sessionPayload);
   if (!session?.id) {
-    throw new Error('No admin research session is available for the disposable create-delete proof.');
+    throw new Error('Disposable research session was created without an id.');
   }
   result.sessionId = session.id;
   result.sessionTitle = session.title || session.id;
@@ -211,12 +215,21 @@ async function main() {
     result.deletedObservationAbsentInUi = (await page.getByText(result.observationNote, { exact: false }).count()) === 0;
     await page.screenshot({ path: screenshotAfterDelete, fullPage: true });
   } finally {
+    // Sessions have no delete endpoint, so retire the disposable one.
+    await apiJson(
+      `${target.services.core}/api/v1/admin/research/sessions/${encodeURIComponent(result.sessionId)}`,
+      adminSession.token,
+      { method: 'PATCH', label: 'archive disposable research session', body: JSON.stringify({ status: 'archived' }) },
+    ).catch((error) => {
+      result.archiveError = String(error?.message || error);
+    });
     await context.close();
     await browser.close();
   }
 
   result.completedAt = new Date().toISOString();
-  result.overallOk = result.createdEvidenceVisibleInApi
+  result.overallOk = !result.archiveError
+    && result.createdEvidenceVisibleInApi
     && result.createdObservationVisibleInApi
     && result.createdEvidenceVisibleInUi
     && result.createdObservationVisibleInUi

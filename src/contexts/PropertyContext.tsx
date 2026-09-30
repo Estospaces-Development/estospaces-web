@@ -227,7 +227,7 @@ export interface Property {
     carpetArea?: number;
     areaUnit: AreaUnit;
     floors?: number;
-    floorNumber?: number;
+    floorNumber?: number | null;
     totalFloors?: number;
     occupiedUnits?: number;
   };
@@ -773,7 +773,7 @@ export const PropertyProvider = ({
         carpetArea: p.carpet_area || 0,
         areaUnit: "sqft",
         floors: p.total_floors || 1,
-        floorNumber: p.floor_number || 0,
+        floorNumber: p.floor_number ?? null,
         totalFloors: p.total_floors || 1,
         occupiedUnits: p.occupied_units || 0,
       },

@@ -19,14 +19,20 @@ const floorCaptionCases: Array<{ name: string; input: PropertyFloorCaptionInput;
     { name: 'duplex with only total floors', input: { property_type: 'duplex', total_floors: 2 }, expected: '2-floor building' },
     { name: 'townhouse with only total floors', input: { property_type: 'townhouse', total_floors: 3 }, expected: '3-floor building' },
     { name: 'villa with only total floors', input: { property_type: 'villa', total_floors: 2 }, expected: '2-floor building' },
-    { name: 'house with floor 0 (unset) uses the building caption', input: { property_type: 'house', floor_number: 0, total_floors: 2 }, expected: '2-floor building' },
-    // core returns floor_number 0 for both a ground-floor flat and a missing
-    // value (non-null int, default 0), so all three stay the building caption
-    // until core can send null for "not provided".
-    { name: 'apartment with floor 0 is ambiguous and uses the building caption', input: { property_type: 'apartment', floor_number: 0, total_floors: 6 }, expected: '6-floor building' },
-    { name: 'apartment with a null floor uses the building caption', input: { property_type: 'apartment', floor_number: null, total_floors: 6 }, expected: '6-floor building' },
+    // Core sends floor_number 0 only for a real ground floor and null when the
+    // manager did not provide a floor.
+    { name: 'house on floor 0 is the ground floor', input: { property_type: 'house', floor_number: 0, total_floors: 2 }, expected: 'Ground floor of 2' },
+    { name: 'apartment on floor 0 is the ground floor', input: { property_type: 'apartment', floor_number: 0, total_floors: 6 }, expected: 'Ground floor of 6' },
+    { name: 'apartment with a null floor (not provided) uses the building caption', input: { property_type: 'apartment', floor_number: null, total_floors: 6 }, expected: '6-floor building' },
     { name: 'apartment with no floor field uses the building caption', input: { property_type: 'apartment', total_floors: 6 }, expected: '6-floor building' },
-    { name: 'apartment floor 0 from the property context shape is ambiguous too', input: { propertyType: 'apartment', dimensions: { floorNumber: 0, totalFloors: 6, occupiedUnits: 0 } }, expected: '6-floor building' },
+    { name: 'apartment ground floor from the property context shape', input: { propertyType: 'apartment', dimensions: { floorNumber: 0, totalFloors: 6, occupiedUnits: 0 } }, expected: 'Ground floor of 6' },
+    { name: 'apartment null floor from the property context shape uses the building caption', input: { propertyType: 'apartment', dimensions: { floorNumber: null, totalFloors: 6, occupiedUnits: 0 } }, expected: '6-floor building' },
+    { name: 'context null floor falls back to the API floor_number', input: { propertyType: 'apartment', floor_number: 2, dimensions: { floorNumber: null, totalFloors: 6 } }, expected: 'Floor 2 of 6' },
+    { name: 'ground floor of a single-storey building shows nothing', input: { property_type: 'apartment', floor_number: 0, total_floors: 1 }, expected: null },
+    { name: 'negative floor uses the building caption', input: { property_type: 'apartment', floor_number: -1, total_floors: 6 }, expected: '6-floor building' },
+    { name: 'fractional floor is truncated', input: { property_type: 'apartment', floor_number: 2.9, total_floors: 6 }, expected: 'Floor 2 of 6' },
+    { name: 'commercial floor 0 keeps the occupancy caption', input: { property_type: 'commercial', floor_number: 0, total_floors: 6, occupied_units: 2 }, expected: '2 of 6 floors occupied' },
+    { name: 'land floor 0 shows nothing', input: { property_type: 'land', floor_number: 0, total_floors: 3 }, expected: null },
     { name: 'triplex is single-unit', input: { property_type: 'triplex', total_floors: 3 }, expected: '3-floor building' },
     { name: 'missing type defaults to single-unit', input: { floor_number: 3, total_floors: 6 }, expected: 'Floor 3 of 6' },
     { name: 'floor above total falls back to the building caption', input: { property_type: 'apartment', floor_number: 9, total_floors: 6 }, expected: '6-floor building' },
