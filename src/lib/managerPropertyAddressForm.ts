@@ -1,6 +1,15 @@
 import type { AddressFormData } from "@/components/ui/AddressSection";
 import type { Property } from "@/contexts/PropertyContext";
+import { getSupportedLaunchCountry } from "@/lib/launchLocale";
 import { shouldResetPropertyPinForAddressChange } from "@/lib/managerPropertyPinReset";
+
+/**
+ * Country code for a listing read from core. Stored countries include "IN"
+ * and "UK" as well as full names; without a code the map picker hides the
+ * saved pin and the manager has to place it again (web-app#656).
+ */
+export const getLoadedPropertyCountryCode = (country?: string | null, countryCode?: string | null): string =>
+  getSupportedLaunchCountry(countryCode || country, country) || "";
 
 /** The address and pin fields of the manager listing form. */
 export interface PropertyFormAddressFields {

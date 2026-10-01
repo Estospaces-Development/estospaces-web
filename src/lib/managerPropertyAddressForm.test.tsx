@@ -6,6 +6,7 @@ import { Window } from "happy-dom";
 import {
   applyAddressSectionChange,
   buildPropertyLocationPayload,
+  getLoadedPropertyCountryCode,
   type PropertyFormAddressFields,
 } from "@/lib/managerPropertyAddressForm";
 import { resolveAddressToIds } from "@/services/addressService";
@@ -154,4 +155,14 @@ test("new listings and listings that never had a pin never send the clear signal
   const repinned = buildPropertyLocationPayload({ ...savedDraft, latitude: "12.97", longitude: "77.64" }, savedDraft);
   assert.equal(repinned.clearLocation, undefined);
   assert.equal(repinned.latitude, 12.97);
+});
+
+test("a listing stored with a short country name loads with its country code so the saved pin shows", () => {
+  assert.equal(getLoadedPropertyCountryCode("IN"), "IN");
+  assert.equal(getLoadedPropertyCountryCode("India"), "IN");
+  assert.equal(getLoadedPropertyCountryCode("UK"), "GB");
+  assert.equal(getLoadedPropertyCountryCode("United Kingdom"), "GB");
+  assert.equal(getLoadedPropertyCountryCode("United Kingdom", "GB"), "GB");
+  assert.equal(getLoadedPropertyCountryCode("France"), "");
+  assert.equal(getLoadedPropertyCountryCode(undefined), "");
 });
