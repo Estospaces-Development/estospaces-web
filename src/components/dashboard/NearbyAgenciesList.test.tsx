@@ -4,7 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 
-import  { NearbyBrokerCard } from './NearbyAgenciesList';
+import  { NearbyBrokerCard, orderNearbyAgents } from './NearbyAgenciesList';
 import {
   formatBrokerRequestLocationCodeInput,
   limitNearestAgenciesForDashboard,
@@ -265,4 +265,36 @@ test('[REGRESSION] broker card renders with only required fields (no optional fi
   assert.match(markup, /href="\/user\/dashboard\/messages\?recipient=reg-1/);
   assert.match(markup, /Independent agent/);
   assert.match(markup, /Service area not listed/);
+});
+
+// ── web-app#663: the agent handling the request leads "Best match" ──
+
+const tester = { id: 'tester', name: 'Tester Estospaces', rating: 4.9, distance_miles: 0.2, fast_track_eligible: true };
+const propertyManager = { id: 'pm', name: 'Property Manager', rating: 4.1, distance_miles: 0.6, fast_track_eligible: false };
+
+test('Best match lists the matched agent first even when the live ranking puts them second', () => {
+  const ordered = orderNearbyAgents([tester, propertyManager], { sortMode: 'rank', filterMode: 'all', matchedBroker: propertyManager });
+  assert.deepEqual(ordered.map((broker) => broker.id), ['pm', 'tester']);
+});
+
+test('Best match adds the matched agent when the live ranking no longer returns them', () => {
+  const ordered = orderNearbyAgents([tester], { sortMode: 'rank', filterMode: 'all', matchedBroker: propertyManager });
+  assert.deepEqual(ordered.map((broker) => broker.id), ['pm', 'tester']);
+});
+
+test('explicit sorts and the Fast-track filter are not overridden by the matched agent', () => {
+  assert.deepEqual(orderNearbyAgents([propertyManager, tester], { sortMode: 'distance', filterMode: 'all', matchedBroker: propertyManager }).map((b) => b.id), ['tester', 'pm']);
+  assert.deepEqual(orderNearbyAgents([propertyManager, tester], { sortMode: 'rating', filterMode: 'all', matchedBroker: propertyManager }).map((b) => b.id), ['tester', 'pm']);
+  assert.deepEqual(orderNearbyAgents([tester], { sortMode: 'rank', filterMode: 'fast_track', matchedBroker: propertyManager }).map((b) => b.id), ['tester']);
+  assert.deepEqual(orderNearbyAgents([tester, propertyManager], { sortMode: 'rank', filterMode: 'all', matchedBroker: null }).map((b) => b.id), ['tester', 'pm']);
+});
+
+test('the matched agent card says it is handling the request', () => {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter>
+      <NearbyBrokerCard broker={propertyManager} index={0} isMatched />
+    </MemoryRouter>,
+  );
+  assert.match(markup, /Handling your request/);
+  assert.doesNotMatch(markup, />Available</);
 });
