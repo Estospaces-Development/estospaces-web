@@ -305,7 +305,7 @@ function VerificationsContent() {
                 setShowArchived(false);
                 setActiveTab('all');
               }}
-              className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === 'all' ? 'border-orange-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
+              className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === 'all' && !showArchived ? 'border-orange-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
             >
               All Applications

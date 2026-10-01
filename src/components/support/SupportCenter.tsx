@@ -235,7 +235,9 @@ export function SupportCenter({ role }: SupportCenterProps) {
     }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setSearchParams, user?.id]);
 
     const fetchTickets = useCallback(async (silent = false) => {
-        if (fetchingRef.current) return;
+        // Background polls yield to an in-flight request; a manual refresh
+        // supersedes it (the older response is discarded below). web-app#458
+        if (fetchingRef.current && silent) return;
         const request = Symbol('ticket-list-request');
         fetchingRef.current = request;
         if (!silent) setLoading(true);
