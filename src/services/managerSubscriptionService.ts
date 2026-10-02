@@ -41,6 +41,7 @@ export interface SubscriptionCheckout {
     provider_subscription_id?: string;
     status: string;
     authorization_expires_at?: string;
+    billing_market?: 'IN' | 'GB' | '';
 }
 
 export interface ManagerSubscriptionResourceLimit {

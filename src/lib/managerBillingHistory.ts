@@ -1,4 +1,6 @@
 import { formatLaunchCurrencyForCountry } from './launchLocale';
+import { getManagerPlanDisplayName } from './managerPlanNames';
+import type { AdminManagerBilling } from '@/services/adminSubscriptionService';
 import type { ManagerPaidPeriod } from '@/services/managerSubscriptionService';
 
 // Billing periods are shown in the billing market's time zone, so a period that
@@ -28,5 +30,40 @@ export const describeManagerPaidPeriod = (period: ManagerPaidPeriod) => {
         statusLabel: fullyRefunded || period.status === 'refunded' ? 'Refunded' : 'Paid',
         reference: period.payment_id,
         isTestMode: period.mode === 'test',
+    };
+};
+
+const accessLabels: Record<string, string> = {
+    free_active: 'Free', paid_active: 'Paid', trial_active: 'Trial', pilot_active: 'Pilot', expired: 'Expired',
+};
+const marketLabels: Record<string, string> = { IN: 'India (INR)', GB: 'United Kingdom (GBP)' };
+
+const periodBetween = (start: string | undefined, end: string | undefined, currency: string) => {
+    const from = start ? formatDay(start, currency) : '';
+    const to = end ? formatDay(end, currency) : '';
+    return from && to ? `${from} – ${to}` : from || to;
+};
+
+// Admin billing lookup: the plan, access, market and current period a manager
+// sees on their own subscription page, from the payment-service record.
+export const describeAdminManagerBilling = ({ account, terms, invoices }: AdminManagerBilling) => {
+    const { entitlement, trial, checkout, subscription, cancellation, paid_period: paid } = account;
+    const source = entitlement?.source ?? 'free';
+    const market = checkout?.billing_market || (terms?.currency === 'GBP' ? 'GB' : terms?.currency === 'INR' ? 'IN' : '');
+    const currency = terms?.currency || invoices[0]?.currency || (market === 'GB' ? 'GBP' : 'INR');
+    const planLabel = source === 'paid' ? getManagerPlanDisplayName(terms?.code)
+        : source === 'trial' && trial ? `${trial.plan_name || getManagerPlanDisplayName(trial.plan_code)} trial`
+            : source === 'pilot' ? 'Pilot' : 'Free';
+    const statusParts = [subscription?.status ?? checkout?.status, cancellation ? `cancellation ${cancellation.status.replaceAll('_', ' ')}` : '']
+        .filter(Boolean);
+    return {
+        planLabel,
+        accessLabel: accessLabels[entitlement?.state ?? ''] ?? 'Unknown',
+        statusLabel: statusParts.length ? statusParts.join(' · ').replaceAll('_', ' ') : 'No subscription',
+        marketLabel: marketLabels[market] ?? 'Not set',
+        periodLabel: (paid ? periodBetween(paid.billing_start, paid.billing_end, currency)
+            : source === 'trial' && trial ? periodBetween(trial.starts_at, trial.ends_at, currency) : '') || 'No current period',
+        isTestMode: account.mode === 'test',
+        isEmpty: !checkout && !subscription && !trial && invoices.length === 0,
     };
 };
