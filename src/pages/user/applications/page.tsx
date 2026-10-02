@@ -25,9 +25,10 @@ import {
     MessageSquare,
     ChevronRight
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
+import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import ApplicationCard from '@/components/dashboard/applications/ApplicationCard';
@@ -45,9 +46,11 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
+import { getApplicationPropertyOptions } from '@/lib/applicationPropertyOptions';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import { getPropertyById } from '@/services/propertyService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { paginateItems } from '@/lib/pagination';
 import {
@@ -66,7 +69,6 @@ const MAX_NEW_APPLICATION_MESSAGE_LENGTH = 1000;
 
 type NewApplicationForm = {
     property_id: string;
-    manager_id: string;
     move_in_date: string;
     applicant_name: string;
     applicant_email: string;
@@ -78,7 +80,6 @@ type NewApplicationFormErrors = Partial<Record<keyof NewApplicationForm, string>
 
 const EMPTY_NEW_APPLICATION_FORM: NewApplicationForm = {
     property_id: '',
-    manager_id: '',
     move_in_date: '',
     applicant_name: '',
     applicant_email: '',
@@ -111,10 +112,7 @@ function validateNewApplicationForm(form: NewApplicationForm): NewApplicationFor
     const moveInDate = form.move_in_date.trim() ? parseApplicationDate(form.move_in_date) : null;
 
     if (!form.property_id.trim()) {
-        errors.property_id = 'Enter a property ID.';
-    }
-    if (!form.manager_id.trim()) {
-        errors.manager_id = 'Enter a manager ID.';
+        errors.property_id = 'Choose a home to apply for.';
     }
     if (!form.move_in_date.trim()) {
         errors.move_in_date = 'Choose a move-in date.';
@@ -587,6 +585,8 @@ export default function ApplicationsPage() {
     } = useApplications();
     const navigate = useNavigate();
     const toast = useToast();
+    const { savedProperties, loading: savedPropertiesLoading } = useSavedProperties();
+    const savedPropertyOptions = useMemo(() => getApplicationPropertyOptions(savedProperties), [savedProperties]);
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -596,6 +596,8 @@ export default function ApplicationsPage() {
     const [newApplicationModalOpen, setNewApplicationModalOpen] = useState(false);
     const [newApplicationForm, setNewApplicationForm] = useState<NewApplicationForm>(EMPTY_NEW_APPLICATION_FORM);
     const [newApplicationErrors, setNewApplicationErrors] = useState<NewApplicationFormErrors>({});
+    // Set when the modal opens from a home's Apply link (?property); shown read-only.
+    const [prefilledProperty, setPrefilledProperty] = useState<{ id: string; label: string } | null>(null);
     const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
@@ -635,12 +637,30 @@ export default function ApplicationsPage() {
     };
 
     const openNewApplicationModal = () => {
+        const routePropertyId = searchParams.get('property')?.trim() || '';
         setNewApplicationForm({
             ...EMPTY_NEW_APPLICATION_FORM,
-            property_id: searchParams.get('property') || '',
+            property_id: routePropertyId,
         });
+        setPrefilledProperty(routePropertyId
+            ? {
+                id: routePropertyId,
+                label: savedPropertyOptions.find((option) => option.id === routePropertyId)?.label || '',
+            }
+            : null);
         setNewApplicationErrors({});
         setNewApplicationModalOpen(true);
+
+        if (routePropertyId) {
+            void getPropertyById(routePropertyId, { suppressErrorToast: true }).then(({ data }) => {
+                const label = [data?.title?.trim(), data?.city?.trim()].filter(Boolean).join(', ');
+                if (label) {
+                    setPrefilledProperty((current) => (current?.id === routePropertyId && !current.label
+                        ? { ...current, label }
+                        : current));
+                }
+            });
+        }
     };
 
     const closeNewApplicationModal = () => {
@@ -667,9 +687,15 @@ export default function ApplicationsPage() {
         newApplicationInFlightRef.current = true;
         setIsSubmittingApplication(true);
         try {
+            const propertyId = newApplicationForm.property_id.trim();
+            const { data: property } = await getPropertyById(propertyId, { suppressErrorToast: true });
+            const managerId = property?.manager_id?.trim() || '';
+            if (!managerId) {
+                throw new Error('We could not load this home. Open it again and choose Apply.');
+            }
             const result = await createApplication({
-                property_id: newApplicationForm.property_id.trim(),
-                manager_id: newApplicationForm.manager_id.trim(),
+                property_id: propertyId,
+                manager_id: managerId,
                 move_in_date: newApplicationForm.move_in_date.trim(),
                 applicant_name: normalizeNewApplicationText(newApplicationForm.applicant_name),
                 applicant_email: normalizeNewApplicationText(newApplicationForm.applicant_email),
@@ -823,7 +849,7 @@ export default function ApplicationsPage() {
                         <button
                             type="button"
                             onClick={() => void submitNewApplication()}
-                            disabled={isSubmittingApplication}
+                            disabled={isSubmittingApplication || (!prefilledProperty && savedPropertyOptions.length === 0)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isSubmittingApplication && <ActionSpinner className="h-4 w-4" />}
@@ -833,40 +859,44 @@ export default function ApplicationsPage() {
                 )}
             >
                 <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <label className="space-y-2 text-sm">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">Property ID</span>
-                            <input
-                                type="text"
+                    {prefilledProperty ? (
+                        <div className="space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Home</span>
+                            <p className="rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                                {prefilledProperty.label || 'Selected home'}
+                            </p>
+                        </div>
+                    ) : savedPropertyOptions.length > 0 ? (
+                        <label className="block space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Home</span>
+                            <select
                                 value={newApplicationForm.property_id}
                                 onChange={(event) => updateNewApplicationField('property_id', event.target.value)}
                                 aria-describedby={newApplicationErrors.property_id ? 'new-application-property-error' : undefined}
                                 disabled={isSubmittingApplication}
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            />
+                            >
+                                <option value="">Choose a saved home</option>
+                                {savedPropertyOptions.map((option) => (
+                                    <option key={option.id} value={option.id}>{option.label}</option>
+                                ))}
+                            </select>
                             {newApplicationErrors.property_id ? (
                                 <p id="new-application-property-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
                                     {newApplicationErrors.property_id}
                                 </p>
                             ) : null}
                         </label>
-                        <label className="space-y-2 text-sm">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">Manager ID</span>
-                            <input
-                                type="text"
-                                value={newApplicationForm.manager_id}
-                                onChange={(event) => updateNewApplicationField('manager_id', event.target.value)}
-                                aria-describedby={newApplicationErrors.manager_id ? 'new-application-manager-error' : undefined}
-                                disabled={isSubmittingApplication}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            />
-                            {newApplicationErrors.manager_id ? (
-                                <p id="new-application-manager-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
-                                    {newApplicationErrors.manager_id}
-                                </p>
-                            ) : null}
-                        </label>
-                    </div>
+                    ) : savedPropertiesLoading ? (
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Loading your saved homes...</p>
+                    ) : (
+                        <p className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                            Open a home and choose Apply to start an application.{' '}
+                            <Link to="/user/dashboard/discover" className="font-semibold text-orange-600 underline hover:text-orange-700 dark:text-orange-400">
+                                Discover homes
+                            </Link>
+                        </p>
+                    )}
 
                     <label className="block space-y-2 text-sm">
                         <span className="font-semibold text-gray-700 dark:text-gray-300">Move-in date</span>
