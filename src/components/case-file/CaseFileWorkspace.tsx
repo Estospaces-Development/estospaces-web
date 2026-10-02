@@ -86,6 +86,7 @@ import {
   getCaseFileDocumentReviewState,
   getFastTrackApprovedDocumentRecordIds,
   getUploadChecklistBadgeCopy,
+  formatDocumentReplacementNotice,
   isFastTrackCaseClosed,
 } from "@/lib/caseFileDocumentReview";
 import PaginationBar from "@/components/ui/PaginationBar";
@@ -1753,6 +1754,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     actionNeeded: requestChecklistSummary.actionNeeded,
     inFlight: requestChecklistSummary.inFlight,
     fastTrackReplacementCount,
+    documentReplacementCount: summary.reuploadCount,
   });
 
   return (
@@ -2282,6 +2284,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                           Open Fast Track documents
                         </Link>
                       </>
+                    ) : summary.reuploadCount > 0 ? (
+                      <>{formatDocumentReplacementNotice(summary.reuploadCount)}. Upload a clearer or newer file with the uploader below.</>
                     ) : role === "user"
                       ? "No document requests are open yet. As soon as the team asks for something, this checklist will show exactly what to upload and whether it has been approved."
                       : "No case-file requests are open yet. As soon as a manager or workflow asks for documents, this checklist will show exactly what to upload and whether it has been approved."}
