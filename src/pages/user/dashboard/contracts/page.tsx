@@ -201,6 +201,15 @@ export default function ContractsPage() {
     [fastTrackCases, rawCaseId],
   );
 
+  // Settings > View Contracts links to #my-contracts (web-app#636); the
+  // section sits below the homes list, so scroll to it once data has loaded.
+  useEffect(() => {
+    if (isInitialLoading || window.location.hash !== "#my-contracts") {
+      return;
+    }
+    document.getElementById("my-contracts")?.scrollIntoView({ block: "start" });
+  }, [isInitialLoading]);
+
   useEffect(() => {
     if (isInitialLoading || !removedCaseId) {
       return;
@@ -705,7 +714,7 @@ export default function ContractsPage() {
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
+            <div id="my-contracts" className="scroll-mt-24 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                   My Contracts
