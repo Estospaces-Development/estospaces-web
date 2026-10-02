@@ -586,7 +586,7 @@ export default function SettingsPage() {
                             </p>
                             <button
                                 type="button"
-                                onClick={() => navigate('/user/dashboard/contracts')}
+                                onClick={() => navigate('/user/dashboard/contracts#my-contracts')}
                                 className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-orange-500/25"
                             >
                                 View Contracts

@@ -162,3 +162,52 @@ export const loadCompleteMapCandidates = async <T extends { id: string }>(
         ).values(),
     );
 };
+
+export interface NearbyMapMarkerGroup<T> {
+    key: string;
+    latitude: number;
+    longitude: number;
+    properties: T[];
+}
+
+// Homes geocoded to the same spot (e.g. one postcode centroid) would stack
+// into a single visible pin, so they share one marker that lists them all
+// (web-app#665). ponytail: greedy distance grouping, O(n^2) is fine for the
+// map's small candidate sets; switch to pixel clustering if pins get dense.
+export const NEARBY_MAP_SHARED_PIN_KM = 0.05;
+
+export const groupNearbyMapMarkers = <T extends { id: string; latitude: number; longitude: number }>(
+    properties: T[],
+    thresholdKm = NEARBY_MAP_SHARED_PIN_KM,
+): NearbyMapMarkerGroup<T>[] => {
+    const groups: NearbyMapMarkerGroup<T>[] = [];
+    properties.forEach((property) => {
+        const group = groups.find((candidate) => calculateMapDistanceKm(candidate, property) <= thresholdKm);
+        if (group) {
+            group.properties.push(property);
+            return;
+        }
+        groups.push({
+            key: property.id,
+            latitude: property.latitude,
+            longitude: property.longitude,
+            properties: [property],
+        });
+    });
+    return groups;
+};
+
+export const getCompactNearbyMapStatus = (options: {
+    pinnedCount: number;
+    unlocatedCount: number;
+    radiusKm?: number;
+}): string => {
+    const { pinnedCount, unlocatedCount, radiusKm = DASHBOARD_NEARBY_RADIUS_KM } = options;
+    const pinned = pinnedCount === 0
+        ? `No homes with a map location within ${radiusKm} km yet`
+        : `${pinnedCount} ${pinnedCount === 1 ? 'home' : 'homes'} on the map`;
+    if (unlocatedCount === 0) {
+        return pinned;
+    }
+    return `${pinned} · ${unlocatedCount} listed ${unlocatedCount === 1 ? 'home has' : 'homes have'} no map location`;
+};

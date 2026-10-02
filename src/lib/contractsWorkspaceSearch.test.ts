@@ -50,3 +50,18 @@ test('returns a separate array for an empty search so display sorting cannot mut
         'c86082a0-0000-4000-8000-000000000002',
     ]);
 });
+
+test('extra fields match text the contract payload lacks (web-app#638)', () => {
+    const bare: Contract[] = contracts.map(({ name: _name, property: _property, title: _title, ...rest }) => rest as Contract);
+    const linked = (contract: Contract) => contract.application_id === 'application-001'
+        ? ['Asha Kumar', 'Marina Heights, Chennai']
+        : [];
+
+    assert.deepEqual(filterContractsWorkspace(bare, 'asha'), []);
+    assert.deepEqual(filterContractsWorkspace(bare, 'asha', linked).map((contract) => contract.id), [
+        'c86081a0-0000-4000-8000-000000000001',
+    ]);
+    assert.deepEqual(filterContractsWorkspace(bare, 'marina', linked).map((contract) => contract.id), [
+        'c86081a0-0000-4000-8000-000000000001',
+    ]);
+});

@@ -21,6 +21,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
 import { getApplications, type Application } from '@/services/applicationsService';
+import { filterContractsWorkspace } from '@/lib/contractsWorkspaceSearch';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import {
@@ -392,17 +393,13 @@ export default function ManagerContractsPage() {
         
         if (!matchesTab) return false;
 
-        // Search filter
+        // Search filter: contracts carry no tenant or property names, so also
+        // match the linked application (web-app#638).
         if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            const haysack = [
-                c.id,
-                c.property,
-                c.name,
-                c.title,
-            ].filter(Boolean).join(' ').toLowerCase();
-            
-            return haysack.includes(query);
+            return filterContractsWorkspace([c], searchQuery, (contract) => {
+                const application = applications.find((item) => item.id === contract.application_id);
+                return [application?.applicant_name, application?.applicant_email, application?.property_title, application?.property_address];
+            }).length > 0;
         }
 
         return true;

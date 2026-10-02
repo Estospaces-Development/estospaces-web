@@ -417,7 +417,7 @@ function PropertiesContent() {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Properties</h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Manage all your property listings ({pagination.total} total)
+                        Manage all your property listings ({pagination.total} {activeFiltersCount > 0 ? 'matching' : 'total'})
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">

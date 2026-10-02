@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
     calculateMapDistanceKm,
+    getCompactNearbyMapStatus,
     getDashboardMapHeightClass,
     getNearbyMapDefaultView,
     getNearbyMapEmptyState,
+    groupNearbyMapMarkers,
     hasValidMapCoordinates,
     loadCompleteMapCandidates,
     selectDashboardNearbyProperties,
@@ -140,4 +142,26 @@ test('fails closed when any candidate page cannot be loaded', async () => {
         }), 1),
         /Unable to load all nearby map candidates/,
     );
+});
+
+test('homes geocoded to the same spot share one marker instead of hiding under each other (web-app#665)', () => {
+    // Dev data: four Chennai 600001 listings share the postcode centroid; one is ~11 m off.
+    const groups = groupNearbyMapMarkers([
+        { id: 'garden-court', latitude: 13.105137, longitude: 80.284371 },
+        { id: 'harbour-view', latitude: 13.105137, longitude: 80.284371 },
+        { id: 'luxury-duplex', latitude: 13.105137, longitude: 80.284471 },
+        { id: 'launch-e2e', latitude: 13.105137, longitude: 80.284371 },
+        { id: 'salem-villa', latitude: 11.616761, longitude: 78.560261 },
+    ]);
+
+    assert.equal(groups.length, 2);
+    assert.deepEqual(groups[0].properties.map((property) => property.id), ['garden-court', 'harbour-view', 'luxury-duplex', 'launch-e2e']);
+    assert.deepEqual(groups[1].properties.map((property) => property.id), ['salem-villa']);
+});
+
+test('compact map says when no homes are pinned and how many listed homes have no location (web-app#664, #665)', () => {
+    assert.equal(getCompactNearbyMapStatus({ pinnedCount: 0, unlocatedCount: 0 }), 'No homes with a map location within 100 km yet');
+    assert.equal(getCompactNearbyMapStatus({ pinnedCount: 4, unlocatedCount: 0 }), '4 homes on the map');
+    assert.equal(getCompactNearbyMapStatus({ pinnedCount: 1, unlocatedCount: 1 }), '1 home on the map · 1 listed home has no map location');
+    assert.equal(getCompactNearbyMapStatus({ pinnedCount: 0, unlocatedCount: 7 }), 'No homes with a map location within 100 km yet · 7 listed homes have no map location');
 });

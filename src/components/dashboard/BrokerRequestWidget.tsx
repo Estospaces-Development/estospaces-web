@@ -1560,7 +1560,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                 </div>
 
                                 {activeRequest.fast_track_enabled && (
-                                    <div className="mt-4 rounded-xl border border-orange-100 bg-white p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
+                                    <div className="mt-4 rounded-xl border border-orange-100 bg-white p-2 sm:p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
                                         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="min-w-0 flex-1">
                                                 <p className="break-words text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">{brokerCopy.homeChoicesLabel}</p>
@@ -1605,7 +1605,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                         event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                                     }}
                                                 />
-                                                <div className="space-y-4 p-5">
+                                                <div className="space-y-4 p-3 sm:p-5">
                                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex flex-wrap items-center gap-2">
@@ -1712,7 +1712,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                                         event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                                                     }}
                                                                 />
-                                                                <div className="space-y-4 p-5">
+                                                                <div className="space-y-4 p-3 sm:p-5">
                                                                     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                                         <div className="min-w-0 w-full sm:flex-1">
                                                                             <div className="flex flex-wrap items-center gap-2">

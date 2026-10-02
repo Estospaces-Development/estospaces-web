@@ -16,13 +16,19 @@ const contractSearchFields = (contract: Contract): Array<string | undefined> => 
     contract.status,
 ];
 
-export function filterContractsWorkspace(contracts: Contract[], searchQuery: string): Contract[] {
+// extraFields lets a page add text the contract payload lacks, such as the
+// linked application's tenant name and property (web-app#638).
+export function filterContractsWorkspace(
+    contracts: Contract[],
+    searchQuery: string,
+    extraFields: (contract: Contract) => Array<string | undefined> = () => [],
+): Contract[] {
     const needle = searchQuery.trim().toLowerCase();
     if (!needle) {
         return [...contracts];
     }
 
-    return contracts.filter((contract) => contractSearchFields(contract).some((field) =>
+    return contracts.filter((contract) => [...contractSearchFields(contract), ...extraFields(contract)].some((field) =>
         String(field || '').toLowerCase().includes(needle),
     ));
 }
