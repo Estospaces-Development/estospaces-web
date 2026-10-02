@@ -755,7 +755,7 @@ const NearbyPropertiesMap = ({
 
             {compact ? (
                 <p
-                    className="pointer-events-none absolute left-2 top-2 z-[1000] max-w-[calc(100%-10.5rem)] sm:left-4 sm:top-4 sm:max-w-[calc(100%-20rem)] rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] font-medium leading-4 text-gray-700 shadow ring-1 ring-black/5 dark:bg-gray-900/90 dark:text-gray-200"
+                    className="pointer-events-none absolute left-2 top-2 z-[650] max-w-[calc(100%-10.5rem)] sm:left-4 sm:top-4 sm:max-w-[calc(100%-20rem)] rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] font-medium leading-4 text-gray-700 shadow ring-1 ring-black/5 dark:bg-gray-900/90 dark:text-gray-200"
                     role="status"
                     aria-live="polite"
                     data-nearby-map-status
