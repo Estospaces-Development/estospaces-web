@@ -119,6 +119,7 @@ import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import {
   applyAddressSectionChange,
   buildPropertyLocationPayload,
+  getLoadedPropertyCountryCode,
 } from "@/lib/managerPropertyAddressForm";
 import {
   getManagerPropertyActionLabels,
@@ -912,10 +913,10 @@ export default function AddPropertyPage() {
   const buildLoadedFormDataFromServiceProperty = useCallback(
     (property: ServiceProperty): FormData => {
       const currentYear = new Date().getFullYear();
-      const resolvedCountryCode =
-        (property as any).country_code ||
-        (property.country?.toLowerCase() === "india" ? "IN" : "") ||
-        (property.country?.toLowerCase() === "united kingdom" ? "GB" : "");
+      const resolvedCountryCode = getLoadedPropertyCountryCode(
+        property.country,
+        (property as any).country_code,
+      );
 
       return {
         title: property.title || "",
