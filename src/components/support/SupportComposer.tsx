@@ -79,7 +79,7 @@ export function SupportComposer({
                 aria-label={placeholder}
                 minLength={1}
                 maxLength={4000}
-                className="w-full resize-none rounded-[1.5rem] border border-transparent bg-gray-50 px-4 py-4 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40"
+                className="w-full resize-none rounded-[1.5rem] border border-transparent bg-gray-50 px-4 py-4 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40 dark:focus:bg-gray-900"
             />
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

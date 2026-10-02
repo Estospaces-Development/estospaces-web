@@ -708,6 +708,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             </div>
                             <input value={composer.subject} onChange={(event) => setComposer((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" aria-label="Support ticket subject" required minLength={3} maxLength={120} className="mt-4 w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" />
                             <div className="mt-4"><SupportComposer value={composer.message} onChange={(value) => setComposer((current) => ({ ...current, message: value }))} onSubmit={() => void handleCreateTicket()} onFilesSelected={(files) => void handleFiles('ticket', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('ticket', localId)} attachments={ticketAttachments} disabled={submitting} canSubmit={Boolean(composer.subject.trim() && (composer.message.trim() || ticketAttachments.length > 0))} placeholder="Describe the blocker, the screen you were on, what you expected, and what needs to happen next." submitLabel={submitting ? 'Submitting' : 'Create ticket'} /></div>
+                            {!composer.subject.trim() ? (
+                                <p className="mt-2 text-xs text-gray-600 dark:text-gray-300" aria-live="polite">Add a short subject (at least 3 characters) to create the ticket.</p>
+                            ) : !composer.message.trim() && ticketAttachments.length === 0 ? (
+                                <p className="mt-2 text-xs text-gray-600 dark:text-gray-300" aria-live="polite">Add a message or attach a file to create the ticket.</p>
+                            ) : null}
                         </div>
                     )}
 

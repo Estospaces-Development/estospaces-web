@@ -690,16 +690,16 @@ function UserManagementContent() {
                                 <div className="flex min-w-0 items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
-                                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">{lead.status || 'pending'}</p>
+                                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">{lead.status || 'pending'}</p>
                                         {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
                                     </div>
                                     <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
                                 </div>
                                 <dl className="mt-4 rounded-2xl bg-white p-3 dark:bg-gray-950">
-                                    <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current broker</dt>
+                                    <dt className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">Current broker</dt>
                                     <dd className="mt-1 break-words text-sm font-bold text-gray-700 dark:text-gray-200">{currentBrokerName}</dd>
                                 </dl>
-                                <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-500">New broker</label>
+                                <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">New broker</label>
                                 <select
                                     id={`admin-mobile-lead-reassign-${lead.id}`}
                                     disabled={isClosed}
