@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
-import { formatAmenityLabel, getKnownAmenityLabel } from './amenityLabels';
+import {
+    AMENITY_CODES,
+    formatAmenityLabel,
+    getKnownAmenityLabel,
+    parseAmenityParam,
+    serializeAmenityParam,
+    toggleAmenityParam,
+} from './amenityLabels';
 
 test('stored amenity codes show the editor labels', () => {
     assert.equal(formatAmenityLabel('ac'), 'Air Conditioning');
@@ -29,4 +36,15 @@ test('property detail pages render amenity labels, not raw codes', () => {
         const source = readFileSync(resolve(process.cwd(), file), 'utf8');
         assert.ok(source.includes('{formatAmenityLabel(amenity)}'), file);
     }
+});
+
+test('amenity search param parses, canonicalises and toggles editor codes', () => {
+    assert.deepEqual(parseAmenityParam(' Pool, wifi,,unknown_code,WIFI '), ['pool', 'wifi']);
+    assert.deepEqual(parseAmenityParam(null), []);
+    assert.equal(serializeAmenityParam(['wifi', 'ac', 'nope']), 'ac,wifi');
+    assert.equal(serializeAmenityParam([]), '');
+    assert.equal(toggleAmenityParam('wifi', 'pool'), 'pool,wifi');
+    assert.equal(toggleAmenityParam('pool,wifi', 'pool'), 'wifi');
+    assert.equal(toggleAmenityParam('wifi', 'wifi'), '');
+    assert.equal(parseAmenityParam(AMENITY_CODES.join(',')).length, 20);
 });
