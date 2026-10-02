@@ -4,12 +4,15 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, ArrowLeft, Search, Plus } from 'lucide-react';
 import { bookingsService, type Booking } from '../../../services/bookingsService';
 import { useToast } from '../../../contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
 import DateField from '@/components/ui/DateField';
+import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
+import { getApplicationPropertyOptions } from '@/lib/applicationPropertyOptions';
+import { getPropertyById } from '@/services/propertyService';
 
 export const MAX_BOOKING_SPECIAL_REQUESTS_LENGTH = 1000;
 export const MAX_BOOKING_GUEST_COUNT = 20;
@@ -83,10 +86,7 @@ export function validateBookingReservationForm(form: BookingReservationForm): Bo
     const guestCount = Number(form.guest_count);
 
     if (!form.property_id.trim()) {
-        errors.property_id = 'Enter a property ID.';
-    }
-    if (!form.manager_id.trim()) {
-        errors.manager_id = 'Enter a manager ID.';
+        errors.property_id = 'Choose a home to reserve.';
     }
     if (!form.check_in_date.trim()) {
         errors.check_in_date = 'Choose a check-in date.';
@@ -149,6 +149,8 @@ export default function BookingsPage() {
     const [reservationForm, setReservationForm] = useState<BookingReservationForm>(EMPTY_RESERVATION_FORM);
     const [reservationErrors, setReservationErrors] = useState<BookingReservationValidationErrors>({});
     const [savingReservation, setSavingReservation] = useState(false);
+    const { savedProperties, loading: savedPropertiesLoading } = useSavedProperties();
+    const savedPropertyOptions = useMemo(() => getApplicationPropertyOptions(savedProperties), [savedProperties]);
     const [detailTarget, setDetailTarget] = useState<Booking | null>(null);
     const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
     const [cancelReason, setCancelReason] = useState('');
@@ -246,9 +248,16 @@ export default function BookingsPage() {
         reservationInFlightRef.current = true;
         setSavingReservation(true);
         try {
+            // The manager comes from the chosen home, never from user input.
+            const propertyId = reservationForm.property_id.trim();
+            const { data: property } = await getPropertyById(propertyId, { suppressErrorToast: true });
+            const managerId = property?.manager_id?.trim() || '';
+            if (!managerId) {
+                throw new Error('We could not load this home. Open it again and choose Reserve.');
+            }
             const booking = await bookingsService.createBooking({
-                property_id: reservationForm.property_id.trim(),
-                manager_id: reservationForm.manager_id.trim(),
+                property_id: propertyId,
+                manager_id: managerId,
                 check_in_date: reservationForm.check_in_date.trim(),
                 check_out_date: reservationForm.check_out_date.trim(),
                 guest_count: Number(reservationForm.guest_count),
@@ -500,40 +509,37 @@ export default function BookingsPage() {
                 )}
             >
                 <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <label className="space-y-2 text-sm">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">Property ID</span>
-                            <input
-                                type="text"
+                    {savedPropertyOptions.length > 0 ? (
+                        <label className="block space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Home</span>
+                            <select
                                 value={reservationForm.property_id}
                                 onChange={(event) => updateReservationField('property_id', event.target.value)}
                                 aria-describedby={reservationErrors.property_id ? 'booking-property-error' : undefined}
                                 disabled={savingReservation}
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            />
+                            >
+                                <option value="">Choose a saved home</option>
+                                {savedPropertyOptions.map((option) => (
+                                    <option key={option.id} value={option.id}>{option.label}</option>
+                                ))}
+                            </select>
                             {reservationErrors.property_id ? (
                                 <p id="booking-property-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
                                     {reservationErrors.property_id}
                                 </p>
                             ) : null}
                         </label>
-                        <label className="space-y-2 text-sm">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">Manager ID</span>
-                            <input
-                                type="text"
-                                value={reservationForm.manager_id}
-                                onChange={(event) => updateReservationField('manager_id', event.target.value)}
-                                aria-describedby={reservationErrors.manager_id ? 'booking-manager-error' : undefined}
-                                disabled={savingReservation}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            />
-                            {reservationErrors.manager_id ? (
-                                <p id="booking-manager-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
-                                    {reservationErrors.manager_id}
-                                </p>
-                            ) : null}
-                        </label>
-                    </div>
+                    ) : savedPropertiesLoading ? (
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Loading your saved homes...</p>
+                    ) : (
+                        <p className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                            Save a home first, then come back to reserve it.{' '}
+                            <Link to="/user/dashboard/discover" className="font-semibold text-orange-600 underline hover:text-orange-700 dark:text-orange-400">
+                                Discover homes
+                            </Link>
+                        </p>
+                    )}
 
                     <div className="grid gap-4 md:grid-cols-2">
                         <label className="space-y-2 text-sm">
