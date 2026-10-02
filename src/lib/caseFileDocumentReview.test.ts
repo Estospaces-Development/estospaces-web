@@ -144,3 +144,18 @@ test('upload checklist badge points to Fast Track replacements when the checklis
     assert.equal(getUploadChecklistBadgeCopy({ itemCount: 1, actionNeeded: 0, inFlight: 1, fastTrackReplacementCount: 0 }), '1 item in review');
     assert.equal(getUploadChecklistBadgeCopy({ itemCount: 1, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0 }), 'Everything is uploaded or approved');
 });
+
+test('upload checklist badge counts uploaded documents flagged for replacement (QA-MB-20260924-01-028)', () => {
+    assert.equal(
+        getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0, documentReplacementCount: 1 }),
+        '1 uploaded document needs a replacement',
+    );
+    assert.equal(
+        getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0, documentReplacementCount: 2 }),
+        '2 uploaded documents need a replacement',
+    );
+    assert.equal(
+        getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0 }),
+        'No open requests yet',
+    );
+});
