@@ -19,6 +19,7 @@ import {
     type AdminSubscriptionPlan,
     type AdminSubscriptionPlanDraft,
 } from '@/services/adminSubscriptionService';
+import AdminManagerBillingLookup from './AdminManagerBillingLookup';
 import AdminPromotionsSection from './AdminPromotionsSection';
 import { RenamedVersionButton, RenamedVersionPanel, renameBusyKey } from './RenamedPlanVersion';
 
@@ -199,6 +200,8 @@ export default function AdminSubscriptionsPage() {
             </section>
 
             <AdminPromotionsSection />
+
+            <AdminManagerBillingLookup />
 
             <section className="mb-6 rounded-2xl border bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
                 <h2 className="text-lg font-black text-gray-900 dark:text-white">Legacy pilot coupons</h2>
