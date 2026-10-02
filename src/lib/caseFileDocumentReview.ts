@@ -75,3 +75,32 @@ export const countFastTrackReplacementRequests = (fastTrackCase: FastTrackCaseLi
     const items = Array.isArray(fastTrackCase.documents?.items) ? fastTrackCase.documents.items as FastTrackItemLike[] : [];
     return items.filter((item) => ['reupload_needed', 'reupload_required'].includes(text(item?.status))).length;
 };
+
+export const formatFastTrackReplacementNotice = (count: number): string => (
+    `${count} replacement${count === 1 ? '' : 's'} needed in Fast Track`
+);
+
+export const getUploadChecklistBadgeCopy = ({
+    itemCount,
+    actionNeeded,
+    inFlight,
+    fastTrackReplacementCount,
+}: {
+    itemCount: number;
+    actionNeeded: number;
+    inFlight: number;
+    fastTrackReplacementCount: number;
+}): string => {
+    if (itemCount === 0) {
+        return fastTrackReplacementCount > 0
+            ? formatFastTrackReplacementNotice(fastTrackReplacementCount)
+            : 'No open requests yet';
+    }
+    if (actionNeeded > 0) {
+        return `${actionNeeded} item${actionNeeded === 1 ? '' : 's'} waiting on upload`;
+    }
+    if (inFlight > 0) {
+        return `${inFlight} item${inFlight === 1 ? '' : 's'} in review`;
+    }
+    return 'Everything is uploaded or approved';
+};
