@@ -49,7 +49,43 @@ const getPublicBrokerCompanyName = (value?: string) => {
         : 'Independent agent';
 };
 
-export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary; index: number }) => {
+// The agent handling the request is pinned first under "Best match" (and added
+// if the live ranking no longer returns them), so the list never contradicts the
+// Agent request card (web-app#663).
+export const orderNearbyAgents = (
+    brokers: LeadBrokerSummary[],
+    options: { sortMode: NearbyAgentSort; filterMode: NearbyAgentFilter; matchedBroker?: LeadBrokerSummary | null },
+): LeadBrokerSummary[] => {
+    const { sortMode, filterMode, matchedBroker } = options;
+    const filtered = filterMode === 'fast_track'
+        ? brokers.filter((broker) => broker.fast_track_eligible)
+        : brokers;
+
+    if (sortMode === 'distance') {
+        const distance = (broker: LeadBrokerSummary) => (
+            typeof broker.distance_miles === 'number' ? broker.distance_miles : Number.MAX_SAFE_INTEGER
+        );
+        return [...filtered].sort((left, right) => distance(left) - distance(right)).slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+    }
+
+    if (sortMode === 'rating') {
+        return [...filtered]
+            .sort((left, right) => (right.rating || 0) - (left.rating || 0))
+            .slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+    }
+
+    if (matchedBroker?.id) {
+        const matched = filtered.find((broker) => broker.id === matchedBroker.id)
+            || (filterMode === 'fast_track' && !matchedBroker.fast_track_eligible ? null : matchedBroker);
+        if (matched) {
+            return [matched, ...filtered.filter((broker) => broker.id !== matched.id)].slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+        }
+    }
+
+    return filtered.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+};
+
+export const NearbyBrokerCard = ({ broker, index, isMatched = false }: { broker: LeadBrokerSummary; index: number; isMatched?: boolean }) => {
     const agentProfileLink = `/user/dashboard/messages?recipient=${encodeURIComponent(broker.id)}&name=${encodeURIComponent(broker.name)}`;
     return (
     <div className="flex min-w-0 items-start gap-2.5 sm:gap-4">
@@ -64,9 +100,11 @@ export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary;
                 >
                     {broker.name}
                 </Link>
-                <span className="inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300 sm:shrink-0 sm:px-2.5 sm:text-[10px] sm:font-semibold">
+                <span className={`inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-medium sm:shrink-0 sm:px-2.5 sm:text-[10px] sm:font-semibold ${isMatched
+                    ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300'}`}>
                     <BadgeCheck size={11} />
-                    Available
+                    {isMatched ? 'Handling your request' : 'Available'}
                 </span>
             </div>
             <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
@@ -252,28 +290,12 @@ const NearbyAgenciesList = () => {
         setIsSearchOpen(false);
     };
 
-    const visibleBrokers = useMemo(() => {
-        const filtered = filterMode === 'fast_track'
-            ? brokers.filter((broker) => broker.fast_track_eligible)
-            : brokers;
-
-        if (sortMode === 'distance') {
-            const sorted = [...filtered].sort((left, right) => {
-                const leftDistance = typeof left.distance_miles === 'number' ? left.distance_miles : Number.MAX_SAFE_INTEGER;
-                const rightDistance = typeof right.distance_miles === 'number' ? right.distance_miles : Number.MAX_SAFE_INTEGER;
-                return leftDistance - rightDistance;
-            });
-            return sorted.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
-        }
-
-        if (sortMode === 'rating') {
-            return [...filtered]
-                .sort((left, right) => (right.rating || 0) - (left.rating || 0))
-                .slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
-        }
-
-        return filtered.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
-    }, [brokers, filterMode, sortMode]);
+    // Only pin the matched agent while the list is ranked for the active request.
+    const matchedBroker = isManualSearchActive ? null : activeRequest?.matched_broker || null;
+    const visibleBrokers = useMemo(
+        () => orderNearbyAgents(brokers, { sortMode, filterMode, matchedBroker }),
+        [brokers, filterMode, matchedBroker, sortMode],
+    );
 
     return (
         <div data-mobile-nearby-agencies className="rounded-xl bg-white p-2.5 shadow-sm dark:bg-gray-800 sm:p-6">
@@ -313,7 +335,9 @@ const NearbyAgenciesList = () => {
                             <p className="mt-1 text-[11px] leading-[1.4] text-gray-500 dark:text-gray-400 sm:text-xs">
                                 {isManualSearchActive
                                     ? `Showing property agents ranked nearest to this ${lowerLocationCodeLabel}.`
-                                    : 'Showing property agents ranked for your active request.'}
+                                    : matchedBroker
+                                        ? `${matchedBroker.name} is handling your request. Other available agents are listed after them.`
+                                        : 'Showing property agents ranked for your active request.'}
                             </p>
                         </div>
                         {isManualSearchActive && liveRequestPostcode && (
@@ -379,6 +403,7 @@ const NearbyAgenciesList = () => {
                             key={broker.id}
                             broker={broker}
                             index={index}
+                            isMatched={broker.id === matchedBroker?.id}
                         />
                     ))}
                 </div>
