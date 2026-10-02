@@ -115,6 +115,7 @@ import {
   revokeManagerPropertyVideoPreview,
 } from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
+import { mergeUploadedUrlsInOrder, moveItem } from "@/lib/mediaOrder";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import {
   applyAddressSectionChange,
@@ -1828,18 +1829,21 @@ export default function AddPropertyPage() {
     setIsDirty(true);
   };
 
-  const processImages = async (files: (File | string)[]): Promise<string[]> => {
-    const existingUrls: string[] = [];
-    const newFiles: File[] = [];
-    const mediaEntityId = idValue || draftMediaEntityIdRef.current;
+  const moveImage = (from: number, to: number) => {
+    setImagePreviews((prev) => moveItem(prev, from, to));
+    setFormData((prev) => ({ ...prev, images: moveItem(prev.images, from, to) }));
+    setIsDirty(true);
+  };
 
-    for (const file of files) {
-      if (typeof file === "string") {
-        existingUrls.push(file);
-      } else {
-        newFiles.push(file);
-      }
-    }
+  const moveVideo = (from: number, to: number) => {
+    setVideoPreviews((prev) => moveItem(prev, from, to));
+    setFormData((prev) => ({ ...prev, videos: moveItem(prev.videos, from, to) }));
+    setIsDirty(true);
+  };
+
+  const processImages = async (files: (File | string)[]): Promise<string[]> => {
+    const newFiles = files.filter((file): file is File => typeof file !== "string");
+    const mediaEntityId = idValue || draftMediaEntityIdRef.current;
 
     let uploadedUrls: string[] = [];
     if (newFiles.length > 0) {
@@ -1855,21 +1859,12 @@ export default function AddPropertyPage() {
       }
     }
 
-    return [...existingUrls, ...uploadedUrls];
+    return mergeUploadedUrlsInOrder(files, uploadedUrls);
   };
 
   const processVideos = async (files: (File | string)[]): Promise<string[]> => {
-    const existingUrls: string[] = [];
-    const newFiles: File[] = [];
+    const newFiles = files.filter((file): file is File => typeof file !== "string");
     const mediaEntityId = idValue || draftMediaEntityIdRef.current;
-
-    for (const file of files) {
-      if (typeof file === "string") {
-        existingUrls.push(file);
-      } else {
-        newFiles.push(file);
-      }
-    }
 
     let uploadedUrls: string[] = [];
     if (newFiles.length > 0) {
@@ -1885,7 +1880,7 @@ export default function AddPropertyPage() {
       }
     }
 
-    return [...existingUrls, ...uploadedUrls];
+    return mergeUploadedUrlsInOrder(files, uploadedUrls);
   };
 
   const buildPropertyData = async (): Promise<Partial<Property>> => {
@@ -3527,6 +3522,36 @@ export default function AddPropertyPage() {
                         >
                         <X className="w-4 h-4" />
                       </button>
+                      <div className="flex items-center justify-between gap-1 bg-gray-50 px-1 py-1 dark:bg-gray-800">
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label={`Move photo ${index + 1} earlier`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => moveImage(index, 0)}
+                            aria-label={`Make photo ${index + 1} the primary photo`}
+                            className="rounded px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary dark:text-gray-200 dark:hover:bg-gray-700"
+                          >
+                            Make primary
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, index + 1)}
+                          disabled={index === imagePreviews.length - 1}
+                          aria-label={`Move photo ${index + 1} later`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -3587,6 +3612,26 @@ export default function AddPropertyPage() {
                       >
                         <X className="w-4 h-4" />
                       </button>
+                      <div className="flex items-center justify-between gap-1 bg-gray-50 px-1 py-1 dark:bg-gray-800">
+                        <button
+                          type="button"
+                          onClick={() => moveVideo(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label={`Move video ${index + 1} earlier`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveVideo(index, index + 1)}
+                          disabled={index === videoPreviews.length - 1}
+                          aria-label={`Move video ${index + 1} later`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
