@@ -560,6 +560,8 @@ const NearbyPropertiesMap = ({
                                 },
                             }}
                         >
+                            {/* The full map shows the Selected property card instead (QA-MB-20260923-01-031). */}
+                            {compact ? (
                             <Popup>
                                 <div className="min-w-[220px] p-1">
                                     <h4 className="text-sm font-semibold text-slate-900">
@@ -595,6 +597,7 @@ const NearbyPropertiesMap = ({
                                     </div>
                                 </div>
                             </Popup>
+                            ) : null}
                         </Marker>
                     );
                 })}
