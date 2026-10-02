@@ -73,6 +73,30 @@ export const createCommunityPost = async (title: string, content: string, tag: P
     }
 };
 
+/** Only the author may edit a post; the backend enforces the same rule. */
+export const canEditCommunityPost = (post: Pick<CommunityPost, 'authorId'>, userId?: string | null) =>
+    Boolean(userId && post.authorId && post.authorId === userId);
+
+export interface UpdateCommunityPostPayload {
+    title: string;
+    content: string;
+    tag: PostTag;
+    visibility: PostVisibility;
+}
+
+export const updateCommunityPost = async (postId: string, payload: UpdateCommunityPostPayload) => {
+    try {
+        const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts/${postId}`, {
+            method: 'PUT',
+            suppressErrorToast: true,
+            body: JSON.stringify(payload),
+        });
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
 export const toggleCommunityLike = async (postId: string, liked: boolean) => {
     try {
         const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts/${postId}/like`, {

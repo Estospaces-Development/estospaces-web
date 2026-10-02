@@ -1,22 +1,33 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { PostTag, PostVisibility } from '@/services/communityService';
+import { CommunityPost, PostTag, PostVisibility } from '@/services/communityService';
 
 interface CreatePostModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (title: string, content: string, tag: PostTag, visibility: PostVisibility) => void;
+    /** When set, the modal edits this post instead of creating a new one. */
+    editingPost?: CommunityPost | null;
 }
 
-const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSubmit }) => {
+const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSubmit, editingPost }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [tag, setTag] = useState<PostTag>('info');
     const [visibility, setVisibility] = useState<PostVisibility>('all');
     const [errors, setErrors] = useState<{ title?: string; content?: string; tag?: string }>({});
+
+    useEffect(() => {
+        if (isOpen && editingPost) {
+            setTitle(editingPost.title || '');
+            setContent(editingPost.content);
+            setTag(editingPost.tag);
+            setVisibility(editingPost.visibility as PostVisibility);
+        }
+    }, [isOpen, editingPost]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,8 +72,8 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSu
             >
                 {/* Header */}
                 <div className="flex shrink-0 items-center justify-between border-b border-gray-100 p-5 dark:border-zinc-800 sm:p-6">
-                    <h2 id="create-post-title" className="text-2xl font-bold text-gray-900 dark:text-white">Create New Post</h2>
-                    <button type="button" aria-label="Close create post" onClick={handleClose} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                    <h2 id="create-post-title" className="text-2xl font-bold text-gray-900 dark:text-white">{editingPost ? 'Edit Post' : 'Create New Post'}</h2>
+                    <button type="button" aria-label={editingPost ? 'Close edit post' : 'Close create post'} onClick={handleClose} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
                         <X className="w-5 h-5 text-gray-800 dark:text-gray-300" />
                     </button>
                 </div>
@@ -152,7 +163,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSu
                             Cancel
                         </button>
                         <button type="submit" className="bg-indigo-800 hover:bg-indigo-900 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-                            Post to Community
+                            {editingPost ? 'Save Changes' : 'Post to Community'}
                         </button>
                     </div>
                 </form>

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Pin, Eye, EyeOff, MoreVertical } from 'lucide-react';
-import { CommunityPost } from '@/services/communityService';
+import { Heart, MessageCircle, Pin, Pencil, Eye, EyeOff, MoreVertical } from 'lucide-react';
+import { canEditCommunityPost, CommunityPost } from '@/services/communityService';
 import { formatDistanceToNow } from 'date-fns';
 import Avatar from '@/components/ui/Avatar';
 
 interface CommunityPostCardProps {
     post: CommunityPost;
     isManager?: boolean;
+    currentUserId?: string | null;
+    onEdit?: (post: CommunityPost) => void;
     onLike: (postId: string) => void;
     onPin: (postId: string) => void;
     onHide: (postId: string) => void;
@@ -17,6 +19,8 @@ interface CommunityPostCardProps {
 const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     post,
     isManager = true,
+    currentUserId,
+    onEdit,
     onLike,
     onPin,
     onHide,
@@ -25,6 +29,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 }) => {
     const [showFullContent, setShowFullContent] = useState(false);
     const [showActions, setShowActions] = useState(false);
+    const canEdit = Boolean(onEdit) && canEditCommunityPost(post, currentUserId);
 
     const handleLike = () => {
         onLike(post.postId);
@@ -78,11 +83,11 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                     </span>
                     {post.isPinned && <Pin className="w-4 h-4 text-indigo-600 fill-indigo-600" />}
 
-                    {isManager && (
+                    {(isManager || canEdit) && (
                         <div className="relative">
                             <button
                                 onClick={() => setShowActions(!showActions)}
-                                aria-label={`Open moderation actions for ${post.title || post.authorName}`}
+                                aria-label={`Open post actions for ${post.title || post.authorName}`}
                                 aria-expanded={showActions}
                                 className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
                             >
@@ -90,16 +95,25 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                             </button>
                             {showActions && (
                                 <div role="menu" className="absolute right-0 top-8 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-10 w-40">
-                                    <button role="menuitem" aria-label={post.isPinned ? `Unpin ${post.title || 'post'}` : `Pin ${post.title || 'post'}`} onClick={() => { onPin(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
-                                        <Pin className="w-4 h-4" /> {post.isPinned ? 'Unpin' : 'Pin'} Post
-                                    </button>
-                                    <button role="menuitem" aria-label={`Archive ${post.title || 'post'}`} onClick={() => { onHide(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
-                                        <EyeOff className="w-4 h-4" /> Hide Post
-                                    </button>
-                                    <div className="border-t border-gray-100 dark:border-zinc-800 my-1" />
-                                    <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to all`} onClick={() => { onVisibilityChange(post.postId, 'all'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Visible to All</button>
-                                    <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to managers only`} onClick={() => { onVisibilityChange(post.postId, 'managers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Managers Only</button>
-                                    <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to brokers only`} onClick={() => { onVisibilityChange(post.postId, 'brokers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Brokers Only</button>
+                                    {canEdit && (
+                                        <button role="menuitem" aria-label={`Edit ${post.title || 'post'}`} onClick={() => { onEdit?.(post); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                            <Pencil className="w-4 h-4" /> Edit Post
+                                        </button>
+                                    )}
+                                    {isManager && (
+                                        <>
+                                        <button role="menuitem" aria-label={post.isPinned ? `Unpin ${post.title || 'post'}` : `Pin ${post.title || 'post'}`} onClick={() => { onPin(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                            <Pin className="w-4 h-4" /> {post.isPinned ? 'Unpin' : 'Pin'} Post
+                                        </button>
+                                        <button role="menuitem" aria-label={`Archive ${post.title || 'post'}`} onClick={() => { onHide(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                            <EyeOff className="w-4 h-4" /> Hide Post
+                                        </button>
+                                        <div className="border-t border-gray-100 dark:border-zinc-800 my-1" />
+                                        <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to all`} onClick={() => { onVisibilityChange(post.postId, 'all'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Visible to All</button>
+                                        <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to managers only`} onClick={() => { onVisibilityChange(post.postId, 'managers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Managers Only</button>
+                                        <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to brokers only`} onClick={() => { onVisibilityChange(post.postId, 'brokers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Brokers Only</button>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
