@@ -26,7 +26,7 @@ test("nearby properties map uses profile location and each property's currency",
 test('compact dashboard map selects only real nearby coordinates and reset re-applies bounds', () => {
   assert.match(source, /compact\s*\?\s*selectDashboardNearbyProperties\(properties, userLocation\)/);
   assert.match(source, /properties\.filter\(hasVerifiedPropertyMapCoordinates\)/);
-  assert.match(source, /\[fallbackView, fitSignal, map, properties, userLocation\]/);
+  assert.match(source, /\[fallbackView, fitSignal, map, pointsKey\]/);
   assert.match(source, /worldCopyJump/);
   assert.equal((source.match(/noWrap/g) || []).length, 2);
 });
@@ -47,4 +47,21 @@ test('Discover keeps its basemap and explains missing pins when matching homes l
   assert.match(source, /getNearbyMapDefaultView\(geoMarket\)/);
   assert.match(source, /emptyState\.action === 'open-property'/);
   assert.match(source, /handleOpenWorkspace\(properties\[0\]\)/);
+});
+
+test('compact dashboard map can be panned and zoomed with visible zoom buttons (web-app#667)', () => {
+  assert.doesNotMatch(source, /dragging=\{!compact\}/);
+  assert.match(source, /scrollWheelZoom=\{false\}/);
+  assert.match(source, /zoomControl=\{false\}/);
+  assert.match(source, /L\.control\.zoom\(\{ position \}\)/);
+  assert.match(source, /<MapZoomControl position=\{compact \? 'bottomright' : 'topright'\} \/>/);
+});
+
+test('compact map overlays stay small and label the user pin (web-app#666)', () => {
+  assert.doesNotMatch(source, /Dashboard preview/);
+  assert.doesNotMatch(source, /Scroll stays with the page/);
+  assert.match(source, /You are here/);
+  assert.match(source, /sr-only sm:not-sr-only/);
+  assert.match(source, /\{compactMapStatus\}/);
+  assert.match(source, /groupNearbyMapMarkers\(propertiesWithCoords\)/);
 });
