@@ -38,6 +38,7 @@ import {
     readSearchUrlFilters,
     serializeSearchMarketParam,
 } from '@/lib/propertySearchControls';
+import { AMENITY_CODES, formatAmenityLabel, parseAmenityParam, toggleAmenityParam } from '@/lib/amenityLabels';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { getLoginPath } from '@/lib/authUtils';
 import { buildGuestLoginNavigation, consumePendingGuestAction, storePendingGuestAction } from '@/lib/pendingGuestAction';
@@ -102,6 +103,9 @@ const PropertySearch = () => {
     const [listingType, setListingType] = useState(() => readSearchUrlFilters(searchParams).listingType);
     const [baths, setBaths] = useState(() => readSearchUrlFilters(searchParams).baths);
     const [sortBy, setSortBy] = useState(() => readSearchUrlFilters(searchParams).sortBy);
+    // Canonical comma-separated codes, mirrored to the `amenities` URL param.
+    const [amenities, setAmenities] = useState(() => parseAmenityParam(searchParams.get('amenities')).join(','));
+    const selectedAmenities = useMemo(() => parseAmenityParam(amenities), [amenities]);
     const [filterInputMessage, setFilterInputMessage] = useState('');
 
     const [showFilters, setShowFilters] = useState(false);
@@ -177,9 +181,12 @@ const PropertySearch = () => {
         if (baths) {
             chips.push({ label: 'Baths', value: `${baths}+` });
         }
+        if (selectedAmenities.length > 0) {
+            chips.push({ label: 'Amenities', value: selectedAmenities.map(formatAmenityLabel).join(', ') });
+        }
 
         return chips;
-    }, [baths, bedrooms, formatSearchCurrency, listingType, location, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
+    }, [baths, bedrooms, selectedAmenities, formatSearchCurrency, listingType, location, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
 
     const buildBroaderSearchAttempts = useCallback(() => {
         return buildBroaderPropertySearchAttempts({
@@ -220,6 +227,7 @@ const PropertySearch = () => {
         listingType,
         baths,
         sortBy,
+        amenities,
         page,
     });
     currentUrlFiltersRef.current = {
@@ -233,6 +241,7 @@ const PropertySearch = () => {
         listingType,
         baths,
         sortBy,
+        amenities,
         page,
     };
 
@@ -275,6 +284,7 @@ const PropertySearch = () => {
     // Sync URL params to state when searchParams change (navigation)
     useEffect(() => {
         const urlFilters = readSearchUrlFilters(searchParams);
+        const urlAmenities = parseAmenityParam(searchParams.get('amenities')).join(',');
         locationInferenceSuppressedRef.current = searchParams.get('autoLocation') === '0';
         inferredLocationRef.current = restorePersistedInferredLocation(
             urlFilters.query,
@@ -292,6 +302,7 @@ const PropertySearch = () => {
             || urlFilters.listingType !== currentFilters.listingType
             || urlFilters.baths !== currentFilters.baths
             || urlFilters.sortBy !== currentFilters.sortBy
+            || urlAmenities !== currentFilters.amenities
             || urlFilters.page !== currentFilters.page;
         setQuery(urlFilters.query);
         setMarket(urlFilters.market);
@@ -303,6 +314,7 @@ const PropertySearch = () => {
         setListingType(urlFilters.listingType);
         setBaths(urlFilters.baths);
         setSortBy(urlFilters.sortBy);
+        setAmenities(urlAmenities);
         setPage(urlFilters.page);
     }, [searchParams]);
 
@@ -334,12 +346,14 @@ const PropertySearch = () => {
         if (baths) next.set('baths', baths);
         if (listingType) next.set('type', listingType);
         if (sortBy !== 'relevance') next.set('sort', sortBy);
+        if (amenities) next.set('amenities', amenities);
         if (page > 1) next.set('page', String(page));
 
         if (next.toString() !== searchParams.toString()) {
             setSearchParams(next, { replace: true });
         }
     }, [
+        amenities,
         baths,
         bedrooms,
         listingType,
@@ -402,6 +416,7 @@ const PropertySearch = () => {
                     listingType: listingType || undefined,
                     minBathrooms: baths ? parseInt(baths) : undefined,
                     sortBy: sortBy !== 'relevance' ? sortBy : undefined,
+                    amenities: selectedAmenities.length > 0 ? selectedAmenities : undefined,
                     page,
                     limit: 12
                 }
@@ -415,7 +430,10 @@ const PropertySearch = () => {
                 const exactResults = result.data || [];
                 if (exactResults.length === 0) {
                     for (const attempt of buildBroaderSearchAttempts()) {
-                        const fallback = await searchService.search(requestQuery, attempt.filters);
+                        const fallback = await searchService.search(requestQuery, {
+                            ...attempt.filters,
+                            amenities: selectedAmenities.length > 0 ? selectedAmenities : undefined,
+                        });
                         if (requestId !== latestSearchRequestRef.current) {
                             return;
                         }
@@ -454,7 +472,7 @@ const PropertySearch = () => {
                 setHasLoadedSearch(true);
             }
         }
-    }, [activeMarket, isAuthenticated, preferredSearchDefaults.failed, preferredSearchDefaults.ready, query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
+    }, [activeMarket, isAuthenticated, preferredSearchDefaults.failed, preferredSearchDefaults.ready, query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, selectedAmenities, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Deduplicate and memoize displayed properties to prevent duplicate cards
     const displayedProperties = useMemo(() => {
@@ -597,12 +615,13 @@ const PropertySearch = () => {
         setListingType('');
         setBaths('');
         setSortBy('relevance');
+        setAmenities('');
         setFilterInputMessage('');
         setFallbackNotice('');
         setPage(1);
     };
 
-    const hasFilters = market || query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths || sortBy !== 'relevance';
+    const hasFilters = market || query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths || amenities || sortBy !== 'relevance';
     const applyFilters = () => {
         setPage(1);
         setShowFilters(false);
@@ -1069,6 +1088,22 @@ const PropertySearch = () => {
                             />
                         </div>
                     </div>
+                    <fieldset className="mt-4">
+                        <legend className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Amenities</legend>
+                        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+                            {AMENITY_CODES.map((code) => (
+                                <label key={code} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedAmenities.includes(code)}
+                                        onChange={() => { setAmenities((current) => toggleAmenityParam(current, code)); setPage(1); }}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    {formatAmenityLabel(code)}
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                         <button type="button" onClick={applyFilters} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark">
                             Apply filters
