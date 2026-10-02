@@ -103,10 +103,11 @@ test("dashboard map recomposes controls and supporting copy for narrow phones", 
   assert.match(dashboard, /grid min-w-0 gap-2\.5 sm:mb-4 sm:flex/);
   assert.match(dashboard, />Open Discover</);
   assert.doesNotMatch(dashboard, /This is a compact preview\. Open Browse All for the full map experience\./);
-  assert.match(map, /grid w-full grid-cols-3 gap-1 rounded-xl/);
+  // web-app#666/#667: compact controls sit top-right as icon buttons on phones, zoom stays visible.
+  assert.match(map, /flex gap-1 rounded-xl p-1 sm:gap-2/);
   assert.match(map, /data-nearby-map-compact=\{compact \? 'true' : 'false'\}/);
-  assert.match(globalStyles, /\[data-nearby-map-compact='true'\] \.leaflet-control-zoom\s*\{\s*display: none;/);
-  assert.match(map, /hidden bg-gradient-to-t[\s\S]*sm:block/);
+  assert.doesNotMatch(globalStyles, /\[data-nearby-map-compact='true'\] \.leaflet-control-zoom/);
+  assert.doesNotMatch(map, /hidden bg-gradient-to-t/);
   assert.match(helpers, /h-\[260px\] min-\[340px\]:h-\[280px\]/);
 });
 

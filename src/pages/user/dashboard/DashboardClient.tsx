@@ -1332,7 +1332,7 @@ const DashboardClient = () => {
             <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
               <div className={getDashboardMapHeightClass(hasNearbyMapPreview)}>
                 <NearbyPropertiesMap
-                  properties={mapProperties}
+                  properties={activeMapProperties}
                   userLocation={mapLocation}
                   onPropertyClick={openPropertyFromDashboard}
                   onStartFastTrack={openFastTrackFromDashboard}

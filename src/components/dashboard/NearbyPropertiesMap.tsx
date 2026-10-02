@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from '@/lib/leafletReact';
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvent } from '@/lib/leafletReact';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -14,9 +14,11 @@ import { isListingClosedForNewJourneys } from '@/lib/propertyAvailability';
 import { STANDARD_MAP_TILE_LAYER } from '@/lib/mapTiles';
 import {
     calculateMapDistanceKm,
+    getCompactNearbyMapStatus,
     getNearbyMapDefaultView,
     getNearbyMapEmptyState,
     hasValidMapCoordinates,
+    groupNearbyMapMarkers,
     hasVerifiedPropertyMapCoordinates,
     selectDashboardNearbyProperties,
     shouldRenderNearbyMap,
@@ -42,8 +44,8 @@ interface Property {
     countryCode?: string | null;
     country_code?: string | null;
     property_type?: string;
-    latitude?: number;
-    longitude?: number;
+    latitude?: number | null;
+    longitude?: number | null;
     bedrooms?: number;
     bathrooms?: number;
     distance?: number | null;
@@ -101,6 +103,30 @@ const createPropertyIcon = (label: string, color: string, selected: boolean) => 
     popupAnchor: [0, selected ? -42 : -36],
 });
 
+const userLocationIcon = L.divIcon({
+    className: 'nearby-user-location-marker',
+    html: `<div style="display:flex;align-items:center;gap:6px;transform:translate(-9px,-9px);">
+        <span style="width:18px;height:18px;flex:none;border-radius:999px;background:#2563eb;border:3px solid #fff;box-shadow:0 0 0 2px #1d4ed8;"></span>
+        <span style="padding:2px 8px;border-radius:999px;background:#fff;color:#1e3a8a;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 4px 12px rgba(15,23,42,0.18);">You are here</span>
+    </div>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    popupAnchor: [0, -12],
+});
+
+// Zoom buttons sit where no overlay covers them: bottom-right on the dashboard
+// preview, top-right on Discover (its selected-home card owns bottom-right).
+function MapZoomControl({ position }: { position: L.ControlPosition }) {
+    const map = useMap();
+    useEffect(() => {
+        const control = L.control.zoom({ position }).addTo(map);
+        return () => {
+            control.remove();
+        };
+    }, [map, position]);
+    return null;
+}
+
 function MapAutoFit({
     userLocation,
     properties,
@@ -113,6 +139,10 @@ function MapAutoFit({
     fallbackView: ReturnType<typeof getNearbyMapDefaultView>;
 }) {
     const map = useMap();
+    const pointsKey = [
+        hasValidMapCoordinates(userLocation) ? `${userLocation.latitude},${userLocation.longitude}` : '',
+        ...properties.map((property) => `${property.latitude},${property.longitude}`),
+    ].join('|');
 
     const apply = useCallback(() => {
         try {
@@ -144,7 +174,8 @@ function MapAutoFit({
             }
 
             map.invalidateSize();
-            map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
+            // Extra top padding keeps price pins clear of the overlay controls.
+            map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [44, 96], paddingBottomRight: [56, 44], maxZoom: 15 });
 
             // Leaflet may have already loaded the tile layer at the
             // initial zoom before fitBounds ran. Force a fresh tile
@@ -162,7 +193,8 @@ function MapAutoFit({
         } catch (err) {
             console.warn('[MapAutoFit] transient error:', err);
         }
-    }, [fallbackView, fitSignal, map, properties, userLocation]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- refit only when the plotted points change, so parent re-renders don't undo the user's zoom or pan
+    }, [fallbackView, fitSignal, map, pointsKey]);
 
     // Re-apply the bounds fit on every meaningful data change.
     useEffect(() => {
@@ -244,6 +276,11 @@ const NearbyPropertiesMap = ({
     const propertiesWithCoords = useMemo(() => (
         sortedProperties.filter(hasVerifiedPropertyMapCoordinates)
     ), [sortedProperties]);
+    const markerGroups = useMemo(() => groupNearbyMapMarkers(propertiesWithCoords), [propertiesWithCoords]);
+    const compactMapStatus = getCompactNearbyMapStatus({
+        pinnedCount: propertiesWithCoords.length,
+        unlocatedCount: properties.filter((property) => !hasVerifiedPropertyMapCoordinates(property)).length,
+    });
 
     useEffect(() => {
         if (propertiesWithCoords.length === 0) {
@@ -425,12 +462,13 @@ const NearbyPropertiesMap = ({
                 worldCopyJump
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={false}
-                dragging={!compact}
+                zoomControl={false}
                 fadeAnimation={false}
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
                 <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} fallbackView={fallbackView} />
+                <MapZoomControl position={compact ? 'bottomright' : 'topright'} />
                 {mapStyle === 'standard' ? (
                     <TileLayer
                         attribution={STANDARD_MAP_TILE_LAYER.attribution}
@@ -446,22 +484,68 @@ const NearbyPropertiesMap = ({
                 )}
 
                 {hasValidMapCoordinates(userLocation) ? (
-                    <CircleMarker
-                        center={[userLocation.latitude, userLocation.longitude]}
-                        radius={10}
-                        pathOptions={{ color: '#1d4ed8', fillColor: '#2563eb', fillOpacity: 0.9, weight: 3 }}
+                    <Marker
+                        position={[userLocation.latitude, userLocation.longitude]}
+                        icon={userLocationIcon}
                     >
                         <Popup>
                             <div className="min-w-[160px]">
-                                <p className="text-sm font-semibold text-slate-900">Your location</p>
+                                <p className="text-sm font-semibold text-slate-900">You are here</p>
                                 <p className="mt-1 text-xs text-slate-500">Nearby property ranking starts from here.</p>
                             </div>
                         </Popup>
-                    </CircleMarker>
+                    </Marker>
                 ) : null}
 
-                {propertiesWithCoords.map((property) => {
+                {markerGroups.map((group) => {
+                    if (group.properties.length > 1) {
+                        const isSelected = group.properties.some((property) => property.id === selectedPropertyID);
+                        return (
+                            <Marker
+                                key={group.key}
+                                position={[group.latitude, group.longitude]}
+                                icon={createPropertyIcon(`${group.properties.length} homes`, getMarkerColor(group.properties[0].category), isSelected)}
+                                eventHandlers={{
+                                    click: () => {
+                                        setIsSelectionDismissed(false);
+                                        setSelectedPropertyID(group.properties[0].id);
+                                    },
+                                }}
+                            >
+                                <Popup>
+                                    <div className="w-[220px] max-w-full" data-nearby-map-shared-pin>
+                                        <h4 className="text-sm font-semibold text-slate-900">
+                                            {group.properties.length} homes at this location
+                                        </h4>
+                                        <ul className="mt-1.5 max-h-36 divide-y divide-stone-100 overflow-y-auto">
+                                            {group.properties.map((property) => (
+                                                <li key={property.id} className="flex items-center justify-between gap-2 py-1.5">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-xs font-semibold text-slate-900">{property.title || 'Property'}</p>
+                                                        <p className="text-xs font-bold text-orange-600">
+                                                            {formatPropertyPrice(property)}
+                                                            {property.property_type === 'rent' ? '/month' : ''}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => (onPropertyClick || handleOpenWorkspace)(property)}
+                                                        className="shrink-0 rounded-lg border border-stone-200 px-2.5 py-1 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                                                    >
+                                                        Open
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        );
+                    }
+
+                    const property = group.properties[0];
                     const isSelected = property.id === selectedPropertyID;
+
                     return (
                         <Marker
                             key={property.id}
@@ -533,7 +617,7 @@ const NearbyPropertiesMap = ({
                 </div>
             ) : null}
 
-            <div className={`absolute z-[1000] ${compact ? 'inset-x-2 top-2 sm:inset-x-auto sm:left-4 sm:top-4' : 'left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3'}`}>
+            <div className={`absolute z-[1000] ${compact ? 'right-2 top-2 sm:right-4 sm:top-4' : 'left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3'}`}>
                 <div className={`rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Nearby map</p>
                     <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -544,32 +628,32 @@ const NearbyPropertiesMap = ({
                     </p>
                 </div>
 
-                <div className={`${compact ? 'grid w-full grid-cols-3 gap-1 rounded-xl p-1.5 sm:flex sm:w-auto sm:gap-2 sm:rounded-2xl sm:p-2' : 'flex items-center gap-2 rounded-2xl p-2'} bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90`}>
+                <div className={`${compact ? 'flex gap-1 rounded-xl p-1 sm:gap-2 sm:rounded-2xl sm:p-1.5' : 'flex items-center gap-2 rounded-2xl p-2'} bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90`}>
                     <button
                         type="button"
                         data-nearby-map-standard
                         onClick={() => setMapStyle('standard')}
-                        className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
+                        className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
                             mapStyle === 'standard'
                                 ? 'bg-orange-500 text-white'
                                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
                         }`}
                     >
                         <Layers3 size={14} />
-                        {compact ? 'Map' : 'Standard'}
+                        <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{compact ? 'Map' : 'Standard'}</span>
                     </button>
                     <button
                         type="button"
                         data-nearby-map-satellite
                         onClick={() => setMapStyle('satellite')}
-                        className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
+                        className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold ${
                             mapStyle === 'satellite'
                                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
                                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
                         }`}
                     >
                         <Globe size={14} />
-                        {compact ? 'Photo' : 'Satellite'}
+                        <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{compact ? 'Photo' : 'Satellite'}</span>
                     </button>
                     <button
                         type="button"
@@ -580,10 +664,10 @@ const NearbyPropertiesMap = ({
                             setSelectedPropertyID(propertiesWithCoords[0]?.id || null);
                             setFitSignal((value) => value + 1);
                         }}
-                        className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] font-medium text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] font-medium text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300 sm:rounded-xl sm:px-3 sm:text-xs sm:font-semibold"
                     >
                         <LocateFixed size={14} />
-                        {compact ? 'Reset' : 'Recenter'}
+                        <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{compact ? 'Reset' : 'Recenter'}</span>
                     </button>
                 </div>
             </div>
@@ -670,19 +754,14 @@ const NearbyPropertiesMap = ({
             ) : null}
 
             {compact ? (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] hidden bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92 sm:block">
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/92 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/92">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Dashboard preview</p>
-                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-                                Browse the map here, then open Discover for the full browsing view.
-                            </p>
-                        </div>
-                        <div className="text-xs font-semibold text-orange-600 dark:text-orange-300">
-                            Scroll stays with the page
-                        </div>
-                    </div>
-                </div>
+                <p
+                    className="pointer-events-none absolute left-2 top-2 z-[1000] max-w-[calc(100%-10.5rem)] sm:left-4 sm:top-4 sm:max-w-[calc(100%-20rem)] rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] font-medium leading-4 text-gray-700 shadow ring-1 ring-black/5 dark:bg-gray-900/90 dark:text-gray-200"
+                    role="status"
+                    aria-live="polite"
+                    data-nearby-map-status
+                >
+                    {compactMapStatus}
+                </p>
             ) : null}
         </div>
     );
