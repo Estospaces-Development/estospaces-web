@@ -1835,6 +1835,12 @@ export default function AddPropertyPage() {
     setIsDirty(true);
   };
 
+  const moveVideo = (from: number, to: number) => {
+    setVideoPreviews((prev) => moveItem(prev, from, to));
+    setFormData((prev) => ({ ...prev, videos: moveItem(prev.videos, from, to) }));
+    setIsDirty(true);
+  };
+
   const processImages = async (files: (File | string)[]): Promise<string[]> => {
     const newFiles = files.filter((file): file is File => typeof file !== "string");
     const mediaEntityId = idValue || draftMediaEntityIdRef.current;
@@ -3516,8 +3522,17 @@ export default function AddPropertyPage() {
                         >
                         <X className="w-4 h-4" />
                       </button>
-                      {index > 0 && (
-                        <div className="flex items-center justify-center bg-gray-50 px-1 py-1 dark:bg-gray-800">
+                      <div className="flex items-center justify-between gap-1 bg-gray-50 px-1 py-1 dark:bg-gray-800">
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label={`Move photo ${index + 1} earlier`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        {index > 0 && (
                           <button
                             type="button"
                             onClick={() => moveImage(index, 0)}
@@ -3526,8 +3541,17 @@ export default function AddPropertyPage() {
                           >
                             Make primary
                           </button>
-                        </div>
-                      )}
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, index + 1)}
+                          disabled={index === imagePreviews.length - 1}
+                          aria-label={`Move photo ${index + 1} later`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -3588,6 +3612,26 @@ export default function AddPropertyPage() {
                       >
                         <X className="w-4 h-4" />
                       </button>
+                      <div className="flex items-center justify-between gap-1 bg-gray-50 px-1 py-1 dark:bg-gray-800">
+                        <button
+                          type="button"
+                          onClick={() => moveVideo(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label={`Move video ${index + 1} earlier`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveVideo(index, index + 1)}
+                          disabled={index === videoPreviews.length - 1}
+                          aria-label={`Move video ${index + 1} later`}
+                          className="rounded p-1 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
