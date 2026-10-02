@@ -1441,14 +1441,17 @@ const UserPropertyDetail = () => {
             property?.manager_id;
         const needsSync = nextLeadId !== fastTrackCase.leadId || nextManagerId !== fastTrackCase.managerId;
 
-        if (!needsSync) {
+        // A closed case can't be relinked, and this background sync must never
+        // surface a validation toast on page load (QA-MB-20260926-01-001).
+        const isOpenCase = !fastTrackCase.finalStatus || fastTrackCase.finalStatus === 'in_progress';
+        if (!needsSync || !isOpenCase) {
             return fastTrackCase;
         }
 
         const { data, error: syncError } = await updateFastTrackCase(fastTrackCase.id, {
             lead_id: nextLeadId,
             manager_id: nextManagerId,
-        });
+        }, { suppressErrorToast: true });
 
         if (syncError || !data) {
             return fastTrackCase;
