@@ -206,6 +206,14 @@ function LegacyUserSearchRedirect() {
   );
 }
 
+// Old top-level user paths keep their ?query and #hash, so links such as
+// /user/applications?application=<id> still open that item (issue 337).
+function PreservingRedirect({ to }: { to: string }) {
+  const location = useLocation();
+
+  return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
+}
+
 const App: React.FC = () => {
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -323,16 +331,16 @@ const App: React.FC = () => {
             <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />
             <Route path="dashboard/properties/:id" element={<UserPropertyDetail />} />
             {/* Backward-compatible top-level routes redirect to nested dashboard counterparts */}
-            <Route path="applications" element={<Navigate to="/user/dashboard/applications" replace />} />
-            <Route path="bookings" element={<Navigate to="/user/dashboard/bookings" replace />} />
-            <Route path="docs" element={<Navigate to="/user/dashboard/docs" replace />} />
-            <Route path="favorites" element={<Navigate to="/user/dashboard/saved" replace />} />
-            <Route path="profile" element={<Navigate to="/user/dashboard/profile" replace />} />
-            <Route path="saved" element={<Navigate to="/user/dashboard/saved" replace />} />
-            <Route path="virtual-storage" element={<Navigate to="/user/dashboard/virtual-storage" replace />} />
+            <Route path="applications" element={<PreservingRedirect to="/user/dashboard/applications" />} />
+            <Route path="bookings" element={<PreservingRedirect to="/user/dashboard/bookings" />} />
+            <Route path="docs" element={<PreservingRedirect to="/user/dashboard/docs" />} />
+            <Route path="favorites" element={<PreservingRedirect to="/user/dashboard/saved" />} />
+            <Route path="profile" element={<PreservingRedirect to="/user/dashboard/profile" />} />
+            <Route path="saved" element={<PreservingRedirect to="/user/dashboard/saved" />} />
+            <Route path="virtual-storage" element={<PreservingRedirect to="/user/dashboard/virtual-storage" />} />
             <Route path="search" element={<LegacyUserSearchRedirect />} />
             <Route path="properties/:id" element={<UserPropertyDetail />} />
-            <Route path="settings" element={<Navigate to="/user/dashboard/settings" replace />} />
+            <Route path="settings" element={<PreservingRedirect to="/user/dashboard/settings" />} />
           </Route>
 
           {/* Fallback */}

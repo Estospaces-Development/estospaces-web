@@ -15,6 +15,7 @@ import {
   normalizePropertySearchSort,
   normalizeRoomBoundInput,
   normalizeSearchQueryInput,
+  normalizeSearchQueryTyping,
   normalizeSearchMarketParam,
   readSearchUrlFilters,
   resolvePropertySearchMarket,
@@ -122,6 +123,16 @@ test('search query normalization preserves casing while trimming, collapsing spa
   assert.equal(normalizeSearchQueryInput('  ATTUR   ATTUR  '), 'ATTUR ATTUR');
   assert.equal(normalizeSearchQueryInput(longQuery).length <= 120, true);
   assert.match(normalizeSearchQueryInput(longQuery), /^ATTUR ATTUR/);
+});
+
+test('typing a search query keystroke by keystroke keeps spaces and capitals (issue 445)', () => {
+  const type = (text: string) => [...text].reduce((value, key) => normalizeSearchQueryTyping(value + key), '');
+
+  assert.equal(type('SW1A 1AA'), 'SW1A 1AA');
+  assert.equal(type('New Delhi'), 'New Delhi');
+  assert.equal(type('  Anna  Nagar'), 'Anna Nagar');
+  assert.equal(normalizeSearchQueryInput(type('Chennai ')), 'Chennai');
+  assert.ok(normalizeSearchQueryTyping('x'.repeat(500)).length <= 120);
 });
 
 test('search query validation rejects explicit blank invalid and over-limit queries', () => {

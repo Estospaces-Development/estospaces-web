@@ -39,8 +39,11 @@ test('validateCityInput allows valid city names and rejects symbols and long inp
     assert.equal(validateCityInput('St Albans'), undefined);
     assert.equal(validateCityInput("O'Connor"), undefined);
     assert.equal(validateCityInput('New-York'), undefined);
-    // 13 chars exceeds MAX_CITY_LENGTH (12)
-    const lengthError = validateCityInput('AB12345678901');
+    // Real long names must pass (issue 340)
+    for (const city of ['Milton Keynes', 'Stoke-on-Trent', 'Thiruvananthapuram', 'St. Albans', 'Tiruchirappalli']) {
+        assert.equal(validateCityInput(city), undefined, city);
+    }
+    const lengthError = validateCityInput('A'.repeat(61));
     assert.ok(lengthError, 'expects error for too-long city');
     assert.ok((lengthError as string).startsWith('City name must be'));
     // Symbols and digits within length limit

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Toast from '@/components/ui/Toast';
 import { registerErrorToastHandler } from '@/lib/apiToastBus';
 import { isAuthRoutePath } from '@/lib/authUtils';
+import { appendToastUnlessDuplicate } from '@/lib/toastQueue';
 import {
     AUTH_ROUTE_GENERIC_ERROR_MESSAGE,
     AUTH_ROUTE_GENERIC_ERROR_TITLE,
@@ -86,7 +87,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             isVisible: true,
         };
 
-        setToasts((prev) => [...prev, newToast]);
+        setToasts((prev) => appendToastUnlessDuplicate(prev, newToast));
         return id;
     }, [location.pathname]);
 

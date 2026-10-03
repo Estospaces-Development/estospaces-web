@@ -952,7 +952,9 @@ const ApplicationTimelineWidget = () => {
         <div id="realtime-tracking-widget" className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             {/* Header */}
             <div className="border-b border-gray-100 bg-gradient-to-r from-orange-50/50 to-transparent px-3 py-4 dark:border-gray-800 dark:from-orange-900/10 sm:px-8 sm:py-8">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+                {/* Title and tabs stay stacked until xl: side by side, five tabs squeezed the
+                    title into one word per line on tablets and narrow laptops. */}
+                <div className="flex flex-col justify-between gap-3 sm:gap-4 xl:flex-row xl:items-center">
                     <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 sm:flex sm:items-center sm:gap-4">
                         <div className="shrink-0 rounded-xl bg-orange-100 p-2.5 dark:bg-orange-900/30 sm:p-4">
                             <Activity size={24} className="text-orange-600 dark:text-orange-400 sm:h-7 sm:w-7" />

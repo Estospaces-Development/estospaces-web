@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { getApplicationPropertyDisplayTitle, isInternalApplicationTitle } from './applicationDisplayTitle';
 import { getBrokerRequestBudgetError, toBrokerRequestType } from './brokerRequestBudget';
 import { dedupeBrokerRequestsBySubmissionSignature } from './brokerRequestSelection';
+import { formatLaunchCurrencyForCountry, getSupportedLaunchCountry } from './launchLocale';
 import type { BrokerRequestRecord } from '@/services/leadsService';
 
 export const isUserVisibleBrokerRequest = (request: BrokerRequestRecord) => (
@@ -32,9 +33,19 @@ export const getBrokerRequestBudgetDisplayLabel = (request: BrokerRequestRecord)
     return 'Budget unavailable';
   }
 
-  return getBrokerRequestBudgetError(budget, toBrokerRequestType(request.request_type))
-    ? 'Budget needs updating'
-    : `Budget ${budget}`;
+  if (getBrokerRequestBudgetError(budget, toBrokerRequestType(request.request_type))) {
+    return 'Budget needs updating';
+  }
+
+  // A bare number ("730000") is shown in the request's currency ("₹7,30,000");
+  // free text such as "2,650 pcm" is kept as the user wrote it.
+  const locationCode = request.location_postcode || request.location;
+  if (/^\d+$/.test(budget) && getSupportedLaunchCountry(null, null, locationCode)) {
+    const formatted = formatLaunchCurrencyForCountry(Number(budget), { locationCode });
+    if (formatted) return `Budget ${formatted}`;
+  }
+
+  return `Budget ${budget}`;
 };
 
 export const dedupeBrokerRequestsForTimeline = (requests: BrokerRequestRecord[]) => (
