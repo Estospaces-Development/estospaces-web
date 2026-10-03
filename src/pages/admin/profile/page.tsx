@@ -139,7 +139,8 @@ export default function AdminProfilePage() {
                     `${formData.firstName} ${formData.lastName} admin profile photo`,
                     true,
                 );
-                payload.avatar_url = uploaded.file_url;
+                // Core's profile update reads `avatar`; `avatar_url` was silently ignored (issue 348).
+                payload.avatar = uploaded.file_url;
                 setAvatarPreview(resolveMediaUrl(uploaded.file_url));
                 setSelectedAvatarFile(null);
             } catch {
@@ -233,10 +234,11 @@ export default function AdminProfilePage() {
                             <button
                                 type="button"
                                 onClick={() => avatarInputRef.current?.click()}
-                                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
+                                className="absolute -bottom-2 -right-2 rounded-2xl bg-blue-600 p-3 text-white shadow-lg transition-all hover:scale-110 hover:bg-blue-700 active:scale-95 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                                 aria-label="Change profile photo"
+                                title="Change profile photo"
                             >
-                                <Camera size={24} className="text-white" />
+                                <Camera size={18} aria-hidden="true" />
                             </button>
                             <input
                                 ref={avatarInputRef}

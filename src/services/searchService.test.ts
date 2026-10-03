@@ -599,3 +599,31 @@ test('autocomplete and dynamic filters forward the account market', async () => 
 test('primary public search uses a short fallback timeout for launch readiness', () => {
     assert.equal(PRIMARY_SEARCH_SERVICE_TIMEOUT_MS <= 5000, true);
 });
+
+test('amenity filters skip the search service and reach core as one comma list', async () => {
+    const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = async (input) => {
+        requestedUrls.push(String(input));
+        return new Response(JSON.stringify({
+            success: true,
+            data: { data: [{ id: 'with-amenities', title: 'Pool flat' }], pagination: { total: 1, page: 1, limit: 12 } },
+        }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    try {
+        const result = await searchService.search('', { amenities: ['pool', 'wifi'], page: 1, limit: 12 });
+
+        assert.equal(result.success, true);
+        assert.deepEqual(result.data.map((property) => property.id), ['with-amenities']);
+        assert.equal(requestedUrls.length, 1);
+        assert.equal(requestedUrls[0].includes('/api/v1/search?'), false);
+        assert.equal(new URL(requestedUrls[0]).searchParams.get('amenities'), 'pool,wifi');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

@@ -14,9 +14,9 @@ This is the orientation section for the current user experience. It explains the
 
 ### Where to go in the app
 - Dashboard: [/user/dashboard](/user/dashboard)
-- Search: [/user/search](/user/search)
+- Search: [/user/dashboard/search](/user/dashboard/search)
 - Discover buy or rent: [/user/dashboard/discover](/user/dashboard/discover)
-- Saved homes: [/user/saved](/user/saved)
+- Saved homes: [/user/dashboard/saved](/user/dashboard/saved)
 - Fast Track: [/user/dashboard/fast-track](/user/dashboard/fast-track)
 - Case file: [/user/dashboard/case-file](/user/dashboard/case-file)
 - Messages: [/user/dashboard/messages](/user/dashboard/messages)
@@ -49,12 +49,12 @@ The dashboard is the user's operating center. It answers: what is active, what c
 | [/user/dashboard](/user/dashboard) | Main overview and active journey tracking | Start every user session here |
 | [/user/search](/user/search) | Full property search | When the user wants broad filtering |
 | [/user/dashboard/discover](/user/dashboard/discover) | Buy and rent discovery shortcuts | When starting from the dashboard |
-| [/user/saved](/user/saved) | Saved and revisitable properties | When comparing options |
+| [/user/dashboard/saved](/user/dashboard/saved) | Saved and revisitable properties | When comparing options |
 | [/user/properties/:id](/user/properties/:id) | Property detail | Before starting serious action |
 | [/user/dashboard/fast-track](/user/dashboard/fast-track) | Active selected-property journey | After selection or fast-track start |
 | [/user/dashboard/case-file](/user/dashboard/case-file) | Shared case record | For documents, requests, and journey context |
-| [/user/virtual-storage](/user/virtual-storage) | Private reusable document storage | Before or during document requests |
-| [/user/applications](/user/applications) | Application progress | Once the journey becomes formal |
+| [/user/dashboard/virtual-storage](/user/dashboard/virtual-storage) | Private reusable document storage | Before or during document requests |
+| [/user/dashboard/applications](/user/dashboard/applications) | Application progress | Once the journey becomes formal |
 | [/user/dashboard/viewings](/user/dashboard/viewings) | Viewing coordination | When a visit or appointment is proposed |
 | [/user/dashboard/contracts](/user/dashboard/contracts) | Contract status and review | Near formal commitment |
 | [/user/dashboard/messages](/user/dashboard/messages) | Case and manager communication | When a decision or clarification is needed |

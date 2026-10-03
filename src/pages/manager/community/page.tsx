@@ -21,8 +21,10 @@ import {
     toggleCommunityLike,
     updateCommunityArchive,
     updateCommunityPin,
+    updateCommunityPost,
     updateCommunityVisibility,
 } from '@/services/communityService';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 
 const normalizeCommunityPost = (post: CommunityPost): CommunityPost => ({
@@ -38,12 +40,14 @@ const normalizeCommunityPost = (post: CommunityPost): CommunityPost => ({
 
 const BrokersCommunity = () => {
     const toast = useToast();
+    const { user } = useAuth();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTag, setSelectedTag] = useState<PostTag | 'all'>('all');
     const [selectedRole, setSelectedRole] = useState<AuthorRole | 'all'>('all');
     const [sortBy, setSortBy] = useState<SortOption>('pinned_first');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<CommunityPost | null>(null);
     const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
     const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
 
@@ -148,6 +152,27 @@ const BrokersCommunity = () => {
         toast.success('Community post published.');
     };
 
+    const handleEditPost = (post: CommunityPost) => {
+        setEditingPost(post);
+        setIsModalOpen(true);
+    };
+
+    const handleSavePost = async (title: string, content: string, tag: PostTag, visibility: PostVisibility) => {
+        if (!editingPost) {
+            await handleCreatePost(title, content, tag, visibility);
+            return;
+        }
+
+        const { data, error } = await updateCommunityPost(editingPost.postId, { title, content, tag, visibility });
+        if (error || !data) {
+            toast.error(error || 'Unable to update this community post right now.');
+            return;
+        }
+
+        setPosts((prev) => prev.map((post) => post.postId === data.postId ? normalizeCommunityPost(data) : post));
+        toast.success('Community post updated.');
+    };
+
     const handleCommentClick = (post: CommunityPost) => {
         setSelectedPost(post);
         setIsCommentsModalOpen(true);
@@ -248,6 +273,8 @@ const BrokersCommunity = () => {
                                 key={post.postId}
                                 post={post}
                                 isManager={true}
+                                currentUserId={user?.id}
+                                onEdit={handleEditPost}
                                 onLike={handleLike}
                                 onPin={handlePin}
                                 onHide={handleHide}
@@ -258,7 +285,12 @@ const BrokersCommunity = () => {
                     )}
                 </div>
 
-                <CreatePostModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleCreatePost} />
+                <CreatePostModal
+                    isOpen={isModalOpen}
+                    editingPost={editingPost}
+                    onClose={() => { setIsModalOpen(false); setEditingPost(null); }}
+                    onSubmit={handleSavePost}
+                />
                 <CommentsModal
                     isOpen={isCommentsModalOpen}
                     post={selectedPost}

@@ -48,3 +48,25 @@ export const formatAmenityLabel = (value: string): string => {
         .replace(/\s+/g, ' ')
         .replace(/\b\p{Ll}/gu, (letter) => letter.toUpperCase());
 };
+
+// Editor codes in display order; the search filter offers exactly these.
+export const AMENITY_CODES = Object.keys(AMENITY_LABELS);
+const MAX_AMENITY_FILTERS = 20;
+
+// Reads the `amenities=wifi,pool` URL value. Unknown codes are dropped so every
+// active filter has a checkbox that can clear it.
+export const parseAmenityParam = (value: string | null | undefined): string[] => {
+    const requested = new Set((value ?? '').split(',').map((code) => code.trim().toLowerCase()));
+    return AMENITY_CODES.filter((code) => requested.has(code)).slice(0, MAX_AMENITY_FILTERS);
+};
+
+export const serializeAmenityParam = (codes: readonly string[]): string => (
+    parseAmenityParam(codes.join(',')).join(',')
+);
+
+export const toggleAmenityParam = (value: string, code: string): string => {
+    const selected = parseAmenityParam(value);
+    return serializeAmenityParam(
+        selected.includes(code) ? selected.filter((selectedCode) => selectedCode !== code) : [...selected, code],
+    );
+};

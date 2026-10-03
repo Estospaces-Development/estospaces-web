@@ -26,7 +26,7 @@ import {
     ZoomIn,
     ZoomOut,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -110,6 +110,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
+import { getFastTrackConnectedRecordPath, type FastTrackConnectedRecordKind } from '@/lib/fastTrackConnectedRecords';
 import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
@@ -2890,14 +2891,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
-        const items = [
-            ['Lead', selectedCase.leadId],
-            ['Application', selectedCase.applicationId],
-            ['Viewing', selectedCase.viewingId],
-            ['Contract', selectedCase.contractId],
-            ...(PAYMENTS_ENABLED ? [['Payment', selectedCase.paymentId]] : []),
-            ['Property', selectedCase.propertyId],
-        ].filter(([, value]) => Boolean(value));
+        const items = ([
+            ['Lead', 'lead', selectedCase.leadId],
+            ['Application', 'application', selectedCase.applicationId],
+            ['Viewing', 'viewing', selectedCase.viewingId],
+            ['Contract', 'contract', selectedCase.contractId],
+            ...(PAYMENTS_ENABLED ? [['Payment', 'payment', selectedCase.paymentId] as const] : []),
+            ['Property', 'property', selectedCase.propertyId],
+        ] as Array<readonly [string, FastTrackConnectedRecordKind, string | undefined]>)
+            .filter((item): item is readonly [string, FastTrackConnectedRecordKind, string] => Boolean(item[2]));
 
         if (items.length === 0) {
             return (
@@ -2909,17 +2911,30 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         return (
             <div className="grid gap-3 sm:grid-cols-2">
-                {items.map(([label, value]) => (
-                    <div
-                        key={label}
-                        className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
-                    >
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
-                            {label}
-                        </p>
-                        <p className="mt-2 break-all text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
-                    </div>
-                ))}
+                {items.map(([label, kind, value]) => {
+                    const path = getFastTrackConnectedRecordPath(role, kind, value, selectedCase.caseId);
+                    return (
+                        <div
+                            key={label}
+                            className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
+                        >
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                                {label}
+                            </p>
+                            {path ? (
+                                <Link
+                                    to={path}
+                                    aria-label={`Open ${label.toLowerCase()} ${value}`}
+                                    className="mt-2 block break-all text-sm font-semibold text-orange-600 underline-offset-2 hover:underline focus-visible:underline dark:text-orange-400"
+                                >
+                                    {value}
+                                </Link>
+                            ) : (
+                                <p className="mt-2 break-all text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         );
     };

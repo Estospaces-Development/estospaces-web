@@ -75,3 +75,43 @@ export const countFastTrackReplacementRequests = (fastTrackCase: FastTrackCaseLi
     const items = Array.isArray(fastTrackCase.documents?.items) ? fastTrackCase.documents.items as FastTrackItemLike[] : [];
     return items.filter((item) => ['reupload_needed', 'reupload_required'].includes(text(item?.status))).length;
 };
+
+export const formatFastTrackReplacementNotice = (count: number): string => (
+    `${count} replacement${count === 1 ? '' : 's'} needed in Fast Track`
+);
+
+export const formatDocumentReplacementNotice = (count: number): string =>
+    `${count} uploaded document${count === 1 ? ' needs' : 's need'} a replacement`;
+
+export const getUploadChecklistBadgeCopy = ({
+    itemCount,
+    actionNeeded,
+    inFlight,
+    fastTrackReplacementCount,
+    documentReplacementCount = 0,
+}: {
+    itemCount: number;
+    actionNeeded: number;
+    inFlight: number;
+    fastTrackReplacementCount: number;
+    /** Uploaded case-file documents flagged for re-upload (summary.reuploadCount). */
+    documentReplacementCount?: number;
+}): string => {
+    if (itemCount === 0) {
+        if (fastTrackReplacementCount > 0) {
+            return formatFastTrackReplacementNotice(fastTrackReplacementCount);
+        }
+        // The lane can say a document needs replacing while no request is open
+        // (QA-MB-20260924-01-028), so count flagged uploads too.
+        return documentReplacementCount > 0
+            ? formatDocumentReplacementNotice(documentReplacementCount)
+            : 'No open requests yet';
+    }
+    if (actionNeeded > 0) {
+        return `${actionNeeded} item${actionNeeded === 1 ? '' : 's'} waiting on upload`;
+    }
+    if (inFlight > 0) {
+        return `${inFlight} item${inFlight === 1 ? '' : 's'} in review`;
+    }
+    return 'Everything is uploaded or approved';
+};

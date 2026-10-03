@@ -122,9 +122,19 @@ export const getDispatchWorkspaceSummary = (
     }
 
     if (request.handoff_status === 'portfolio_shared' || (request.property_shares?.length || 0) > 0) {
+        // Count only shares whose home still exists; the card below hides the rest
+        // (QA-MB-20260926-01-003).
+        const availableCount = (request.property_shares || []).filter((share) => Boolean(share.property)).length;
+        if ((request.property_shares?.length || 0) > 0 && availableCount === 0) {
+            return {
+                title: 'Shared homes no longer available',
+                subtitle: 'The homes your property agent shared are no longer listed',
+                helper: 'Your property agent can share new home choices.',
+            };
+        }
         return {
             title: 'Home choices ready',
-            subtitle: `${request.property_shares?.length || 0} home choice${request.property_shares?.length === 1 ? '' : 's'} ready to review`,
+            subtitle: `${availableCount} home choice${availableCount === 1 ? '' : 's'} ready to review`,
             helper: 'Choose one home to start your 24-hour journey.',
         };
     }

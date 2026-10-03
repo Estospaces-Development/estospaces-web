@@ -7,6 +7,7 @@ import {
     countFastTrackReplacementRequests,
     getCaseFileDocumentReviewState,
     getFastTrackApprovedDocumentRecordIds,
+    getUploadChecklistBadgeCopy,
     isFastTrackCaseClosed,
 } from './caseFileDocumentReview';
 
@@ -132,4 +133,29 @@ test('a later case-file decision wins over an earlier Fast Track approval', () =
 test('every case-file reload also refreshes the Fast Track review state', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
     assert.ok(source.includes('void queryClient.invalidateQueries({ queryKey: ["case-file-fast-track-workspace", result.data?.case_id] });'));
+});
+
+test('upload checklist badge points to Fast Track replacements when the checklist is empty', () => {
+    const base = { itemCount: 0, actionNeeded: 0, inFlight: 0 };
+    assert.equal(getUploadChecklistBadgeCopy({ ...base, fastTrackReplacementCount: 0 }), 'No open requests yet');
+    assert.equal(getUploadChecklistBadgeCopy({ ...base, fastTrackReplacementCount: 1 }), '1 replacement needed in Fast Track');
+    assert.equal(getUploadChecklistBadgeCopy({ ...base, fastTrackReplacementCount: 3 }), '3 replacements needed in Fast Track');
+    assert.equal(getUploadChecklistBadgeCopy({ itemCount: 2, actionNeeded: 2, inFlight: 0, fastTrackReplacementCount: 3 }), '2 items waiting on upload');
+    assert.equal(getUploadChecklistBadgeCopy({ itemCount: 1, actionNeeded: 0, inFlight: 1, fastTrackReplacementCount: 0 }), '1 item in review');
+    assert.equal(getUploadChecklistBadgeCopy({ itemCount: 1, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0 }), 'Everything is uploaded or approved');
+});
+
+test('upload checklist badge counts uploaded documents flagged for replacement (QA-MB-20260924-01-028)', () => {
+    assert.equal(
+        getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0, documentReplacementCount: 1 }),
+        '1 uploaded document needs a replacement',
+    );
+    assert.equal(
+        getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0, documentReplacementCount: 2 }),
+        '2 uploaded documents need a replacement',
+    );
+    assert.equal(
+        getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0 }),
+        'No open requests yet',
+    );
 });

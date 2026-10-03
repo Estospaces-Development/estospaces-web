@@ -599,7 +599,7 @@ export default function AdminPropertyDetailPage() {
                                             key={feature}
                                             className="rounded-full bg-blue-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
                                         >
-                                            {feature.replace(/_/g, ' ')}
+                                            {formatAmenityLabel(feature)}
                                         </span>
                                     ))}
                                 </div>

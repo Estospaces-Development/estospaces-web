@@ -70,3 +70,10 @@ test('timeline does not present invalid legacy purchase budgets as valid values'
   assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'rent', budget: '2,650 pcm' })), 'Budget 2,650 pcm');
   assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'buy', budget: '' })), 'Budget unavailable');
 });
+
+test('a bare-number budget is shown in the currency its postcode or PIN code identifies', () => {
+  assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'buy', budget: '730000', location: '600001' })), 'Budget ₹7,30,000');
+  assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'rent', budget: '2650', location: 'London', location_postcode: 'SW1A 1AA' })), 'Budget £2,650');
+  // A city name alone doesn't identify the currency, so the number is left as written.
+  assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'rent', budget: '2650', location: 'London' })), 'Budget 2650');
+});

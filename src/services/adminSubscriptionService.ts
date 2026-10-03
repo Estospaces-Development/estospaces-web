@@ -1,4 +1,5 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { AcceptedSubscriptionTerms, ManagerPaidPeriod, ManagerSubscriptionSummary } from '@/services/managerSubscriptionService';
 
 const paymentURL = () => getServiceUrl('payment');
 const baseURL = () => `${paymentURL()}/api/v1/admin/subscriptions`;
@@ -288,4 +289,22 @@ export function backfillAdminTrialGrant(managerID: string, idempotencyKey: strin
     return apiFetch<AdminTrialBackfillResult>(`${baseURL()}/trial-grants/backfill`, {
         method: 'POST', headers: idempotencyHeaders(idempotencyKey), body: JSON.stringify({ manager_id: managerID }),
     });
+}
+
+// GET /managers/:managerId (read-only): what the manager sees on their own
+// subscription page, from stored payment records. Payment never calls
+// Razorpay for this lookup. `terms` is the current checkout's accepted plan.
+export interface AdminManagerBilling {
+    account: ManagerSubscriptionSummary;
+    terms: AcceptedSubscriptionTerms | null;
+    invoices: ManagerPaidPeriod[];
+}
+
+export async function getAdminManagerBilling(managerID: string): Promise<{ data: AdminManagerBilling | null; error: string | null }> {
+    try {
+        const data = await apiFetch<AdminManagerBilling>(`${baseURL()}/managers/${encodeURIComponent(managerID)}`, { suppressErrorToast: true });
+        return { data, error: null };
+    } catch (error) {
+        return { data: null, error: getErrorMessage(error, 'Billing details could not be loaded. Retry in a moment.') };
+    }
 }

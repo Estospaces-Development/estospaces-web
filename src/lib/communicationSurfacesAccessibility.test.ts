@@ -186,7 +186,7 @@ test('community moderation dropdown uses valid menu semantics', () => {
   const postCard = readSource('src/components/community/CommunityPostCard.tsx');
 
   assert.match(postCard, /<div role="menu"/);
-  assert.equal((postCard.match(/role="menuitem"/g) || []).length, 5);
+  assert.equal((postCard.match(/role="menuitem"/g) || []).length, 6);
 });
 
 test('community surfaces avoid low-contrast active and helper text tokens', () => {

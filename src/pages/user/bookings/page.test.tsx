@@ -23,7 +23,7 @@ const validForm = {
   special_requests: "",
 };
 
-test("booking reservation validation requires property manager dates and guests", () => {
+test("booking reservation validation requires a home, dates and guests", () => {
   assert.deepEqual(
     validateBookingReservationForm({
       property_id: "",
@@ -34,8 +34,7 @@ test("booking reservation validation requires property manager dates and guests"
       special_requests: "",
     }),
     {
-      property_id: "Enter a property ID.",
-      manager_id: "Enter a manager ID.",
+      property_id: "Choose a home to reserve.",
       check_in_date: "Choose a check-in date.",
       check_out_date: "Choose a check-out date.",
       guest_count: "Enter at least 1 guest.",

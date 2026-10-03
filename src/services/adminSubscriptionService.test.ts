@@ -7,6 +7,7 @@ import {
     changeAdminPromotionStatus,
     createAdminPromotion,
     createAdminSubscriptionPlan,
+    getAdminManagerBilling,
     getAdminPromotionRedemptions,
     getAdminTrialGrants,
     patchAdminPromotion,
@@ -102,4 +103,20 @@ test('an activation refusal keeps its code and data.reason', async () => {
     assert.equal(caught.status, 422);
     assert.equal(caught.code, 'promotion_activation_invalid');
     assert.deepEqual(caught.data, { reason: 'offer_id_missing' });
+});
+
+test('manager billing lookup reads the admin route and returns { data, error }', async () => {
+    let result: Awaited<ReturnType<typeof getAdminManagerBilling>> | undefined;
+    const calls = await capture(async () => { result = await getAdminManagerBilling('3f2b8c1e-0000-4000-8000-000000000001'); }, okResponse({ account: { mode: 'live' }, terms: null, invoices: [] }));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].method, 'GET');
+    assert.match(calls[0].url, /\/api\/v1\/admin\/subscriptions\/managers\/3f2b8c1e-0000-4000-8000-000000000001$/);
+    assert.equal(result?.error, null);
+    assert.deepEqual(result?.data?.invoices, []);
+
+    const failed = await capture(async () => { result = await getAdminManagerBilling('not-a-uuid'); }, () => new Response(JSON.stringify({ success: false, error: 'Enter a valid manager ID.' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+    assert.equal(failed.length, 1);
+    assert.equal(result?.data, null);
+    assert.equal(typeof result?.error, 'string');
+    assert.ok(result?.error);
 });

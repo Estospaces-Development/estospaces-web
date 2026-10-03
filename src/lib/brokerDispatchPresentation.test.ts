@@ -66,7 +66,7 @@ test('workspace summary reflects portfolio share and property selection states',
     assert.deepEqual(
         getDispatchWorkspaceSummary({
             handoff_status: 'portfolio_shared',
-            property_shares: [{ id: 'share-1' }, { id: 'share-2' }],
+            property_shares: [{ id: 'share-1', property: { id: 'p1' } }, { id: 'share-2', property: { id: 'p2' } }, { id: 'share-3', property: null }],
         } as any),
         {
             title: 'Home choices ready',
@@ -371,4 +371,18 @@ test('workspace header follows the linked journey state over core request copy (
     assert.equal(active.helper, 'Open live fast-track');
     // Default (no state passed) is unchanged for other callers.
     assert.equal(getDispatchWorkspaceSummary(request).subtitle, 'Selected Rental Home is ready for your 24-hour journey');
+});
+
+test('workspace summary does not count shared homes that are no longer listed (QA-MB-20260926-01-003)', () => {
+    assert.deepEqual(
+        getDispatchWorkspaceSummary({
+            handoff_status: 'portfolio_shared',
+            property_shares: [{ id: 'share-1', property: null }],
+        } as any),
+        {
+            title: 'Shared homes no longer available',
+            subtitle: 'The homes your property agent shared are no longer listed',
+            helper: 'Your property agent can share new home choices.',
+        },
+    );
 });

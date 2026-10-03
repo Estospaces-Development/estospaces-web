@@ -73,10 +73,10 @@ export default function UserSettingsPage() {
 
     const handleTextChange = (key: 'preferred_city' | 'preferred_type', value: string) => {
         if (key === 'preferred_city') {
-            // Strip any character that is not a letter, space, hyphen, or apostrophe
-            const sanitized = value.replace(/[^a-zA-Z\s\-']/g, '');
-            // Enforce max length of 12 characters (matches validateCityInput)
-            const truncated = sanitized.slice(0, 12);
+            // Strip any character that is not a letter, space, hyphen, apostrophe or full stop
+            const sanitized = value.replace(/[^\p{L}\s\-'.]/gu, '');
+            // Enforce the same max length as validateCityInput
+            const truncated = sanitized.slice(0, 60);
             setSettings((prev) => ({
                 ...prev,
                 preferred_city: truncated,
@@ -126,19 +126,15 @@ export default function UserSettingsPage() {
             return;
         }
 
-        if (hasNoSearchPreferences(settings)) {
-            setPreferenceErrors({});
-            toast.error('Please enter at least one search preference before saving.');
-            return;
-        }
-
         try {
             setIsSaving(true);
             const { error } = await updatePreferences(settings);
             if (error) throw new Error(error);
 
             setIsSaved(true);
-            toast.success('Settings saved successfully');
+            toast.success(hasNoSearchPreferences(settings)
+                ? 'Settings saved. You have no search defaults now.'
+                : 'Settings saved successfully');
             setTimeout(() => setIsSaved(false), 3000);
         } catch (_error: any) {
             toast.error('Failed to save settings');

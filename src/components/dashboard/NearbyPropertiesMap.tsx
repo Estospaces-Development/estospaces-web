@@ -553,12 +553,15 @@ const NearbyPropertiesMap = ({
                             icon={createPropertyIcon(formatMapPropertyPrice(property, 'View'), getMarkerColor(property.category), isSelected)}
                             eventHandlers={{
                                 click: () => {
+                                    // Tapping a marker selects it and shows its popup/panel;
+                                    // navigation happens from "Open property" (QA-MB-20260923-01-031).
                                     setIsSelectionDismissed(false);
                                     setSelectedPropertyID(property.id);
-                                    onPropertyClick?.(property);
                                 },
                             }}
                         >
+                            {/* The full map shows the Selected property card instead (QA-MB-20260923-01-031). */}
+                            {compact ? (
                             <Popup>
                                 <div className="min-w-[220px] p-1">
                                     <h4 className="text-sm font-semibold text-slate-900">
@@ -577,7 +580,7 @@ const NearbyPropertiesMap = ({
                                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                                         <button
                                             type="button"
-                                            onClick={() => handleOpenWorkspace(property)}
+                                            onClick={() => (onPropertyClick || handleOpenWorkspace)(property)}
                                             className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50"
                                         >
                                             Open property
@@ -594,6 +597,7 @@ const NearbyPropertiesMap = ({
                                     </div>
                                 </div>
                             </Popup>
+                            ) : null}
                         </Marker>
                     );
                 })}
@@ -729,7 +733,7 @@ const NearbyPropertiesMap = ({
                         <button
                             type="button"
                             data-nearby-open-property
-                            onClick={() => handleOpenWorkspace(selectedProperty)}
+                            onClick={() => (onPropertyClick || handleOpenWorkspace)(selectedProperty)}
                             className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-700 dark:text-white dark:hover:bg-zinc-900"
                         >
                             Open property

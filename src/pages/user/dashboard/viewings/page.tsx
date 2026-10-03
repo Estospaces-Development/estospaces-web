@@ -42,6 +42,8 @@ import { paginateItems } from '@/lib/pagination';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
+import { getPropertyContextsByIds } from '@/services/propertyService';
+import { findMissingListingIds } from '@/lib/listingAvailability';
 
 export const MAX_VIEWING_CANCELLATION_REASON_LENGTH = 500;
 const USER_VIEWINGS_PAGE_SIZE = 6;
@@ -111,6 +113,7 @@ export default function ViewingsPage() {
     const [viewings, setViewings] = useState<any[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
+    const [missingListingIds, setMissingListingIds] = useState<Set<string>>(() => new Set());
     const [loadError, setLoadError] = useState<string | null>(null);
     const [filter, setFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -180,6 +183,28 @@ export default function ViewingsPage() {
             }
         }
     }, []);
+
+    const listingIdsKey = useMemo(
+        () => Array.from(new Set(viewings.map((viewing) => String(viewing.property_id || '').trim()).filter(Boolean))).sort().join(','),
+        [viewings],
+    );
+
+    useEffect(() => {
+        const listingIds = listingIdsKey ? listingIdsKey.split(',') : [];
+        if (listingIds.length === 0) {
+            setMissingListingIds(new Set());
+            return;
+        }
+        let cancelled = false;
+        void getPropertyContextsByIds(listingIds, { suppressErrorToast: true }).then((result) => {
+            if (!cancelled) {
+                setMissingListingIds(findMissingListingIds(listingIds, result.data));
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [listingIdsKey]);
 
     useEffect(() => {
         fetchViewings();
@@ -642,12 +667,22 @@ export default function ViewingsPage() {
                                                     </div>
                                                 )}
                                                 <div className="flex gap-3 w-full sm:w-auto">
+                                                {missingListingIds.has(String(viewing.property_id || '').trim()) ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled
+                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg cursor-not-allowed"
+                                                    >
+                                                        Listing no longer available
+                                                    </button>
+                                                ) : (
                                                 <button
                                                     onClick={() => navigate(`/user/properties/${viewing.property_id}`)}
                                                     className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
                                                 >
                                                     View Listing
                                                 </button>
+                                                )}
                                                 {(viewing.status === 'pending' || viewing.status === 'confirmed') && !viewing.workflow_locked && (
                                                     <button
                                                         onClick={() => openCancelModal(viewing.id)}

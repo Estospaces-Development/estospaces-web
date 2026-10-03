@@ -34,6 +34,7 @@ import {
     normalizePropertySearchSort,
     normalizeRoomBoundInput,
     normalizeSearchQueryInput,
+    normalizeSearchQueryTyping,
     readSearchUrlFilters,
     resolvePropertySearchMarket,
 } from '@/lib/propertySearchControls';
@@ -474,7 +475,8 @@ function DiscoverContent() {
             cachedDiscoverSearchRef.current?.search || searchParamSnapshot,
         );
         const urlFilters = readSearchUrlFilters(currentSearchParams);
-        setSearchQuery(urlFilters.query);
+        // Keep a trailing space the user is still typing; the URL holds the cleaned value.
+        setSearchQuery((previous) => (normalizeSearchQueryInput(previous) === urlFilters.query ? previous : urlFilters.query));
         setLocationQuery(urlFilters.location);
         setStatusFilter(currentSearchParams.get('status') || '');
         setPropertyType(urlFilters.propertyType || 'all');
@@ -942,7 +944,7 @@ function DiscoverContent() {
                                     placeholder={`City, ${locationCodeLabel.toLowerCase()}, or property`}
                                     value={searchQuery}
                                     onChange={(e) => {
-                                        setSearchQuery(normalizeSearchQueryInput(e.target.value));
+                                        setSearchQuery(normalizeSearchQueryTyping(e.target.value));
                                         setCurrentPage(1);
                                         setShowSuggestions(true);
                                     }}

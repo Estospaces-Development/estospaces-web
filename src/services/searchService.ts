@@ -360,6 +360,9 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     if (hasFilterValue(filters.minBedrooms)) params.append('min_bedrooms', String(filters.minBedrooms));
     if (hasFilterValue(filters.minBathrooms)) params.append('min_bathrooms', String(filters.minBathrooms));
     if (filters.verifiedOnly) params.append('is_verified', 'true');
+    if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
+        params.append('amenities', filters.amenities.join(','));
+    }
     if (filters.page) params.append('page', String(filters.page));
     if (filters.limit) params.append('limit', String(filters.limit));
 
@@ -817,8 +820,10 @@ export const searchService = {
         filters: Record<string, any> = {}
     ): Promise<SearchResponse> => {
         const normalizedQuery = normalizeSearchQueryInput(query);
+        // The search-service projection has no amenities, so only core can apply that filter.
+        const needsCoreOnlyFilter = Array.isArray(filters.amenities) && filters.amenities.length > 0;
 
-        if (shouldBypassPrimarySearchService()) {
+        if (needsCoreOnlyFilter || shouldBypassPrimarySearchService()) {
             try {
                 return await coreSearchFallback(normalizedQuery, filters);
             } catch (error) {

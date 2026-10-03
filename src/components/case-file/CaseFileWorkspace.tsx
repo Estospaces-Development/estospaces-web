@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFastTrackCaseById } from "@/services/fastTrackService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,8 +82,11 @@ import {
 import { getCaseFileSupportCopy } from "@/lib/userJourneyCopy";
 import {
   countFastTrackReplacementRequests,
+  formatFastTrackReplacementNotice,
   getCaseFileDocumentReviewState,
   getFastTrackApprovedDocumentRecordIds,
+  getUploadChecklistBadgeCopy,
+  formatDocumentReplacementNotice,
   isFastTrackCaseClosed,
 } from "@/lib/caseFileDocumentReview";
 import PaginationBar from "@/components/ui/PaginationBar";
@@ -1746,14 +1749,13 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       : reviewDialog?.status === "reupload_required"
         ? "border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/30 dark:text-red-300 dark:hover:bg-red-950/20"
         : "border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-950/20";
-  const checklistBadgeCopy =
-    requestChecklistItems.length === 0
-      ? "No open requests yet"
-      : requestChecklistSummary.actionNeeded > 0
-        ? `${requestChecklistSummary.actionNeeded} item${requestChecklistSummary.actionNeeded === 1 ? "" : "s"} waiting on upload`
-        : requestChecklistSummary.inFlight > 0
-          ? `${requestChecklistSummary.inFlight} item${requestChecklistSummary.inFlight === 1 ? "" : "s"} in review`
-          : "Everything is uploaded or approved";
+  const checklistBadgeCopy = getUploadChecklistBadgeCopy({
+    itemCount: requestChecklistItems.length,
+    actionNeeded: requestChecklistSummary.actionNeeded,
+    inFlight: requestChecklistSummary.inFlight,
+    fastTrackReplacementCount,
+    documentReplacementCount: summary.reuploadCount,
+  });
 
   return (
     <div className={`case-file-workspace ${embedded ? "space-y-6" : "space-y-8"}`}>
@@ -2269,7 +2271,22 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   </div>
                 ) : (
                   <div className={checklistEmptyClass}>
-                    {role === "user"
+                    {fastTrackReplacementCount > 0 ? (
+                      <>
+                        {formatFastTrackReplacementNotice(fastTrackReplacementCount)}.{" "}
+                        <Link
+                          to={buildWorkspacePath(`${role === "manager" ? "/manager" : "/user/dashboard"}/fast-track`, {
+                            caseId: caseFile.case_id,
+                            section: "documents",
+                          })}
+                          className="font-semibold text-orange-600 underline-offset-2 hover:underline focus-visible:underline dark:text-orange-400"
+                        >
+                          Open Fast Track documents
+                        </Link>
+                      </>
+                    ) : summary.reuploadCount > 0 ? (
+                      <>{formatDocumentReplacementNotice(summary.reuploadCount)}. Upload a clearer or newer file with the uploader below.</>
+                    ) : role === "user"
                       ? "No document requests are open yet. As soon as the team asks for something, this checklist will show exactly what to upload and whether it has been approved."
                       : "No case-file requests are open yet. As soon as a manager or workflow asks for documents, this checklist will show exactly what to upload and whether it has been approved."}
                   </div>

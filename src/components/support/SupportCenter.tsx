@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, CircleHelp, LifeBuoy, RefreshCw, Ticket } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -116,6 +116,17 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const { user } = useAuth();
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
+    const routePathRef = useRef(location.pathname);
+    routePathRef.current = location.pathname;
+    // Background refreshes must not rewrite the URL once the user has clicked
+    // away: while the next page is still loading, the browser is already on the
+    // new path but this page is still mounted, and a search-param write would
+    // send them back to Help & Support (issues 351 and 359).
+    const setBackgroundSearchParams = useCallback((...args: Parameters<typeof setSearchParams>) => {
+        if (typeof window !== 'undefined' && window.location.pathname !== routePathRef.current) return;
+        setSearchParams(...args);
+    }, [setSearchParams]);
     const [allTickets, setAllTickets] = useState<SupportTicketSummary[]>([]);
     const [tickets, setTickets] = useState<SupportTicketSummary[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<SupportTicketDetail | null>(null);
@@ -225,14 +236,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
         if (isAdmin && hasActiveFilters && activeSelectedTicketId && !visibleTickets.some((ticket) => ticket.id === activeSelectedTicketId)) {
             setSelectedTicket(null);
             setMessages([]);
-            setSearchParams((current) => {
+            setBackgroundSearchParams((current) => {
                 const next = new URLSearchParams(current);
                 next.delete('ticket');
                 next.delete('conversation');
                 return next;
             }, { replace: true });
         }
-    }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setSearchParams, user?.id]);
+    }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setBackgroundSearchParams, user?.id]);
 
     const fetchTickets = useCallback(async (silent = false) => {
         // Background polls yield to an in-flight request; a manual refresh
@@ -258,20 +269,23 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 hasPrefilledComposerContext,
                 hasLocationHash: typeof window !== 'undefined' && Boolean(window.location.hash),
             });
-            if (targetTicketId && visibleTickets.some((ticket) => ticket.id === targetTicketId)) {
-                setSearchParams((current) => {
+            const targetTicket = targetTicketId ? visibleTickets.find((ticket) => ticket.id === targetTicketId) : undefined;
+            const targetConversationId = targetTicket?.conversation_id || selectedConversationId || '';
+            const alreadySelected = targetTicketId === selectedTicketId
+                && targetConversationId === (selectedConversationId || '');
+            if (targetTicket && !alreadySelected) {
+                setBackgroundSearchParams((current) => {
                     const next = new URLSearchParams(current);
-                    next.set('ticket', targetTicketId);
-                    const targetTicket = visibleTickets.find((ticket) => ticket.id === targetTicketId);
-                    if (targetTicket?.conversation_id) {
+                    next.set('ticket', targetTicket.id);
+                    if (targetTicket.conversation_id) {
                         next.set('conversation', targetTicket.conversation_id);
                     }
                     return next;
                 }, { replace: true });
-            } else if (selectedTicketId && hasActiveFilters && !visibleTickets.some((ticket) => ticket.id === selectedTicketId)) {
+            } else if (!targetTicket && selectedTicketId && hasActiveFilters && !visibleTickets.some((ticket) => ticket.id === selectedTicketId)) {
                 setSelectedTicket(null);
                 setMessages([]);
-                setSearchParams((current) => {
+                setBackgroundSearchParams((current) => {
                     const next = new URLSearchParams(current);
                     next.delete('ticket');
                     next.delete('conversation');
@@ -288,7 +302,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 if (!silent && supportCenterMountedRef.current) setLoading(false);
             }
         }
-    }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
+    }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setBackgroundSearchParams, toast, user?.id]);
 
     // Navigation and filter changes retire the old list request before it can
     // restore its captured ticket selection or overwrite the new queue.
@@ -708,6 +722,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             </div>
                             <input value={composer.subject} onChange={(event) => setComposer((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" aria-label="Support ticket subject" required minLength={3} maxLength={120} className="mt-4 w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" />
                             <div className="mt-4"><SupportComposer value={composer.message} onChange={(value) => setComposer((current) => ({ ...current, message: value }))} onSubmit={() => void handleCreateTicket()} onFilesSelected={(files) => void handleFiles('ticket', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('ticket', localId)} attachments={ticketAttachments} disabled={submitting} canSubmit={Boolean(composer.subject.trim() && (composer.message.trim() || ticketAttachments.length > 0))} placeholder="Describe the blocker, the screen you were on, what you expected, and what needs to happen next." submitLabel={submitting ? 'Submitting' : 'Create ticket'} /></div>
+                            {!composer.subject.trim() ? (
+                                <p className="mt-2 text-xs text-gray-600 dark:text-gray-300" aria-live="polite">Add a short subject (at least 3 characters) to create the ticket.</p>
+                            ) : !composer.message.trim() && ticketAttachments.length === 0 ? (
+                                <p className="mt-2 text-xs text-gray-600 dark:text-gray-300" aria-live="polite">Add a message or attach a file to create the ticket.</p>
+                            ) : null}
                         </div>
                     )}
 

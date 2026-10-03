@@ -138,6 +138,14 @@ export function normalizeSearchQueryInput(value: string): string {
     .trim();
 }
 
+/** For onChange: keeps a single trailing space so "SW1A 1AA" and "New Delhi" can be typed. */
+export function normalizeSearchQueryTyping(value: string): string {
+  return value
+    .replace(/^\s+/, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_SEARCH_QUERY_LENGTH);
+}
+
 const LOCATION_CODE_IN_TEXT_PATTERN = /\b(?:\d{6}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i;
 
 function getPropertyGroupCountry(property: CountryAwarePropertyInput): SupportedLaunchCountryCode {
