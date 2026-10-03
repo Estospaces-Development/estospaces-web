@@ -1084,10 +1084,10 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 publishWorkspaceSync,
                 reason: `Applications companion decision: ${status}`,
             });
-            if (syncResult.error || !syncResult.data) {
-                return { success: false, error: syncResult.error || 'Failed to sync fast-track decision' };
-            }
-            syncedFastTrack = true;
+            // The status update above already saved the decision; booking closes the
+            // linked Fast Track case itself, so a 409 "already closed" here is not a
+            // failure the manager should see (issue 349).
+            syncedFastTrack = Boolean(syncResult.data && !syncResult.error);
         }
 
         await fetchApplications();

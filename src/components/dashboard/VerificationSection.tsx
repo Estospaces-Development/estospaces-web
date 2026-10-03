@@ -416,7 +416,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     <select
                         value={activeMarket}
                         onChange={(event) => setSelectedMarket(event.target.value as SupportedLaunchCountryCode)}
-                        className="bg-transparent text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                        className="bg-transparent text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide min-w-[11rem] shrink-0 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
                     >
                         <option value={LAUNCH_COUNTRY_CODE}>India</option>
                         <option value={UK_COUNTRY_CODE}>United Kingdom</option>

@@ -33,6 +33,7 @@ import {
     normalizePropertySearchSort,
     normalizeRoomBoundInput,
     normalizeSearchQueryInput,
+    normalizeSearchQueryTyping,
     inferSearchMarketFromText,
     getSearchQueryValidationMessage,
     readSearchUrlFilters,
@@ -292,7 +293,7 @@ const PropertySearch = () => {
             searchParams.get('autoLocation'),
         );
         const currentFilters = currentUrlFiltersRef.current;
-        applyingUrlFiltersRef.current = urlFilters.query !== currentFilters.query
+        applyingUrlFiltersRef.current = urlFilters.query !== normalizeSearchQueryInput(currentFilters.query)
             || urlFilters.market !== currentFilters.market
             || urlFilters.location !== currentFilters.location
             || urlFilters.propertyType !== currentFilters.propertyType
@@ -304,7 +305,8 @@ const PropertySearch = () => {
             || urlFilters.sortBy !== currentFilters.sortBy
             || urlAmenities !== currentFilters.amenities
             || urlFilters.page !== currentFilters.page;
-        setQuery(urlFilters.query);
+        // Keep a trailing space the user is still typing; the URL holds the cleaned value.
+        setQuery((previous) => (normalizeSearchQueryInput(previous) === urlFilters.query ? previous : urlFilters.query));
         setMarket(urlFilters.market);
         setLocation(urlFilters.location);
         setPropertyType(urlFilters.propertyType);
@@ -327,7 +329,8 @@ const PropertySearch = () => {
         setFallbackNotice('');
         const next = new URLSearchParams();
         const serializedMarket = serializeSearchMarketParam(market);
-        if (query) next.set('q', query);
+        const cleanQuery = normalizeSearchQueryInput(query);
+        if (cleanQuery) next.set('q', cleanQuery);
         if (serializedMarket) next.set('market', serializedMarket);
         if (location) next.set('location', location.trim());
         if (
@@ -759,7 +762,8 @@ const PropertySearch = () => {
             {/* Search Bar */}
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
                 <div className="relative min-w-0 flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    {/* Pinned to the input's centre (46px tall) so an error line below can't shift it (issue 452). */}
+                    <Search className="pointer-events-none absolute left-3 top-[23px] -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                         aria-label="Search properties"
                         aria-autocomplete="list"
@@ -780,7 +784,7 @@ const PropertySearch = () => {
                                 setLocation('');
                                 setMarket('');
                             }
-                            setQuery(normalizeSearchQueryInput(e.target.value));
+                            setQuery(normalizeSearchQueryTyping(e.target.value));
                             setPage(1);
                             setShowSuggestions(true);
                         }}

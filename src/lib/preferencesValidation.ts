@@ -13,7 +13,8 @@ export type PreferencesValidationErrors = Partial<Record<keyof PreferencesValida
 const MAX_PREFERENCE_BUDGET = 100000000;
 const MAX_PREFERENCE_BEDROOMS = 20;
 const MAX_SEARCH_RADIUS_KM = 500;
-const MAX_CITY_LENGTH = 12;
+// Long enough for real names such as "Thiruvananthapuram" or "Stoke-on-Trent".
+const MAX_CITY_LENGTH = 60;
 
 function addNonNegativeError(
     errors: PreferencesValidationErrors,
@@ -42,8 +43,8 @@ export function validateCityInput(city: string): string | undefined {
     if (trimmed.length > MAX_CITY_LENGTH) {
         return `City name must be ${MAX_CITY_LENGTH} characters or fewer`;
     }
-    if (!/^[a-zA-Z\s\-']+$/.test(trimmed)) {
-        return 'City name can only contain letters, spaces, hyphens, and apostrophes';
+    if (!/^[\p{L}][\p{L}\s\-'.]*$/u.test(trimmed)) {
+        return 'City name can only contain letters, spaces, hyphens, apostrophes, and full stops';
     }
     return undefined;
 }

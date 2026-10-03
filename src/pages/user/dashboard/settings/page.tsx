@@ -115,17 +115,21 @@ export default function SettingsPage() {
         key: 'min_budget' | 'max_budget' | 'min_bedrooms' | 'max_bedrooms' | 'search_radius_km',
         value: string,
     ) => {
+        const digits = value.replace(/\D/g, '');
         setPreferences((prev) => ({
             ...prev,
-            [key]: value === '' ? null : Number(value),
+            [key]: digits === '' ? null : Number(digits),
         }));
         setPreferenceErrors((prev) => ({ ...prev, [key]: undefined }));
         setSaveSuccess(false);
     };
 
     const placeCursorAtEnd = (input: HTMLInputElement) => {
-        const len = input.value.length;
-        try { input.setSelectionRange(len, len); } catch { /* noop */ }
+        // After the click has placed its own caret, move it to the end (issue 338).
+        window.setTimeout(() => {
+            const len = input.value.length;
+            try { input.setSelectionRange(len, len); } catch { /* noop */ }
+        }, 0);
     };
 
     const hasChanges = useMemo(() => {
@@ -157,11 +161,6 @@ export default function SettingsPage() {
             return;
         }
 
-        if (hasNoSearchPreferences(preferences)) {
-            toast.error('Please enter at least one search preference before saving.');
-            return;
-        }
-
         try {
             setSaving(true);
             const { error } = await updatePreferences(preferences);
@@ -169,7 +168,9 @@ export default function SettingsPage() {
 
             setSaveSuccess(true);
             setOriginalPreferences(preferences);
-            toast.success('Settings updated successfully');
+            toast.success(hasNoSearchPreferences(preferences)
+                ? 'Settings saved. You have no search defaults now.'
+                : 'Settings updated successfully');
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (_error: any) {
             toast.error('Failed to save settings');
@@ -396,7 +397,8 @@ export default function SettingsPage() {
                                             <BudgetCurrencyIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
                                                 id="user-min-budget"
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 min="0"
                                                 value={preferences.min_budget ?? ''}
                                                 onChange={(e) => handleNumberChange('min_budget', e.target.value)}
@@ -420,7 +422,8 @@ export default function SettingsPage() {
                                             <BudgetCurrencyIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
                                                 id="user-max-budget"
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 min="0"
                                                 value={preferences.max_budget ?? ''}
                                                 onChange={(e) => handleNumberChange('max_budget', e.target.value)}
@@ -444,7 +447,8 @@ export default function SettingsPage() {
                                             <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
                                                 id="user-min-bedrooms"
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 min="0"
                                                 value={preferences.min_bedrooms ?? ''}
                                                 onChange={(e) => handleNumberChange('min_bedrooms', e.target.value)}
@@ -468,7 +472,8 @@ export default function SettingsPage() {
                                             <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
                                                 id="user-max-bedrooms"
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 min="0"
                                                 value={preferences.max_bedrooms ?? ''}
                                                 onChange={(e) => handleNumberChange('max_bedrooms', e.target.value)}
@@ -490,7 +495,8 @@ export default function SettingsPage() {
                                         <label htmlFor="user-search-radius" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Search Radius (km)</label>
                                         <input
                                             id="user-search-radius"
-                                            type="number"
+                                            type="text"
+                                                inputMode="numeric"
                                             min="0"
                                             value={preferences.search_radius_km ?? ''}
                                             onChange={(e) => handleNumberChange('search_radius_km', e.target.value)}

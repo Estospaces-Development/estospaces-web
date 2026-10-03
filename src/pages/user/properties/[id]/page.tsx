@@ -890,6 +890,7 @@ const UserPropertyDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isUpdatingSavedProperty, setIsUpdatingSavedProperty] = useState(false);
+    const [isRemovingSavedProperty, setIsRemovingSavedProperty] = useState(false);
     const [savedPropertyStatusMessage, setSavedPropertyStatusMessage] = useState('');
     const [isStartingFastTrack, setIsStartingFastTrack] = useState(false);
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
@@ -1123,7 +1124,16 @@ const UserPropertyDetail = () => {
         };
     }, [id]);
 
-    const images = useMemo(() => getPropertyImages(property), [property]);
+    // Photos whose file fails to load are dropped, so the count and gallery only
+    // show photos that actually display (issue 347).
+    const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);
+    const markImageFailed = useCallback((url: string) => {
+        setFailedImageUrls((previous) => (previous.includes(url) ? previous : [...previous, url]));
+    }, []);
+    const images = useMemo(
+        () => getPropertyImages(property).filter((url) => !failedImageUrls.includes(url)),
+        [failedImageUrls, property],
+    );
     const realImageCount = images.length;
     const galleryDisplayState = useMemo(
         () => getPropertyGalleryDisplayState(realImageCount, selectedImageIndex),
@@ -1848,6 +1858,7 @@ const UserPropertyDetail = () => {
         }
 
         setIsUpdatingSavedProperty(true);
+        setIsRemovingSavedProperty(isSaved);
         try {
             const result = isSaved ? await removeProperty(id) : await saveProperty(id);
             if (result?.success) {
@@ -2433,7 +2444,16 @@ const UserPropertyDetail = () => {
                     ) : (
                         <Heart size={16} className={isSaved ? 'fill-current' : 'text-gray-400 group-hover:text-orange-500'} />
                     )}
-                    <span>{isUpdatingSavedProperty ? 'Saving...' : (isSaved ? 'Saved' : 'Save')}</span>
+                    {isUpdatingSavedProperty ? (
+                        <span>{isRemovingSavedProperty ? 'Removing...' : 'Saving...'}</span>
+                    ) : isSaved ? (
+                        <>
+                            <span className="group-hover:hidden group-focus-visible:hidden">Saved</span>
+                            <span className="hidden group-hover:inline group-focus-visible:inline">Remove</span>
+                        </>
+                    ) : (
+                        <span>Save</span>
+                    )}
                 </button>
             </div>
 
@@ -2453,6 +2473,7 @@ const UserPropertyDetail = () => {
                                         alt={property.title}
                                         className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
                                         onError={(event) => {
+                                            markImageFailed(coverImage);
                                             event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                         }}
                                     />
@@ -2618,6 +2639,7 @@ const UserPropertyDetail = () => {
                                                             alt={`${property.title} thumbnail ${index + 1}`}
                                                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                                                             onError={(event) => {
+                                                                markImageFailed(image);
                                                                 event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                                             }}
                                                         />
