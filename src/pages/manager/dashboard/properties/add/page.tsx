@@ -3518,7 +3518,7 @@ export default function AddPropertyPage() {
                           type="button"
                           onClick={() => removeImage(index)}
                           aria-label={`Remove property image ${index + 1}`}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 rounded-full bg-red-500 p-1 text-white shadow transition-colors hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-1"
                         >
                         <X className="w-4 h-4" />
                       </button>
@@ -3608,7 +3608,7 @@ export default function AddPropertyPage() {
                         type="button"
                         onClick={() => removeVideo(index)}
                         aria-label={`Remove property video ${index + 1}`}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 rounded-full bg-red-500 p-1 text-white shadow transition-colors hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-1"
                       >
                         <X className="w-4 h-4" />
                       </button>

@@ -238,3 +238,13 @@ test('manager property location uses address lookup, current location, and a map
   assert.doesNotMatch(managerPropertyFormPage, />\s*Latitude\s*</);
   assert.doesNotMatch(managerPropertyFormPage, />\s*Longitude\s*</);
 });
+
+test('photo and video Remove buttons stay visible without hover (touch and keyboard users)', () => {
+  for (const label of ['Remove property image', 'Remove property video']) {
+    const at = managerPropertyFormPage.indexOf(label);
+    assert.ok(at > 0, `${label} button exists`);
+    const button = managerPropertyFormPage.slice(at, managerPropertyFormPage.indexOf('>', at));
+    assert.doesNotMatch(button, /opacity-0/, `${label} must not be hidden until hover`);
+    assert.match(button, /focus-visible:ring/, `${label} needs a visible focus ring`);
+  }
+});
