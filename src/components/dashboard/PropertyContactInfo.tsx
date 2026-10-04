@@ -215,13 +215,13 @@ ${contactForm.message}
                     )}
 
                     {contactAddress && (
-                        <div className="flex min-h-[5.5rem] items-start gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300">
-                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
-                                <MapPin size={18} />
-                            </div>
-                            <div className="min-w-0 text-sm leading-6">
-                                <p>{contactAddress}</p>
-                            </div>
+                        <div data-contact-location className="flex items-start gap-2 px-1 pt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                            {/* Plain text, not a card: unlike phone and email, the location is not an action (#460). */}
+                            <MapPin size={16} aria-hidden="true" className="mt-1 shrink-0 text-gray-400 dark:text-gray-500" />
+                            <p className="min-w-0">
+                                <span className="sr-only">Location: </span>
+                                {contactAddress}
+                            </p>
                         </div>
                     )}
                 </div>
