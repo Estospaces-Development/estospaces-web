@@ -264,8 +264,12 @@ import { getApplications } from '../../services/applicationsService';
 import { getContracts, getViewings } from '../../services/bookingsService';
 import { getSaleProgressions } from '../../services/salesService';
 import { getUserProperties } from '../../services/userPropertiesService';
-import { getUserBrokerRequests } from '../../services/leadsService';
-import { getPropertyContextsByIds } from '../../services/propertyService';
+import { getUserBrokerRequests, getUserLeads } from '../../services/leadsService';
+import { getPropertyContextsByIds, getSavedProperties } from '../../services/propertyService';
+
+// Journeys in these states no longer make the home one of "My Homes".
+const CLOSED_HOME_STATUSES = new Set(['rejected', 'withdrawn', 'cancelled', 'canceled', 'expired', 'declined', 'closed', 'closed_lost', 'lost']);
+const RENT_LISTING_TYPES = new Set(['rent', 'rental', 'lease', 'short_term', 'short_term_rental']);
 
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
@@ -292,7 +296,7 @@ const ApplicationTimelineWidget = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes, contractsRes, fastTrackCasesRes] = await Promise.all([
+                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes, contractsRes, fastTrackCasesRes, savedRes, leadsRes] = await Promise.all([
                     getApplications({ suppressErrorToast: true }),
                     getUserBrokerRequests({ suppressErrorToast: true }),
                     getUserProperties({ limit: 50 }),
@@ -301,8 +305,15 @@ const ApplicationTimelineWidget = () => {
                     getContracts().catch(() => []),
                     // Only used to describe linked cases; never blocks the timeline.
                     getFastTrackCases({ suppressErrorToast: true }).catch(() => ({ data: null, error: null })),
+                    // Saved homes and enquiries only add to My Homes; never block the timeline.
+                    getSavedProperties().catch(() => ({ data: null, error: null })),
+                    getUserLeads({ suppressErrorToast: true }).catch(() => ({ data: null, error: null })),
                 ]);
                 const fastTrackCases = fastTrackCasesRes.data || [];
+                const activeLeads = (leadsRes.data || []).filter((lead) => (
+                    lead.property_id
+                    && ![lead.stage, lead.status].some((value) => CLOSED_HOME_STATUSES.has(String(value || '').toLowerCase()))
+                ));
 
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
                 const contracts = Array.isArray(contractsRes) ? contractsRes : [];
@@ -357,6 +368,7 @@ const ApplicationTimelineWidget = () => {
                     ...viewings.map((viewing: any) => viewing.property_id),
                     ...contracts.map((contract: any) => contract.property_id),
                     ...(saleProgressionsRes.data || []).map((progression) => progression.property_id),
+                    ...activeLeads.map((lead) => lead.property_id),
                 ].filter(Boolean))).filter((propertyId) => !hasTimelinePropertyDetails(propertyContextById.get(propertyId)));
 
                 const hydratedPropertyIds = new Set<string>();
@@ -790,10 +802,54 @@ const ApplicationTimelineWidget = () => {
                         progress: 100,
                         nextAction: 'Continue your 24-hour journey',
                     }));
+                // My Homes: homes the user owns, selected, is applying for, has enquired about (a lead), or saved.
+                const closedApplicationIds = new Set((appsRes.data || [])
+                    .filter((app: any) => CLOSED_HOME_STATUSES.has(String(app.status || '').toLowerCase()))
+                    .map((app: any) => app.id));
+                const activeApplicationHomes = [...mappedSaleProgressions, ...mappedApps]
+                    .filter((item) => item.property.id && !closedApplicationIds.has(item.id));
+                const toHomeItem = (id: string, property: any, currentStage: string, nextAction: string, updatedAt?: string | null): ApplicationItem => ({
+                    id,
+                    type: RENT_LISTING_TYPES.has(String(property.listing_type || '').toLowerCase()) ? 'rent' : 'buy',
+                    currentStage,
+                    currentStageNumber: 1,
+                    totalStages: 1,
+                    progress: 0,
+                    lastUpdated: getStableActivityTimestamp(updatedAt, property.updated_at, property.created_at),
+                    nextAction,
+                    property: {
+                        id: property.id,
+                        title: property.title || property.address || 'Home',
+                        city: property.city || property.address || null,
+                        price: typeof property.price === 'number' ? property.price : null,
+                        country: property.country,
+                        currency: property.currency,
+                        image_urls: 'image' in property ? toPropertyImages(property.image) : getPropertyImages(property),
+                    },
+                });
+                const leadHomes: ApplicationItem[] = activeLeads.map((lead) => {
+                    const context = propertyContextById.get(lead.property_id as string);
+                    return toHomeItem(`lead-home-${lead.id}`, {
+                        id: lead.property_id,
+                        listing_type: lead.journey_type === 'rent' || lead.property?.listing_type === 'rent' ? 'rent' : 'sale',
+                        title: context?.title || lead.property?.title,
+                        address: context?.address || lead.property?.address_line_1,
+                        city: lead.property?.city,
+                        price: typeof context?.price === 'number' ? context.price : lead.property?.price,
+                        country: context?.country,
+                        currency: context?.currency,
+                        image: context?.image || lead.property?.image_urls,
+                    }, 'Enquiry sent', lead.next_action || 'Wait for the property agent to reply', lead.updated_at || lead.created_at);
+                });
+                const savedHomes: ApplicationItem[] = (savedRes.data || [])
+                    .filter((property) => property?.id)
+                    .map((property: any) => toHomeItem(
+                        `saved-home-${property.id}`, property, 'Saved', 'Book a viewing or start your 24-hour journey', property.saved_at,
+                    ));
+                // Earlier groups win when a home appears more than once.
                 const listingsByPropertyId = new Map<string, ApplicationItem>();
-                [...selectedHomes, ...mappedProps].forEach((listing) => {
-                    const current = listingsByPropertyId.get(listing.property.id);
-                    if (!current || listing.lastUpdated.getTime() > current.lastUpdated.getTime()) {
+                [...selectedHomes, ...mappedProps, ...activeApplicationHomes, ...leadHomes, ...savedHomes].forEach((listing) => {
+                    if (!listingsByPropertyId.has(listing.property.id)) {
                         listingsByPropertyId.set(listing.property.id, listing);
                     }
                 });

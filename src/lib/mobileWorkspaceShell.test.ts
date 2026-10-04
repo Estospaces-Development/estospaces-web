@@ -199,8 +199,9 @@ test('small-phone dashboard skeletons and contract cards reflow without changing
 test('mobile dashboards use compact app-native hierarchy while desktop breakpoints stay intact', () => {
   assert.match(userDashboard, /min-h-0[^\n]+md:min-h-\[480px\][^\n]+lg:min-h-\[540px\]/);
   assert.match(userDashboard, /data-mobile-primary-task/);
-  assert.match(userDashboard, /Find a home/);
-  assert.match(userDashboard, /primaryLabel\.trim\(\)\.toLowerCase\(\) !== 'find a home'/);
+  // #515/#516: the search form is no longer hidden on mobile.
+  assert.match(userDashboard, /className="mt-4 grid min-w-0[^\n]+sm:mt-0[^\n]+data-dashboard-search/);
+  assert.doesNotMatch(userDashboard, /hidden min-w-0 max-w-full gap-6 sm:grid/);
   assert.match(userDashboard, /id="greeting-section" className="hidden/);
   assert.match(userDashboard, /mobile-filter-rail[^\n]+hidden[^\n]+sm:flex/);
   assert.match(userDashboard, /hidden rounded-\[24px\][^\n]+lg:block/);
