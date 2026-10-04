@@ -439,13 +439,18 @@ test('#671 an expired lead shows Expired and no matched broker, not Awaiting res
   assert.equal(state.statusLabel, 'Expired');
   assert.equal(state.requiresEscalation, false);
   assert.equal(getManagerLeadMatchedBroker(expired).name, 'No broker matched');
+  // Dev LD-2026-000162: the API attaches the assigned broker although nobody responded.
+  assert.equal(
+    getManagerLeadMatchedBroker({ ...expired, matched_broker: { name: 'Property Manager', company_name: 'Estospaces Launch Manager' } }).name,
+    'No broker matched',
+  );
 
   const live = { status: 'pending_broker_response', stage: 'matching', sla_deadline: '2026-10-04T12:05:00Z' };
   assert.equal(getManagerLeadOperationalState(live, now, 'Awaiting response').statusLabel, 'Awaiting response');
   assert.equal(getManagerLeadMatchedBroker(live).name, 'Awaiting first response');
   assert.notEqual(getManagerLeadMatchedBroker({ ...expired, status: 'closed_won', stage: 'completed' }).name, 'No broker matched');
   assert.equal(
-    getManagerLeadMatchedBroker({ ...expired, matched_broker: { name: 'Asha Broker', company_name: 'Asha Co' } }).name,
+    getManagerLeadMatchedBroker({ ...expired, first_response_at: '2026-10-04T11:55:00Z', matched_broker: { name: 'Asha Broker', company_name: 'Asha Co' } }).name,
     'Asha Broker',
   );
 });

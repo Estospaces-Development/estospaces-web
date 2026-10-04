@@ -454,21 +454,23 @@ export const formatManagerLeadAddress = (property?: ManagerLeadAddressParts | nu
 };
 
 export interface ManagerLeadBrokerItem extends ManagerLeadSummaryItem {
+  matched_broker_id?: string;
   matched_broker?: { name?: string; company_name?: string } | null;
   property?: { agent_name?: string; agent_company?: string };
 }
 
 export const getManagerLeadMatchedBroker = (lead: ManagerLeadBrokerItem) => {
+  const stage = normalizeStage(resolveLeadStage(lead));
+  // The API attaches the assigned broker even when nobody responded, so check for a response first.
+  const hasResponse = Boolean(lead.first_response_at || lead.matched_at || lead.matched_broker_id);
+  if (stage !== "completed" && CLOSED_MANAGER_LEAD_STAGES.has(stage) && !hasResponse) {
+    return { name: "No broker matched", detail: "Closed before any broker responded" };
+  }
   if (lead.matched_broker?.name) {
     return { name: lead.matched_broker.name, detail: lead.matched_broker.company_name || "" };
   }
-
-  const stage = normalizeStage(resolveLeadStage(lead));
   if (stage === "matching") {
     return { name: "Awaiting first response", detail: "10-minute response window live" };
-  }
-  if (stage !== "completed" && CLOSED_MANAGER_LEAD_STAGES.has(stage) && !lead.first_response_at && !lead.matched_at) {
-    return { name: "No broker matched", detail: "Closed before any broker responded" };
   }
 
   return {
