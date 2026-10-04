@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   filterVisibleManagerLeads,
+  formatManagerLeadAddress,
+  getManagerLeadMatchedBroker,
   getManagerLeadOperationalState,
   isManagerLeadBreached,
   isActiveManagerLeadWorkspaceCase,
@@ -11,6 +13,7 @@ import {
   mapBrokerRequestOfferToManagerLead,
   mergeBrokerRequestOffersIntoManagerLeads,
   paginateManagerLeads,
+  pickDefaultManagerLead,
   resolveManagerLeadWorkspaceCase,
   shouldShowManagerLeadWorkspaceMissingNotice,
   sortManagerLeads,
@@ -408,4 +411,64 @@ test("manager lead card explains missing live workspace instead of exposing stal
 
   assert.equal(shouldShowManagerLeadWorkspaceMissingNotice(lead, false), true);
   assert.equal(shouldShowManagerLeadWorkspaceMissingNotice(lead, true), false);
+});
+
+test('#670 manager lead address names the city once and adds the postcode', () => {
+  const lead = mapBrokerRequestOfferToManagerLead({
+    id: 'fff9bd03-0000-0000-0000-000000000000', request_type: 'buy', location: 'Chennai',
+    location_postcode: '600001', status: 'submitted', dispatch_status: 'matching_wave_1',
+  });
+  assert.equal(formatManagerLeadAddress(lead.property), 'Chennai, 600001');
+  assert.equal(
+    formatManagerLeadAddress({ address_line_1: '12 Garden Court', city: 'London', postcode: 'SW1A 1AA' }),
+    '12 Garden Court, London, SW1A 1AA',
+  );
+  assert.equal(formatManagerLeadAddress(undefined), '');
+});
+
+test('#671 an expired lead shows Expired and no matched broker, not Awaiting response', () => {
+  const now = Date.parse('2026-10-04T12:00:00Z');
+  const expired = {
+    status: 'pending_broker_response',
+    stage: 'expired',
+    sla_status: 'breach',
+    dispatch_status: 'expired',
+    property: { agent_name: 'Property Manager' },
+  };
+  const state = getManagerLeadOperationalState(expired, now, 'Awaiting response');
+  assert.equal(state.statusLabel, 'Expired');
+  assert.equal(state.requiresEscalation, false);
+  assert.equal(getManagerLeadMatchedBroker(expired).name, 'No broker matched');
+  // Dev LD-2026-000162: the API attaches the assigned broker although nobody responded.
+  assert.equal(
+    getManagerLeadMatchedBroker({ ...expired, matched_broker: { name: 'Property Manager', company_name: 'Estospaces Launch Manager' } }).name,
+    'No broker matched',
+  );
+
+  const live = { status: 'pending_broker_response', stage: 'matching', sla_deadline: '2026-10-04T12:05:00Z' };
+  assert.equal(getManagerLeadOperationalState(live, now, 'Awaiting response').statusLabel, 'Awaiting response');
+  assert.equal(getManagerLeadMatchedBroker(live).name, 'Awaiting first response');
+  assert.notEqual(getManagerLeadMatchedBroker({ ...expired, status: 'closed_won', stage: 'completed' }).name, 'No broker matched');
+  assert.equal(
+    getManagerLeadMatchedBroker({ ...expired, first_response_at: '2026-10-04T11:55:00Z', matched_broker: { name: 'Asha Broker', company_name: 'Asha Co' } }).name,
+    'Asha Broker',
+  );
+});
+
+test('#672 the lead map selects the newest live lead before older expired ones', () => {
+  const now = Date.parse('2026-10-04T12:00:00Z');
+  const expiredDemo = {
+    id: 'garden-court', status: 'pending_broker_response', stage: 'expired',
+    sla_status: 'breach', created_at: '2026-10-04T11:58:00Z',
+  };
+  const liveRequest = {
+    id: 'rent-chennai', status: 'pending_broker_response', stage: 'matching',
+    sla_deadline: '2026-10-04T12:06:00Z', created_at: '2026-10-04T11:56:00Z',
+  };
+  const olderOpen = { id: 'older-open', status: 'broker_responded', stage: 'broker_matched', created_at: '2026-10-03T10:00:00Z' };
+
+  assert.equal(pickDefaultManagerLead([expiredDemo, olderOpen, liveRequest], now)?.id, 'rent-chennai');
+  assert.equal(pickDefaultManagerLead([expiredDemo, olderOpen], now)?.id, 'older-open');
+  assert.equal(pickDefaultManagerLead([expiredDemo], now)?.id, 'garden-court');
+  assert.equal(pickDefaultManagerLead([], now), null);
 });
