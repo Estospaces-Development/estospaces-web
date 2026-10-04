@@ -12,7 +12,6 @@ import {
   Home,
   Key,
   Map as MapIcon,
-  Search,
   X,
 } from 'lucide-react';
 
@@ -987,6 +986,9 @@ const DashboardClient = () => {
                     <p className="mt-1.5 line-clamp-2 text-[13px] leading-[1.4] text-slate-600">
                       {journeySummaryLoading ? 'Checking your latest update…' : nextStepSummary.now}
                     </p>
+                    <p className="mt-1 line-clamp-2 text-[13px] leading-[1.4] text-slate-600">
+                      {journeySummaryLoading ? 'Checking your next step…' : nextStepSummary.next}
+                    </p>
                     <button
                       type="button"
                       onClick={nextStepSummary.primaryAction}
@@ -995,19 +997,10 @@ const DashboardClient = () => {
                       {nextStepSummary.primaryLabel}
                       <ArrowRight size={16} />
                     </button>
-                    {nextStepSummary.primaryLabel.trim().toLowerCase() !== 'find a home' ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate('/user/dashboard/discover')}
-                        className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
-                      >
-                        <Search size={16} />
-                        Find a home
-                      </button>
-                    ) : null}
                   </div>
 
-                  <div className="hidden min-w-0 max-w-full gap-6 sm:grid lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+                  {/* Same content on every screen (#515/#516): mobile shows the search below its next-step card. */}
+                  <div className="mt-4 grid min-w-0 max-w-full gap-6 border-t border-slate-200 pt-4 sm:mt-0 sm:border-t-0 sm:pt-0 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start" data-dashboard-search>
                     <div className="min-w-0 max-w-full">
                       <SearchBar
                         variant="hero"
@@ -1165,6 +1158,7 @@ const DashboardClient = () => {
               <Suspense fallback={<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />}>
                 <BrokerRequestWidget
                   onLocationContextChange={handleBrokerRequestLocationContextChange}
+                  activeJourney={activeJourney}
                   preferredRequestId={activeJourney?.brokerRequestId || (
                     activeBrokerRequest && shouldAutoResumeBrokerRequest(activeBrokerRequest)
                       ? activeBrokerRequest.id

@@ -39,11 +39,11 @@ test('agent requests history lists expired, active and closed requests with a st
     const componentModule = { exports: {} as { default: React.ComponentType } };
     const load = (id: string): unknown => {
         if (id === '../../services/applicationsService') return { getApplications: async () => ({ data: [], error: null }) };
-        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: brokerRequests, error: null }) };
+        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: brokerRequests, error: null }), getUserLeads: async () => ({ data: [], error: null }) };
         if (id === '../../services/salesService') return { getSaleProgressions: async () => ({ data: [], error: null }) };
         if (id === '../../services/bookingsService') return { getViewings: async () => [], getContracts: async () => [] };
         if (id === '../../services/userPropertiesService') return { getUserProperties: async () => ({ data: [], error: null }) };
-        if (id === '../../services/propertyService') return { getPropertyContextsByIds: async () => ({ data: [], error: null }) };
+        if (id === '../../services/propertyService') return { getPropertyContextsByIds: async () => ({ data: [], error: null }), getSavedProperties: async () => ({ data: [], error: null }) };
         if (id === '@/services/fastTrackService') return { getFastTrackCases: async () => ({ data: [], error: null }) };
         return require(id.startsWith('@/') ? resolve(process.cwd(), 'src', id.slice(2)) : id);
     };

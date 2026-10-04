@@ -309,9 +309,11 @@ const hasBrokerRequestDraft = ({
 interface BrokerRequestWidgetProps {
     onLocationContextChange?: (locationCode: string | null) => void;
     preferredRequestId?: string | null;
+    /** The dashboard's active 24-hour journey, so this card never contradicts the "Your next step" banner (#520). */
+    activeJourney?: { brokerRequestId?: string | null; propertyTitle?: string | null } | null;
 }
 
-const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: BrokerRequestWidgetProps = {}) => {
+const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, activeJourney }: BrokerRequestWidgetProps = {}) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
@@ -1127,6 +1129,13 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
     const selectedPropertyId = selectedProperty?.id || activeRequest?.selected_property_id || null;
+    // One journey at a time: while a different 24-hour journey is live, this request waits rather than claiming to be the next step.
+    const journeyElsewhereTitle = activeJourney && activeJourney.brokerRequestId !== activeRequest?.id
+        ? (activeJourney.propertyTitle || 'another home')
+        : null;
+    const waitingForHomesLabel = journeyElsewhereTitle
+        ? `On hold while your 24-hour journey for ${journeyElsewhereTitle} is active`
+        : 'Waiting for home choices';
     const linkedFastTrackCaseId = activeRequest?.selected_fast_track_case_id || null;
     const shouldLookUpExistingJourney = Boolean(
         requestIsMatched && (selectedPropertyId || linkedFastTrackCaseId),
@@ -1509,7 +1518,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                 ? 'Continue with your selected home'
                                                 : availableSharedProperties.length > 0
                                                     ? 'Review your home choices'
-                                                    : 'Waiting for home choices'}
+                                                    : waitingForHomesLabel}
                                         </span>
                                     </span>
                                     <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
@@ -1571,7 +1580,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId }: Br
                                                             ? `${availableSharedProperties.length} home choice${availableSharedProperties.length === 1 ? '' : 's'} ready to review`
                                                             : staleSharedPropertiesCount > 0
                                                                 ? 'Home choices need refresh'
-                                                                : 'Waiting for home choices'}
+                                                                : waitingForHomesLabel}
                                                 </p>
                                                 <p className="mt-2 break-words text-sm text-gray-600 dark:text-gray-300">
                                                     {selectedProperty

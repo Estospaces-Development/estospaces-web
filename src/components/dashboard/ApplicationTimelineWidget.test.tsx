@@ -36,13 +36,14 @@ test('five loaded homes retain the full journey tab label before and after selec
     const componentModule = { exports: {} as { default: React.ComponentType } };
     const load = (id: string): unknown => {
         if (id === '../../services/applicationsService') return { getApplications: async () => ({ data: [], error: null }) };
-        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: [], error: null }) };
+        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: [], error: null }), getUserLeads: async () => ({ data: [], error: null }) };
         if (id === '../../services/salesService') return { getSaleProgressions: async () => ({ data: [], error: null }) };
         if (id === '../../services/bookingsService') return { getViewings: async () => [], getContracts: async () => [] };
         if (id === '../../services/userPropertiesService') return { getUserProperties: async () => ({ data: homes, error: null }) };
         if (id === '@/services/fastTrackService') return { getFastTrackCases: async () => ({ data: [], error: null }) };
         if (id === '../../services/propertyService') return {
             getPropertyContextsByIds: async () => { throw new Error('Owned home context is already present'); },
+            getSavedProperties: async () => ({ data: [], error: null }),
         };
         return require(id.startsWith('@/') ? resolve(process.cwd(), 'src', id.slice(2)) : id);
     };
@@ -96,11 +97,11 @@ const renderTimelineWithLinkedCase = async (fastTrackCase: Record<string, unknow
     const componentModule = { exports: {} as { default: React.ComponentType } };
     const load = (id: string): unknown => {
         if (id === '../../services/applicationsService') return { getApplications: async () => ({ data: [], error: null }) };
-        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: [brokerRequest], error: null }) };
+        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: [brokerRequest], error: null }), getUserLeads: async () => ({ data: [], error: null }) };
         if (id === '../../services/salesService') return { getSaleProgressions: async () => ({ data: [], error: null }) };
         if (id === '../../services/bookingsService') return { getViewings: async () => [], getContracts: async () => [] };
         if (id === '../../services/userPropertiesService') return { getUserProperties: async () => ({ data: [], error: null }) };
-        if (id === '../../services/propertyService') return { getPropertyContextsByIds: async () => ({ data: [], error: null }) };
+        if (id === '../../services/propertyService') return { getPropertyContextsByIds: async () => ({ data: [], error: null }), getSavedProperties: async () => ({ data: [], error: null }) };
         if (id === '@/services/fastTrackService') return { getFastTrackCases: async () => ({ data: [fastTrackCase], error: null }) };
         return require(id.startsWith('@/') ? resolve(process.cwd(), 'src', id.slice(2)) : id);
     };
@@ -174,4 +175,67 @@ test('timeline renders a cancelled linked case as closed, not live', async () =>
     assert.doesNotMatch(summary, /no new 24-hour clock|In progress|Deadline passed/);
     assert.ok(buttons.some((text) => text.includes('View closed 24-hour journey')));
     assert.ok(!buttons.some((text) => text.includes('Continue existing 24-hour journey')));
+});
+
+test('My Homes counts saved, applied-for and enquired homes, but not closed ones (#468)', async () => {
+    const require = createRequire(import.meta.url);
+    const compiled = ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
+            esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    const home = (id: string, title: string) => ({ id, title, city: 'London', country: 'GB', currency: 'GBP', price: 1500, listing_type: 'rent', images: [] });
+    const componentModule = { exports: {} as { default: React.ComponentType } };
+    const load = (id: string): unknown => {
+        if (id === '../../services/applicationsService') return { getApplications: async () => ({ data: [
+            { id: 'app-live', property_id: 'p-applied', property_title: 'Applied Home', listing_type: 'rent', status: 'submitted', created_at: '2026-09-01T10:00:00Z' },
+            { id: 'app-closed', property_id: 'p-rejected', property_title: 'Rejected Home', listing_type: 'rent', status: 'rejected', created_at: '2026-09-01T10:00:00Z' },
+        ], error: null }) };
+        if (id === '../../services/leadsService') return {
+            getUserBrokerRequests: async () => ({ data: [], error: null }),
+            getUserLeads: async () => ({ data: [
+                { id: 'lead-1', property_id: 'p-lead', status: 'new', stage: 'broker_matched', property: { id: 'p-lead', title: 'Enquired Home', city: 'London', price: 1200, image_urls: '' } },
+                { id: 'lead-2', property_id: 'p-lead-closed', status: 'closed', stage: 'withdrawn', property: { id: 'p-lead-closed', title: 'Withdrawn Home', city: 'London', price: 1200, image_urls: '' } },
+                { id: 'lead-3', property_id: 'p-saved', status: 'new', property: { id: 'p-saved', title: 'Saved Home', city: 'London', price: 900, image_urls: '' } },
+            ], error: null }),
+        };
+        if (id === '../../services/salesService') return { getSaleProgressions: async () => ({ data: [], error: null }) };
+        if (id === '../../services/bookingsService') return { getViewings: async () => [], getContracts: async () => [] };
+        if (id === '../../services/userPropertiesService') return { getUserProperties: async () => ({ data: [], error: null }) };
+        if (id === '@/services/fastTrackService') return { getFastTrackCases: async () => ({ data: [], error: null }) };
+        if (id === '../../services/propertyService') return {
+            getPropertyContextsByIds: async () => ({ data: [], error: null }),
+            getSavedProperties: async () => ({ data: [home('p-saved', 'Saved Home'), home('p-saved-2', 'Second Saved Home')], error: null }),
+        };
+        return require(id.startsWith('@/') ? resolve(process.cwd(), 'src', id.slice(2)) : id);
+    };
+    new Function('require', 'module', 'exports', compiled)(load, componentModule, componentModule.exports);
+    const window = new Window();
+    const globals = { window, document: window.document, navigator: window.navigator,
+        HTMLElement: window.HTMLElement, Node: window.Node, IS_REACT_ACT_ENVIRONMENT: true };
+    const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+    for (const [key, value] of Object.entries(globals)) {
+        Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const container = window.document.createElement('div');
+    window.document.body.append(container);
+    const root = createRoot(container as unknown as HTMLElement);
+    try {
+        await act(async () => root.render(<MemoryRouter><componentModule.exports.default /></MemoryRouter>));
+        // Applied + enquired + two saved (one also enquired, counted once); rejected and withdrawn are left out.
+        const tab = [...container.querySelectorAll('button')]
+            .find((button) => button.getAttribute('role') === 'tab' && button.textContent === 'My Homes (4)');
+        assert.ok(tab, `My Homes should count 4 homes; tabs were: ${[...container.querySelectorAll('[role="tab"]')].map((b) => b.textContent).join(' | ')}`);
+        await act(async () => tab.click());
+        for (const title of ['Applied Home', 'Enquired Home', 'Saved Home', 'Second Saved Home']) {
+            assert.ok(container.textContent.includes(title), `${title} is listed in My Homes`);
+        }
+        assert.ok(!container.textContent.includes('Withdrawn Home'));
+    } finally {
+        await act(async () => root.unmount());
+        await window.happyDOM.abort();
+        for (const [key, descriptor] of descriptors) {
+            if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+            else Reflect.deleteProperty(globalThis, key);
+        }
+    }
 });
