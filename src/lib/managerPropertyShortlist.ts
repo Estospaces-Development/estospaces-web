@@ -1,3 +1,5 @@
+import { getSupportedLaunchCountry } from './launchLocale';
+
 export interface ManagerPortfolioProperty {
     id: string;
     title: string;
@@ -20,7 +22,15 @@ const normalizeListingType = (value?: string) => String(value || '')
 export const isPortfolioPropertyEligibleForRequest = (
     property: ManagerPortfolioProperty,
     requestType?: string,
+    requestLocationCode?: string,
 ) => {
+    // Markets stay separate: core rejects a UK home for an India request and the reverse.
+    const requestMarket = getSupportedLaunchCountry(null, null, requestLocationCode);
+    const propertyMarket = getSupportedLaunchCountry(property.country, property.country, property.postcode);
+    if (requestMarket && propertyMarket && requestMarket !== propertyMarket) {
+        return false;
+    }
+
     const normalizedRequestType = normalizeListingType(requestType);
     const normalizedListingType = normalizeListingType(property.listing_type);
 
@@ -44,6 +54,7 @@ export const selectShareablePortfolioProperties = (
     properties: ManagerPortfolioProperty[],
     options: {
         requestType?: string;
+        requestLocationCode?: string;
         search?: string;
         sort: PropertySort;
         limit?: number;
@@ -51,7 +62,7 @@ export const selectShareablePortfolioProperties = (
 ) => {
     const search = String(options.search || '').trim().toLowerCase();
     const filtered = properties.filter((property) => {
-        if (!isPortfolioPropertyEligibleForRequest(property, options.requestType)) {
+        if (!isPortfolioPropertyEligibleForRequest(property, options.requestType, options.requestLocationCode)) {
             return false;
         }
         if (!search) {

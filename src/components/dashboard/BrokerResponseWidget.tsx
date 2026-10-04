@@ -875,10 +875,11 @@ const BrokerResponseWidget: React.FC = () => {
                             const isSaving = shareSavingRequestId === request.id;
                             const propertyKeyFor = createDuplicateSafeKeyResolver(`broker-response-property-${request.id}`);
                             const eligibleManagerPropertyCount = managerProperties.filter((property) => (
-                                isPortfolioPropertyEligibleForRequest(property, request.request_type)
+                                isPortfolioPropertyEligibleForRequest(property, request.request_type, request.location_postcode)
                             )).length;
                             const visibleManagerProperties = selectShareablePortfolioProperties(managerProperties, {
                                 requestType: request.request_type,
+                                requestLocationCode: request.location_postcode,
                                 search: propertyPickerSearch,
                                 sort: propertyPickerSort,
                                 limit: PROPERTY_SHARE_PICKER_LIMIT,
