@@ -19,3 +19,9 @@ test('manager lead map reports overlapping leads as verified locations', () => {
     assert.match(source, /uniqueLocationCount/);
     assert.match(source, /Across \{uniqueLocationCount\} verified location/);
 });
+
+test('#672 lead map selection covers live leads that have no verified location yet', () => {
+    assert.match(source, /leads\.find\(\(lead\) => lead\.id === selectedLeadID\)/);
+    assert.match(source, /pickDefaultManagerLead\(leads, now\)/);
+    assert.match(source, /Not on the map yet/);
+});

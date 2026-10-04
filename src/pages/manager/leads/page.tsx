@@ -28,6 +28,8 @@ import { canRequestLeadDocuments, formatLeadStage, resolveLeadStage } from '@/li
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import {
     filterVisibleManagerLeads,
+    formatManagerLeadAddress,
+    getManagerLeadMatchedBroker,
     getManagerLeadOperationalState,
     getManagerLeadSlaRemainingSeconds,
     mergeBrokerRequestOffersIntoManagerLeads,
@@ -98,8 +100,7 @@ function getLeadTitle(lead: Lead) {
 }
 
 function getLeadAddress(lead: Lead) {
-    const parts = [lead.property?.address_line_1, lead.property?.city].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : 'Address not available';
+    return formatManagerLeadAddress(lead.property) || 'Address not available';
 }
 
 function getLeadClientName(lead: Lead) {
@@ -924,6 +925,7 @@ export default function ManagerLeadsPage() {
                                 now,
                                 statusLabels[lead.status] || lead.status,
                             );
+                            const matchedBroker = getManagerLeadMatchedBroker(lead);
                             const canRequestDocuments = canRequestLeadDocuments(lead);
                             const canScheduleViewing = canScheduleLeadViewing(lead);
                             const canCloseLifecycle = !isLeadLifecycleClosed(lead);
@@ -1060,10 +1062,10 @@ export default function ManagerLeadsPage() {
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Matched Broker</p>
                                                     <p className="mt-1 font-medium text-gray-900 dark:text-white">
-                                                        {lead.matched_broker?.name || lead.property?.agent_name || 'Awaiting first response'}
+                                                        {matchedBroker.name}
                                                     </p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                        {lead.matched_broker?.company_name || lead.property?.agent_company || '10-minute response window live'}
+                                                        {matchedBroker.detail}
                                                     </p>
                                                 </div>
                                                 <div>

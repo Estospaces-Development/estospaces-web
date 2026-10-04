@@ -1,5 +1,5 @@
 import type { BrokerRequestRecord, Lead } from "@/services/leadsService";
-import { getLeadDeadline, resolveLeadStage, type LeadLike } from "./fastTrackWorkflow";
+import { formatLeadStage, getLeadDeadline, resolveLeadStage, type LeadLike } from "./fastTrackWorkflow";
 
 export type ManagerLeadSortMode = "newest" | "client_az" | "budget_desc" | "score_desc";
 
@@ -362,10 +362,15 @@ export const getManagerLeadOperationalState = (
   const isBreached = isManagerLeadBreached(lead, now);
   const requiresEscalation = isBreached && !isManagerLeadExplicitlyClosed(lead);
 
+  const staleOpenStatus = CLOSED_MANAGER_LEAD_STAGES.has(stage)
+    && !CLOSED_MANAGER_LEAD_STATUSES.has(normalizeStage(lead.status));
+
   return {
     isBreached,
     requiresEscalation,
-    statusLabel: requiresEscalation ? "Escalation required" : defaultStatusLabel,
+    statusLabel: requiresEscalation
+      ? "Escalation required"
+      : staleOpenStatus ? formatLeadStage(stage) : defaultStatusLabel,
     showResponseCountdown: stage === "matching" && !requiresEscalation,
   };
 };
@@ -424,4 +429,70 @@ export const paginateManagerLeads = <T>(
     currentPage,
     totalPages,
   };
+};
+
+export interface ManagerLeadAddressParts {
+  address_line_1?: string;
+  city?: string;
+  postcode?: string;
+}
+
+// Joins address parts once each, so "Chennai" as both street and city reads "Chennai, 600001".
+export const formatManagerLeadAddress = (property?: ManagerLeadAddressParts | null) => {
+  const seen = new Set<string>();
+  return [property?.address_line_1, property?.city, property?.postcode]
+    .map((part) => String(part || "").trim())
+    .filter((part) => {
+      const key = part.toLowerCase();
+      if (!part || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .join(", ");
+};
+
+export interface ManagerLeadBrokerItem extends ManagerLeadSummaryItem {
+  matched_broker?: { name?: string; company_name?: string } | null;
+  property?: { agent_name?: string; agent_company?: string };
+}
+
+export const getManagerLeadMatchedBroker = (lead: ManagerLeadBrokerItem) => {
+  if (lead.matched_broker?.name) {
+    return { name: lead.matched_broker.name, detail: lead.matched_broker.company_name || "" };
+  }
+
+  const stage = normalizeStage(resolveLeadStage(lead));
+  if (stage === "matching") {
+    return { name: "Awaiting first response", detail: "10-minute response window live" };
+  }
+  if (stage !== "completed" && CLOSED_MANAGER_LEAD_STAGES.has(stage) && !lead.first_response_at && !lead.matched_at) {
+    return { name: "No broker matched", detail: "Closed before any broker responded" };
+  }
+
+  return {
+    name: lead.property?.agent_name || "Assigned broker",
+    detail: lead.property?.agent_company || "",
+  };
+};
+
+const isManagerLeadLive = (lead: ManagerLeadSummaryItem, now: number) => (
+  normalizeStage(resolveLeadStage(lead)) === "matching"
+  && !CLOSED_MANAGER_LEAD_STATUSES.has(normalizeStage(lead.status))
+  && getManagerLeadSlaRemainingSeconds(lead, now) > 0
+);
+
+// The lead a manager should see first: the newest one still inside its response window,
+// then the newest open lead, then the newest lead of any state.
+export const pickDefaultManagerLead = <T extends ManagerLeadSummaryItem>(
+  leads: readonly T[],
+  now: number,
+): T | null => {
+  const newestFirst = [...leads].sort((left, right) => getCreatedAt(right) - getCreatedAt(left));
+  return newestFirst.find((lead) => isManagerLeadLive(lead, now))
+    || newestFirst.find((lead) => !isManagerLeadExplicitlyClosed(lead)
+      && !CLOSED_MANAGER_LEAD_STAGES.has(normalizeStage(resolveLeadStage(lead))))
+    || newestFirst[0]
+    || null;
 };
