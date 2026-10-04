@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
+import { formatManagerLeadAddress, pickDefaultManagerLead } from '@/lib/managerLeadList';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
@@ -121,21 +122,9 @@ export default function LeadActionMap({
         [leads],
     );
 
-    useEffect(() => {
-        if (!selectedLeadID && leadsWithCoordinates[0]) {
-            setSelectedLeadID(leadsWithCoordinates[0].id);
-            return;
-        }
-
-        if (selectedLeadID && !leadsWithCoordinates.some((lead) => lead.id === selectedLeadID)) {
-            setSelectedLeadID(leadsWithCoordinates[0]?.id || null);
-        }
-    }, [leadsWithCoordinates, selectedLeadID]);
-
-    const selectedLead = useMemo(
-        () => leadsWithCoordinates.find((lead) => lead.id === selectedLeadID) || null,
-        [leadsWithCoordinates, selectedLeadID],
-    );
+    // Until the manager clicks a marker, follow the newest live lead so its countdown stays visible.
+    const selectedLead = leadsWithCoordinates.find((lead) => lead.id === selectedLeadID)
+        || pickDefaultManagerLead(leadsWithCoordinates, now);
     const mapLocationKey = useMemo(() => (
         leadsWithCoordinates
             .map((lead) => `${lead.id}:${getLeadMapCoordinates(lead)?.join(':')}`)
@@ -214,7 +203,7 @@ export default function LeadActionMap({
                                     return null;
                                 }
                                 const stage = resolveLeadStage(lead);
-                                const isSelected = selectedLeadID === lead.id;
+                                const isSelected = selectedLead?.id === lead.id;
                                 const canRequestDocs = canRequestDocumentsForLead(lead);
                                 const canScheduleViewing = Boolean(
                                     lead.user_id
@@ -243,7 +232,7 @@ export default function LeadActionMap({
                                                     {lead.property?.title || lead.property_name || 'Property enquiry'}
                                                 </h4>
                                                 <p className="mt-1 text-xs text-slate-500">
-                                                    {[lead.property?.address_line_1, lead.property?.city, lead.property?.postcode].filter(Boolean).join(', ')}
+                                                    {formatManagerLeadAddress(lead.property)}
                                                 </p>
                                                 <p className="mt-2 text-xs font-medium text-slate-700">
                                                     {lead.name || lead.email || 'Client enquiry'}
@@ -309,7 +298,7 @@ export default function LeadActionMap({
                             {selectedLead.property?.title || selectedLead.property_name || 'Property enquiry'}
                         </h4>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {[selectedLead.property?.address_line_1, selectedLead.property?.city, selectedLead.property?.postcode].filter(Boolean).join(', ')}
+                            {formatManagerLeadAddress(selectedLead.property)}
                         </p>
 
                         <div className="mt-5 grid gap-3">
