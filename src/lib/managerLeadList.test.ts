@@ -443,6 +443,7 @@ test('#671 an expired lead shows Expired and no matched broker, not Awaiting res
   const live = { status: 'pending_broker_response', stage: 'matching', sla_deadline: '2026-10-04T12:05:00Z' };
   assert.equal(getManagerLeadOperationalState(live, now, 'Awaiting response').statusLabel, 'Awaiting response');
   assert.equal(getManagerLeadMatchedBroker(live).name, 'Awaiting first response');
+  assert.notEqual(getManagerLeadMatchedBroker({ ...expired, status: 'closed_won', stage: 'completed' }).name, 'No broker matched');
   assert.equal(
     getManagerLeadMatchedBroker({ ...expired, matched_broker: { name: 'Asha Broker', company_name: 'Asha Co' } }).name,
     'Asha Broker',

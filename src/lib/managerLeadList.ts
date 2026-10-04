@@ -467,7 +467,7 @@ export const getManagerLeadMatchedBroker = (lead: ManagerLeadBrokerItem) => {
   if (stage === "matching") {
     return { name: "Awaiting first response", detail: "10-minute response window live" };
   }
-  if (CLOSED_MANAGER_LEAD_STAGES.has(stage) && !lead.first_response_at && !lead.matched_at) {
+  if (stage !== "completed" && CLOSED_MANAGER_LEAD_STAGES.has(stage) && !lead.first_response_at && !lead.matched_at) {
     return { name: "No broker matched", detail: "Closed before any broker responded" };
   }
 

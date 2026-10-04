@@ -123,8 +123,10 @@ export default function LeadActionMap({
     );
 
     // Until the manager clicks a marker, follow the newest live lead so its countdown stays visible.
-    const selectedLead = leadsWithCoordinates.find((lead) => lead.id === selectedLeadID)
-        || pickDefaultManagerLead(leadsWithCoordinates, now);
+    // Live broker requests have no verified location yet, so selection covers every lead, not only markers.
+    const selectedLead = leads.find((lead) => lead.id === selectedLeadID)
+        || pickDefaultManagerLead(leads, now);
+    const selectedLeadIsOnMap = Boolean(selectedLead && getLeadMapCoordinates(selectedLead));
     const mapLocationKey = useMemo(() => (
         leadsWithCoordinates
             .map((lead) => `${lead.id}:${getLeadMapCoordinates(lead)?.join(':')}`)
@@ -147,18 +149,11 @@ export default function LeadActionMap({
     );
     const canRequestSelectedLead = selectedLead ? canRequestDocumentsForLead(selectedLead) : false;
 
-    if (leadsWithCoordinates.length === 0) {
-        return (
-            <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No verified lead locations</h3>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    These properties do not have verified coordinates yet, so they are not placed at an approximate or incorrect location.
-                </p>
-            </div>
-        );
+    if (leads.length === 0) {
+        return null;
     }
 
-    const initialMapCenter = getLeadMapCoordinates(leadsWithCoordinates[0])!;
+    const initialMapCenter = leadsWithCoordinates[0] ? getLeadMapCoordinates(leadsWithCoordinates[0]) : null;
 
     return (
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
@@ -176,7 +171,14 @@ export default function LeadActionMap({
 
             <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="relative h-[460px] bg-slate-100 dark:bg-slate-950">
-                    {isMounted ? (
+                    {!initialMapCenter ? (
+                        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">No verified lead locations</p>
+                            <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
+                                These leads do not have verified coordinates yet, so they are not placed at an approximate or incorrect location.
+                            </p>
+                        </div>
+                    ) : isMounted ? (
                         <MapContainer
                             key={mapLocationKey}
                             center={initialMapCenter}
@@ -281,14 +283,16 @@ export default function LeadActionMap({
                         </div>
                     )}
 
-                    <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                            {leadsWithCoordinates.length} lead{leadsWithCoordinates.length === 1 ? '' : 's'} on the map
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Across {uniqueLocationCount} verified location{uniqueLocationCount === 1 ? '' : 's'}. Click a marker to keep the live lead tools in sync.
-                        </p>
-                    </div>
+                    {initialMapCenter ? (
+                        <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                {leadsWithCoordinates.length} lead{leadsWithCoordinates.length === 1 ? '' : 's'} on the map
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Across {uniqueLocationCount} verified location{uniqueLocationCount === 1 ? '' : 's'}. Click a marker to keep the live lead tools in sync.
+                            </p>
+                        </div>
+                    ) : null}
                 </div>
 
                 {selectedLead ? (
@@ -300,6 +304,11 @@ export default function LeadActionMap({
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {formatManagerLeadAddress(selectedLead.property)}
                         </p>
+                        {!selectedLeadIsOnMap ? (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Not on the map yet: this lead has no verified location.
+                            </p>
+                        ) : null}
 
                         <div className="mt-5 grid gap-3">
                             <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900/60">
