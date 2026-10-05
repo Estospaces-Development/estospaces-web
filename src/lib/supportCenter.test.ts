@@ -202,7 +202,7 @@ test('selecting a support ticket scrolls directly to its loaded transcript', () 
     const source = readFileSync(resolve(process.cwd(), 'src/components/support/SupportCenter.tsx'), 'utf8');
 
     assert.match(source, /const ticketTranscriptRef = useRef<HTMLDivElement>\(null\)/);
-    assert.match(source, /if \(!selectedTicketId \|\| selectedTicket\?\.id !== selectedTicketId\) \{\s*return;\s*\}[\s\S]{0,300}?window\.requestAnimationFrame\(\(\) => \{\s*ticketTranscriptRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\);\s*\}\);\s*return \(\) => window\.cancelAnimationFrame\(frame\);/);
+    assert.match(source, /if \(!selectedTicketId \|\| selectedTicket\?\.id !== selectedTicketId\) \{\s*return;\s*\}[\s\S]{0,600}?window\.setTimeout\(\(\) => \{\s*ticketTranscriptRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\);\s*\}, 0\);\s*return \(\) => window\.clearTimeout\(timer\);/);
     assert.match(source, /<div ref=\{ticketTranscriptRef\} className="min-w-0 space-y-5">/);
 });
 
