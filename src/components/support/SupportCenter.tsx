@@ -390,7 +390,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
             return;
         }
 
-        ticketTranscriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Wait a frame: opening a ticket changes ?ticket=, and the app-wide route scroll reset
+        // (a parent effect, so it runs after this one) would otherwise jump back to the top (#628).
+        const frame = window.requestAnimationFrame(() => {
+            ticketTranscriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return () => window.cancelAnimationFrame(frame);
     }, [selectedTicket?.id, selectedTicketId]);
 
     useEffect(() => {
