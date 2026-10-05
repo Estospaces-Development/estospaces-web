@@ -106,3 +106,11 @@ test('offline and blocked dispatch do not imply availability', async () => {
     assert.match(blocked, /Verification required/);
     assert.doesNotMatch(blocked, /Standing by/);
 });
+
+test('phones show one live response status and Go live toggle, not a second dispatch card (web-app#535)', () => {
+    const source = readFileSync(new URL('./BrokerResponseWidget.tsx', import.meta.url), 'utf8');
+    const mobileSummary = source.slice(source.indexOf('data-manager-mobile-live-response'), source.indexOf('data-manager-live-response-details'));
+    assert.match(mobileSummary, /\{availabilityError && <p/);
+    assert.match(source, /className="mb-6 hidden flex-col[^"]* sm:flex[^"]*" data-manager-live-dispatch-panel/);
+    assert.match(source, /<div className="hidden items-center gap-2 sm:flex">\s*<div className="p-2 bg-red-100/);
+});
