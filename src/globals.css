@@ -456,11 +456,12 @@
     background-color: #9a3412;
   }
 
-  .text-gray-400 {
+  /* Darker greys pass contrast on light backgrounds; dark mode keeps Tailwind's lighter greys (#565). */
+  :where(html:not(.dark)) .text-gray-400 {
     color: #4b5563;
   }
 
-  .text-gray-500 {
+  :where(html:not(.dark)) .text-gray-500 {
     color: #374151;
   }
 
