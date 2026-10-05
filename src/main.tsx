@@ -13,6 +13,14 @@ if (typeof window !== 'undefined') {
             event.target.style.visibility = 'hidden';
         }
     }, true);
+
+    // The entry bundle loaded, so stop public/asset-recovery-v1.js from reloading and let a later deploy retry.
+    (window as Window & { __estospacesBooted?: boolean }).__estospacesBooted = true;
+    try {
+        window.sessionStorage.removeItem('estospaces:asset-reload');
+    } catch {
+        // Storage can be unavailable in private modes.
+    }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
