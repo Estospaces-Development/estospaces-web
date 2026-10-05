@@ -743,7 +743,7 @@ const BrokerResponseWidget: React.FC = () => {
 
             <div className="mb-6 hidden flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40 sm:flex lg:flex-row lg:items-center lg:justify-between" data-manager-live-dispatch-panel>
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Live dispatch</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-400">Live dispatch</p>
                     <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                         <Zap className="h-4 w-4 text-orange-500" />
                         <span>{availabilityLabel}</span>
