@@ -61,7 +61,7 @@ import {
     hasActiveBrokerRequestAction,
     isBrokerRequestActionCurrent,
 } from '@/lib/brokerRequestAction';
-import { getBrokerRequestBudgetError, toBrokerRequestType, type BrokerRequestType } from '@/lib/brokerRequestBudget';
+import { formatBrokerRequestBudgetSummary, getBrokerRequestBudgetError, getBrokerRequestRequirementsError, toBrokerRequestType, type BrokerRequestType } from '@/lib/brokerRequestBudget';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 import { useAuth } from '@/contexts/AuthContext';
@@ -328,6 +328,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
     const [error, setError] = useState<string | null>(null);
     const [budgetError, setBudgetError] = useState<string | null>(null);
     const [postcodeError, setPostcodeError] = useState<string | null>(null);
+    const [detailsError, setDetailsError] = useState<string | null>(null);
     const [nearbyBrokers, setNearbyBrokers] = useState<LeadBrokerSummary[]>([]);
     const [isRankingLoading, setIsRankingLoading] = useState(false);
     const [activeRequest, setActiveRequest] = useState<BrokerRequestRecord | null>(null);
@@ -423,6 +424,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         setError(null);
         setBudgetError(null);
         setPostcodeError(null);
+        setDetailsError(null);
         setSelectionStatusMessage('');
         publishBrokerRequestWorkspaceSelection(null);
         const dismissedKey = getUserScopedRequestKey(DISMISSED_REQUEST_KEY, user?.id);
@@ -480,6 +482,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         setError(null);
         setBudgetError(null);
         setPostcodeError(null);
+        setDetailsError(null);
     }, []);
 
     const clearNewRequestMode = useCallback(() => {
@@ -1025,20 +1028,20 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
             return;
         }
 
+        // Check every field before returning so all errors show at once (#674).
         const nextBudgetError = getBrokerRequestBudgetError(budget, requestType);
-        if (nextBudgetError) {
-            setBudgetError(nextBudgetError);
-            return;
-        }
-
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, locationMarket)) {
-            setPostcodeError(getLaunchLocationCodeErrorMessage(locationMarket, undefined, trimmedPostcode));
-            return;
-        }
-        const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
-        if (!formattedPostcode) {
-            setPostcodeError(getLaunchLocationCodeErrorMessage(locationMarket, undefined, trimmedPostcode));
+        const formattedPostcode = trimmedPostcode && isValidLaunchLocationCodeForCountry(trimmedPostcode, locationMarket)
+            ? formatLaunchBrokerLocationCode(trimmedPostcode)
+            : '';
+        const nextPostcodeError = formattedPostcode
+            ? null
+            : getLaunchLocationCodeErrorMessage(locationMarket, undefined, trimmedPostcode);
+        const nextDetailsError = getBrokerRequestRequirementsError(details);
+        setBudgetError(nextBudgetError);
+        setPostcodeError(nextPostcodeError);
+        setDetailsError(nextDetailsError);
+        if (nextBudgetError || nextPostcodeError || nextDetailsError) {
             return;
         }
 
@@ -1046,6 +1049,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         setError(null);
         setBudgetError(null);
         setPostcodeError(null);
+        setDetailsError(null);
         const action = beginAsyncAction(null);
         if (!action) {
             setLoading(false);
@@ -1230,7 +1234,15 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
     const activeRequestArea = activeRequest
         ? formatRequestArea(activeRequest.location, activeRequest.location_postcode)
         : '';
-    const submittedBudget = activeRequest?.budget || budget;
+    const submittedBudget = formatBrokerRequestBudgetSummary(
+        activeRequest?.budget || budget,
+        toBrokerRequestType(activeRequest?.request_type ?? requestType),
+        getMarketCurrencyCode(resolveLocationFormMarket({
+            location: activeRequest?.location || location,
+            locationCode: activeRequest?.location_postcode || locationPostcode,
+            fallback: geoMarket,
+        })),
+    );
     const submittedRequirements = activeRequest?.details || details;
     const dispatchProgressPercent = requestIsMatched
         ? 100
@@ -1981,6 +1993,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                     }
                                 }
                             }}
+                            onBlur={() => {
+                                const trimmedValue = normalizePostcode(locationPostcode);
+                                if (trimmedValue && !isValidLaunchLocationCodeForCountry(trimmedValue, locationMarket)) {
+                                    setPostcodeError(getLaunchLocationCodeErrorMessage(locationMarket, undefined, trimmedValue));
+                                }
+                            }}
                             placeholder={locationCodePlaceholder}
                             maxLength={8}
                             aria-invalid={Boolean(postcodeError)}
@@ -2023,18 +2041,29 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                     </div>
 
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="broker-request-details" className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                             Requirements
                         </label>
                         <textarea
+                            id="broker-request-details"
                             value={details}
-                            onChange={(e) => setDetails(e.target.value)}
+                            onChange={(e) => {
+                                setDetails(e.target.value);
+                                if (detailsError) {
+                                    setDetailsError(null);
+                                }
+                            }}
                             placeholder="e.g. 2 bedrooms, balcony, pet friendly..."
                             rows={3}
                             maxLength={2000}
+                            aria-invalid={Boolean(detailsError)}
+                            aria-describedby={detailsError ? 'broker-request-details-error' : undefined}
                             className="w-full resize-none rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
                         />
+                        {detailsError && (
+                            <p id="broker-request-details-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{detailsError}</p>
+                        )}
                     </div>
                 </div>
 

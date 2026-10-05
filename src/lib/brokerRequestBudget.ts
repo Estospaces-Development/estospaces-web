@@ -68,3 +68,31 @@ export const getBrokerRequestBudgetError = (
 
   return null;
 };
+
+const BUDGET_CURRENCY_MARK = /(\b(inr|gbp|usd|rs)\b\.?|₹|£|\$)/i;
+const BUDGET_PERIOD_MARK = /(\bpcm\b|\bp\.?m\.?(?![a-z])|per month|monthly|a month|\/\s*(month|mo)\b)/i;
+
+// The summary repeats what the user typed, so add the currency and, for rent, the period (#673).
+export const formatBrokerRequestBudgetSummary = (
+  value: string,
+  requestType: BrokerRequestType,
+  currencyCode: 'INR' | 'GBP',
+) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const withCurrency = BUDGET_CURRENCY_MARK.test(trimmed)
+    ? trimmed
+    : `${currencyCode === 'GBP' ? '£' : '₹'}${trimmed}`;
+  return requestType === 'rent' && !BUDGET_PERIOD_MARK.test(trimmed)
+    ? `${withCurrency} / month`
+    : withCurrency;
+};
+
+// A bare number such as "2" tells the agent nothing; ask for words (#675). \p{L} keeps Indian scripts valid.
+export const getBrokerRequestRequirementsError = (value: string) => (
+  /\p{L}{2,}/u.test(value)
+    ? null
+    : 'Describe what you need, for example "2 bedrooms, balcony".'
+);
