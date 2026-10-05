@@ -50,8 +50,10 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({
 
                 {/* Close Button */}
                 <button
+                    type="button"
                     onClick={onClose}
-                    className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-full p-1 transition-colors"
+                    aria-label="Close client profile"
+                    className="absolute top-4 right-4 inline-flex items-center justify-center bg-black/20 hover:bg-black/40 text-white rounded-full p-1 transition-colors"
                 >
                     <X className="w-5 h-5" />
                 </button>
