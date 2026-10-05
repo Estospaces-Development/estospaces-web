@@ -233,9 +233,8 @@ test('focused mobile workflows disclose one current task before secondary tools'
   assert.match(propertyForm, /Listing notes and audit/);
 });
 
-test('manager analytics uses deliberate 48px period and export controls on touch screens', () => {
-  assert.equal((managerAnalytics.match(/min-h-12 px-4 py-2/g) || []).length, 2);
+test('manager analytics uses a deliberate 48px export control on touch screens', () => {
+  // The trend period toggle was removed (#491): core only returns the last 6 months.
   assert.match(managerAnalytics, /min-h-12 min-w-12 items-center justify-center/);
-  assert.equal((managerAnalytics.match(/style=\{\{ minHeight: 48 \}\}/g) || []).length, 2);
   assert.match(managerAnalytics, /style=\{\{ minHeight: 48, minWidth: 48 \}\}/);
 });

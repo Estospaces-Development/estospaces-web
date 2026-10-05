@@ -90,12 +90,12 @@ test('ticket 514 stacks the manager review identity and status safely on narrow 
     assert.match(modal, /flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between/);
 });
 
-test('ticket 491 labels current metrics separately from the trend period selector', () => {
+test('ticket 491 labels current metrics separately from the 6-month lead trend', () => {
     const analytics = source('pages/manager/analytics/page.tsx');
 
     assert.match(analytics, />Current overview</);
-    assert.match(analytics, />Trend period</);
-    assert.match(analytics, /Monthly revenue trends for the selected period/);
+    assert.match(analytics, />Lead Trend</);
+    assert.match(analytics, /New leads per month over the last 6 months/);
 });
 
 test('ticket 490 confirms that Duplicate creates a new draft before opening edit', () => {
