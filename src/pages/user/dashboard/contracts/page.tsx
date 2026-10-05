@@ -646,7 +646,7 @@ export default function ContractsPage() {
                             />
                           </div>
 
-                          <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" data-portfolio-card-stats>
                             <div className="rounded-2xl bg-white px-4 py-3 dark:bg-gray-800">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
                                 Value
