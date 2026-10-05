@@ -390,7 +390,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
             return;
         }
 
-        ticketTranscriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Defer a tick: opening a ticket changes ?ticket=, and the app-wide route scroll reset
+        // (a parent effect, so it runs after this one) would otherwise jump back to the top (#628).
+        // A timer, unlike requestAnimationFrame, still runs while the tab is in the background.
+        const timer = window.setTimeout(() => {
+            ticketTranscriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 0);
+        return () => window.clearTimeout(timer);
     }, [selectedTicket?.id, selectedTicketId]);
 
     useEffect(() => {

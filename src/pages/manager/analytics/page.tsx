@@ -63,7 +63,6 @@ const Analytics = () => {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
-    const [timeRange, setTimeRange] = useState<'6m' | '12m'>('6m');
 
     useEffect(() => {
         const anchorId = decodeURIComponent(location.hash.slice(1));
@@ -132,13 +131,11 @@ const Analytics = () => {
     const pendingApplications = applicationsList.filter(app => app.status === 'submitted');
     const livePropertyCount = properties.filter((property) => isManagerLivePropertyStatus(property.status)).length;
 
-    const revenueTrend = timeRange === '6m'
-        ? (analyticsData?.revenueTrend || []).slice(-6)
-        : (analyticsData?.revenueTrend || []);
-    const monthlyRevenue = revenueTrend.map((item) => ({
+    // Core's `revenueTrend` is the manager's new-lead count per month for the last 6 months
+    // (there is no revenue data at launch), so it is shown as a lead trend, not money (#491).
+    const monthlyLeads = (analyticsData?.revenueTrend || []).map((item) => ({
         month: item.label,
-        value: item.value * 1000,
-        change: 0
+        value: Number(item.value) || 0,
     }));
 
     const propertyPerformance = analyticsData?.propertyPerformance?.map((p) => ({
@@ -192,7 +189,7 @@ const Analytics = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `manager-analytics-${timeRange === '6m' ? '6-months' : 'yearly'}.csv`;
+        link.download = 'manager-analytics.csv';
         link.click();
         URL.revokeObjectURL(url);
     };
@@ -229,7 +226,7 @@ const Analytics = () => {
             {/* Analytics Metrics Cards */}
             <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Current overview</p>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Live account totals; these are not changed by the trend period below.</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Live account totals.</p>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
@@ -377,35 +374,14 @@ const Analytics = () => {
                 </div>
             </div>
 
-            {/* Monthly Revenue Trend */}
+            {/* Monthly Lead Trend */}
             <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
                 <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Revenue Analysis</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue trends for the selected period</p>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Lead Trend</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">New leads per month over the last 6 months</p>
                     </div>
                     <div className="flex flex-col gap-2 md:items-end">
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Trend period</p>
-                        <div className="flex rounded-xl bg-gray-100 p-1 dark:bg-gray-800" aria-label="Revenue trend period">
-                            <button
-                                type="button"
-                                onClick={() => setTimeRange('6m')}
-                                aria-pressed={timeRange === '6m'}
-                                style={{ minHeight: 48 }}
-                                className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
-                            >
-                                6 Months
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setTimeRange('12m')}
-                                aria-pressed={timeRange === '12m'}
-                                style={{ minHeight: 48 }}
-                                className={`min-h-12 px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
-                            >
-                                Yearly
-                            </button>
-                        </div>
                         <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-400 dark:bg-gray-900">
                             <Calendar className="h-4 w-4" />
                             <span>Last updated today</span>
@@ -414,7 +390,7 @@ const Analytics = () => {
                 </div>
 
                 {(() => {
-                    const revenueData = monthlyRevenue.length > 0 ? monthlyRevenue : [
+                    const trendData = monthlyLeads.length > 0 ? monthlyLeads : [
                         { month: 'Jan', value: 0 },
                         { month: 'Feb', value: 0 },
                         { month: 'Mar', value: 0 },
@@ -423,12 +399,12 @@ const Analytics = () => {
                         { month: 'Jun', value: 0 },
                     ];
 
-                    const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
-                    const averageRevenue = Math.round(totalRevenue / revenueData.length);
-                    const bestMonth = revenueData.reduce((max, item) => (item.value > max.value ? item : max), revenueData[0]);
+                    const totalLeads = trendData.reduce((sum, item) => sum + item.value, 0);
+                    const averageLeads = Math.round((totalLeads / trendData.length) * 10) / 10;
+                    const bestMonth = trendData.reduce((max, item) => (item.value > max.value ? item : max), trendData[0]);
 
-                    const startValue = revenueData[0]?.value || 0;
-                    const endValue = revenueData[revenueData.length - 1]?.value || 0;
+                    const startValue = trendData[0]?.value || 0;
+                    const endValue = trendData[trendData.length - 1]?.value || 0;
                     const growthRate = startValue > 0
                         ? ((endValue - startValue) / startValue) * 100
                         : 0;
@@ -437,10 +413,10 @@ const Analytics = () => {
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {[
-                                    { label: 'Total Revenue', value: `$${(totalRevenue / 1000).toFixed(0)}k`, color: 'blue' },
-                                    { label: 'Avg Monthly', value: `$${(averageRevenue / 1000).toFixed(0)}k`, color: 'green' },
-                                    { label: 'Peak Performance', value: bestMonth.month, color: 'orange' },
-                                    { label: 'Projected Growth', value: `+${growthRate.toFixed(1)}%`, color: 'purple' }
+                                    { label: 'Total Leads', value: String(totalLeads), color: 'blue' },
+                                    { label: 'Avg per Month', value: String(averageLeads), color: 'green' },
+                                    { label: 'Peak Month', value: totalLeads > 0 ? bestMonth.month : '—', color: 'orange' },
+                                    { label: 'Change', value: `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`, color: 'purple' }
                                 ].map((item, i) => {
                                     const colorClasses = managerSummaryColorClasses[item.color as ManagerAnalyticsColor] || managerSummaryColorClasses.blue;
 
@@ -453,11 +429,11 @@ const Analytics = () => {
                                 })}
                             </div>
 
-                            {/* Custom Bar Chart for Revenue */}
+                            {/* Custom Bar Chart for monthly leads */}
                             <div className="relative pt-10 pb-2">
                                 <div className="flex h-64 min-w-0 items-end justify-between gap-1 border-b border-gray-100 dark:border-gray-800 sm:gap-4">
-                                    {revenueData.map((item, index) => {
-                                        const maxValue = Math.max(...revenueData.map(d => d.value), 100);
+                                    {trendData.map((item, index) => {
+                                        const maxValue = Math.max(...trendData.map(d => d.value), 1);
                                         const height = (item.value / maxValue) * 100;
                                         
                                         return (
@@ -468,7 +444,7 @@ const Analytics = () => {
                                                         style={{ height: `${height}%` }}
                                                     >
                                                         <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap z-20 shadow-xl scale-75 group-hover:scale-100">
-                                                            ${(item.value / 1000).toFixed(0)}k
+                                                            {item.value} {item.value === 1 ? 'lead' : 'leads'}
                                                         </div>
                                                     </div>
                                                 </div>
