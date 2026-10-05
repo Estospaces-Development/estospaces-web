@@ -2957,7 +2957,7 @@ const UserPropertyDetail = () => {
                         <section className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 sm:p-6 md:p-7">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Location & maps</p>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400 dark:text-gray-400">Location & maps</p>
                                     <h3 className="mt-3 text-xl font-semibold leading-tight tracking-tight text-gray-900 dark:text-white sm:text-[1.9rem]">
                                         {propertyMapState.externalUrl ? `Open the property in ${preferredMapsLabel}` : 'Property location'}
                                     </h3>
@@ -3040,7 +3040,7 @@ const UserPropertyDetail = () => {
                 <div className="min-w-0 space-y-6 xl:sticky xl:top-8">
                     <div className="overflow-hidden rounded-[2.2rem] border border-stone-200/80 bg-white/95 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.32)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92 md:p-7">
                         <div className="rounded-[1.8rem] border border-stone-200/80 bg-[#f8f3eb] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing concierge</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400 dark:text-gray-400">Viewing concierge</p>
                             <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                                 {listingAvailability.isClosed ? `${listingAvailability.label}: no longer available` : 'Interested in this property?'}
                             </h3>

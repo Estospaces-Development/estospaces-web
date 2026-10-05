@@ -636,6 +636,7 @@ const BrokerResponseWidget: React.FC = () => {
                         </div>
                         <p className="mt-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">{availabilityLabel}</p>
                         <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-gray-500 dark:text-gray-400">{availabilityHint}</p>
+                        {availabilityError && <p className="mt-1 text-[11px] leading-4 text-red-600 dark:text-red-400">{availabilityError}</p>}
                     </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -666,8 +667,9 @@ const BrokerResponseWidget: React.FC = () => {
                 </div>
             </div>
             <div className={mobileQueueOpen ? 'mt-4 block sm:mt-0 sm:block' : 'hidden sm:block'} data-manager-live-response-details>
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
+            {/* On phones the summary card above already shows the status and the Go live toggle (#535). */}
+            <div className="mb-6 flex items-center justify-end sm:justify-between">
+                <div className="hidden items-center gap-2 sm:flex">
                     <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg animate-pulse">
                         <BellRing className="w-5 h-5 text-red-600 dark:text-red-400" />
                     </div>
@@ -739,9 +741,9 @@ const BrokerResponseWidget: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40 lg:flex-row lg:items-center lg:justify-between">
+            <div className="mb-6 hidden flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40 sm:flex lg:flex-row lg:items-center lg:justify-between" data-manager-live-dispatch-panel>
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Live dispatch</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-400">Live dispatch</p>
                     <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                         <Zap className="h-4 w-4 text-orange-500" />
                         <span>{availabilityLabel}</span>

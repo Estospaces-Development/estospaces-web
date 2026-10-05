@@ -341,7 +341,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                     <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-orange-600 shadow-sm dark:border-orange-500/20 dark:bg-gray-950 dark:text-orange-200">
                                         <Layers3 className="h-3.5 w-3.5" />
                                         {deferredQuery
-                                            ? `${visibleSections.length} sections match`
+                                            ? `${visibleSections.length} ${visibleSections.length === 1 ? 'section matches' : 'sections match'}`
                                             : `${docsDocument.sections.length} complete sections`}
                                     </span>
                                     <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-gray-600 shadow-sm dark:border-orange-500/20 dark:bg-gray-950 dark:text-gray-300">

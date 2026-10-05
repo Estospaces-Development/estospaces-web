@@ -744,17 +744,17 @@ function DashboardContent() {
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Active cases</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-400">Active cases</p>
                 <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                   {fastTrackSummary.active}
                 </p>
               </div>
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Closing soon</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-400">Closing soon</p>
                 <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{fastTrackSummary.closingSoon}</p>
               </div>
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Completed</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-400">Completed</p>
                 <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{fastTrackSummary.completed}</p>
               </div>
             </div>
