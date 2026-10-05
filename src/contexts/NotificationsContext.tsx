@@ -223,21 +223,22 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     }, []);
 
     const markAllAsRead = useCallback(async () => {
+        // Clear unread state before the request so the first tap visibly works (#433).
+        const readAt = new Date().toISOString();
+        setNotifications((previous) =>
+            previous.map((notification) => (
+                notification.is_read ? notification : { ...notification, is_read: true, read_at: readAt }
+            )),
+        );
+        setUnreadCount(0);
         try {
             await notificationsService.markAllRead();
-            setNotifications((previous) =>
-                previous.map((notification) => ({
-                    ...notification,
-                    is_read: true,
-                    read_at: new Date().toISOString(),
-                })),
-            );
             previousUnreadIDsRef.current = new Set();
-            setUnreadCount(0);
         } catch {
-            // Leave the current state unchanged if the API call fails.
+            // Restore the server's state if the API call fails.
+            await loadNotifications(true);
         }
-    }, []);
+    }, [loadNotifications]);
 
     const createNotification = useCallback(async (type: string, title: string, message: string, data: Record<string, any> = {}) => {
         if (!user?.id) return null;
