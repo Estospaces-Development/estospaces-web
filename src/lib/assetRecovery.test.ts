@@ -9,6 +9,7 @@ const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'ut
 const boot = () => {
     const store = new Map<string, string>();
     let handler: ((event: { target: unknown }) => void) | undefined;
+    let capture: unknown;
     let reloads = 0;
     const window = {
         __estospacesBooted: false,
@@ -17,16 +18,34 @@ const boot = () => {
             setItem: (key: string, value: string) => void store.set(key, value),
         },
         location: { reload: () => { reloads += 1; } },
-        addEventListener: (_type: string, listener: typeof handler) => { handler = listener; },
+        addEventListener: (_type: string, listener: typeof handler, useCapture: unknown) => { handler = listener; capture = useCapture; },
     };
     vm.runInNewContext(script, { window });
     return {
         window,
         store,
-        fail: (tagName: string, url: string) => handler?.({ target: { tagName, src: url } }),
+        capture: () => capture,
+        fail: (tagName: string, url: string) => handler?.({ target: tagName === 'LINK' ? { tagName, href: url } : { tagName, src: url } }),
         reloads: () => reloads,
     };
 };
+
+test('asset recovery listens in the capture phase, since resource errors do not bubble', () => {
+    assert.equal(boot().capture(), true);
+});
+
+test('a missing stylesheet or modulepreload link also triggers the single reload', () => {
+    const page = boot();
+    page.fail('LINK', 'https://app.estospaces.com/assets/index-new.css');
+    assert.equal(page.reloads(), 1);
+});
+
+test('asset recovery does nothing when session storage is unavailable', () => {
+    const page = boot();
+    page.window.sessionStorage.getItem = () => { throw new Error('blocked'); };
+    page.fail('SCRIPT', 'https://app.estospaces.com/assets/index-new.js');
+    assert.equal(page.reloads(), 0);
+});
 
 test('a build asset that fails before boot reloads the page once (deploy asset mismatch)', () => {
     const page = boot();
@@ -50,4 +69,9 @@ test('index.html loads asset recovery before the app entry and main.tsx clears i
     const main = readFileSync(new URL('../main.tsx', import.meta.url), 'utf8');
     assert.match(main, /__estospacesBooted = true/);
     assert.match(main, /removeItem\('estospaces:asset-reload'\)/);
+});
+
+test('lazy routes also recover when Vite cannot preload a missing route stylesheet', () => {
+    const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+    assert.match(app, /'Unable to preload CSS',/);
 });

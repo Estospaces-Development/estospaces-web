@@ -40,6 +40,8 @@ const isChunkLoadError = (error: unknown) => {
         'Importing a module script failed',
         'ChunkLoadError',
         'error loading dynamically imported module',
+        // Vite's preload helper when a lazy route's CSS file is missing after a deploy.
+        'Unable to preload CSS',
     ].some((message) => error.message.includes(message));
 };
 
