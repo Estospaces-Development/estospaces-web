@@ -64,7 +64,8 @@ export default function ForgotPasswordPage() {
                     </div>
                     <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Check your email</h2>
                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
-                        We have sent a password reset link to <strong>{email}</strong>.
+                        If an account exists for <strong>{email}</strong>, we have sent it a password reset link.
+                        It can take a few minutes to arrive, so please check your spam folder too.
                     </p>
                     <Link
                         to={loginPath}
