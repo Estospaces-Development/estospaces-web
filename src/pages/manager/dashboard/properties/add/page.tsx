@@ -642,6 +642,7 @@ export default function AddPropertyPage() {
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const formContentRef = useRef<HTMLFormElement | null>(null);
   const locationRevisionRef = useRef(0);
+  const pinAddressCheckRef = useRef("");
   const ownedVideoPreviewURLsRef = useRef(new Set<string>());
 
   // Determine mode based on presence of ID
@@ -1572,6 +1573,27 @@ export default function AddPropertyPage() {
     showToast,
   ]);
 
+  // Map and current-location pins skip "Find entered address", so check the typed address once
+  // per combination and warn (without blocking the save) when city and postcode disagree (#586).
+  const warnIfPinAddressMismatch = useCallback(async () => {
+    const { postalCode, city, countryCode, state } = formData;
+    if (!postalCode?.trim() || !city?.trim()) return;
+    const key = [countryCode, state, city, postalCode].map((value) => String(value || "").trim().toLowerCase()).join("|");
+    if (pinAddressCheckRef.current === key) return;
+    pinAddressCheckRef.current = key;
+    try {
+      const resolution = await resolvePropertyLocation({ postalCode, countryCode, city, state });
+      if (resolution.kind === "mismatch") {
+        showToast(
+          `${formatPropertyLocationMismatch(postalCode, resolution)} The pin is kept; check the address before you publish.`,
+          "warning",
+        );
+      }
+    } catch {
+      // Lookup unavailable: nothing reliable to warn about.
+    }
+  }, [formData, showToast]);
+
   const handleUseCurrentLocation = useCallback(async () => {
     const locationRevision = locationRevisionRef.current;
     setResolvingLocation(true);
@@ -1589,6 +1611,7 @@ export default function AddPropertyPage() {
         coordinates.longitude,
         "Current location found. Click or drag the marker if the property entrance is elsewhere.",
       );
+      void warnIfPinAddressMismatch();
     } catch (error) {
       const permissionDenied =
         typeof error === "object" &&
@@ -1604,7 +1627,7 @@ export default function AddPropertyPage() {
     } finally {
       setResolvingLocation(false);
     }
-  }, [applyPropertyLocation, showToast]);
+  }, [applyPropertyLocation, showToast, warnIfPinAddressMismatch]);
 
   const handleMapLocationChange = useCallback(
     (latitude: number, longitude: number) => {
@@ -1614,8 +1637,9 @@ export default function AddPropertyPage() {
         longitude,
         "Exact property position selected. This pin will be saved with the listing.",
       );
+      void warnIfPinAddressMismatch();
     },
-    [applyPropertyLocation],
+    [applyPropertyLocation, warnIfPinAddressMismatch],
   );
 
   const getNumericDisplayValue = (value: number | undefined): string => {
