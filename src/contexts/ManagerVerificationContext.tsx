@@ -68,6 +68,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
     // Refs
     const mountedRef = useRef(true);
     const fetchingRef = useRef(false);
+    const loadedUserIdRef = useRef<string | null>(null);
 
     // ========================================================================
     // Computed Values
@@ -123,7 +124,11 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         }
 
         fetchingRef.current = true;
-        setIsLoading(true);
+        // Only the first load for a user shows loading screens; refetches after an upload or a
+        // workspace sync keep the current view instead of swapping it for a loader (#379).
+        if (loadedUserIdRef.current !== user.id) {
+            setIsLoading(true);
+        }
         setError(null);
 
         try {
@@ -136,6 +141,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
             } else if (result.data) {
                 setManagerProfile(result.data.profile);
                 setDocuments(result.data.documents);
+                loadedUserIdRef.current = user.id;
             }
         } catch (err) {
             if (mountedRef.current) {
