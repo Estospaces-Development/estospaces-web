@@ -19,3 +19,11 @@ test('a reservation without a recorded price is not shown as GBP 0 (MB-0535)', (
     assert.match(page, /: 'Price confirmed by the agent'/);
     assert.doesNotMatch(page, /\{booking\.currency\}\{booking\.total_amount\.toLocaleString\(\)\}/);
 });
+
+test('checkout actions return focus to the control that started them (MB-0883)', () => {
+    assert.match(read('pages/manager/subscription/page.tsx'), /window\.requestAnimationFrame\(\(\) => trigger\.focus\(\)\);/);
+});
+
+test('admins see which manager owns a Fast Track case (MB-0637)', () => {
+    assert.match(read('components/fast-track/FastTrackWorkspace.tsx'), /role === 'admin' \? `Ref #U-\$\{selectedCase\.managerId\.substring\(0, 6\)\}`/);
+});
