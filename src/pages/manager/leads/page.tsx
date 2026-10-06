@@ -928,7 +928,9 @@ export default function ManagerLeadsPage() {
                             const matchedBroker = getManagerLeadMatchedBroker(lead);
                             const canRequestDocuments = canRequestLeadDocuments(lead);
                             const canScheduleViewing = canScheduleLeadViewing(lead);
-                            const canCloseLifecycle = !isLeadLifecycleClosed(lead);
+                            // An unaccepted agent request has no lead yet (its id is a placeholder), so Won/Lost would
+                            // post a fake lead id; accept the request first (MB-0325).
+                            const canCloseLifecycle = !isLeadLifecycleClosed(lead) && !String(lead.id).startsWith('broker-request-');
                             const isBusy = actingLeadID === lead.id;
                             const isAuditExpanded = expandedAuditLeadID === lead.id;
                             const auditEntries = leadAuditEntries[lead.id] || [];

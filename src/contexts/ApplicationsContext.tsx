@@ -140,6 +140,12 @@ export interface Application {
     stageGroup?: string;
     jurisdictionProfile?: string;
     journeyStatusReason?: string;
+    /** What the applicant submitted, shown to the reviewing manager (MB-0493). */
+    applicantName?: string;
+    applicantEmail?: string;
+    applicantPhone?: string;
+    moveInDate?: string;
+    applicantMessage?: string;
     /** The manager's note on a decision, e.g. why an application was rejected (MB-0487). */
     reviewNotes?: string;
     blockers?: JourneyBlocker[];
@@ -585,6 +591,11 @@ export const mapBackendApplication = (
         liveStage: application.liveStage,
         stageGroup: application.stageGroup,
         journeyStatusReason: application.journeyStatusReason,
+        applicantName: application.applicant_name || undefined,
+        applicantEmail: application.applicant_email || undefined,
+        applicantPhone: application.applicant_phone || undefined,
+        moveInDate: application.move_in_date || undefined,
+        applicantMessage: application.message || undefined,
         reviewNotes: String((application as { review_notes?: string }).review_notes || '').trim() || undefined,
         blockers: application.blockers || [],
         deadlines: application.deadlines || [],

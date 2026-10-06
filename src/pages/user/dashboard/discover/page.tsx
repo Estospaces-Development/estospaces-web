@@ -626,6 +626,11 @@ function DiscoverContent() {
         () => toDiscoverNearbyMapProperties(matchingProperties),
         [matchingProperties],
     );
+    // Only homes with verified coordinates get a pin, so count those, not every match (MB-0215).
+    const plottedMapCount = mapProperties.filter((property) => (
+        typeof property.latitude === 'number' && typeof property.longitude === 'number'
+    )).length;
+    const unplottedMapCount = mapProperties.length - plottedMapCount;
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = preferredSearchDefaults.ready && !preferredSearchDefaults.failed ? properties : []; // Backend paginates for us
@@ -653,7 +658,7 @@ function DiscoverContent() {
         : error
             ? error
             : viewMode === 'map'
-                ? `${mapProperties.length} matching discovery properties shown on the map sorted by ${sortBy}.`
+                ? `${plottedMapCount} matching discovery properties shown on the map sorted by ${sortBy}.`
                 : `${paginatedProperties.length} of ${total} discovery properties shown in card view sorted by ${sortBy} from property sections.`;
 
     useEffect(() => {
@@ -1184,7 +1189,7 @@ function DiscoverContent() {
                                 : error
                                     ? 'We could not load these homes. Please try again.'
                                     : viewMode === 'map' && mapProperties.length > 0
-                                        ? `Showing ${mapProperties.length} matching homes on the map.`
+                                        ? `Showing ${plottedMapCount} matching ${plottedMapCount === 1 ? 'home' : 'homes'} on the map.${unplottedMapCount > 0 ? ` ${unplottedMapCount} more ${unplottedMapCount === 1 ? 'has' : 'have'} no map location yet; switch to Cards to see ${unplottedMapCount === 1 ? 'it' : 'them'}.` : ''}`
                                         : paginatedProperties.length > 0
                                             ? `Showing ${paginatedProperties.length} on this page in card view.`
                                         : 'Adjust your search to find the right home.'}

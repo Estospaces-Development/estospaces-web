@@ -423,11 +423,11 @@ const BrokerResponseWidget: React.FC = () => {
         return selectManagerTrackerItems(filtered, TRACKER_ITEM_LIMIT);
     }, [requests, trackerFilter, trackerSort]);
 
-    const handleRespond = async (id: string) => {
+    const handleRespond = async (id: string): Promise<boolean> => {
         try {
             const selectedRequest = requests.find((request) => request.id === id);
             if (!selectedRequest) {
-                return;
+                return false;
             }
 
             const response = selectedRequest.requestKind === 'offer'
@@ -449,8 +449,14 @@ const BrokerResponseWidget: React.FC = () => {
                     },
                 });
                 await fetchRequests(true);
+                return true;
             }
+            toast.error(response.error || 'This request could not be accepted. It may have expired or been taken by another agent.');
+            await fetchRequests(true);
+            return false;
         } catch (_error) {
+            toast.error('This request could not be accepted. Please refresh and try again.');
+            return false;
         }
     };
 
