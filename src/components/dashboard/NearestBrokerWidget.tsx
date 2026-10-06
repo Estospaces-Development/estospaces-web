@@ -86,7 +86,7 @@ const NearestBrokerWidget = () => {
             <div className="space-y-3">
                 {status === 'idle' && (
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-green-500 rounded-full motion-safe:animate-pulse"></div>
                         <span className="text-xs font-medium text-green-600 dark:text-green-400">Available Now</span>
                     </div>
                 )}

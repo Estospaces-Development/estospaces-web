@@ -328,7 +328,7 @@ export default function ProfilePage() {
                                 />
                             </div>
 
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">{[formData.firstName, formData.lastName].join(' ').trim() || 'User'}</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">{/* The saved name, not the unsaved form, so a failed save cannot look applied (MB-0090). */}{[baselineData.firstName, baselineData.lastName].join(' ').trim() || 'User'}</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium break-words [overflow-wrap:anywhere]">{formData.email}</p>
 
                             <div className="mt-8 grid grid-cols-1 gap-2 border-t pt-8 min-[360px]:grid-cols-3 dark:border-gray-800">

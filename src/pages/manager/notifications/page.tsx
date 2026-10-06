@@ -128,10 +128,12 @@ export default function ManagerNotificationsPage() {
                 if (existing) {
                     existing.duplicateCount += 1;
                     existing.is_read = existing.is_read && notification.is_read;
+                    if (!notification.is_read) existing.unreadMemberIds.push(notification.id);
                     return;
                 }
 
-                const next = { ...notification, duplicateCount: 1 };
+                // Keep every unread member so opening the group marks all of them read (MB-0992).
+                const next = { ...notification, duplicateCount: 1, unreadMemberIds: notification.is_read ? [] : [notification.id] };
                 byContent.set(key, next);
                 deduped.push(next);
             });
@@ -265,7 +267,11 @@ export default function ManagerNotificationsPage() {
                             <div
                                 key={String(n.id || Math.random())}
                                 onClick={() => {
-                                    if (!n.is_read) markAsRead(n.id);
+                                    if (!n.is_read) {
+                                        for (const memberId of (n.unreadMemberIds?.length ? n.unreadMemberIds : [n.id])) {
+                                            void markAsRead(memberId);
+                                        }
+                                    }
                                     const path = getNotificationNavigationPath(n, 'manager');
                                     if (path) navigate(path);
                                 }}
