@@ -92,6 +92,12 @@ const getFastTrackCaseIdentityKeys = (fastTrackCase: FastTrackCase) => {
     value ? `${prefix}:${normalizeIdentityValue(value)}` : ""
   ));
 
+  // Compound keys collapse duplicate live cases. Finished cases with their own case id are separate
+  // journeys, and merging them undercounted Completed/Done (MB-0559).
+  if (status !== "active") {
+    return strongKeys.filter(Boolean);
+  }
+
   return [
     ...strongKeys,
     buildCompoundIdentity("broker-property-client-status", [
