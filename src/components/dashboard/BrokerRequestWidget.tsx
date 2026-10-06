@@ -1340,7 +1340,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                 {countdownTone.eyebrow}
                             </div>
                             <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
-                                <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
+                                <Timer size={14} className={requestIsActive ? 'motion-safe:animate-pulse' : ''} />
                                 <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
@@ -1359,7 +1359,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                             </div>
                             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-orange-100/80 dark:bg-orange-950/40">
                                 <div
-                                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${countdownTone.progress} ${requestIsActive ? 'animate-pulse' : ''}`}
+                                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${countdownTone.progress} ${requestIsActive ? 'motion-safe:animate-pulse' : ''}`}
                                     style={{ width: `${dispatchProgressPercent}%` }}
                                 />
                             </div>

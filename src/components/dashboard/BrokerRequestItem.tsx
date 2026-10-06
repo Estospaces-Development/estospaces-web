@@ -204,7 +204,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                 {currentStatus === 'pending' && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs font-medium">
-                            <span className={`${secondsRemaining < 60 ? 'text-red-600 animate-pulse' : 'text-gray-600 dark:text-gray-300'}`}>
+                            <span className={`${secondsRemaining < 60 ? 'text-red-600 motion-safe:animate-pulse' : 'text-gray-600 dark:text-gray-300'}`}>
                                 Response required in:
                             </span>
                             <span className={`font-mono text-sm ${secondsRemaining < 60 ? 'text-red-600 font-bold' : 'text-gray-800 dark:text-white'}`}>

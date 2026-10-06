@@ -869,6 +869,34 @@ export function ViewingTimeSlotButton({
     );
 }
 
+// A video that fails to load showed a silent blank player that only a page reload fixed (MB-0251).
+function PropertyVideoPlayer({ src }: { src: string }) {
+    const [failed, setFailed] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+    if (failed) {
+        return (
+            <div role="alert" className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-[1.5rem] bg-gray-100 p-4 text-center text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                <p>This video could not load.</p>
+                <button type="button" onClick={() => { setFailed(false); setAttempt((value) => value + 1); }} className="rounded-xl bg-orange-500 px-4 py-2 font-semibold text-white hover:bg-orange-600">
+                    Try again
+                </button>
+            </div>
+        );
+    }
+    return (
+        <video
+            key={attempt}
+            controls
+            preload="metadata"
+            onError={() => setFailed(true)}
+            className="aspect-video w-full rounded-[1.5rem] bg-black object-contain shadow-sm"
+        >
+            <source src={src} onError={() => setFailed(true)} />
+            Your browser does not support property videos.
+        </video>
+    );
+}
+
 const UserPropertyDetail = () => {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
@@ -2772,15 +2800,7 @@ const UserPropertyDetail = () => {
                             </div>
                             <div className="mt-6 grid gap-5 lg:grid-cols-2">
                                 {propertyVideos.map((videoUrl, index) => (
-                                    <video
-                                        key={`${videoUrl}-${index}`}
-                                        controls
-                                        preload="metadata"
-                                        className="aspect-video w-full rounded-[1.5rem] bg-black object-contain shadow-sm"
-                                    >
-                                        <source src={videoUrl} />
-                                        Your browser does not support property videos.
-                                    </video>
+                                    <PropertyVideoPlayer key={`${videoUrl}-${index}`} src={videoUrl} />
                                 ))}
                             </div>
                         </section>

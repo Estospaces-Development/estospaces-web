@@ -128,7 +128,7 @@ const WelcomeBanner = ({
                             aria-label={item.ariaLabel}
                             className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-700 sm:px-2"
                         >
-                            <span className={`w-3 h-3 ${item.dotClassName} rounded-full animate-pulse`} aria-hidden="true"></span>
+                            <span className={`w-3 h-3 ${item.dotClassName} rounded-full motion-safe:animate-pulse`} aria-hidden="true"></span>
                             <span className="min-w-0 text-[12px] font-medium leading-4 text-gray-700 dark:text-gray-300 sm:text-sm">
                                 {item.label}
                             </span>
