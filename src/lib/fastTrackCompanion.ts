@@ -97,10 +97,16 @@ export const findLinkedFastTrackCase = (
     }
   }
 
+  // A named application, viewing or contract that matched no case means this record has no case;
+  // falling back to "any case on the property" posted actions to another client's case (MB-0464).
+  if (applicationId || viewingId || contractId) {
+    return null;
+  }
+
   const propertyId = normalizeId(context.propertyId);
   if (propertyId) {
     const propertyMatch = cases.find((caseItem) =>
-      sameId(caseItem.propertyId, propertyId),
+      sameId(caseItem.propertyId, propertyId) && caseItem.workspaceFinalStatus === "active",
     );
     if (propertyMatch) {
       return propertyMatch;

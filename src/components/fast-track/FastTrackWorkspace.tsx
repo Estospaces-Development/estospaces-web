@@ -332,11 +332,20 @@ export const formatFastTrackCaseStage = (fastTrackCase: FastTrackCase, role: Wor
     return formatStageLabel(stage, fastTrackCase.journeyMode, role);
 };
 
+// Show the zone with every time so two parties in different zones cannot misread a viewing (MB-0451),
+// and keep date-only values on their calendar day instead of shifting them by the local offset (MB-0999).
+const formatFastTrackDateTime = (value: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+        return new Date(`${value.trim()}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' });
+    }
+    return new Date(value).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+};
+
 const formatDateTime = (value?: string) => {
     if (!value) {
         return 'Not set';
     }
-    return new Date(value).toLocaleString('en-GB');
+    return formatFastTrackDateTime(value);
 };
 
 const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
@@ -2564,7 +2573,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         className={cn(
                             'rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
                             previewZoom === 0
-                                ? 'flex h-[min(520px,calc(100vh-20rem))] min-h-[260px] items-center justify-center overflow-hidden p-3'
+                                ? 'flex h-[min(520px,calc(100vh-20rem))] min-h-[260px] flex-col items-center justify-center overflow-hidden p-3'
                                 : 'max-h-[520px] overflow-auto',
                         )}
                     >
@@ -2576,7 +2585,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 previewZoom === 0 ? 'max-h-full max-w-full' : 'max-w-none',
                             )}
                             style={{ width: previewZoom === 0 ? 'auto' : `${previewZoom * 100}%` }}
+                            onLoad={() => setPreviewLoadFailed(false)}
+                            onError={() => setPreviewLoadFailed(true)}
                         />
+                        {/* A missing or expired image used to leave a blank pane with no explanation (MB-0434). */}
+                        {previewLoadFailed && (
+                            <div role="alert" className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                <p className="font-semibold">The image preview failed to load.</p>
+                                <button type="button" onClick={() => handlePreviewRetry()} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40">
+                                    <RefreshCw size={14} />
+                                    Retry preview
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : previewKind === 'pdf' ? (
                     <div className="space-y-3 rounded-3xl border border-gray-100 bg-white p-4 text-sm dark:border-gray-800 dark:bg-gray-950">
@@ -3332,7 +3353,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40 sm:rounded-2xl sm:p-4">
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {selectedCase.viewing.scheduledAt
-                                    ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
+                                    ? formatFastTrackDateTime(selectedCase.viewing.scheduledAt)
                                     : 'No slot has been set yet'}
                             </p>
                             <p className="mt-1.5 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:mt-2 sm:text-sm">
@@ -3400,7 +3421,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current slot</p>
                                 <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
                                     {selectedCase.viewing.scheduledAt
-                                        ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
+                                        ? formatFastTrackDateTime(selectedCase.viewing.scheduledAt)
                                         : 'No slot set yet'}
                                 </p>
                             </div>
