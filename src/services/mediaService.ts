@@ -20,6 +20,10 @@ export interface MediaFile {
     updated_at: string;
 }
 
+// The default 15 s budget aborted large photos on slower connections (MB-0234). Allow 15 s plus
+// one second per 250 KB, which assumes an uplink of about 2 Mbit/s.
+export const mediaUploadTimeoutMs = (bytes: number) => 15_000 + Math.ceil(Math.max(bytes, 0) / 250_000) * 1_000;
+
 export const uploadMediaFile = async (
     file: File,
     entityType: string,
@@ -38,6 +42,7 @@ export const uploadMediaFile = async (
         method: 'POST',
         suppressErrorToast: true,
         body,
+        timeoutMs: mediaUploadTimeoutMs(file.size),
     });
 };
 

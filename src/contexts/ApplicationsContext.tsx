@@ -140,6 +140,8 @@ export interface Application {
     stageGroup?: string;
     jurisdictionProfile?: string;
     journeyStatusReason?: string;
+    /** The manager's note on a decision, e.g. why an application was rejected (MB-0487). */
+    reviewNotes?: string;
     blockers?: JourneyBlocker[];
     deadlines?: JourneyDeadline[];
     requiredEvidence?: JourneyRequirement[];
@@ -583,6 +585,7 @@ export const mapBackendApplication = (
         liveStage: application.liveStage,
         stageGroup: application.stageGroup,
         journeyStatusReason: application.journeyStatusReason,
+        reviewNotes: String((application as { review_notes?: string }).review_notes || '').trim() || undefined,
         blockers: application.blockers || [],
         deadlines: application.deadlines || [],
         requiredEvidence: application.requiredEvidence || [],

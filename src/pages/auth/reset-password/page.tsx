@@ -249,7 +249,7 @@ export default function ResetPasswordPage() {
                             aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
-                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                         </button>
                     </div>
                     {confirmPassword.length > 0 && !passwordsMatch && (
@@ -263,6 +263,7 @@ export default function ResetPasswordPage() {
                 <button
                     type="submit"
                     disabled={loading || !allRulesPassed || !passwordsMatch}
+                    aria-describedby="reset-password-submit-hint"
                     className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? (
@@ -274,6 +275,11 @@ export default function ResetPasswordPage() {
                         'Reset Password'
                     )}
                 </button>
+                {!loading && (!allRulesPassed || !passwordsMatch) && (
+                    <p id="reset-password-submit-hint" className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                        Enter a new password that meets every rule above, then type it again to confirm.
+                    </p>
+                )}
             </form>
 
             <p className="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center">

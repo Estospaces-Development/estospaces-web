@@ -55,3 +55,47 @@ export const getVideoFileProblem = (file: { size: number }, head: Uint8Array): s
 
 // Same selected file (name, size and modified time) is added only once.
 export const getLocalFileFingerprint = (file: File) => `${file.name}|${file.size}|${file.lastModified}`;
+
+// Magic bytes only prove the header; a file with a valid header and broken data was saved as a
+// blank gallery item or a silent broken player (MB-0228, MB-0246). These ask the browser to decode it.
+export const canDecodeImageFile = async (file: File): Promise<boolean> => {
+    if (typeof createImageBitmap !== 'function') {
+        return true;
+    }
+    try {
+        const bitmap = await createImageBitmap(file);
+        bitmap.close();
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+export const canPlayVideoFile = (file: File, timeoutMs = 10_000): Promise<boolean> => new Promise((resolve) => {
+    if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') {
+        resolve(true);
+        return;
+    }
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(file);
+    let settled = false;
+    const finish = (playable: boolean) => {
+        if (settled) {
+            return;
+        }
+        settled = true;
+        window.clearTimeout(timer);
+        video.removeAttribute('src');
+        video.load();
+        URL.revokeObjectURL(url);
+        resolve(playable);
+    };
+    // A slow device should not block a good file, so a timeout counts as playable.
+    const timer = window.setTimeout(() => finish(true), timeoutMs);
+    video.preload = 'auto';
+    video.muted = true;
+    video.onloadeddata = () => finish(true);
+    video.onerror = () => finish(false);
+    video.src = url;
+});
+

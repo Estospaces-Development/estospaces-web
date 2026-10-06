@@ -418,6 +418,11 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                                             {application.journeyStatusReason}
                                         </p>
                                     )}
+                                    {String(application.status || '').toLowerCase() === 'rejected' && application.reviewNotes && (
+                                        <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm leading-6 text-red-800 dark:bg-red-950/30 dark:text-red-200">
+                                            <span className="font-semibold">Reason from the agent: </span>{application.reviewNotes}
+                                        </p>
+                                    )}
                                 </div>
                                 {application.stageGroup && (
                                     <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold capitalize text-gray-600 dark:bg-gray-800 dark:text-gray-300">

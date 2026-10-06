@@ -524,9 +524,11 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                             return (
                                 <div
                                     key={document.id}
-                                    className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40 sm:flex-row sm:items-center sm:justify-between"
+                                    // Wraps by available width, not viewport: the vault sits in a narrow profile column,
+                                    // where a viewport breakpoint squeezed the name to "Q..." (MB-0144).
+                                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40"
                                 >
-                                    <div className="min-w-0">
+                                    <div className="min-w-[12rem] flex-1">
                                         <p className="truncate text-sm font-bold text-gray-900 dark:text-white">{document.file_name}</p>
                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             {formatDocumentStatus(document.document_category)} - {formatDocumentStatus(document.status)}
@@ -537,7 +539,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                             </p>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2 sm:flex-shrink-0">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         {needsReupload && (
                                             <button
                                                 type="button"
