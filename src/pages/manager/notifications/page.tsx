@@ -99,6 +99,8 @@ export default function ManagerNotificationsPage() {
         notifications, 
         unreadCount, 
         loading: isLoading, 
+        loadError,
+        fetchNotifications,
         markAsRead, 
         markAllAsRead
     } = useNotifications();
@@ -245,8 +247,13 @@ export default function ManagerNotificationsPage() {
             {filteredNotifications.length === 0 ? (
                 <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 flex flex-col items-center">
                     <Inbox size={48} className="text-gray-200 dark:text-gray-700 mb-4" />
-                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">No notifications found</h2>
-                    <p className="text-gray-500 mt-2">Try adjusting your filters or search query</p>
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">{loadError ? 'Notifications could not load' : 'No notifications found'}</h2>
+                    <p role={loadError ? 'alert' : undefined} className="text-gray-500 mt-2">{loadError || 'Try adjusting your filters or search query'}</p>
+                    {loadError && (
+                        <button type="button" onClick={() => void fetchNotifications()} className="mt-4 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">
+                            Retry
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="space-y-4">

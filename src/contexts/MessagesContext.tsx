@@ -77,6 +77,8 @@ interface MessagesContextType {
     setSearchQuery: (query: string) => void;
     isLoading: boolean;
     hasLoadedConversations: boolean;
+    /** True when the last conversation load failed, so lists can show an error, not "No messages yet" (MB-1017). */
+    conversationsLoadFailed: boolean;
     totalUnreadCount: number;
     conversationThreadIssue: ConversationThreadIssue | null;
     clearConversationThreadIssue: () => void;
@@ -221,6 +223,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+    const [conversationsLoadFailed, setConversationsLoadFailed] = useState(false);
     const [conversationThreadIssue, setConversationThreadIssue] = useState<ConversationThreadIssue | null>(null);
     const locallyReadConversationMarkersRef = useRef<Record<string, string>>({});
     const authorizedConversationIdsRef = useRef<Set<string>>(new Set());
@@ -511,6 +514,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 },
             );
             setHasLoadedConversations((wasLoaded) => resolveHasLoadedConversations(wasLoaded, true));
+            setConversationsLoadFailed(false);
             return {
                 success: true,
                 conversationIds: visibleBackendConversations.map((conversation) => conversation.id),
@@ -523,6 +527,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 && activeUserIdRef.current === requestUserId
             ) {
                 setHasLoadedConversations(true);
+            }
+            if (activeUserIdRef.current === requestUserId) {
+                setConversationsLoadFailed(true);
             }
             // Keep the current conversation rows if a polling or foreground request fails.
             return { success: false, conversationIds: [], outcome: 'failed' as const };
@@ -1018,6 +1025,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         setSearchQuery,
         isLoading,
         hasLoadedConversations,
+        conversationsLoadFailed,
         totalUnreadCount,
         conversationThreadIssue,
         clearConversationThreadIssue,

@@ -552,6 +552,11 @@ const DashboardClient = () => {
         setActiveBrokerRequest(liveBrokerRequest);
         setActiveJourney(liveFastTrackJourney);
         setCompletedJourney(completedCases[0] || null);
+        // These services report failure as { error } rather than throwing; without this an outage
+        // looked like a brand-new account with nothing started (MB-0921).
+        if (brokerResult.error || fastTrackResult.error) {
+          setJourneySummaryError('Unable to load your latest journey update right now.');
+        }
 
         if (!dashboardCelebrateRequested) {
           if (freshlyCompletedCase && celebratedDashboardCaseIdRef.current !== freshlyCompletedCase.caseId) {
@@ -658,6 +663,18 @@ const DashboardClient = () => {
       };
     }
 
+    if (journeySummaryError) {
+      return {
+        title: 'Your journey could not load',
+        now: journeySummaryError,
+        next: 'Next: check your connection, then reload.',
+        primaryLabel: 'Reload',
+        primaryAction: () => window.location.reload(),
+        secondaryLabel: 'Search homes',
+        secondaryAction: () => navigate('/user/search'),
+      };
+    }
+
     return {
       title: dashboardCopy.noJourneyTitle,
       now: dashboardCopy.noJourneySummary,
@@ -667,7 +684,7 @@ const DashboardClient = () => {
       secondaryLabel: dashboardCopy.noJourneySecondaryLabel,
       secondaryAction: () => brokerRequestWorkspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
     };
-  }, [activeBrokerRequest, activeJourney, completedJourney, dashboardCopy, navigate]);
+  }, [activeBrokerRequest, activeJourney, completedJourney, dashboardCopy, journeySummaryError, navigate]);
 
   const fetchFilteredProperties = useCallback(async () => {
     if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {

@@ -63,6 +63,10 @@ const Analytics = () => {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
+    const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+    // With no leads there is nothing to be late on, so do not show a failing SLA verdict (MB-0646).
+    const noLeadsYet = Boolean(analyticsData) && (analyticsData?.total_leads ?? 0) === 0;
+    const slaOnTrack = noLeadsYet || (analyticsData?.sla_success_rate ?? 0) >= 80;
 
     useEffect(() => {
         const anchorId = decodeURIComponent(location.hash.slice(1));
@@ -95,6 +99,8 @@ const Analytics = () => {
             if (analyticsResult.data) {
                 setAnalyticsData(analyticsResult.data);
             }
+            // Zero KPIs are only true if the data loaded; otherwise say it failed (MB-0649).
+            setAnalyticsError(analyticsResult.data ? null : 'Analytics could not load, so the figures below may be missing. Try Refresh.');
 
             if (applicationsResult.data) {
                 setApplications(applicationsResult.data);
@@ -200,6 +206,11 @@ const Analytics = () => {
 
     return (
         <div className="space-y-8 font-outfit pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {analyticsError && (
+                <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                    {analyticsError}
+                </div>
+            )}
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
@@ -336,39 +347,42 @@ const Analytics = () => {
                     </div>
                     {/* SLA Status */}
                     <div className={`rounded-2xl border p-6 ${
-                        (analyticsData?.sla_success_rate ?? 0) >= 80
+                        slaOnTrack
                             ? 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-100 dark:border-orange-800/40'
                             : 'bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-100 dark:border-red-800/40'
                     }`}>
                         <div className="flex items-center gap-3 mb-4">
                             <div className={`p-2.5 rounded-xl ${
-                                (analyticsData?.sla_success_rate ?? 0) >= 80
+                                slaOnTrack
                                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
                                     : 'bg-red-500/10 dark:bg-red-500/20'
                             }`}>
-                                {(analyticsData?.sla_success_rate ?? 0) >= 80
+                                {slaOnTrack
                                     ? <Zap size={20} className="text-orange-600 dark:text-orange-400" />
                                     : <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />}
                             </div>
                             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Status</span>
                         </div>
                         <p className={`text-2xl font-black ${
-                            (analyticsData?.sla_success_rate ?? 0) >= 80
+                            slaOnTrack
                                 ? 'text-orange-700 dark:text-orange-400'
                                 : 'text-red-700 dark:text-red-400'
                         }`}>
                             {!analyticsData ? 'Loading...'
-                                : (analyticsData.sla_success_rate ?? 0) >= 80 ? 'On Track'
+                                : noLeadsYet ? 'No leads yet'
+                                : slaOnTrack ? 'On Track'
                                 : 'Needs Attention'}
                         </p>
                         <p className={`text-xs font-medium mt-6 ${
-                            (analyticsData?.sla_success_rate ?? 0) >= 80
+                            slaOnTrack
                                 ? 'text-orange-600 dark:text-orange-400'
                                 : 'text-red-600 dark:text-red-400'
                         }`}>
-                            {(analyticsData?.sla_success_rate ?? 0) >= 80
-                                ? 'Above 80% compliance target'
-                                : 'Below 80% — respond faster to leads'}
+                            {noLeadsYet
+                                ? 'Your response time is tracked once leads arrive'
+                                : slaOnTrack
+                                    ? 'Above 80% compliance target'
+                                    : 'Below 80% — respond faster to leads'}
                         </p>
                     </div>
                 </div>

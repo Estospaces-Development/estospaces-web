@@ -19,7 +19,7 @@ import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
-import { loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
+import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
 import { describePropertyMutationError, getPropertyMutationFieldReasons } from '@/lib/propertyValidationErrors';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
@@ -145,8 +145,23 @@ export default function PropertyDetailPage() {
             });
 
             if (updatedProperty) {
+                // A manager publish goes to admin approval, where the plan's listing limit is enforced,
+                // so do not claim it is live yet (MB-0702, MB-0880).
+                const awaitingApproval = String(updatedProperty.status || '').toLowerCase() === 'pending_approval';
+                let message = 'Property published successfully!';
+                if (awaitingApproval) {
+                    let limit: number | undefined;
+                    try {
+                        limit = getEntitlementLimit(await loadManagerPlanEntitlement(), 'published_properties');
+                    } catch {
+                        limit = undefined;
+                    }
+                    message = typeof limit === 'number'
+                        ? `Submitted for approval. Your plan allows ${limit} live listings; approval is refused once all ${limit} are in use.`
+                        : 'Submitted for approval. It goes live once an admin approves it.';
+                }
                 setToast({
-                    message: 'Property published successfully!',
+                    message,
                     type: 'success',
                     visible: true,
                 });
