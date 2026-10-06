@@ -13,3 +13,9 @@ test('map-centre pin placement needs street-level zoom (MB-0208)', () => {
 test('the manager dashboard says when its figures failed to load (MB-0660)', () => {
     assert.match(read('pages/manager/dashboard/page.tsx'), /setAnalyticsFailed\(!\(analyticsRes\.status === 'fulfilled' && analyticsRes\.value\.data\)\);/);
 });
+
+test('a reservation without a recorded price is not shown as GBP 0 (MB-0535)', () => {
+    const page = read('pages/user/bookings/page.tsx');
+    assert.match(page, /: 'Price confirmed by the agent'/);
+    assert.doesNotMatch(page, /\{booking\.currency\}\{booking\.total_amount\.toLocaleString\(\)\}/);
+});
