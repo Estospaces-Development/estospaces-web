@@ -273,6 +273,7 @@ const BrokersCommunity = () => {
                                 key={post.postId}
                                 post={post}
                                 isManager={true}
+                                isAdmin={user?.role === 'admin'}
                                 currentUserId={user?.id}
                                 onEdit={handleEditPost}
                                 onLike={handleLike}

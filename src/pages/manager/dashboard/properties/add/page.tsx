@@ -143,12 +143,16 @@ import {
 } from "@/lib/launchLocale";
 import { areCoordinatesInsideLaunchMarket } from "@/lib/mapCoordinates";
 import {
+  canDecodeImageFile,
+  canPlayVideoFile,
   getImageFileProblem,
   getLocalFileFingerprint,
   getVideoFileProblem,
   readFileHeadSafely,
   UNREADABLE_FILE_MESSAGE,
 } from "@/lib/uploadFileSignature";
+
+const MAX_PROPERTY_IMAGE_BYTES = 52_000_000;
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
@@ -1731,8 +1735,9 @@ export default function AddPropertyPage() {
         return;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        showToast(`${file.name} is too large. Maximum size is 10MB.`, "error");
+      // Same 52 MB per-image limit as every plan and the media service (MB-0223, MB-0225).
+      if (file.size > MAX_PROPERTY_IMAGE_BYTES) {
+        showToast(`${file.name} is too large. Maximum size is 52 MB.`, "error");
         return;
       }
 
@@ -1740,6 +1745,10 @@ export default function AddPropertyPage() {
       const imageProblem = imageHead ? getImageFileProblem(file, imageHead) : UNREADABLE_FILE_MESSAGE;
       if (imageProblem) {
         showToast(`${file.name}: ${imageProblem}`, "error");
+        return;
+      }
+      if (!(await canDecodeImageFile(file))) {
+        showToast(`${file.name} could not be read as an image. It may be damaged; export it again and retry.`, "error");
         return;
       }
 
@@ -1801,6 +1810,10 @@ export default function AddPropertyPage() {
       const videoProblem = videoHead ? getVideoFileProblem(file, videoHead) : UNREADABLE_FILE_MESSAGE;
       if (videoProblem) {
         showToast(`${file.name}: ${videoProblem}`, "error");
+        return;
+      }
+      if (!(await canPlayVideoFile(file))) {
+        showToast(`${file.name} could not be played. It may be damaged or incomplete; export it again and retry.`, "error");
         return;
       }
 
