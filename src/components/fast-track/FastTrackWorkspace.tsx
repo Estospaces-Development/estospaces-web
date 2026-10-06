@@ -3011,7 +3011,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Participants</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.clientName}</p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            Manager: {selectedCase.managerId ? 'Assigned to this workspace' : 'Waiting for claim'}
+                            {/* Admins oversee every manager's cases, so name the owner by the same ref the Users list shows (MB-0637). */}
+                            Manager: {selectedCase.managerId
+                                ? (role === 'admin' ? `Ref #U-${selectedCase.managerId.substring(0, 6)}` : 'Assigned to this workspace')
+                                : 'Waiting for claim'}
                         </p>
                     </div>
                 </div>

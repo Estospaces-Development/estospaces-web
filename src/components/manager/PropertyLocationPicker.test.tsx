@@ -33,9 +33,13 @@ test('property map permits first-pin placement and resets its viewport when coun
     await act(async () => root.render(<Picker {...props} latitude={null} longitude={null} countryCode="IN" />));
     assert.ok(map);
     assert.equal(map.scrollWheelZoom.enabled(), false, 'page scrolling must not change the property-map zoom');
-    const placeAtCenter = [...host.querySelectorAll('button')].find(button => button.textContent === 'Place pin at map center');
+    const placeAtCenter = [...host.querySelectorAll('button')].find(button => /place the pin|Place pin at map center/.test(button.textContent || ''));
     assert.ok(placeAtCenter, 'Keyboard users must have a first-pin placement action');
-    map.setView([13.09, 80.28], 16, { animate: false });
+    // At country zoom the centre is far from any street, so placement waits for street level (MB-0208).
+    assert.equal(placeAtCenter.textContent, 'Zoom in to place the pin');
+    assert.equal(placeAtCenter.hasAttribute('disabled'), true);
+    await act(async () => { map!.setView([13.09, 80.28], 16, { animate: false }); });
+    assert.equal(placeAtCenter.textContent, 'Place pin at map center');
     await act(async () => placeAtCenter.click());
     assert.deepEqual(changes, [[13.09, 80.28]], 'The action uses the panned map center, not a default coordinate');
     changes.length = 0;
@@ -55,14 +59,14 @@ test('property map permits first-pin placement and resets its viewport when coun
     await act(async () => root.render(<Picker {...props} busy latitude={null} longitude={null} countryCode="GB" />));
     map.fire('click', { latlng: L.latLng(51.5, -0.1) });
     assert.equal(changes.length, 2, 'pending lookup must not accept clicks');
-    const busyPlacement = [...host.querySelectorAll('button')].find(button => button.textContent === 'Place pin at map center');
+    const busyPlacement = [...host.querySelectorAll('button')].find(button => /place the pin|Place pin at map center/.test(button.textContent || ''));
     assert.equal(busyPlacement?.disabled, true);
     await act(async () => busyPlacement?.click());
     assert.equal(changes.length, 2, 'pending lookup must not accept keyboard placement');
     await act(async () => root.render(<Picker {...props} disabled latitude={null} longitude={null} countryCode="GB" />));
-    assert.equal([...host.querySelectorAll('button')].find(button => button.textContent === 'Place pin at map center')?.disabled, true);
+    assert.equal([...host.querySelectorAll('button')].find(button => /place the pin|Place pin at map center/.test(button.textContent || ''))?.disabled, true);
     await act(async () => root.render(<Picker {...props} latitude={null} longitude={null} countryCode="" />));
-    assert.equal([...host.querySelectorAll('button')].find(button => button.textContent === 'Place pin at map center')?.disabled, true);
+    assert.equal([...host.querySelectorAll('button')].find(button => /place the pin|Place pin at map center/.test(button.textContent || ''))?.disabled, true);
   } finally {
     await act(async () => root.unmount());
     L.Map.prototype.addLayer = originalAddLayer;

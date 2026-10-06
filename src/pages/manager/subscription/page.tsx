@@ -243,12 +243,18 @@ export default function ManagerSubscriptionPage() {
         if (actionLock.current) return;
         actionLock.current = true;
         setBusyPlan(name);
+        // Closing the payment window dropped focus to the top of the page (MB-0883); return it to the
+        // control that started the action.
+        const trigger = typeof document !== 'undefined' ? document.activeElement as HTMLElement | null : null;
         try { await action(); }
         catch (err) { toast.error(err instanceof Error ? err.message : 'Unable to complete this action. Check payment status before trying again.'); }
         finally {
             await load();
             actionLock.current = false;
             setBusyPlan(null);
+            if (trigger?.isConnected && typeof window !== 'undefined') {
+                window.requestAnimationFrame(() => trigger.focus());
+            }
         }
     };
 
