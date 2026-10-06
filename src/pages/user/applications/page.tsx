@@ -256,13 +256,17 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
         }
     };
 
-    const uploadDocumentsPath = buildWorkspacePath('/user/dashboard/fast-track', {
-        applicationId: application.id,
-        caseId: application.fastTrackCaseId,
-        leadId: application.leadId,
-        propertyId: application.propertyId,
-        section: 'documents',
-    });
+    // Without its own Fast Track case the workspace would fall back to another case and attach
+    // uploads to the wrong application (MB-0488), so those go to the profile document vault.
+    const uploadDocumentsPath = application.fastTrackCaseId
+        ? buildWorkspacePath('/user/dashboard/fast-track', {
+            applicationId: application.id,
+            caseId: application.fastTrackCaseId,
+            leadId: application.leadId,
+            propertyId: application.propertyId,
+            section: 'documents',
+        })
+        : '/user/dashboard/profile#document-vault';
 
     return (
         <div className="fixed inset-0 z-50 flex">

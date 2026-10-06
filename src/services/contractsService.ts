@@ -117,6 +117,26 @@ export const signContract = async (
   }
 };
 
+// Managers can stop a contract nobody has fully signed yet; a corrected one can then be drafted.
+export const withdrawContract = async (
+  id: string,
+  reason: string,
+): Promise<{ data: Contract | null; error: string | null }> => {
+  try {
+    const response = await apiFetch<{ message: string; contract: Contract }>(
+      `${BOOKING_URL()}/api/v1/contracts/${id}/withdraw`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ reason }),
+        suppressErrorToast: true,
+      },
+    );
+    return { data: normalizeContract(response.contract), error: null };
+  } catch (error: any) {
+    return { data: null, error: error.message || "Failed to withdraw contract" };
+  }
+};
+
 export const getTenancyPackService = async (
   id: string,
 ): Promise<{ data: TenancyPackServiceRecord | null; error: string | null }> => {

@@ -1404,6 +1404,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
     }, [documentDraftStorageKey]);
 
+    // Files are staged per document type, so a file chosen on one case must not carry over to
+    // the next case, where one click would upload it there (MB-0418).
+    const stagedFilesCaseId = selectedCase?.caseId || '';
+    useEffect(() => {
+        setSelectedFiles({});
+        Object.values(fileInputRefs.current).forEach((input) => {
+            if (input) {
+                input.value = '';
+            }
+        });
+    }, [stagedFilesCaseId]);
+
     useEffect(() => {
         if (!documentDraftStorageKey) {
             return;
@@ -3282,6 +3294,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                     document_id: item.id,
                                                     outcome,
                                                     note: documentNotes[item.id] || '',
+                                                    // The upload this screen showed; booking refuses a review of a newer replacement (MB-0949).
+                                                    reviewed_uploaded_at: item.uploadedAt || '',
                                                 },
                                                 outcome === 'approved'
                                                     ? `${item.label} approved.`
