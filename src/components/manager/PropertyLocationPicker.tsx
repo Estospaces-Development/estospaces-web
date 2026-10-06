@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -72,6 +72,8 @@ function MapClickHandler({
   return null;
 }
 
+const MIN_CENTER_PLACEMENT_ZOOM = 15;
+
 function MapCenterPlacement({
   onLocationChange,
   disabled,
@@ -79,11 +81,17 @@ function MapCenterPlacement({
   disabled: boolean;
 }) {
   const map = useMap();
+  // At country zoom the centre is hundreds of km from any street, which saved pins far from the
+  // typed address (MB-0208); only allow it at street level.
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  const zoomedInEnough = zoom >= MIN_CENTER_PLACEMENT_ZOOM;
 
   return (
     <button
       type="button"
-      disabled={disabled}
+      disabled={disabled || !zoomedInEnough}
+      title={zoomedInEnough ? undefined : "Zoom in to street level to place the pin"}
       onClick={(event) => {
         event.stopPropagation();
         const center = map.getCenter();
@@ -92,7 +100,7 @@ function MapCenterPlacement({
       className="absolute left-4 top-4 z-[500] inline-flex min-h-11 items-center gap-2 rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm font-semibold text-orange-950 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-900 dark:bg-gray-900 dark:text-orange-50"
     >
       <Crosshair className="h-4 w-4" />
-      Place pin at map center
+      {zoomedInEnough ? "Place pin at map center" : "Zoom in to place the pin"}
     </button>
   );
 }
