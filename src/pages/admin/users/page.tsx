@@ -16,6 +16,7 @@ import { getAdminBrokers, getAllLeads, reassignLead } from '@/services/leadsServ
 import type { AdminBrokerOption, Lead } from '@/services/leadsService';
 import { User } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { buildCsvContent } from '@/lib/csvExport';
@@ -234,6 +235,9 @@ export function sortAdminUsers(users: User[], sortBy: AdminUsersSortOption): Use
 
 function UserManagementContent() {
     const navigate = useNavigate();
+    const { user: currentUser } = useAuth();
+    // The server refuses self-deactivation (MB-0626); the button says so up front.
+    const isSelfDeactivation = (target: User) => Boolean(target.is_active && currentUser?.id && target.id === currentUser.id);
     const { success: showToastSuccess, error: showToastError } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('all');
@@ -932,7 +936,7 @@ function UserManagementContent() {
                                     <button type="button" aria-label={`Review ${displayName} (${user.email}) verification`} onClick={() => handleReviewVerification(user)} disabled={user.role === 'admin'} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gray-100 px-3 py-2 text-xs font-black uppercase tracking-wider text-gray-700 transition-all hover:text-emerald-600 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200">
                                         <Eye size={16} /> Review
                                     </button>
-                                    <button type="button" aria-label={buildAdminUserActionLabel(user, actionBusy)} aria-describedby={statusId} onClick={() => handleToggleUserState(user)} disabled={actionBusy} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-wider transition-all disabled:opacity-60 ${user.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
+                                    <button type="button" aria-label={buildAdminUserActionLabel(user, actionBusy)} aria-describedby={statusId} onClick={() => handleToggleUserState(user)} disabled={actionBusy || isSelfDeactivation(user)} title={isSelfDeactivation(user) ? 'You cannot deactivate your own account' : undefined} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-wider transition-all disabled:opacity-60 ${user.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
                                         {actionBusy ? <ActionSpinner size={16} className="" /> : <Power size={16} />}
                                         {user.is_active ? 'Deactivate' : 'Activate'}
                                     </button>
@@ -1030,7 +1034,7 @@ function UserManagementContent() {
                                                         aria-label={buildAdminUserActionLabel(user, actionBusy)}
                                                         aria-describedby={statusId}
                                                         onClick={() => handleToggleUserState(user)}
-                                                        disabled={actionBusy}
+                                                        disabled={actionBusy || isSelfDeactivation(user)} title={isSelfDeactivation(user) ? 'You cannot deactivate your own account' : undefined}
                                                         className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest ${
                                                             user.is_active
                                                                 ? 'bg-red-50 text-red-700 hover:bg-red-100'
