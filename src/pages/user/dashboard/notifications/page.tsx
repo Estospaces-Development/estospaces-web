@@ -39,6 +39,8 @@ export default function NotificationsPage() {
     const {
         notifications,
         loading,
+        loadError,
+        fetchNotifications,
         markAsRead,
         markAllAsRead,
         deleteNotification,
@@ -484,8 +486,13 @@ export default function NotificationsPage() {
                         <div className="inline-flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-700 rounded-full mb-6">
                             <Bell className="text-gray-300" size={48} />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">All clear here!</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mt-2">No notifications found match your current filters.</p>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{loadError ? 'Notifications could not load' : 'All clear here!'}</h3>
+                        <p role={loadError ? 'alert' : undefined} className="text-gray-500 dark:text-gray-400 mt-2">{loadError || 'No notifications found match your current filters.'}</p>
+                        {loadError && (
+                            <button type="button" onClick={() => void fetchNotifications()} className="mt-4 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">
+                                Retry
+                            </button>
+                        )}
                         <button
                             onClick={() => {
                                 setFilter('all');

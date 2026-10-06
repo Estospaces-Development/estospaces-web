@@ -35,6 +35,8 @@ interface NotificationsContextType {
     notifications: Notification[];
     unreadCount: number;
     loading: boolean;
+    /** Set when the last load failed, so pages can show an error instead of a false "all clear" (MB-0597). */
+    loadError: string | null;
     fetchNotifications: () => Promise<void>;
     markAsRead: (notificationId: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
@@ -115,6 +117,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const hasHydratedRef = useRef(false);
     const previousUnreadIDsRef = useRef<Set<string>>(new Set());
     const shownToastDedupeKeysRef = useRef<Set<string>>(new Set());
@@ -192,8 +195,10 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             const visibleNotifications = nextNotifications.filter((n: any) => !n.is_archived);
             setNotifications(visibleNotifications);
             setUnreadCount(visibleNotifications.filter((n) => !n.is_read).length);
+            setLoadError(null);
         } catch {
-            // Keep the current state if polling fails.
+            // Keep the current list if polling fails, but say so instead of implying there is nothing.
+            setLoadError('Notifications could not be loaded. Check your connection and try again.');
         } finally {
             if (!silent) {
                 setLoading(false);
@@ -361,6 +366,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                 notifications,
                 unreadCount,
                 loading,
+                loadError,
                 fetchNotifications,
                 markAsRead,
                 markAllAsRead,

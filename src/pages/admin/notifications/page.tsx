@@ -163,6 +163,8 @@ export default function AdminNotificationsPage() {
     const {
         notifications,
         loading,
+        loadError,
+        fetchNotifications,
         markAsRead,
         markAllAsRead,
         deleteNotification,
@@ -487,8 +489,13 @@ export default function AdminNotificationsPage() {
                 ) : notifications.length === 0 ? (
                     <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
                         <Inbox size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No notifications yet</h3>
-                        <p className="text-gray-500 dark:text-gray-400">Admin notifications will appear here when new events arrive.</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{loadError ? 'Notifications could not load' : 'No notifications yet'}</h3>
+                        <p role={loadError ? 'alert' : undefined} className="text-gray-500 dark:text-gray-400">{loadError || 'Admin notifications will appear here when new events arrive.'}</p>
+                        {loadError && (
+                            <button type="button" onClick={() => void fetchNotifications()} className="mt-4 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">
+                                Retry
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl">

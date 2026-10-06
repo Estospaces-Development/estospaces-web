@@ -28,6 +28,7 @@ test('manager notification search resets the visible page', async () => {
         notifications,
         unreadCount: notifications.length,
         loading: false,
+        loadError: null,
         fetchNotifications: async () => undefined,
         markAsRead: async () => undefined,
         markAllAsRead: async () => undefined,
