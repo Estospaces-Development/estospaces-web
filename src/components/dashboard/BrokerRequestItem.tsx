@@ -36,7 +36,8 @@ export interface BrokerRequest {
 
 interface BrokerRequestItemProps {
     request: BrokerRequest;
-    onRespond: (id: string) => void;
+    /** Resolves true only when the server accepted the response. */
+    onRespond: (id: string) => Promise<boolean> | boolean | void;
     onSecondaryAction?: (id: string) => void;
 }
 
@@ -91,10 +92,14 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
         }
     }, [request.secondsRemaining, request.status]);
 
-    const handleRespond = (e: React.MouseEvent) => {
+    const handleRespond = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        setCurrentStatus('responded');
-        onRespond(request.id);
+        // Only show Responded once the server accepts; a late or refused accept used to leave a
+        // false badge behind (MB-0327).
+        const accepted = await onRespond(request.id);
+        if (accepted !== false) {
+            setCurrentStatus('responded');
+        }
     };
 
     const handleViewProperty = (e: React.MouseEvent) => {

@@ -394,7 +394,16 @@ export default function ManagerSubscriptionPage() {
                     toast.error(CHECKOUT_FAILED_TRY_AGAIN_MESSAGE);
                     return;
                 }
-                if (discount.kind !== 'discounted' || !activeDiscount) throw err;
+                if (discount.kind !== 'discounted' || !activeDiscount) {
+                    // A refused checkout usually means the plan's price or terms changed since the manager
+                    // agreed to them: drop that consent and explain, instead of "Invalid data" (MB-0778).
+                    const status = (err && typeof err === 'object' ? (err as { status?: unknown }).status : undefined);
+                    if (status === 400 || status === 409 || status === 422) {
+                        setConsentedText(null);
+                        throw new Error("This plan's price or terms changed, so nothing was charged. Review the updated plan below and confirm again.");
+                    }
+                    throw err;
+                }
                 await handleDiscountCheckoutRefusal(err, activeDiscount, offer);
                 return;
             }

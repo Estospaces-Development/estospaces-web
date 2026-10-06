@@ -2135,6 +2135,32 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             {/* Overview Tab */}
             {activeTab === "overview" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Applicant's answers: what they submitted, which the manager reviews (MB-0493). */}
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800 lg:col-span-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <User size={20} className="text-orange-500" />
+                    Applicant&apos;s answers
+                  </h3>
+                  <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                    {[
+                      ["Name", application.applicantName],
+                      ["Email", application.applicantEmail],
+                      ["Phone", application.applicantPhone],
+                      ["Move-in date", application.moveInDate ? new Date(`${application.moveInDate.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC" }) : undefined],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</dt>
+                        <dd className="mt-1 break-words text-gray-900 dark:text-white">{value || "Not provided"}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {application.applicantMessage && (
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Message</p>
+                      <p className="mt-1 whitespace-pre-line break-words text-sm text-gray-900 dark:text-white">{application.applicantMessage}</p>
+                    </div>
+                  )}
+                </div>
                 {/* Agent Information */}
                 <div
                   ref={agentInfoSectionRef}
