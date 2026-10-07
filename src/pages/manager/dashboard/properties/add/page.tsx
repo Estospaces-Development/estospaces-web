@@ -645,7 +645,7 @@ export default function AddPropertyPage() {
   } = useManagerVerification();
   const { user } = useAuth();
   const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
-  const createSessionRef = useRef(createManagerPropertyCreateSession());
+  const [createSession] = useState(() => createManagerPropertyCreateSession());
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const formContentRef = useRef<HTMLFormElement | null>(null);
@@ -2157,7 +2157,7 @@ export default function AddPropertyPage() {
 
   const saveNewProperty = (payload: Partial<Property>) => {
     const options = { suppressErrorToast: true, throwOnError: true };
-    return createSessionRef.current.save(
+    return createSession.save(
       (idempotencyKey) => addProperty(payload, { ...options, idempotencyKey }),
       (id) => updateProperty(id, payload, options),
     );
