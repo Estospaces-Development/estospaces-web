@@ -1,4 +1,5 @@
 import ManagerLayoutClient from '@/components/layout/ManagerLayoutClient';
+import WelcomeVideoModal from '@/components/onboarding/WelcomeVideoModal';
 import { Outlet } from 'react-router-dom';
 
 export default function ManagerLayout() {
@@ -6,8 +7,11 @@ export default function ManagerLayout() {
   const isSubdomain = domain.startsWith('app.') || domain.startsWith('manager.');
 
   return (
-    <ManagerLayoutClient isSubdomain={isSubdomain}>
-      <Outlet />
-    </ManagerLayoutClient>
+    <>
+      <ManagerLayoutClient isSubdomain={isSubdomain}>
+        <Outlet />
+      </ManagerLayoutClient>
+      <WelcomeVideoModal role="manager" />
+    </>
   );
 }
