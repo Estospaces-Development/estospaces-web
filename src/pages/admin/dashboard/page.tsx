@@ -1,4 +1,5 @@
 "use client";
+import AnalyticsUnavailable from '@/components/ui/AnalyticsUnavailable';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
@@ -249,6 +250,10 @@ export default function AdminDashboard() {
         return <BrandLoadingScreen variant="screen" label="Initializing Command Center..." />;
     }
 
+    if (error && !data) {
+        return <AnalyticsUnavailable message={error} onRetry={() => void fetchAnalytics(true)} />;
+    }
+
     // Map values from backend
     const stats = {
         slaCompliance: data?.sla_success_rate || 0,
@@ -300,7 +305,7 @@ export default function AdminDashboard() {
                             Command Center
                         </span>
                         <span className="text-gray-600 dark:text-gray-300 text-xs font-bold flex items-center gap-1">
-                            <Activity size={12} /> Backend Synced
+                            <Activity size={12} /> {error ? 'Some figures failed to load' : 'Backend Synced'}
                         </span>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">

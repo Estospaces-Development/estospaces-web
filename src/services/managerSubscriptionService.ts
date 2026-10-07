@@ -243,12 +243,13 @@ export function startManagerSubscriptionCheckout(input: {
     recurring_consent: boolean;
 } & CheckoutPromotionFields) {
     // promotion_code and price_digest travel together or not at all.
-    const discounted = assertCheckoutPromotionPair(input);
+    assertCheckoutPromotionPair(input);
     return apiFetch<StartCheckoutResponse>(`${PAYMENT_URL()}/api/v1/manager/subscriptions/checkouts`, {
         method: 'POST',
         body: JSON.stringify(input),
-        // Discount refusals (stale preview, unavailable code) are explained on the page.
-        suppressErrorToast: discounted,
+        // Every refusal is explained on the page (discount, changed price or terms), so the generic
+        // "Invalid data" toast only added a contradictory second message (MB-0778).
+        suppressErrorToast: true,
     });
 }
 

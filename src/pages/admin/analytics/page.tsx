@@ -1,4 +1,5 @@
 "use client";
+import AnalyticsUnavailable from '@/components/ui/AnalyticsUnavailable';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
@@ -130,6 +131,10 @@ function AnalyticsContent() {
 
     if (isLoading) {
         return <BrandLoadingScreen variant="section" label="Synchronizing intelligence..." />;
+    }
+
+    if (error && !data) {
+        return <AnalyticsUnavailable message={error} onRetry={() => void fetchAnalytics(true)} />;
     }
 
     return (

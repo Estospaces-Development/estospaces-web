@@ -153,7 +153,7 @@ export default function ViewingsPage() {
             const mappedViewings = data.map((viewing: any) => ({
                 ...viewing,
                 date: viewing.scheduled_at,
-                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
+                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }) : '',
                 propertyImage: viewing.property_image || PROPERTY_PLACEHOLDER_IMAGE,
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
@@ -340,6 +340,24 @@ export default function ViewingsPage() {
         setCancelReason('');
         setCancelReasonError(null);
         setCancelModalOpen(true);
+    };
+
+    // The manager moved the slot; the user can accept it here or cancel (MB-0466).
+    const [acceptingViewingID, setAcceptingViewingID] = useState<string | null>(null);
+    const handleAcceptReschedule = async (viewingId: string) => {
+        if (acceptingViewingID) {
+            return;
+        }
+        setAcceptingViewingID(viewingId);
+        try {
+            await bookingsService.updateViewing(viewingId, { status: 'confirmed' }, { suppressErrorToast: true });
+            setViewings(prev => prev.map(v => (v.id === viewingId ? { ...v, status: 'confirmed' } : v)));
+            toast.success('New viewing time accepted.');
+        } catch (error: any) {
+            toast.error(error?.message || 'The new time could not be accepted. Please try again.');
+        } finally {
+            setAcceptingViewingID(null);
+        }
     };
 
     const handleCancelViewing = async (viewingId: string) => {
@@ -683,7 +701,17 @@ export default function ViewingsPage() {
                                                     View Listing
                                                 </button>
                                                 )}
-                                                {(viewing.status === 'pending' || viewing.status === 'confirmed') && !viewing.workflow_locked && (
+                                                {viewing.status === 'rescheduled' && !viewing.workflow_locked && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void handleAcceptReschedule(viewing.id)}
+                                                        disabled={acceptingViewingID === viewing.id}
+                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-60"
+                                                    >
+                                                        {acceptingViewingID === viewing.id ? 'Accepting…' : 'Accept new time'}
+                                                    </button>
+                                                )}
+                                                {(viewing.status === 'pending' || viewing.status === 'confirmed' || viewing.status === 'rescheduled') && !viewing.workflow_locked && (
                                                     <button
                                                         onClick={() => openCancelModal(viewing.id)}
                                                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"

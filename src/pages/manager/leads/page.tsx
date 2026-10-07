@@ -256,6 +256,7 @@ export default function ManagerLeadsPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const searchParamQuery = searchParams.get('search') || '';
+    const requestedLeadId = searchParams.get('lead');
     const toast = useToast();
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
@@ -837,6 +838,7 @@ export default function ManagerLeadsPage() {
             </div>
 
             <LeadActionMap
+                requestedLeadId={requestedLeadId}
                 leads={visibleLeads}
                 now={now}
                 actingLeadID={actingLeadID}

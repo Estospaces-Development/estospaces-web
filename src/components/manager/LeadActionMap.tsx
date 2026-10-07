@@ -21,6 +21,8 @@ interface LeadActionMapProps {
     onRequestDocuments: (lead: Lead) => void;
     onScheduleViewing: (lead: Lead) => void;
     onOpenMessages: (lead: Lead) => void;
+    /** Lead named by a notification deep link (?lead=), selected instead of the newest lead (MB-0583, MB-0968). */
+    requestedLeadId?: string | null;
 }
 
 const createLeadMarkerIcon = (selected: boolean) => L.divIcon({
@@ -108,9 +110,15 @@ export default function LeadActionMap({
     onRequestDocuments,
     onScheduleViewing,
     onOpenMessages,
+    requestedLeadId = null,
 }: LeadActionMapProps) {
     const navigate = useNavigate();
-    const [selectedLeadID, setSelectedLeadID] = useState<string | null>(null);
+    const [selectedLeadID, setSelectedLeadID] = useState<string | null>(requestedLeadId);
+    useEffect(() => {
+        if (requestedLeadId) {
+            setSelectedLeadID(requestedLeadId);
+        }
+    }, [requestedLeadId]);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {

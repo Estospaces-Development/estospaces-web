@@ -1580,7 +1580,9 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                     ))}
                                 </div>
 
-                                {activeRequest.fast_track_enabled && (
+                                {/* Shared homes must be choosable even when the request was sent without the nearest-agent
+                                    box; the header already says they are ready (MB-1029). */}
+                                {(activeRequest.fast_track_enabled || availableSharedProperties.length > 0 || staleSharedPropertiesCount > 0 || Boolean(selectedProperty)) && (
                                     <div className="mt-4 rounded-xl border border-orange-100 bg-white p-2 sm:p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
                                         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="min-w-0 flex-1">
