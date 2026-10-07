@@ -51,3 +51,9 @@ test('users can accept or cancel a rescheduled viewing (MB-0466)', () => {
 test('shared homes are listed even without the nearest-agent box (MB-1029)', () => {
     assert.match(read('components/dashboard/BrokerRequestWidget.tsx'), /activeRequest\.fast_track_enabled \|\| availableSharedProperties\.length > 0/);
 });
+
+test('viewing times keep half-hour zone offsets and dates use month names (MB-0451, MB-0999)', () => {
+    assert.ok(read('pages/user/dashboard/viewings/page.tsx').includes(String.raw`if (!/^\d{1,2}:\d{2}$/.test(timeStr.trim())) return timeStr;`));
+    assert.ok(read('pages/user/dashboard/contracts/page.tsx').includes("month: 'short', year: 'numeric', timeZone: 'UTC'"));
+    assert.equal(new Date('2026-11-10T04:30:00Z').toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata', timeZoneName: 'short' }), '10:00 am GMT+5:30');
+});

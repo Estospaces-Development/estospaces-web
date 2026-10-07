@@ -25,7 +25,7 @@ test('inventory pills say they count the loaded page (MB-0719)', () => {
 test('Fast Track times carry a zone label and date-only values keep their day (MB-0451, MB-0999)', () => {
     const source = read('components/fast-track/FastTrackWorkspace.tsx');
     assert.match(source, /timeZoneName: 'short'/);
-    assert.match(source, /toLocaleDateString\('en-GB', \{ timeZone: 'UTC' \}\)/);
+    assert.ok(source.includes("toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })"));
     assert.doesNotMatch(source, /scheduledAt\)\.toLocaleString\('en-GB'\)/);
 });
 
