@@ -627,3 +627,41 @@ test('amenity filters skip the search service and reach core as one comma list',
         globalThis.fetch = originalFetch;
     }
 });
+
+test('searchAll reaches every market match through the search endpoint, not the capped sections (MB-0262)', async () => {
+    const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = async (input) => {
+        const url = new URL(String(input));
+        requestedUrls.push(url.toString());
+        const page = Number(url.searchParams.get('page') || '1');
+        const ids = page === 1
+            ? Array.from({ length: 50 }, (_, index) => `home-${index + 1}`)
+            : ['downtown-property-x', 'example-home-for-rent'];
+        return new Response(JSON.stringify({
+            success: true,
+            data: ids.map((id) => ({ id, title: id, country: 'GB', city: 'London', postcode: 'SW1A 1AA', price: 1000 })),
+            pagination: { total: 52, page, limit: 50 },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+
+    try {
+        const result = await searchService.searchAll('', { country: 'GB', listingType: 'rent' });
+
+        assert.equal(result.success, true);
+        assert.equal(result.data.length, 52);
+        assert.ok(result.data.some((property) => property.id === 'downtown-property-x'));
+        assert.equal(requestedUrls.length, 2);
+        assert.equal(requestedUrls.every((url) => url.includes('/api/v1/search?')), true);
+        assert.equal(requestedUrls.every((url) => !url.includes('/properties/sections')), true);
+        for (const requestedUrl of requestedUrls) {
+            const params = new URL(requestedUrl).searchParams;
+            assert.equal(params.get('country'), 'GB');
+            assert.equal(params.get('listing_type'), 'rent');
+            assert.equal(params.get('limit'), '50');
+        }
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

@@ -1,5 +1,5 @@
 import type { BrokerRequestRecord, Lead } from "@/services/leadsService";
-import { formatLeadStage, getLeadDeadline, resolveLeadStage, type LeadLike } from "./fastTrackWorkflow";
+import { canRequestLeadDocuments, formatLeadStage, getLeadDeadline, resolveLeadStage, type LeadLike } from "./fastTrackWorkflow";
 
 export type ManagerLeadSortMode = "newest" | "client_az" | "budget_desc" | "score_desc";
 
@@ -183,6 +183,30 @@ const getBrokerRequestTitle = (request: BrokerRequestRecord) => {
   return `${requestType} request${location ? ` - ${location}` : ""}`;
 };
 
+const BROKER_REQUEST_OFFER_ID_PREFIX = "broker-request-";
+
+// An agent-request offer with no selected lead has only a placeholder id. The /leads/:id endpoints know
+// real leads only, so the placeholder must never reach them (MB-0325).
+export const hasManagerLeadRecord = (lead: Pick<Lead, "id">) => (
+  !String(lead.id).startsWith(BROKER_REQUEST_OFFER_ID_PREFIX)
+);
+
+export const canRequestManagerLeadDocuments = (lead: Lead) => (
+  hasManagerLeadRecord(lead) && canRequestLeadDocuments(lead)
+);
+
+export const canScheduleManagerLeadViewing = (lead: Lead) => {
+  const stage = resolveLeadStage(lead);
+  return Boolean(
+    hasManagerLeadRecord(lead)
+    && lead.user_id
+    && lead.property_id
+    && (lead.broker_id || lead.matched_broker_id)
+    && !["completed", "expired", "rejected", "withdrawn"].includes(stage)
+    && !["closed_won", "closed_lost", "cancelled"].includes(lead.status),
+  );
+};
+
 export const mapBrokerRequestOfferToManagerLead = (request: BrokerRequestRecord): Lead => {
   const leadStatus = getBrokerRequestLeadStatus(request);
   const selectedShare = request.property_shares?.find((share) => (
@@ -197,7 +221,7 @@ export const mapBrokerRequestOfferToManagerLead = (request: BrokerRequestRecord)
   const updatedAt = request.updated_at || request.matched_at || createdAt;
 
   return {
-    id: request.selected_lead_id || `broker-request-${request.id}`,
+    id: request.selected_lead_id || `${BROKER_REQUEST_OFFER_ID_PREFIX}${request.id}`,
     lead_number: request.selected_lead_id || `BR-${request.id.slice(0, 8)}`,
     property_id: selectedProperty?.id || request.selected_property_id || undefined,
     user_id: request.user_id,

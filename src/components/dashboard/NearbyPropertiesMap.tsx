@@ -483,7 +483,8 @@ const NearbyPropertiesMap = ({
             data-nearby-map-style={mapStyle}
         >
             {tileErrors >= 3 && (
-                <div role="alert" className="absolute inset-x-3 top-3 z-[600] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow dark:border-amber-900/40 dark:bg-amber-950/80 dark:text-amber-100">
+                // Above every overlay (controls and Leaflet corners are z 1000) and below the top control row (MB-0218).
+                <div role="alert" className="pointer-events-none absolute inset-x-3 top-20 z-[1100] lg:top-32 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow dark:border-amber-900/40 dark:bg-amber-950/80 dark:text-amber-100">
                     The map could not load. Switch to Cards to see these homes.
                 </div>
             )}

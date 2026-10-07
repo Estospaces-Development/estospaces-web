@@ -903,6 +903,41 @@ export const searchService = {
         }
     },
 
+    /**
+     * Every result page of one search, for views such as the Discover map that need all matches.
+     */
+    searchAll: async (
+        query: string,
+        filters: Record<string, any> = {},
+    ): Promise<SearchResponse> => {
+        // ponytail: loads up to 20 pages of 50 (the search service caps a page at 50); page on the
+        // server with a map-bounds query once one market lists more than ~1000 homes.
+        const limit = 50;
+        const firstPage = await searchService.search(query, { ...filters, page: 1, limit });
+        if (!firstPage.success) {
+            return firstPage;
+        }
+        const pageLimit = Math.max(1, firstPage.pagination.limit || limit);
+        const pageCount = Math.min(20, Math.ceil(firstPage.pagination.total / pageLimit));
+        const pages = [firstPage];
+        for (let page = 2; page <= pageCount; page += 1) {
+            const nextPage = await searchService.search(query, { ...filters, page, limit: pageLimit });
+            if (!nextPage.success) {
+                return nextPage;
+            }
+            pages.push(nextPage);
+        }
+        const propertiesById = new Map(
+            pages.flatMap((page) => page.data).map((property) => [property.id, property]),
+        );
+
+        return {
+            success: true,
+            data: Array.from(propertiesById.values()),
+            pagination: { total: firstPage.pagination.total, page: 1, limit: pageLimit },
+        };
+    },
+
     getPropertySections: async (country = ''): Promise<PropertySectionsResponse> => {
         const requestedCountry = country.trim();
 

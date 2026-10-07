@@ -179,3 +179,20 @@ test("appointment date scopes compare UTC times against the local day and refres
   assert.equal(matchesAppointmentDateScope(justBefore, "today", now), false);
   assert.match(source, /window\.setInterval\(\(\) => setDateScopeNow\(Date\.now\(\)\), 60_000\)/);
 });
+
+test("manager reschedule validation refuses a time that the clocks skip (MB-0452)", () => {
+  const originalTimeZone = process.env.TZ;
+  process.env.TZ = "Europe/London";
+  try {
+    assert.deepEqual(
+      validateManagerRescheduleForm(
+        { requested_date: "2027-03-28", requested_time: "01:30", manager_notes: "" },
+        new Date("2026-10-08T09:00:00Z"),
+      ),
+      { requested_time: "01:30 does not exist on 28 Mar 2027 because the clocks go forward. Choose another time." },
+    );
+  } finally {
+    if (originalTimeZone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimeZone;
+  }
+});

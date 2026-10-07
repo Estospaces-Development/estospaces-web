@@ -24,14 +24,17 @@ import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackServi
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
-import { canRequestLeadDocuments, formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import {
+    canRequestManagerLeadDocuments,
+    canScheduleManagerLeadViewing,
     filterVisibleManagerLeads,
     formatManagerLeadAddress,
     getManagerLeadMatchedBroker,
     getManagerLeadOperationalState,
     getManagerLeadSlaRemainingSeconds,
+    hasManagerLeadRecord,
     mergeBrokerRequestOffersIntoManagerLeads,
     paginateManagerLeads,
     resolveManagerLeadWorkspaceCase,
@@ -118,17 +121,6 @@ function getDateInputValue(offsetDays = 0) {
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const day = `${date.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
-}
-
-function canScheduleLeadViewing(lead: Lead) {
-    const stage = resolveLeadStage(lead);
-    return Boolean(
-        lead.user_id &&
-        lead.property_id &&
-        (lead.broker_id || lead.matched_broker_id) &&
-        !['completed', 'expired', 'rejected', 'withdrawn'].includes(stage) &&
-        !['closed_won', 'closed_lost', 'cancelled'].includes(lead.status),
-    );
 }
 
 function isLeadLifecycleClosed(lead: Lead) {
@@ -490,7 +482,7 @@ export default function ManagerLeadsPage() {
             toast.error('This lead does not have a linked user account for document follow-up yet.');
             return;
         }
-        if (!canRequestLeadDocuments(lead)) {
+        if (!canRequestManagerLeadDocuments(lead)) {
             toast.error('This journey has already moved beyond the live lead-response stage. Continue it from messages, viewings, or the matched workspace instead.');
             return;
         }
@@ -843,7 +835,7 @@ export default function ManagerLeadsPage() {
                 leads={visibleLeads}
                 now={now}
                 actingLeadID={actingLeadID}
-                canRequestDocuments={canRequestLeadDocuments}
+                canRequestDocuments={canRequestManagerLeadDocuments}
                 onRequestDocuments={handleRequestDocs}
                 onScheduleViewing={openScheduleViewing}
                 onOpenMessages={(lead) => {
@@ -932,11 +924,10 @@ export default function ManagerLeadsPage() {
                                 statusLabels[lead.status] || lead.status,
                             );
                             const matchedBroker = getManagerLeadMatchedBroker(lead);
-                            const canRequestDocuments = canRequestLeadDocuments(lead);
-                            const canScheduleViewing = canScheduleLeadViewing(lead);
-                            // An unaccepted agent request has no lead yet (its id is a placeholder), so Won/Lost would
-                            // post a fake lead id; accept the request first (MB-0325).
-                            const canCloseLifecycle = !isLeadLifecycleClosed(lead) && !String(lead.id).startsWith('broker-request-');
+                            const hasLeadRecord = hasManagerLeadRecord(lead);
+                            const canRequestDocuments = canRequestManagerLeadDocuments(lead);
+                            const canScheduleViewing = canScheduleManagerLeadViewing(lead);
+                            const canCloseLifecycle = hasLeadRecord && !isLeadLifecycleClosed(lead);
                             const isBusy = actingLeadID === lead.id;
                             const isAuditExpanded = expandedAuditLeadID === lead.id;
                             const auditEntries = leadAuditEntries[lead.id] || [];
@@ -1138,16 +1129,18 @@ export default function ManagerLeadsPage() {
                                                     </p>
                                                 </div>
                                             ) : null}
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleToggleAudit(lead)}
-                                                aria-expanded={isAuditExpanded}
-                                                aria-controls={`lead-audit-${lead.id}`}
-                                                className={`inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900 ${managerLeadFocusClass}`}
-                                            >
-                                                <History className="h-4 w-4" />
-                                                Audit Trail
-                                            </button>
+                                            {hasLeadRecord ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleToggleAudit(lead)}
+                                                    aria-expanded={isAuditExpanded}
+                                                    aria-controls={`lead-audit-${lead.id}`}
+                                                    className={`inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900 ${managerLeadFocusClass}`}
+                                                >
+                                                    <History className="h-4 w-4" />
+                                                    Audit Trail
+                                                </button>
+                                            ) : null}
                                             {leadEscalationPath ? (
                                                 <button
                                                     type="button"
@@ -1161,15 +1154,32 @@ export default function ManagerLeadsPage() {
                                             ) : null}
                                             {isAwaitingResponse ? (
                                                 <>
-                                                    <button
-                                                        onClick={() => handleRespondAndOpenMessages(lead)}
-                                                        disabled={isBusy}
-                                                        aria-label={`Respond and message ${getLeadTitle(lead)}`}
-                                                        className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 ${managerLeadFocusClass}`}
-                                                    >
-                                                        {isBusy ? <ActionSpinner className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-                                                        Respond And Message
-                                                    </button>
+                                                    {hasLeadRecord ? (
+                                                        <button
+                                                            onClick={() => handleRespondAndOpenMessages(lead)}
+                                                            disabled={isBusy}
+                                                            aria-label={`Respond and message ${getLeadTitle(lead)}`}
+                                                            className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 ${managerLeadFocusClass}`}
+                                                        >
+                                                            {isBusy ? <ActionSpinner className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+                                                            Respond And Message
+                                                        </button>
+                                                    ) : (
+                                                        // Agent-request offers are accepted on the dashboard; the backend has no decline step.
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate('/manager/dashboard')}
+                                                                aria-label={`Accept on dashboard: ${getLeadTitle(lead)}`}
+                                                                className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 ${managerLeadFocusClass}`}
+                                                            >
+                                                                Accept On Dashboard
+                                                            </button>
+                                                            <p className="max-w-[240px] text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                                                Not a fit? There is no decline step. Leave it and the offer lapses when the timer ends.
+                                                            </p>
+                                                        </>
+                                                    )}
                                                     {canRequestDocuments ? (
                                                         <button
                                                             onClick={() => void handleRequestDocs(lead)}

@@ -4,10 +4,9 @@ import test from 'node:test';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('map-centre pin placement needs street-level zoom (MB-0208)', () => {
-    const picker = read('components/manager/PropertyLocationPicker.tsx');
-    assert.match(picker, /const MIN_CENTER_PLACEMENT_ZOOM = 15;/);
-    assert.match(picker, /disabled=\{disabled \|\| !zoomedInEnough\}/);
+test('map pin status does not claim an exact position (MB-0208)', () => {
+    const addPage = read('pages/manager/dashboard/properties/add/page.tsx');
+    assert.doesNotMatch(addPage, /Exact property position selected/);
 });
 
 test('the manager dashboard says when its figures failed to load (MB-0660)', () => {

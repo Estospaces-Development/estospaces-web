@@ -31,6 +31,7 @@ import {
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
 import { getFastTrackViewingCompletionBlockReason } from '@/lib/fastTrackWorkspace';
+import { toLocalScheduledAt } from '@/lib/localScheduledAt';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
 const FILTERS = [
@@ -191,14 +192,10 @@ export function validateManagerRescheduleForm(form: ManagerRescheduleForm, now =
     }
 
     if (dateParts && timeParts) {
-        const scheduledAt = new Date(
-            dateParts.year,
-            dateParts.month - 1,
-            dateParts.day,
-            timeParts.hour,
-            timeParts.minute,
-        );
-        if (scheduledAt <= now) {
+        const slot = toLocalScheduledAt(requestedDate, requestedTime);
+        if ('error' in slot) {
+            errors.requested_time = slot.error;
+        } else if (new Date(slot.scheduledAt) <= now) {
             errors.requested_time = 'Choose a future appointment time.';
         }
     }

@@ -71,8 +71,8 @@ test('market-specific autocomplete ignores stale responses after the market chan
 });
 
 test('Discover clears previous-market options and invalidates stale property requests', () => {
-    assert.match(discoverSource, /fetchRequestIdRef\.current \+= 1;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*setFilterOptions\(null\);[\s\S]*setAllSectionProperties\(\[\]\);/);
-    assert.match(discoverSource, /const requestId = \+\+fetchRequestIdRef\.current;[\s\S]*getPropertySections\(searchMarket\);[\s\S]*requestId !== fetchRequestIdRef\.current/);
+    assert.match(discoverSource, /fetchRequestIdRef\.current \+= 1;[\s\S]*setGlobalFilterOptions\(null\);[\s\S]*setFilterOptions\(null\);[\s\S]*setMatchingProperties\(\[\]\);/);
+    assert.match(discoverSource, /const requestId = \+\+fetchRequestIdRef\.current;[\s\S]*searchAll\(searchQuery, \{\s*country: searchMarket,[\s\S]*requestId !== fetchRequestIdRef\.current/);
     assert.match(discoverSource, /return \(\) => \{[\s\S]*fetchRequestIdRef\.current \+= 1;[\s\S]*clearTimeout\(timer\);/);
 });
 
