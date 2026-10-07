@@ -52,38 +52,36 @@ interface MediaUploadSession {
     total_chunks: number;
 }
 
-const RATE_LIMIT_ATTEMPTS = 4;
-const RATE_LIMIT_FALLBACK_DELAY_MS = 2_000;
-const RATE_LIMIT_MAX_DELAY_MS = 60_000;
+// Waits between retries when the server sends no Retry-After. Together they outlast one 60 s window
+// of the media service's rate limiter.
+export const MEDIA_RETRY_FALLBACK_DELAYS_MS = [5_000, 15_000, 30_000, 60_000];
+const MEDIA_RETRY_MAX_DELAY_MS = 60_000;
 
-/** Repeats a media request the server rate limited (429), waiting as long as its Retry-After asks. */
-export const withRateLimitRetry = async <T>(send: () => Promise<T>): Promise<T> => {
-    for (let attempt = 1; ; attempt += 1) {
+/**
+ * Repeats a media request while the server says it is busy: rate limited (429) or still completing
+ * the same upload (409 upload_in_progress). Waits as long as Retry-After asks, else the fallback.
+ */
+export const retryWhileBusy = async <T>(send: () => Promise<T>): Promise<T> => {
+    for (let attempt = 0; ; attempt += 1) {
         try {
             return await send();
         } catch (error) {
-            if (!(error instanceof ApiRequestError) || error.status !== 429 || attempt >= RATE_LIMIT_ATTEMPTS) throw error;
-            const delay = Math.min(error.retryAfterMs ?? RATE_LIMIT_FALLBACK_DELAY_MS * attempt, RATE_LIMIT_MAX_DELAY_MS);
+            const busy = error instanceof ApiRequestError && (error.status === 429 || error.code === 'upload_in_progress');
+            if (!busy || attempt >= MEDIA_RETRY_FALLBACK_DELAYS_MS.length) throw error;
+            const delay = Math.min(error.retryAfterMs ?? MEDIA_RETRY_FALLBACK_DELAYS_MS[attempt], MEDIA_RETRY_MAX_DELAY_MS);
             await new Promise((resolve) => setTimeout(resolve, delay));
         }
     }
 };
 
-const putMediaUploadChunk = async (url: string, body: Blob): Promise<void> => {
-    const send = () => withRateLimitRetry(() => apiFetch(url, {
-        method: 'PUT',
-        suppressErrorToast: true,
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body,
-        timeoutMs: mediaUploadTimeoutMs(body.size),
-    }));
+/** Retries once after a network failure or 5xx; a 4xx means the server refused the request itself. */
+const retryOnceAfterFailure = async <T>(send: () => Promise<T>): Promise<T> => {
     try {
-        await send();
+        return await send();
     } catch (error) {
         const status = error instanceof ApiRequestError ? error.status : undefined;
-        // Retry once; a 4xx means the server refused the chunk itself, so retrying cannot help.
         if (status !== undefined && status >= 400 && status < 500) throw error;
-        await send();
+        return send();
     }
 };
 
@@ -95,7 +93,7 @@ const uploadMediaFileInChunks = async (
     isPublic: boolean,
 ): Promise<MediaFile> => {
     const uploadsUrl = `${MEDIA_URL()}/api/v1/media/uploads`;
-    const session = await withRateLimitRetry(() => apiFetch<MediaUploadSession>(uploadsUrl, {
+    const session = await retryWhileBusy(() => apiFetch<MediaUploadSession>(uploadsUrl, {
         method: 'POST',
         suppressErrorToast: true,
         body: JSON.stringify({
@@ -113,16 +111,21 @@ const uploadMediaFileInChunks = async (
         throw new Error('The upload could not be split into parts. Please try again.');
     }
     for (const chunk of chunks) {
-        await putMediaUploadChunk(
-            `${uploadsUrl}/${session.upload_id}/chunks/${chunk.index}`,
-            file.slice(chunk.start, chunk.end),
-        );
+        const body = file.slice(chunk.start, chunk.end);
+        await retryOnceAfterFailure(() => retryWhileBusy(() => apiFetch(`${uploadsUrl}/${session.upload_id}/chunks/${chunk.index}`, {
+            method: 'PUT',
+            suppressErrorToast: true,
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body,
+            timeoutMs: mediaUploadTimeoutMs(body.size),
+        })));
     }
-    return withRateLimitRetry(() => apiFetch<MediaFile>(`${uploadsUrl}/${session.upload_id}/complete`, {
+    // Completing is idempotent on the server, so a lost response is safe to retry.
+    return retryOnceAfterFailure(() => retryWhileBusy(() => apiFetch<MediaFile>(`${uploadsUrl}/${session.upload_id}/complete`, {
         method: 'POST',
         suppressErrorToast: true,
         timeoutMs: 60_000,
-    }));
+    })));
 };
 
 export const uploadMediaFile = async (
@@ -143,7 +146,7 @@ export const uploadMediaFile = async (
     body.append('alt_text', altText);
     body.append('is_public', String(isPublic));
 
-    return withRateLimitRetry(() => apiFetch<MediaFile>(`${MEDIA_URL()}/api/v1/media`, {
+    return retryWhileBusy(() => apiFetch<MediaFile>(`${MEDIA_URL()}/api/v1/media`, {
         method: 'POST',
         suppressErrorToast: true,
         body,

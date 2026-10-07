@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { ApiRequestError } from '@/lib/apiUtils';
 import {
   MEDIA_CHUNKED_UPLOAD_THRESHOLD_BYTES,
+  MEDIA_RETRY_FALLBACK_DELAYS_MS,
+  retryWhileBusy,
   planMediaUploadChunks,
   uploadMediaFile,
   uploadMediaFiles,
@@ -137,7 +140,7 @@ test('rate-limited init, chunk and complete requests wait for Retry-After and tr
   ]);
 });
 
-test('a request still rate limited after four attempts fails with the 429', async () => {
+test('a request still rate limited after five attempts fails with the 429', async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = (async () => {
@@ -152,7 +155,7 @@ test('a request still rate limited after four attempts fails with the 429', asyn
   } finally {
     globalThis.fetch = originalFetch;
   }
-  assert.equal(calls, 4);
+  assert.equal(calls, 5);
 });
 
 test('property media batches upload at most two files at a time and keep their order', async () => {
@@ -175,4 +178,80 @@ test('property media batches upload at most two files at a time and keep their o
     globalThis.fetch = originalFetch;
   }
   assert.equal(maxInFlight, 2);
+});
+
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+test('without Retry-After, busy retries wait 5, 15, 30 and 60 s, outlasting one rate-limit window', async (t) => {
+  assert.deepEqual(MEDIA_RETRY_FALLBACK_DELAYS_MS, [5_000, 15_000, 30_000, 60_000]);
+  assert.ok(MEDIA_RETRY_FALLBACK_DELAYS_MS.reduce((sum, delay) => sum + delay, 0) > 60_000);
+
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0;
+  const busy = [
+    new ApiRequestError('Too many requests', 'x', 429),
+    new ApiRequestError('Too many requests', 'x', 429),
+    new ApiRequestError('Still completing', 'x', 409, undefined, undefined, 'upload_in_progress'),
+    new ApiRequestError('Too many requests', 'x', 429),
+  ];
+  const result = retryWhileBusy(async () => {
+    calls += 1;
+    if (calls <= busy.length) throw busy[calls - 1];
+    return 'done';
+  });
+  for (const [index, delay] of MEDIA_RETRY_FALLBACK_DELAYS_MS.entries()) {
+    await flush();
+    assert.equal(calls, index + 1);
+    t.mock.timers.tick(delay - 1);
+    await flush();
+    assert.equal(calls, index + 1, `retried before ${delay} ms`);
+    t.mock.timers.tick(1);
+  }
+  assert.equal(await result, 'done');
+  assert.equal(calls, 5);
+});
+
+test('completing is retried once after a lost response', async () => {
+  const originalFetch = globalThis.fetch;
+  let completeCalls = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/media/uploads')) {
+      return jsonResponse(201, { success: true, data: { upload_id: 'up-1', chunk_size: 16_000_000, total_chunks: 2 } });
+    }
+    if (init?.method === 'PUT') return jsonResponse(200, { success: true, data: {} });
+    completeCalls += 1;
+    if (completeCalls === 1) throw new TypeError('Failed to fetch');
+    return jsonResponse(201, { success: true, data: { id: 'media-1' } });
+  }) as typeof fetch;
+  try {
+    const media = await uploadMediaFile(new File([new Uint8Array(30_000_000)], 'big.jpg', { type: 'image/jpeg' }), 'property', 'p-1');
+    assert.equal(media.id, 'media-1');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(completeCalls, 2);
+});
+
+test('a refused completion (4xx) is not retried', async () => {
+  const originalFetch = globalThis.fetch;
+  let completeCalls = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/media/uploads')) {
+      return jsonResponse(201, { success: true, data: { upload_id: 'up-1', chunk_size: 16_000_000, total_chunks: 2 } });
+    }
+    if (init?.method === 'PUT') return jsonResponse(200, { success: true, data: {} });
+    completeCalls += 1;
+    return jsonResponse(400, { success: false, error: 'Part 2 of 2 of this upload is missing.', code: 'invalid_upload' });
+  }) as typeof fetch;
+  try {
+    await assert.rejects(
+      uploadMediaFile(new File([new Uint8Array(30_000_000)], 'big.jpg', { type: 'image/jpeg' }), 'property', 'p-1'),
+      (error: { status?: number }) => error.status === 400,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(completeCalls, 1);
 });
