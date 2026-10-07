@@ -110,6 +110,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
+import { toLocalScheduledAt } from '@/lib/localScheduledAt';
 import { getFastTrackConnectedRecordPath, type FastTrackConnectedRecordKind } from '@/lib/fastTrackConnectedRecords';
 import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
@@ -3493,10 +3494,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     toast.error('Set both date and time first.');
                                     return;
                                 }
+                                const slot = toLocalScheduledAt(viewingDate, viewingTime);
+                                if ('error' in slot) {
+                                    toast.error(slot.error);
+                                    return;
+                                }
                                 void runAction(
                                     selectedCase.viewing.status === 'scheduled' ? 'reschedule_viewing' : 'schedule_viewing',
                                     {
-                                        scheduled_at: new Date(`${viewingDate}T${viewingTime}:00`).toISOString(),
+                                        scheduled_at: slot.scheduledAt,
                                         note: viewingNote,
                                     },
                                     selectedCase.viewing.status === 'scheduled' ? 'Viewing rescheduled.' : 'Viewing scheduled.',

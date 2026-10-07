@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
-import { formatManagerLeadAddress, pickDefaultManagerLead } from '@/lib/managerLeadList';
+import { canScheduleManagerLeadViewing, formatManagerLeadAddress, pickDefaultManagerLead } from '@/lib/managerLeadList';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
@@ -144,17 +144,10 @@ export default function LeadActionMap({
     const uniqueLocationCount = useMemo(() => new Set(
         leadsWithCoordinates.map((lead) => getLeadMapCoordinates(lead)?.join(':')),
     ).size, [leadsWithCoordinates]);
-    const resolveAssignedBrokerId = (lead: Lead) => lead.broker_id || lead.matched_broker_id || null;
     const canRequestDocumentsForLead = (lead: Lead) => (
         canRequestDocuments ? canRequestDocuments(lead) : Boolean(lead.user_id)
     );
-    const canScheduleSelectedLead = Boolean(
-        selectedLead?.user_id
-        && selectedLead?.property_id
-        && resolveAssignedBrokerId(selectedLead)
-        && !['completed', 'expired', 'rejected', 'withdrawn'].includes(resolveLeadStage(selectedLead))
-        && !['closed_won', 'closed_lost', 'cancelled'].includes(selectedLead?.status || ''),
-    );
+    const canScheduleSelectedLead = selectedLead ? canScheduleManagerLeadViewing(selectedLead) : false;
     const canRequestSelectedLead = selectedLead ? canRequestDocumentsForLead(selectedLead) : false;
 
     if (leads.length === 0) {
@@ -215,13 +208,7 @@ export default function LeadActionMap({
                                 const stage = resolveLeadStage(lead);
                                 const isSelected = selectedLead?.id === lead.id;
                                 const canRequestDocs = canRequestDocumentsForLead(lead);
-                                const canScheduleViewing = Boolean(
-                                    lead.user_id
-                                    && lead.property_id
-                                    && resolveAssignedBrokerId(lead)
-                                    && !['completed', 'expired', 'rejected', 'withdrawn'].includes(stage)
-                                    && !['closed_won', 'closed_lost', 'cancelled'].includes(lead.status || ''),
-                                );
+                                const canScheduleViewing = canScheduleManagerLeadViewing(lead);
 
                                 return (
                                     <Marker

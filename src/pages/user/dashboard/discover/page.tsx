@@ -124,24 +124,9 @@ const applyDashboardFilterOrdering = (results: SearchResult[], filterParam: stri
     return ordered;
 };
 
-const includesNormalizedText = (value: string | undefined, query: string) => (
-    (value || '').toLowerCase().includes(query)
+const toNumberFilter = (value: string) => (
+    value !== '' && Number.isFinite(Number(value)) ? Number(value) : undefined
 );
-
-const dedupeSectionProperties = (properties: SearchResult[]) => {
-    const seen = new Set<string>();
-    const unique: SearchResult[] = [];
-
-    for (const property of properties) {
-        if (!property.id || seen.has(property.id)) {
-            continue;
-        }
-        seen.add(property.id);
-        unique.push(property);
-    }
-
-    return unique;
-};
 
 const buildFilterOptionsFromProperties = (properties: SearchResult[]): FilterOptions => {
     const propertyTypes = new Set<string>();
@@ -171,70 +156,6 @@ const buildFilterOptionsFromProperties = (properties: SearchResult[]): FilterOpt
             max: Number.isFinite(max) ? max : 0,
         },
     };
-};
-
-const filterSectionProperties = (
-    properties: SearchResult[],
-    filters: {
-        activeTab: 'all' | 'buy' | 'rent';
-        searchQuery: string;
-        locationQuery: string;
-        statusFilter: string;
-        propertyType: string;
-        minPrice: string;
-        maxPrice: string;
-        beds: string;
-        baths: string;
-        countryCode?: string;
-    },
-) => {
-    const normalizedSearch = filters.searchQuery.trim().toLowerCase();
-    const normalizedLocation = filters.locationQuery.trim().toLowerCase();
-    const parsedMinPrice = filters.minPrice !== '' ? Number(filters.minPrice) : null;
-    const parsedMaxPrice = filters.maxPrice !== '' ? Number(filters.maxPrice) : null;
-    const parsedMinBeds = filters.beds !== '' ? Number(filters.beds) : null;
-    const parsedMinBaths = filters.baths !== '' ? Number(filters.baths) : null;
-    const minPrice = parsedMinPrice !== null && Number.isFinite(parsedMinPrice) ? parsedMinPrice : null;
-    const maxPrice = parsedMaxPrice !== null && Number.isFinite(parsedMaxPrice) ? parsedMaxPrice : null;
-    const minBeds = parsedMinBeds !== null && Number.isFinite(parsedMinBeds) ? parsedMinBeds : null;
-    const minBaths = parsedMinBaths !== null && Number.isFinite(parsedMinBaths) ? parsedMinBaths : null;
-    const listingType = filters.activeTab === 'buy' ? 'sale' : filters.activeTab === 'rent' ? 'rent' : '';
-    const status = filters.statusFilter.trim().toLowerCase();
-    const type = filters.propertyType !== 'all' ? filters.propertyType.trim().toLowerCase() : '';
-    const countryFilter = filters.countryCode?.trim().toUpperCase();
-
-    return properties.filter((property) => {
-        if (listingType && property.listing_type !== listingType) return false;
-        if (status && (property.status || '').toLowerCase() !== status) return false;
-        if (type && (property.property_type || '').toLowerCase() !== type) return false;
-        if (minPrice !== null && Number(property.price || 0) < minPrice) return false;
-        if (maxPrice !== null && Number(property.price || 0) > maxPrice) return false;
-        if (minBeds !== null && Number(property.bedrooms || 0) < minBeds) return false;
-        if (minBaths !== null && Number(property.bathrooms || 0) < minBaths) return false;
-        if (countryFilter) {
-            const propCountry = (property.countryCode || property.country || '').trim().toUpperCase();
-            if (propCountry && propCountry !== countryFilter) return false;
-        }
-        if (normalizedLocation && ![
-            property.location,
-            property.city,
-            property.postcode,
-        ].some((value) => includesNormalizedText(value, normalizedLocation))) {
-            return false;
-        }
-        if (normalizedSearch && ![
-            property.title,
-            property.description,
-            property.location,
-            property.city,
-            property.postcode,
-            property.property_type,
-        ].some((value) => includesNormalizedText(value, normalizedSearch))) {
-            return false;
-        }
-
-        return true;
-    });
 };
 
 const sortSectionProperties = (properties: SearchResult[], sortBy: string, dashboardFilter: string) => {
@@ -327,7 +248,8 @@ function DiscoverContent() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [properties, setProperties] = useState<SearchResult[]>([]);
-    const [allSectionProperties, setAllSectionProperties] = useState<SearchResult[]>([]);
+    // Cards show one page, but the map uses every match so a pinned home on another page is not hidden.
+    const [matchingProperties, setMatchingProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
     const [searchQuery, setSearchQuery] = useState(() => readSearchUrlFilters(initialSearchParams).query);
     const [locationQuery, setLocationQuery] = useState(() => readSearchUrlFilters(initialSearchParams).location);
@@ -452,7 +374,7 @@ function DiscoverContent() {
         fetchRequestIdRef.current += 1;
         setGlobalFilterOptions(null);
         setFilterOptions(null);
-        setAllSectionProperties([]);
+        setMatchingProperties([]);
         setProperties([]);
         setTotal(0);
 
@@ -496,7 +418,7 @@ function DiscoverContent() {
         if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
             fetchRequestIdRef.current += 1;
             setProperties([]);
-            setAllSectionProperties([]);
+            setMatchingProperties([]);
             setTotal(0);
             setError(preferredSearchDefaults.failed
                 ? 'Could not load your saved search location. Please refresh and try again.'
@@ -509,45 +431,46 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections(searchMarket);
+            const listingType = activeTab === 'buy' ? 'sale' : activeTab === 'rent' ? 'rent' : undefined;
+            const effectiveSort = sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance';
+            // The capped section lists hid every published home outside them (MB-0262), so Discover
+            // asks the same search endpoint and market as /search and pages through every match.
+            const result = await searchService.searchAll(searchQuery, {
+                country: searchMarket,
+                location: locationQuery || undefined,
+                propertyType: propertyType !== 'all' ? propertyType : undefined,
+                minPrice: toNumberFilter(priceRange.min),
+                maxPrice: toNumberFilter(priceRange.max),
+                minBedrooms: toNumberFilter(beds),
+                minBathrooms: toNumberFilter(baths),
+                listingType,
+                sortBy: effectiveSort !== 'relevance' ? effectiveSort : undefined,
+            });
             if (requestId !== fetchRequestIdRef.current) {
                 return;
             }
 
             if (!result.success) {
                 setProperties([]);
-                setAllSectionProperties([]);
+                setMatchingProperties([]);
                 setTotal(0);
                 setFilterOptions(null);
-                setError(result.error || 'Failed to fetch property sections from server.');
+                setError(result.error || 'Failed to fetch properties from server.');
                 return;
             }
 
-            const sectionProperties = filterPropertiesForMarket(dedupeSectionProperties(
-                result.data.flatMap((section) => section.properties),
-            ), searchMarket);
-            const filtered = filterSectionProperties(sectionProperties, {
-                activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
-                searchQuery,
-                locationQuery,
-                statusFilter,
-                propertyType,
-                minPrice: priceRange.min,
-                maxPrice: priceRange.max,
-                beds,
-                baths,
-                countryCode: searchMarket,
-            });
-            const sorted = sortSectionProperties(
-                filtered,
-                sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
-                dashboardFilter,
-            );
+            // The search endpoint has no status filter, so a status param (the dashboard's sold link) is applied here;
+            // only results that carry a matching status survive, as with the old section lists.
+            const status = statusFilter.trim().toLowerCase();
+            const filtered = filterPropertiesForMarket(result.data, searchMarket).filter((property) => (
+                !status || (property.status || '').toLowerCase() === status
+            ));
+            const sorted = sortSectionProperties(filtered, effectiveSort, dashboardFilter);
             const resolvedPage = resolveDiscoverPage(currentPage, sorted.length, ITEMS_PER_PAGE);
             const pageStart = (resolvedPage - 1) * ITEMS_PER_PAGE;
 
-            setAllSectionProperties(sectionProperties);
-            setFilterOptions(buildFilterOptionsFromProperties(sectionProperties));
+            setMatchingProperties(sorted);
+            setFilterOptions(buildFilterOptionsFromProperties(sorted));
             setProperties(sorted.slice(pageStart, pageStart + ITEMS_PER_PAGE));
             setTotal(sorted.length);
             if (resolvedPage !== currentPage) {
@@ -558,10 +481,10 @@ function DiscoverContent() {
                 return;
             }
             setProperties([]);
-            setAllSectionProperties([]);
+            setMatchingProperties([]);
             setTotal(0);
             setFilterOptions(null);
-            setError('An unexpected error occurred while processing property sections.');
+            setError('An unexpected error occurred while loading properties.');
         } finally {
             if (requestId === fetchRequestIdRef.current) {
                 setLoading(false);
@@ -585,7 +508,7 @@ function DiscoverContent() {
     useEffect(() => {
         const fetchSuggestions = async () => {
             if (searchQuery.length >= 2) {
-                setLocationSuggestions(buildSectionSuggestions(allSectionProperties, searchQuery));
+                setLocationSuggestions(buildSectionSuggestions(matchingProperties, searchQuery));
             } else {
                 setLocationSuggestions([]);
             }
@@ -595,33 +518,8 @@ function DiscoverContent() {
             fetchSuggestions();
         }, 300);
         return () => clearTimeout(timer);
-    }, [allSectionProperties, searchQuery]);
+    }, [matchingProperties, searchQuery]);
 
-    // Cards are paginated, but a map must use every matching result so a
-    // coordinate-bearing home is not hidden merely because it is on another page.
-    const matchingProperties = useMemo(() => {
-        if (!preferredSearchDefaults.ready || preferredSearchDefaults.failed) {
-            return [];
-        }
-
-        const filtered = filterSectionProperties(allSectionProperties, {
-            activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
-            searchQuery,
-            locationQuery,
-            statusFilter,
-            propertyType,
-            minPrice: priceRange.min,
-            maxPrice: priceRange.max,
-            beds,
-            baths,
-            countryCode: searchMarket,
-        });
-        return sortSectionProperties(
-            filtered,
-            sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
-            dashboardFilter,
-        );
-    }, [activeTab, allSectionProperties, baths, beds, dashboardFilter, locationQuery, preferredSearchDefaults.failed, preferredSearchDefaults.ready, priceRange.max, priceRange.min, propertyType, searchMarket, searchQuery, sortBy, statusFilter]);
     const mapProperties = useMemo(
         () => toDiscoverNearbyMapProperties(matchingProperties),
         [matchingProperties],
@@ -634,7 +532,10 @@ function DiscoverContent() {
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = preferredSearchDefaults.ready && !preferredSearchDefaults.failed ? properties : []; // Backend paginates for us
-    const visibleFilterOptions = preferredSearchDefaults.ready && !preferredSearchDefaults.failed ? filterOptions : null;
+    // Price hints come from the whole market; options built from the current matches would cap the inputs at a narrowed max.
+    const visibleFilterOptions = preferredSearchDefaults.ready && !preferredSearchDefaults.failed
+        ? globalFilterOptions || filterOptions
+        : null;
     const discoverReturnSearch = useMemo(() => buildDiscoverSearchParams({
         query: searchQuery,
         location: locationQuery,
@@ -1050,7 +951,7 @@ function DiscoverContent() {
                                     placeholder={visibleFilterOptions?.price_range?.min ? `Min: ${formatDiscoveryCurrency(visibleFilterOptions.price_range.min)}` : "Min"}
                                     value={priceRange.min}
                                     min={0}
-                                    max={priceRange.max || visibleFilterOptions?.price_range?.max}
+                                    max={priceRange.max || visibleFilterOptions?.price_range?.max || undefined}
                                     onChange={(e) => {
                                         setFilterInputMessage(getPriceBoundAdjustmentMessage(e.target.value));
                                         setPriceRange({ ...priceRange, min: normalizePriceBoundInput(e.target.value) });
@@ -1069,7 +970,7 @@ function DiscoverContent() {
                                     placeholder={visibleFilterOptions?.price_range?.max ? `Max: ${formatDiscoveryCurrency(visibleFilterOptions.price_range.max)}` : "Max"}
                                     value={priceRange.max}
                                     min={0}
-                                    max={visibleFilterOptions?.price_range?.max}
+                                    max={visibleFilterOptions?.price_range?.max || undefined}
                                     onChange={(e) => {
                                         setFilterInputMessage(getPriceBoundAdjustmentMessage(e.target.value));
                                         setPriceRange({ ...priceRange, max: normalizePriceBoundInput(e.target.value) });
