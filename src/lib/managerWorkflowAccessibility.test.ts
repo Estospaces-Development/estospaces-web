@@ -20,7 +20,8 @@ test('manager workflow surfaces keep compact status labels and actions readable'
   assert.match(contracts, /text-green-700 dark:text-green-300/);
   assert.match(verificationQueue, /badgeClass: 'bg-blue-700 shadow-blue-700\/20'/);
   assert.match(managerVerification, /case 'verification_required': return 'bg-amber-700';/);
-  assert.match(analytics, /text-green-700 text-xs font-bold bg-green-100/);
+  assert.match(analytics, /'text-green-700 bg-green-100 dark:bg-green-950\/40 dark:text-green-300'/);
+  assert.match(analytics, /'text-red-700 bg-red-100 dark:bg-red-950\/40 dark:text-red-300'/);
   assert.match(analytics, /text-xs text-orange-800 dark:text-orange-200/);
 });
 

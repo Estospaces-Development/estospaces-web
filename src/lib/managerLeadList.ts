@@ -267,8 +267,10 @@ export const mergeBrokerRequestOffersIntoManagerLeads = (
 ) => {
   const existingLeadIds = new Set(leads.map((lead) => lead.id).filter(Boolean));
   const existingRequestIds = new Set(leads.map((lead) => lead.broker_request_id).filter(Boolean));
+  // Under a status filter `leads` is already server-filtered, so a selected lead missing from it has
+  // another status (for example closed_won); the offer must not stand in for it (MB-0335).
   const mappedRequests = requests
-    .filter((request) => !request.selected_lead_id || !existingLeadIds.has(request.selected_lead_id))
+    .filter((request) => !request.selected_lead_id || (statusFilter === "all" && !existingLeadIds.has(request.selected_lead_id)))
     .filter((request) => !existingRequestIds.has(request.id))
     .map(mapBrokerRequestOfferToManagerLead);
   const merged = [...leads, ...mappedRequests];

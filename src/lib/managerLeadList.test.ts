@@ -315,6 +315,24 @@ test("manager lead list does not duplicate broker requests already represented b
   assert.deepEqual(merged.map((lead) => lead.id), ["lead-selected-1"]);
 });
 
+test("a status filter does not show a closed lead again through its selected offer (MB-0335)", () => {
+  const wonOffer = {
+    id: "request-won-1",
+    selected_lead_id: "lead-won-1",
+    user_id: "user-won-1",
+    request_type: "rent",
+    location: "Chennai",
+    status: "matched",
+    dispatch_status: "broker_matched",
+    created_at: "2026-07-06T09:01:00Z",
+  };
+  const openOffer = { ...wonOffer, id: "request-open-1", selected_lead_id: undefined };
+  // getBrokerLeads("broker_responded") does not return the closed_won lead.
+  const responded = mergeBrokerRequestOffersIntoManagerLeads([], [wonOffer, openOffer], "broker_responded");
+
+  assert.deepEqual(responded.map((lead) => lead.id), ["broker-request-request-open-1"]);
+});
+
 test("manager lead map reads persisted coordinates from the selected property share", () => {
   const lead = mapBrokerRequestOfferToManagerLead({
     id: "request-share-location",

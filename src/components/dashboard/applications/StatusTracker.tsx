@@ -15,30 +15,7 @@ import {
     Calendar,
     LucideIcon,
 } from 'lucide-react';
-
-// Application status constants (matching ApplicationsContext)
-const APPLICATION_STATUS = {
-    DRAFT: 'draft',
-    PENDING: 'pending',
-    SUBMITTED: 'submitted',
-    APPOINTMENT_BOOKED: 'appointment_booked',
-    VIEWING_SCHEDULED: 'viewing_scheduled',
-    VIEWING_COMPLETED: 'viewing_completed',
-    UNDER_REVIEW: 'under_review',
-    DOCUMENTS_REQUESTED: 'documents_requested',
-    VERIFICATION_IN_PROGRESS: 'verification_in_progress',
-    OFFER_SUBMITTED: 'offer_submitted',
-    OFFER_UNDER_REVIEW: 'offer_under_review',
-    OFFER_ACCEPTED: 'offer_accepted',
-    SALE_AGREED: 'sale_agreed',
-    MEMORANDUM_ISSUED: 'memorandum_issued',
-    CONVEYANCING: 'conveyancing',
-    EXCHANGE: 'exchange',
-    APPROVED: 'approved',
-    REJECTED: 'rejected',
-    WITHDRAWN: 'withdrawn',
-    COMPLETED: 'completed',
-} as const;
+import { APPLICATION_STATUS } from '@/contexts/ApplicationsContext';
 
 interface Stage {
     id: string;
@@ -117,7 +94,7 @@ const StatusTracker = ({ status, listingType = 'sale', linkedViewingStatus }: St
                 label: 'Documents & Compliance',
                 description: 'Referencing and legal compliance follow-up are active now.',
                 icon: FileCheck,
-                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
+                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED, APPLICATION_STATUS.REFERENCING],
             },
 
             {
@@ -132,7 +109,7 @@ const StatusTracker = ({ status, listingType = 'sale', linkedViewingStatus }: St
                 label: 'Ready For Contract',
                 description: 'The tenancy is approved and ready for the agreement stage.',
                 icon: Key,
-                statuses: [APPLICATION_STATUS.APPROVED],
+                statuses: [APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.READY_FOR_CONTRACT],
             },
             {
                 id: 'completion',

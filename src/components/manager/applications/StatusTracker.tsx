@@ -119,7 +119,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                 label: 'Documents & Compliance',
                 description: 'Referencing and legal compliance follow-up are active now.',
                 icon: FileCheck,
-                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
+                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED, APPLICATION_STATUS.REFERENCING],
             },
 
             {
@@ -134,7 +134,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                 label: 'Ready For Contract',
                 description: 'The tenancy is approved and ready for the agreement stage.',
                 icon: Key,
-                statuses: [APPLICATION_STATUS.APPROVED],
+                statuses: [APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.READY_FOR_CONTRACT],
             },
             {
                 id: 'completion',

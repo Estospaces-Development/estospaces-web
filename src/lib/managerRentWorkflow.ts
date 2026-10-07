@@ -56,6 +56,15 @@ const isRightToRentSatisfied = (value?: string | null) => {
   return status === "completed" || status === "not_required";
 };
 
+// Without a Fast Track case there is no case file, so the application's newest contract
+// stands in for the case file's contract_id (MB-0499).
+export const findLatestApplicationContractId = (
+  contracts: readonly { id: string; application_id?: string; created_at?: string }[] | null | undefined,
+  applicationId: string,
+): string | null => (contracts || [])
+  .filter((contract) => contract.application_id === applicationId)
+  .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))[0]?.id || null;
+
 export const getManagerRentNextAction = ({
   applicationStatus,
   listingType,
