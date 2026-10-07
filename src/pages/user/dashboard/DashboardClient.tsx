@@ -58,6 +58,7 @@ import {
   readPropertySearchReturnState,
   savePropertySearchReturnState,
 } from '@/lib/propertySearchReturnCache';
+import WelcomeVideoCard from '@/components/onboarding/WelcomeVideoCard';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
@@ -1088,6 +1089,8 @@ const DashboardClient = () => {
               </div>
             </div>
           </div>
+
+          <WelcomeVideoCard role="user" />
 
           <div id="greeting-section" className="hidden gap-4 animate-fadeIn sm:grid lg:grid-cols-[minmax(0,1.25fr)_320px]">
             <section className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_58%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.22)_0%,rgba(10,10,10,1)_60%)]">

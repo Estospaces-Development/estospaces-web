@@ -34,6 +34,7 @@ import { useToast } from '@/contexts/ToastContext';
 
 // Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
+import WelcomeVideoCard from '@/components/onboarding/WelcomeVideoCard';
 import ManagerTrialBanner from '@/components/manager/ManagerTrialBanner';
 import StatCard from '@/components/dashboard/StatCard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
@@ -537,6 +538,8 @@ function DashboardContent() {
       />
 
       <ManagerTrialBanner />
+
+      <WelcomeVideoCard role="manager" />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>
