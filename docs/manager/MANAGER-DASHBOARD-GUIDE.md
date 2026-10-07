@@ -17,7 +17,7 @@ This is the orientation section for the current manager experience. The manager 
 - Leads and clients: [/manager/leads](/manager/leads)
 - Properties: [/manager/dashboard/properties](/manager/dashboard/properties)
 - Fast Track: [/manager/fast-track](/manager/fast-track)
-- Case files: [/manager/case-files](/manager/case-files)
+- Case files: open one from a case link, for example in a notification
 - Applications: [/manager/applications](/manager/applications)
 - Appointments: [/manager/appointments](/manager/appointments)
 - Contracts: [/manager/contracts](/manager/contracts)
@@ -57,7 +57,7 @@ The dashboard is the manager command center. It shows readiness, live work, acti
 | [/manager/leads](/manager/leads) | Incoming demand and client pipeline | Handle live requests and matched workspaces |
 | [/manager/clients](/manager/clients) | Searchable client list | Reconnect name, status, and active context |
 | [/manager/fast-track](/manager/fast-track) | Active selected-property cases | Progress cases that need close follow-through |
-| [/manager/case-files](/manager/case-files) | Shared evidence and case history | Review documents, requests, and activity |
+| `/manager/case-files` | Shared evidence and case history, opened from a case link such as a notification | Review documents, requests, and activity |
 | [/manager/messages](/manager/messages) | Written client coordination | Confirm next actions and clarify blockers |
 | [/manager/appointments](/manager/appointments) | Viewing and schedule coordination | Confirm or adjust appointments |
 | [/manager/applications](/manager/applications) | Formal application tracking | Review progress after user intent becomes formal |

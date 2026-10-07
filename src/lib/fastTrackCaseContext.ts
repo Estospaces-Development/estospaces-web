@@ -1,5 +1,7 @@
+// Shown for any ?case= link outside the account's journeys. The link may be malformed, never have
+// existed, be deleted or belong to someone else; the copy must not say which (MB-0369, MB-0915).
 export const DELETED_FAST_TRACK_CASE_MESSAGE =
-  "This fast-track case was deleted. We removed the stale case link and kept any surviving records open.";
+  "This journey link is not available to your account.";
 
 const normalizeCaseId = (value?: string | null) =>
   typeof value === "string" ? value.trim().toLowerCase() : "";

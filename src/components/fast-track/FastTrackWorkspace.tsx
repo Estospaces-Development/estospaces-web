@@ -794,7 +794,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
         caseId: string;
-        status: 'loading' | 'miss' | 'unavailable' | 'forbidden';
+        status: 'loading' | 'miss' | 'unavailable';
     } | null>(null);
     const [requestedCaseRetryToken, setRequestedCaseRetryToken] = useState(0);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
@@ -811,6 +811,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [pendingAdminOverrideAction, setPendingAdminOverrideAction] = useState<PendingFastTrackAction | null>(null);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
+    const previewRequestKeyRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -1145,14 +1146,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 return;
             }
 
-            if (result.notFound) {
+            // A case that is not shared with this account must look exactly like a missing one.
+            if (result.notFound || result.forbidden) {
                 setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' });
-                return;
-            }
-
-            if (result.forbidden) {
-                setError(null);
-                setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'forbidden' });
                 return;
             }
 
@@ -1360,11 +1356,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         requestedCaseLookupMissed,
         selectedCaseId,
     });
-    const requestedCaseForbidden = Boolean(
-        normalizedRequestedCaseParam
-        && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
-        && requestedCaseLookup.status === 'forbidden',
-    );
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === displayedCaseId) || null,
         [filteredCases, displayedCaseId],
@@ -2181,6 +2172,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (openInModal) {
             setPreviewModalOpen(true);
         }
+        const previewRequestKey = getFastTrackPreviewSourceKey(item, Boolean(selectedFile));
+        const switchingPreviewFile = previewRequestKeyRef.current !== previewRequestKey;
+        previewRequestKeyRef.current = previewRequestKey;
         setPreviewItemId(item.id);
         if (selectedFile) {
             releasePreviewObjectUrl();
@@ -2219,12 +2213,21 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setPreviewBusyKey((current) => current ?? busyKey);
         handleDocumentFocus(item.id);
         setPreviewError(null);
+        if (switchingPreviewFile) {
+            // Never show the previous document's file under this document's heading while its URL loads.
+            setPreviewUrl(null);
+        }
 
         let nextUrl = item.fileUrl || null;
         let nextAccessUrl = item.fileUrl || null;
         try {
             if (item.documentRecordId) {
                 const access = await getDocumentAccessUrl(item.documentRecordId);
+                if (previewRequestKeyRef.current !== previewRequestKey) {
+                    // A newer preview for another file started while this URL loaded; drop the late answer.
+                    closeExternalDocumentWindow();
+                    return null;
+                }
                 if (access.error || !access.url) {
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
@@ -2274,8 +2277,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
             return nextUrl;
         } catch (error: any) {
-            setPreviewUrl(null);
-            setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            if (previewRequestKeyRef.current === previewRequestKey) {
+                setPreviewUrl(null);
+                setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            }
             closeExternalDocumentWindow();
             return null;
         } finally {
@@ -4350,7 +4355,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <div className="flex min-w-0 gap-3">
                             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                             <div>
-                                <p className="font-semibold">Journey link recovered</p>
+                                <p className="font-semibold">Journey link unavailable</p>
                                 <p className="mt-1 leading-6">
                                     {DELETED_FAST_TRACK_CASE_MESSAGE} Choose an available journey below or return to your dashboard.
                                 </p>
@@ -4610,38 +4615,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 ) : null}
                             </div>
                         </>
-                    ) : requestedCaseForbidden ? (
-                        <div
-                            role="alert"
-                            data-fast-track-case-forbidden
-                            className="rounded-[32px] border border-red-200 bg-white px-6 py-16 text-center text-sm text-gray-600 shadow-sm dark:border-red-900/40 dark:bg-gray-950 dark:text-gray-300"
-                        >
-                            <p className="font-semibold text-gray-900 dark:text-white">
-                                You do not have access to this journey.
-                            </p>
-                            <p className="mt-2">
-                                This link belongs to a journey that is not shared with your account.
-                            </p>
-                            <div className="mt-6 flex flex-wrap justify-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setRequestedCaseLookup(null);
-                                        setSearchParams((previous) => stripCaseSearchParam(previous), { replace: true });
-                                    }}
-                                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
-                                >
-                                    View your journeys
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
-                                    className="inline-flex items-center justify-center rounded-xl bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950"
-                                >
-                                    Back to dashboard
-                                </button>
-                            </div>
-                        </div>
                     ) : requestedCaseParam && !displayedCaseId ? (
                         <div role="status" className="flex items-center justify-center gap-3 rounded-[32px] border border-gray-200 bg-white px-6 py-20 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
                             <ActionSpinner size={16} aria-hidden />

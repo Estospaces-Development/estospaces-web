@@ -341,7 +341,16 @@ export function getSearchFilterValidationMessage(params: URLSearchParams): strin
     messages.push('market must be India or England');
   }
 
-  return messages.length > 0 ? `Some search filters were adjusted: ${messages.join('; ')}.` : null;
+  const minPrice = normalizePriceBoundInput(firstParam(params, ['minPrice', 'min_price']));
+  const maxPrice = normalizePriceBoundInput(firstParam(params, ['maxPrice', 'max_price']));
+  const invertedPriceRange = minPrice !== '' && maxPrice !== '' && Number(minPrice) > Number(maxPrice)
+    ? 'The minimum price is higher than the maximum price. Lower the minimum or raise the maximum.'
+    : '';
+
+  return [
+    messages.length > 0 ? `Some search filters were adjusted: ${messages.join('; ')}.` : '',
+    invertedPriceRange,
+  ].filter(Boolean).join(' ') || null;
 }
 
 export function readSearchUrlFilters(params: URLSearchParams): SearchUrlFilters {

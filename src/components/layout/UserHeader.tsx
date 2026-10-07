@@ -116,7 +116,7 @@ const UserHeader = ({ useSubdomain: _useSubdomain = false }: UserHeaderProps) =>
                                     className="absolute right-0 z-50 mt-2 w-[min(14rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
                                 >
                                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                                        <div className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</div>
+                                        <div className="font-semibold text-gray-900 dark:text-gray-100 truncate" title={displayName}>{displayName}</div>
                                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{userEmail}</div>
                                     </div>
 
