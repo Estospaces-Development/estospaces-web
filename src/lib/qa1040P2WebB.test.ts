@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { mediaUploadTimeoutMs } from '@/services/mediaService';
+import { mediaUploadTimeoutMs, usesChunkedMediaUpload } from '@/services/mediaService';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const addProperty = () => read('pages/manager/dashboard/properties/add/page.tsx');
 
-test('property images stay under the Cloud Run 32 MiB request cap (MB-0223, MB-0224, MB-0225)', () => {
-    assert.match(addProperty(), /const MAX_PROPERTY_IMAGE_BYTES = 30_000_000;/);
-    assert.match(addProperty(), /Maximum size is 30 MB\./);
+test('property images up to 52 MB are accepted and sent in chunks under the Cloud Run 32 MiB request cap (MB-0223, MB-0224, MB-0225)', () => {
+    assert.match(addProperty(), /const MAX_PROPERTY_IMAGE_BYTES = 52_000_000;/);
+    assert.match(addProperty(), /Maximum size is 52 MB\./);
+    assert.ok(usesChunkedMediaUpload(52_000_000));
     assert.doesNotMatch(addProperty(), /10 \* 1024 \* 1024/);
 });
 
