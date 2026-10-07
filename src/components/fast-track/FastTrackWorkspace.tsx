@@ -336,9 +336,9 @@ export const formatFastTrackCaseStage = (fastTrackCase: FastTrackCase, role: Wor
 // and keep date-only values on their calendar day instead of shifting them by the local offset (MB-0999).
 const formatFastTrackDateTime = (value: string) => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
-        return new Date(`${value.trim()}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' });
+        return new Date(`${value.trim()}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
     }
-    return new Date(value).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+    return new Date(value).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
 };
 
 const formatDateTime = (value?: string) => {

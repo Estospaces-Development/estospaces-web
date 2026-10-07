@@ -153,7 +153,7 @@ export default function ViewingsPage() {
             const mappedViewings = data.map((viewing: any) => ({
                 ...viewing,
                 date: viewing.scheduled_at,
-                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }) : '',
+                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' }) : '',
                 propertyImage: viewing.property_image || PROPERTY_PLACEHOLDER_IMAGE,
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
@@ -450,6 +450,9 @@ export default function ViewingsPage() {
 
     const formatTime = (timeStr: string) => {
         if (!timeStr) return '';
+        // Times built from scheduled_at are already final and carry a zone such as GMT+5:30; splitting
+        // them on ':' cut the offset to GMT+5 (MB-0451, MB-0999). Only bare HH:MM values are converted.
+        if (!/^\d{1,2}:\d{2}$/.test(timeStr.trim())) return timeStr;
         const [hours, minutes] = timeStr.split(':');
         const hour = parseInt(hours);
         const ampm = hour >= 12 ? 'PM' : 'AM';

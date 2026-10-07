@@ -90,7 +90,8 @@ const formatContractCurrency = (contract: Contract | null | undefined, amount?: 
 
 // Contract and timeline dates are calendar days; reading them in the viewer's zone shifted them a day
 // earlier west of UTC (MB-0999).
-const formatCalendarDate = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' });
+// Month names avoid dd/mm vs mm/dd misreading (01/11 read as 11 January in the US).
+const formatCalendarDate = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 export default function ContractsPage() {
   const navigate = useNavigate();
