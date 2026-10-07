@@ -104,7 +104,7 @@ export function getManagerPropertyUploadControlCopy(kind: ManagerPropertyUploadK
   return {
     buttonLabel: 'Click to upload images',
     ariaLabel: 'Upload property images',
-    helpText: 'PNG, JPG, JPEG, WEBP up to 10MB each',
+    helpText: 'PNG, JPG, JPEG, WEBP up to 52 MB each',
   };
 }
 

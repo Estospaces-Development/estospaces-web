@@ -207,6 +207,31 @@ function MapAutoFit({
     return null;
 }
 
+function TileErrorWatcher({ onTileError, onTileLoad }: { onTileError: () => void; onTileLoad: () => void }) {
+    const map = useMap();
+    useEffect(() => {
+        const attach = (layer: L.Layer) => {
+            if (layer instanceof L.TileLayer) {
+                layer.on('tileerror', onTileError);
+                layer.on('tileload', onTileLoad);
+            }
+        };
+        map.eachLayer(attach);
+        const onLayerAdd = (event: L.LayerEvent) => attach(event.layer);
+        map.on('layeradd', onLayerAdd);
+        return () => {
+            map.off('layeradd', onLayerAdd);
+            map.eachLayer((layer) => {
+                if (layer instanceof L.TileLayer) {
+                    layer.off('tileerror', onTileError);
+                    layer.off('tileload', onTileLoad);
+                }
+            });
+        };
+    }, [map, onTileError, onTileLoad]);
+    return null;
+}
+
 const NearbyPropertiesMap = ({
     properties = [],
     userLocation = null,
@@ -223,6 +248,11 @@ const NearbyPropertiesMap = ({
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket);
     const [isMounted, setIsMounted] = useState(false);
     const [selectedPropertyID, setSelectedPropertyID] = useState<string | null>(null);
+    // A failed tile server left a blank grey map with no hint (MB-0218); count failures and say so.
+    const [tileErrors, setTileErrors] = useState(0);
+    const handleTileError = useCallback(() => setTileErrors((count) => count + 1), []);
+    const handleTileLoad = useCallback(() => setTileErrors(0), []);
+
     const [isSelectionDismissed, setIsSelectionDismissed] = useState(false);
     const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
     const [fitSignal, setFitSignal] = useState(0);
@@ -452,6 +482,11 @@ const NearbyPropertiesMap = ({
             data-nearby-map-compact={compact ? 'true' : 'false'}
             data-nearby-map-style={mapStyle}
         >
+            {tileErrors >= 3 && (
+                <div role="alert" className="absolute inset-x-3 top-3 z-[600] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow dark:border-amber-900/40 dark:bg-amber-950/80 dark:text-amber-100">
+                    The map could not load. Switch to Cards to see these homes.
+                </div>
+            )}
             <MapContainer
                 key={mapKey}
                 center={initialView.center}
@@ -469,6 +504,7 @@ const NearbyPropertiesMap = ({
             >
                 <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} fallbackView={fallbackView} />
                 <MapZoomControl position={compact ? 'bottomright' : 'topright'} />
+                <TileErrorWatcher onTileError={handleTileError} onTileLoad={handleTileLoad} />
                 {mapStyle === 'standard' ? (
                     <TileLayer
                         attribution={STANDARD_MAP_TILE_LAYER.attribution}

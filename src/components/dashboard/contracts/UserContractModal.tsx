@@ -54,10 +54,13 @@ export default function UserContractModal({ contract: initialContract, onClose, 
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-GB', {
+        // Contract dates are calendar days; formatting them in the reader's zone moved them a day
+        // earlier west of UTC (MB-0999).
+        return new Date(`${dateString.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', {
             day: 'numeric',
             month: 'long',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: 'UTC',
         });
     };
 

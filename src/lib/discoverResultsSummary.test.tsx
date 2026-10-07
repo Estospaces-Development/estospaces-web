@@ -10,11 +10,12 @@ const source = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/dis
 const section = source.match(/<section\s+aria-labelledby="discover-results-heading"[\s\S]*?<\/section>/)?.[0];
 assert.ok(section, 'Render the real discovery result-summary markup');
 const compiled = ts.transpileModule(
-    `const render = (loading, error, total, paginatedProperties, viewMode, mapProperties = paginatedProperties) => (${section});`,
+    `const render = (loading, error, total, paginatedProperties, viewMode, mapProperties = paginatedProperties, plottedMapCount = mapProperties.length, unplottedMapCount = 0) => (${section});`,
     { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
 const render = new Function('React', `${compiled}\nreturn render;`)(React) as (
     loading: boolean, error: string | null, total: number, properties: unknown[], mode: string,
+    mapProperties?: unknown[], plottedMapCount?: number, unplottedMapCount?: number,
 ) => React.ReactElement;
 const summary = (loading: boolean, error: string | null, total = 0, shown = 0, mode = 'grid') =>
     renderToStaticMarkup(render(loading, error, total, Array.from({ length: shown }), mode));
@@ -52,4 +53,9 @@ test('successful discovery preserves singular, plural, page counts and view labe
     assert.match(summary(false, null, 53, 12), /53 homes found/);
     assert.match(summary(false, null, 53, 12), /Showing 12 on this page in card view/);
     assert.match(summary(false, null, 53, 12, 'map'), /Showing 12 matching homes on the map/);
+});
+
+test('the map summary counts plotted homes and points to Cards for the rest (MB-0215)', () => {
+    const html = renderToStaticMarkup(render(false, null, 13, Array.from({ length: 12 }), 'map', Array.from({ length: 13 }), 1, 12));
+    assert.match(html, /Showing 1 matching home on the map\. 12 more have no map location yet; switch to Cards to see them\./);
 });

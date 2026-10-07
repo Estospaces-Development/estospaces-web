@@ -1340,7 +1340,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                 {countdownTone.eyebrow}
                             </div>
                             <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
-                                <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
+                                <Timer size={14} className={requestIsActive ? 'motion-safe:animate-pulse' : ''} />
                                 <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
                                     {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
@@ -1359,7 +1359,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                             </div>
                             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-orange-100/80 dark:bg-orange-950/40">
                                 <div
-                                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${countdownTone.progress} ${requestIsActive ? 'animate-pulse' : ''}`}
+                                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${countdownTone.progress} ${requestIsActive ? 'motion-safe:animate-pulse' : ''}`}
                                     style={{ width: `${dispatchProgressPercent}%` }}
                                 />
                             </div>
@@ -1580,7 +1580,9 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                     ))}
                                 </div>
 
-                                {activeRequest.fast_track_enabled && (
+                                {/* Shared homes must be choosable even when the request was sent without the nearest-agent
+                                    box; the header already says they are ready (MB-1029). */}
+                                {(activeRequest.fast_track_enabled || availableSharedProperties.length > 0 || staleSharedPropertiesCount > 0 || Boolean(selectedProperty)) && (
                                     <div className="mt-4 rounded-xl border border-orange-100 bg-white p-2 sm:p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
                                         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="min-w-0 flex-1">

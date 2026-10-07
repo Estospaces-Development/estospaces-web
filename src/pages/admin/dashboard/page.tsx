@@ -1,4 +1,5 @@
 "use client";
+import AnalyticsUnavailable from '@/components/ui/AnalyticsUnavailable';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
@@ -249,12 +250,17 @@ export default function AdminDashboard() {
         return <BrandLoadingScreen variant="screen" label="Initializing Command Center..." />;
     }
 
+    if (error && !data) {
+        return <AnalyticsUnavailable message={error} onRetry={() => void fetchAnalytics(true)} />;
+    }
+
     // Map values from backend
     const stats = {
         slaCompliance: data?.sla_success_rate || 0,
         avgResponseTime: data?.avg_response_time ? `${Math.floor(data.avg_response_time / 60)}m ${Math.round(data.avg_response_time % 60)}s` : "0m 0s",
         pendingVerifications: pendingVerificationsCount,
-        activeTransactions: data?.leadAnalytics?.totalLeads || data?.active_leads || 0
+        // Core reports open leads, not Fast Track cases, so the tile says leads (MB-0644).
+        openLeads: data?.active_leads ?? 0
     };
 
     const platformSnapshot = buildAdminDashboardSnapshot(data, {
@@ -300,7 +306,7 @@ export default function AdminDashboard() {
                             Command Center
                         </span>
                         <span className="text-gray-600 dark:text-gray-300 text-xs font-bold flex items-center gap-1">
-                            <Activity size={12} /> Backend Synced
+                            <Activity size={12} /> {error ? 'Some figures failed to load' : 'Backend Synced'}
                         </span>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">
@@ -397,12 +403,12 @@ export default function AdminDashboard() {
                             <div className="rounded-lg bg-white/10 p-2 text-white backdrop-blur-sm sm:rounded-xl sm:p-3">
                                 <Activity className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-orange-100 sm:text-xs sm:tracking-widest">Live Deals</span>
+                            <span className="min-w-0 text-[10px] font-semibold uppercase leading-[1.2] tracking-normal text-orange-100 sm:text-xs sm:tracking-widest">Open Leads</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold text-white sm:text-3xl">{stats.activeTransactions}</span>
+                            <span className="text-2xl font-bold text-white sm:text-3xl">{stats.openLeads}</span>
                         </div>
-                        <p className="text-xs text-orange-100 font-medium mt-2">Active fast-track flows</p>
+                        <p className="text-xs text-orange-100 font-medium mt-2">Leads not yet won, lost or closed</p>
                         <button
                             onClick={() => navigate('/admin/fast-track')}
                             className="mt-5 w-full py-2 bg-white text-orange-700 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-50 transition-colors shadow-sm flex items-center justify-center gap-2"
@@ -528,7 +534,7 @@ export default function AdminDashboard() {
                                     Platform status summary:
                                     {` ${getAdminActiveListings(data)} `}active listings,
                                     {` ${data?.total_brokers || 0} `}brokers, and
-                                    {` ${stats.activeTransactions} `}active lead transactions.
+                                    {` ${stats.openLeads} `}open leads.
                                 </p>
                                 <span className="inline-flex text-xs font-bold text-gray-200 bg-gray-800 px-3 py-1.5 rounded-lg">
                                     Live backend metrics

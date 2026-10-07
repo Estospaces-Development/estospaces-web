@@ -165,7 +165,7 @@ test('admin user search and lead reassignment search stay independent', async ()
     source.indexOf('const handleUserSearchChange = '),
     source.indexOf('const handleRoleTabChange = '),
   );
-  assert.match(userSearchHandler, /setSearchQuery\(normalizeAdminUserSearchInput\(value\)\)/);
+  assert.match(userSearchHandler, /const nextSearch = normalizeAdminUserSearchInput\(value\);\s*setSearchQuery\(nextSearch\);/);
   assert.doesNotMatch(userSearchHandler, /setLeadSearchQuery|setLeadPage/);
 
   const leadSearchHandler = source.slice(

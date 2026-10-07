@@ -48,7 +48,13 @@ const isChunkLoadError = (error: unknown) => {
 function lazyPage<T extends React.ComponentType<any>>(importer: () => Promise<{ default: T }>) {
     return lazy(async () => {
         try {
-            return await importer();
+            const page = await importer();
+            // Clear the one-shot guard only once a chunk really loads; clearing it on every mount
+            // let a chunk that stays missing reload forever (MB-1009, MB-0933).
+            if (typeof window !== 'undefined') {
+                window.sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+            }
+            return page;
         } catch (error) {
             if (typeof window !== 'undefined' && isChunkLoadError(error)) {
                 const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -217,12 +223,6 @@ function PreservingRedirect({ to }: { to: string }) {
 }
 
 const App: React.FC = () => {
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.removeItem(CHUNK_RELOAD_KEY);
-    }
-  }, []);
-
   return (
     <Suspense fallback={<BrandLoadingScreen />}>
       <SubdomainRouter>

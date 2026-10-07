@@ -748,7 +748,7 @@ const PropertySearch = () => {
             </nav>
 
             <p role="status" aria-live="polite" className="sr-only">
-                {searchSaveStatus || (loading ? (isInitialSearchLoading ? 'Loading search results.' : 'Refreshing search results.') : `${properties.length} search results shown.`)}
+                {searchSaveStatus || (loading ? (isInitialSearchLoading ? 'Loading search results.' : 'Refreshing search results.') : error ? 'Search results could not load.' : `${properties.length} search results shown.`)}
             </p>
 
             {/* Search Header */}
@@ -1123,9 +1123,11 @@ const PropertySearch = () => {
 
             {/* Results Header */}
             <div className="flex flex-col items-start justify-between gap-3 min-[360px]:flex-row min-[360px]:items-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-white">{isInitialSearchLoading ? '...' : total}</span> properties found
-                </p>
+                {!error && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-semibold text-gray-900 dark:text-white">{isInitialSearchLoading ? '...' : total}</span> properties found
+                    </p>
+                )}
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
                     <label htmlFor="public-search-inline-sort" className="sr-only">Sort</label>
                     <select
@@ -1177,6 +1179,13 @@ const PropertySearch = () => {
                         <div className="min-w-0">
                             <h2 className="text-base font-semibold text-gray-950 dark:text-white">Search temporarily unavailable</h2>
                             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{friendlySearchError}</p>
+                            <button
+                                type="button"
+                                onClick={() => void fetchProperties()}
+                                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            >
+                                Try again
+                            </button>
                         </div>
                     </div>
                 </div>

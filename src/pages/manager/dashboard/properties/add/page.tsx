@@ -115,6 +115,7 @@ import {
   revokeManagerPropertyVideoPreview,
 } from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
+import { createManagerPropertyCreateSession } from "@/lib/managerPropertyCreateSession";
 import { mergeUploadedUrlsInOrder, moveItem } from "@/lib/mediaOrder";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import {
@@ -143,12 +144,18 @@ import {
 } from "@/lib/launchLocale";
 import { areCoordinatesInsideLaunchMarket } from "@/lib/mapCoordinates";
 import {
+  canDecodeImageFile,
+  canPlayVideoFile,
   getImageFileProblem,
   getLocalFileFingerprint,
   getVideoFileProblem,
   readFileHeadSafely,
   UNREADABLE_FILE_MESSAGE,
 } from "@/lib/uploadFileSignature";
+
+// Cloud Run refuses request bodies over 32 MiB (MB-0223, MB-0224), so uploadMediaFile sends large
+// images in chunks that each stay under that cap, letting the full 52 MB allowance through.
+const MAX_PROPERTY_IMAGE_BYTES = 52_000_000;
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
@@ -638,6 +645,7 @@ export default function AddPropertyPage() {
   } = useManagerVerification();
   const { user } = useAuth();
   const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
+  const [createSession] = useState(() => createManagerPropertyCreateSession());
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const formContentRef = useRef<HTMLFormElement | null>(null);
@@ -953,7 +961,7 @@ export default function AddPropertyPage() {
         areaUnit: "sqft",
         bedrooms: property.bedrooms || 1,
         bathrooms: property.bathrooms || 1,
-        balconies: ((property as any).balconies as number) || 0,
+        balconies: property.balconies || 0,
         parkingSpaces: property.parking_spaces || 0,
         floors: property.total_floors || 1,
         floorNumber: property.floor_number ?? undefined,
@@ -1731,8 +1739,8 @@ export default function AddPropertyPage() {
         return;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        showToast(`${file.name} is too large. Maximum size is 10MB.`, "error");
+      if (file.size > MAX_PROPERTY_IMAGE_BYTES) {
+        showToast(`${file.name} is too large. Maximum size is 52 MB.`, "error");
         return;
       }
 
@@ -1740,6 +1748,10 @@ export default function AddPropertyPage() {
       const imageProblem = imageHead ? getImageFileProblem(file, imageHead) : UNREADABLE_FILE_MESSAGE;
       if (imageProblem) {
         showToast(`${file.name}: ${imageProblem}`, "error");
+        return;
+      }
+      if (!(await canDecodeImageFile(file))) {
+        showToast(`${file.name} could not be read as an image. It may be damaged; export it again and retry.`, "error");
         return;
       }
 
@@ -1801,6 +1813,10 @@ export default function AddPropertyPage() {
       const videoProblem = videoHead ? getVideoFileProblem(file, videoHead) : UNREADABLE_FILE_MESSAGE;
       if (videoProblem) {
         showToast(`${file.name}: ${videoProblem}`, "error");
+        return;
+      }
+      if (!(await canPlayVideoFile(file))) {
+        showToast(`${file.name} could not be played. It may be damaged or incomplete; export it again and retry.`, "error");
         return;
       }
 
@@ -2139,6 +2155,14 @@ export default function AddPropertyPage() {
     }
   };
 
+  const saveNewProperty = (payload: Partial<Property>) => {
+    const options = { suppressErrorToast: true, throwOnError: true };
+    return createSession.save(
+      (idempotencyKey) => addProperty(payload, { ...options, idempotencyKey }),
+      (id) => updateProperty(id, payload, options),
+    );
+  };
+
   const handleSaveDraft = async () => {
     if (propertySaveInFlightRef.current) return;
     if (!formData.title?.trim()) {
@@ -2163,9 +2187,8 @@ export default function AddPropertyPage() {
         );
         if (!result) throw new Error("Failed to save property");
       } else {
-        const result = await addProperty(
+        const result = await saveNewProperty(
           { ...propertyData, status: "draft", draft: true, published: false },
-          { suppressErrorToast: true, throwOnError: true },
         );
         if (!result) throw new Error("Failed to save property");
         const mediaFinalizeError = await finalizeMediaEntity(result.id);
@@ -2276,15 +2299,12 @@ export default function AddPropertyPage() {
           "success",
         );
       } else {
-        const result = await addProperty(
-          {
-            ...propertyData,
-            status: "pending_approval",
-            draft: false,
-            published: false,
-          },
-          { suppressErrorToast: true, throwOnError: true },
-        );
+        const result = await saveNewProperty({
+          ...propertyData,
+          status: "pending_approval",
+          draft: false,
+          published: false,
+        });
         if (!result)
           throw new Error("Failed to submit property for admin approval");
         const mediaFinalizeError = await finalizeMediaEntity(result.id);

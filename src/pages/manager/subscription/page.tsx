@@ -243,12 +243,24 @@ export default function ManagerSubscriptionPage() {
         if (actionLock.current) return;
         actionLock.current = true;
         setBusyPlan(name);
+        // Closing the payment window dropped focus to the top of the page (MB-0883); return it to the
+        // control that started the action.
+        const trigger = typeof document !== 'undefined' ? document.activeElement as HTMLElement | null : null;
         try { await action(); }
         catch (err) { toast.error(err instanceof Error ? err.message : 'Unable to complete this action. Check payment status before trying again.'); }
         finally {
             await load();
             actionLock.current = false;
             setBusyPlan(null);
+            if (typeof window !== 'undefined') {
+                // The starting button is disabled once a checkout exists, so fall back to Resume (MB-0883).
+                window.requestAnimationFrame(() => {
+                    const target = trigger?.isConnected && !(trigger as HTMLButtonElement).disabled
+                        ? trigger
+                        : document.getElementById('resume-secure-checkout');
+                    target?.focus();
+                });
+            }
         }
     };
 
@@ -394,7 +406,16 @@ export default function ManagerSubscriptionPage() {
                     toast.error(CHECKOUT_FAILED_TRY_AGAIN_MESSAGE);
                     return;
                 }
-                if (discount.kind !== 'discounted' || !activeDiscount) throw err;
+                if (discount.kind !== 'discounted' || !activeDiscount) {
+                    // A refused checkout usually means the plan's price or terms changed since the manager
+                    // agreed to them: drop that consent and explain, instead of "Invalid data" (MB-0778).
+                    const status = (err && typeof err === 'object' ? (err as { status?: unknown }).status : undefined);
+                    if (status === 400 || status === 409 || status === 422) {
+                        setConsentedText(null);
+                        throw new Error("This plan's price or terms changed, so nothing was charged. Review the updated plan below and confirm again.");
+                    }
+                    throw err;
+                }
                 await handleDiscountCheckoutRefusal(err, activeDiscount, offer);
                 return;
             }
@@ -522,7 +543,7 @@ export default function ManagerSubscriptionPage() {
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
                     {pendingProof ? <div role="alert" className="mt-3"><p>Payment verification is pending. Do not pay again. Retry verification or check payment status.</p><button disabled={busy} type="button" onClick={() => void retryVerification()} className="mt-2 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Retry payment verification</button></div> : null}
                     <div className="mt-4 flex flex-wrap gap-3">
-                        {summary && canResumeSubscription(summary) && acceptedCheckout && !pendingProof && !checkoutBlockedByVerification ? <button disabled={busy || Boolean(error)} type="button" onClick={() => void resume()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Resume secure checkout</button> : null}
+                        {summary && canResumeSubscription(summary) && acceptedCheckout && !pendingProof && !checkoutBlockedByVerification ? <button disabled={busy || Boolean(error)} type="button" id="resume-secure-checkout" onClick={() => void resume()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Resume secure checkout</button> : null}
                         <button disabled={busy} aria-busy={checkingStatus} type="button" onClick={() => void checkStatus()} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-3 font-semibold disabled:cursor-not-allowed ${checkingStatus ? '' : 'disabled:opacity-50'}`}>{checkingStatus ? <><ActionSpinner size="sm" aria-hidden /> Checking with Razorpay…</> : 'Check payment status'}</button>
                         {activeCheckout.provider_subscription_id && !terminal && summary?.cancellation?.status !== 'confirmed' ? <button disabled={busy} type="button" onClick={() => setConfirmCancel(true)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Cancel subscription / renewal</button> : null}
                     </div>

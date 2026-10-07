@@ -11,6 +11,7 @@ import {
     getTenancyPackService,
     getUserContracts,
     signContract,
+    withdrawContract,
     updateDepositProtectionRecord,
     updateTenancyPackService,
     type DepositProtectionRecord,
@@ -188,6 +189,29 @@ export default function ManagerContractsPage() {
             toastError(error);
         }
         setSigningId(null);
+    };
+
+    const handleWithdraw = async (contract: Contract) => {
+        const reason = window.prompt('Why are you withdrawing this contract? The tenant will no longer be able to sign it.');
+        if (!reason || !reason.trim()) {
+            return;
+        }
+        setSigningId(contract.id);
+        const { data, error } = await withdrawContract(contract.id, reason.trim());
+        setSigningId(null);
+        if (error || !data) {
+            toastError(error || 'Failed to withdraw contract');
+            return;
+        }
+        success('Contract withdrawn. You can now draft a corrected one.');
+        setContracts((previous) => previous.map((item) => item.id === data.id ? data : item));
+        setViewContract((current) => current?.id === data.id ? data : current);
+        publishWorkspaceSync({
+            source: 'mutation',
+            tags: [WORKSPACE_SYNC_TAGS.CONTRACTS, WORKSPACE_SYNC_TAGS.APPLICATIONS],
+            reason: 'Manager withdrew contract',
+            ids: { contractId: data.id, applicationId: data.application_id },
+        });
     };
 
     const openContractDetail = async (contract: Contract) => {
@@ -902,6 +926,17 @@ export default function ManagerContractsPage() {
                             >
                                 Close
                             </button>
+                            {!(viewContract.user_signed_at && viewContract.manager_signed_at)
+                                && ['draft', 'pending_user', 'pending_manager', 'pending_user_signature', 'pending_manager_signature'].includes(String(viewContract.status || '')) && (
+                                <button
+                                    type="button"
+                                    onClick={() => void handleWithdraw(viewContract)}
+                                    disabled={signingId === viewContract.id}
+                                    className="px-5 py-2.5 border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20 rounded-xl font-medium transition-colors disabled:opacity-70"
+                                >
+                                    Withdraw
+                                </button>
+                            )}
                             {isPendingManagerSignature(viewContract.status) && (
                                 <button
                                     onClick={() => handleCountersign(viewContract.id)}

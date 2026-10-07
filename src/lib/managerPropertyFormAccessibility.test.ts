@@ -95,7 +95,7 @@ test('manager property upload controls expose button copy and format help', () =
   assert.deepEqual(getManagerPropertyUploadControlCopy('images'), {
     buttonLabel: 'Click to upload images',
     ariaLabel: 'Upload property images',
-    helpText: 'PNG, JPG, JPEG, WEBP up to 10MB each',
+    helpText: 'PNG, JPG, JPEG, WEBP up to 52 MB each',
   });
 
   assert.deepEqual(getManagerPropertyUploadControlCopy('videos'), {

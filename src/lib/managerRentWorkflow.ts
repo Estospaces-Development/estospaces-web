@@ -56,6 +56,18 @@ const isRightToRentSatisfied = (value?: string | null) => {
   return status === "completed" || status === "not_required";
 };
 
+// Booking's ended contract statuses (isSignableContractStatus): a new contract is needed instead.
+const ENDED_CONTRACT_STATUSES = new Set(["withdrawn", "cancelled", "terminated", "expired"]);
+
+// Without a Fast Track case there is no case file, so the application's newest live contract
+// stands in for the case file's contract_id (MB-0499).
+export const findLatestApplicationContractId = (
+  contracts: readonly { id: string; application_id?: string; created_at?: string; status?: string }[] | null | undefined,
+  applicationId: string,
+): string | null => (contracts || [])
+  .filter((contract) => contract.application_id === applicationId && !ENDED_CONTRACT_STATUSES.has(normalized(contract.status)))
+  .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))[0]?.id || null;
+
 export const getManagerRentNextAction = ({
   applicationStatus,
   listingType,

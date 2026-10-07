@@ -46,6 +46,7 @@ const renderPage = (notifications: Notification[]) => {
         notifications,
         unreadCount: notifications.filter((item) => !item.is_read).length,
         loading: false,
+        loadError: null,
         fetchNotifications: async () => undefined,
         markAsRead: async () => undefined,
         markAllAsRead: async () => undefined,

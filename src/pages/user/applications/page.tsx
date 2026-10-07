@@ -256,13 +256,17 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
         }
     };
 
-    const uploadDocumentsPath = buildWorkspacePath('/user/dashboard/fast-track', {
-        applicationId: application.id,
-        caseId: application.fastTrackCaseId,
-        leadId: application.leadId,
-        propertyId: application.propertyId,
-        section: 'documents',
-    });
+    // Without its own Fast Track case the workspace would fall back to another case and attach
+    // uploads to the wrong application (MB-0488), so those go to the profile document vault.
+    const uploadDocumentsPath = application.fastTrackCaseId
+        ? buildWorkspacePath('/user/dashboard/fast-track', {
+            applicationId: application.id,
+            caseId: application.fastTrackCaseId,
+            leadId: application.leadId,
+            propertyId: application.propertyId,
+            section: 'documents',
+        })
+        : '/user/dashboard/profile#document-vault';
 
     return (
         <div className="fixed inset-0 z-50 flex">
@@ -412,6 +416,22 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                                     {application.journeyStatusReason && (
                                         <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
                                             {application.journeyStatusReason}
+                                        </p>
+                                    )}
+                                    {(application.moveInDate || application.applicantMessage) && (
+                                        // What the applicant sent, so they can check it (MB-0493).
+                                        <div className="mt-3 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                                            {application.moveInDate && (
+                                                <p><span className="font-semibold">Move-in date: </span>{new Date(`${application.moveInDate.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' })}</p>
+                                            )}
+                                            {application.applicantMessage && (
+                                                <p className="whitespace-pre-line break-words"><span className="font-semibold">Your message: </span>{application.applicantMessage}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                    {String(application.status || '').toLowerCase() === 'rejected' && application.reviewNotes && (
+                                        <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm leading-6 text-red-800 dark:bg-red-950/30 dark:text-red-200">
+                                            <span className="font-semibold">Reason from the agent: </span>{application.reviewNotes}
                                         </p>
                                     )}
                                 </div>

@@ -153,7 +153,7 @@ export default function ViewingsPage() {
             const mappedViewings = data.map((viewing: any) => ({
                 ...viewing,
                 date: viewing.scheduled_at,
-                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
+                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' }) : '',
                 propertyImage: viewing.property_image || PROPERTY_PLACEHOLDER_IMAGE,
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
@@ -293,14 +293,16 @@ export default function ViewingsPage() {
     );
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [filter, focusedViewingId, searchQuery]);
-
-    useEffect(() => {
         if (viewingPagination.currentPage !== currentPage) {
             setCurrentPage(viewingPagination.currentPage);
         }
     }, [currentPage, viewingPagination.currentPage]);
+
+    // Filter and search changes reset the page in their handlers. A reset effect for them would race
+    // the clamp above, which computes from the old page and wins (MB-0475). This one runs after it.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [focusedViewingId]);
     const formatViewingPrice = (viewing: any) => formatLaunchCurrencyForCountry(viewing.propertyPrice, {
         countryCode: viewing.propertyCountry,
         countryName: viewing.propertyCountry,
@@ -340,6 +342,24 @@ export default function ViewingsPage() {
         setCancelReason('');
         setCancelReasonError(null);
         setCancelModalOpen(true);
+    };
+
+    // The manager moved the slot; the user can accept it here or cancel (MB-0466).
+    const [acceptingViewingID, setAcceptingViewingID] = useState<string | null>(null);
+    const handleAcceptReschedule = async (viewingId: string) => {
+        if (acceptingViewingID) {
+            return;
+        }
+        setAcceptingViewingID(viewingId);
+        try {
+            await bookingsService.updateViewing(viewingId, { status: 'confirmed' }, { suppressErrorToast: true });
+            setViewings(prev => prev.map(v => (v.id === viewingId ? { ...v, status: 'confirmed' } : v)));
+            toast.success('New viewing time accepted.');
+        } catch (error: any) {
+            toast.error(error?.message || 'The new time could not be accepted. Please try again.');
+        } finally {
+            setAcceptingViewingID(null);
+        }
     };
 
     const handleCancelViewing = async (viewingId: string) => {
@@ -432,6 +452,9 @@ export default function ViewingsPage() {
 
     const formatTime = (timeStr: string) => {
         if (!timeStr) return '';
+        // Times built from scheduled_at are already final and carry a zone such as GMT+5:30; splitting
+        // them on ':' cut the offset to GMT+5 (MB-0451, MB-0999). Only bare HH:MM values are converted.
+        if (!/^\d{1,2}:\d{2}$/.test(timeStr.trim())) return timeStr;
         const [hours, minutes] = timeStr.split(':');
         const hour = parseInt(hours);
         const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -485,7 +508,10 @@ export default function ViewingsPage() {
                                 type="text"
                                 aria-label="Search viewings"
                                 value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
+                                onChange={(event) => {
+                                    setSearchQuery(event.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 placeholder="Search by home, area, or agent"
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-700 outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900"
                             />
@@ -501,7 +527,10 @@ export default function ViewingsPage() {
                                 key={option.value}
                                 type="button"
                                 aria-pressed={filter === option.value}
-                                onClick={() => setFilter(option.value)}
+                                onClick={() => {
+                                    setFilter(option.value);
+                                    setCurrentPage(1);
+                                }}
                                 className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
                                     filter === option.value
                                         ? 'bg-orange-500 text-white shadow-[0_14px_28px_-16px_rgba(249,115,22,0.85)]'
@@ -683,7 +712,17 @@ export default function ViewingsPage() {
                                                     View Listing
                                                 </button>
                                                 )}
-                                                {(viewing.status === 'pending' || viewing.status === 'confirmed') && !viewing.workflow_locked && (
+                                                {viewing.status === 'rescheduled' && !viewing.workflow_locked && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void handleAcceptReschedule(viewing.id)}
+                                                        disabled={acceptingViewingID === viewing.id}
+                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-60"
+                                                    >
+                                                        {acceptingViewingID === viewing.id ? 'Accepting…' : 'Accept new time'}
+                                                    </button>
+                                                )}
+                                                {(viewing.status === 'pending' || viewing.status === 'confirmed' || viewing.status === 'rescheduled') && !viewing.workflow_locked && (
                                                     <button
                                                         onClick={() => openCancelModal(viewing.id)}
                                                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"

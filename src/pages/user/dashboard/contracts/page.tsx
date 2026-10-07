@@ -87,6 +87,11 @@ const formatContractCurrency = (contract: Contract | null | undefined, amount?: 
     currencyCode: (contract as any)?.property_currency || (contract as any)?.currency,
   })
 );
+
+// Contract and timeline dates are calendar days; reading them in the viewer's zone shifted them a day
+// earlier west of UTC (MB-0999).
+// Month names avoid dd/mm vs mm/dd misreading (01/11 read as 11 January in the US).
+const formatCalendarDate = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 export default function ContractsPage() {
   const navigate = useNavigate();
@@ -661,9 +666,7 @@ export default function ContractsPage() {
                               </p>
                               <p className="mt-2 text-sm font-bold text-gray-900 dark:text-white">
                                 {item.timelineDate
-                                  ? new Date(
-                                      item.timelineDate,
-                                    ).toLocaleDateString("en-GB")
+                                  ? formatCalendarDate(item.timelineDate)
                                   : "TBC"}
                               </p>
                             </div>
@@ -829,9 +832,7 @@ export default function ContractsPage() {
                                 <Calendar size={12} className="shrink-0" />
                                 Starts:{" "}
                                 {contract.start_date
-                                  ? new Date(
-                                      contract.start_date,
-                                    ).toLocaleDateString()
+                                  ? formatCalendarDate(contract.start_date)
                                   : "TBD"}
                               </p>
                             </div>
@@ -1035,9 +1036,7 @@ export default function ContractsPage() {
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                   {viewContract.start_date
-                    ? new Date(viewContract.start_date).toLocaleDateString(
-                        "en-GB",
-                      )
+                    ? formatCalendarDate(viewContract.start_date)
                     : "TBC"}
                 </p>
               </div>

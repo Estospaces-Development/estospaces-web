@@ -163,10 +163,14 @@ export default function AdminNotificationsPage() {
     const {
         notifications,
         loading,
+        loadError,
+        fetchNotifications,
         markAsRead,
         markAllAsRead,
         deleteNotification,
     } = useNotifications();
+    // During an outage with nothing cached, 0 would be a false count (MB-0597).
+    const countsUnknown = Boolean(loadError) && notifications.length === 0;
 
     const [filter, setFilter] = useState<AdminNotificationFilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -292,15 +296,15 @@ export default function AdminNotificationsPage() {
                     <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-6">
                         <div className="rounded-xl bg-orange-50 p-3 dark:bg-orange-900/10 sm:p-4">
                             <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">Unread</span>
-                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleUnreadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{countsUnknown ? "—" : visibleUnreadCount}</p>
                         </div>
                         <div className="rounded-xl bg-blue-50 p-3 dark:bg-blue-900/10 sm:p-4">
                             <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total</span>
-                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleTotalCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{countsUnknown ? "—" : visibleTotalCount}</p>
                         </div>
                         <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-900/10 sm:p-4">
                             <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Read</span>
-                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleReadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{countsUnknown ? "—" : visibleReadCount}</p>
                         </div>
                     </div>
                 </div>
@@ -487,8 +491,13 @@ export default function AdminNotificationsPage() {
                 ) : notifications.length === 0 ? (
                     <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
                         <Inbox size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No notifications yet</h3>
-                        <p className="text-gray-500 dark:text-gray-400">Admin notifications will appear here when new events arrive.</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{loadError ? 'Notifications could not load' : 'No notifications yet'}</h3>
+                        <p role={loadError ? 'alert' : undefined} className="text-gray-500 dark:text-gray-400">{loadError || 'Admin notifications will appear here when new events arrive.'}</p>
+                        {loadError && (
+                            <button type="button" onClick={() => void fetchNotifications()} className="mt-4 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">
+                                Retry
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl">

@@ -34,6 +34,7 @@ import { useToast } from '@/contexts/ToastContext';
 
 // Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
+import WelcomeVideoCard from '@/components/onboarding/WelcomeVideoCard';
 import ManagerTrialBanner from '@/components/manager/ManagerTrialBanner';
 import StatCard from '@/components/dashboard/StatCard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
@@ -132,6 +133,7 @@ function DashboardContent() {
 
   const [activeTab, setActiveTab] = useState(() => getTabFromPath());
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
+  const [analyticsFailed, setAnalyticsFailed] = useState(false);
   const [properties, setProperties] = useState<any[]>([]);
   const [livePropertyTotal, setLivePropertyTotal] = useState<number | null>(null);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
@@ -241,6 +243,8 @@ function DashboardContent() {
       if (analyticsRes.status === 'fulfilled' && analyticsRes.value.data) {
         setAnalytics(analyticsRes.value.data);
       }
+      // Tiles fall back to 0, so say when that is a load failure rather than no activity (MB-0660).
+      setAnalyticsFailed(!(analyticsRes.status === 'fulfilled' && analyticsRes.value.data));
       if (fastTrackRes.status === 'fulfilled' && fastTrackRes.value.data) {
         setFastTrackCases(dedupeFastTrackWorkspaceCases(fastTrackRes.value.data));
         setFastTrackError(null);
@@ -520,6 +524,11 @@ function DashboardContent() {
 
   return (
     <div className="relative min-h-screen space-y-3.5 pb-20 font-outfit sm:space-y-6" data-manager-mobile-dashboard>
+      {analyticsFailed && (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+          Dashboard figures could not load, so some counts may show 0. Refresh to try again.
+        </div>
+      )}
       <WelcomeBanner
         analytics={analytics}
         loading={!analytics && isLoading}
@@ -529,6 +538,8 @@ function DashboardContent() {
       />
 
       <ManagerTrialBanner />
+
+      <WelcomeVideoCard role="manager" />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4" data-mobile-compact-summary-grid>

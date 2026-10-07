@@ -16,6 +16,8 @@ import { Link } from 'react-router-dom';
 import type { RoleDocsConfig, RoleDocsDocument } from '@/lib/roleDocs';
 import { getSectionPreview, getWordCount } from '@/lib/roleDocsPreview';
 import { normalizeSearchQueryInput } from '@/lib/propertySearchControls';
+import { ROLE_VIDEOS, getRoleVideoWatchUrl } from '@/lib/roleVideos';
+import RoleVideoPlayer from '@/components/video/RoleVideoPlayer';
 import DocsMarkdown from './DocsMarkdown';
 
 interface RoleDocsPageProps {
@@ -29,6 +31,7 @@ const MAX_DOCS_SEARCH_LENGTH = 120;
 const matchesQuery = (query: string, value: string) => value.toLowerCase().includes(query);
 
 export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps) {
+    const roleVideo = ROLE_VIDEOS[config.role];
     const [query, setQuery] = useState('');
     const [openFaq, setOpenFaq] = useState('');
     const [activeSection, setActiveSection] = useState(docsDocument.sections[0]?.slug ?? '');
@@ -432,6 +435,35 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
 
                 <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_340px]">
                     <main className="min-w-0 space-y-8">
+                        <section
+                            id="video-walkthrough"
+                            aria-labelledby="video-walkthrough-title"
+                            className="scroll-mt-28 overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/10 dark:bg-gray-950/95 sm:p-8"
+                        >
+                            <p className="text-xs font-black uppercase tracking-[0.24em] text-orange-500">
+                                Video walkthrough
+                            </p>
+                            <h2
+                                id="video-walkthrough-title"
+                                className="mt-2 text-2xl font-black tracking-tight text-gray-950 dark:text-white"
+                            >
+                                {roleVideo.title}
+                            </h2>
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                {roleVideo.description} Press play to load the video from YouTube, or{' '}
+                                <a
+                                    href={getRoleVideoWatchUrl(roleVideo.id)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-semibold text-orange-600 underline underline-offset-4 dark:text-orange-300"
+                                >
+                                    open it on YouTube
+                                </a>
+                                .
+                            </p>
+                            <RoleVideoPlayer video={roleVideo} className="mt-5" />
+                        </section>
+
                         <section className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/10 dark:bg-gray-950/95 sm:p-8">
                             <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#ff6b35_0%,#f59e0b_50%,#fed7aa_100%)]" />
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

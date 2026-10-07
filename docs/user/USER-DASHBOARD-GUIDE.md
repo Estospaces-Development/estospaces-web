@@ -18,7 +18,7 @@ This is the orientation section for the current user experience. It explains the
 - Discover buy or rent: [/user/dashboard/discover](/user/dashboard/discover)
 - Saved homes: [/user/dashboard/saved](/user/dashboard/saved)
 - Fast Track: [/user/dashboard/fast-track](/user/dashboard/fast-track)
-- Case file: [/user/dashboard/case-file](/user/dashboard/case-file)
+- Case file: opens from a case link, for example in a notification
 - Messages: [/user/dashboard/messages](/user/dashboard/messages)
 - Help and support: [/user/dashboard/help](/user/dashboard/help)
 
@@ -50,9 +50,9 @@ The dashboard is the user's operating center. It answers: what is active, what c
 | [/user/search](/user/search) | Full property search | When the user wants broad filtering |
 | [/user/dashboard/discover](/user/dashboard/discover) | Buy and rent discovery shortcuts | When starting from the dashboard |
 | [/user/dashboard/saved](/user/dashboard/saved) | Saved and revisitable properties | When comparing options |
-| [/user/properties/:id](/user/properties/:id) | Property detail | Before starting serious action |
+| `/user/properties/:id` | Property detail, opened from Discover or Saved homes | Before starting serious action |
 | [/user/dashboard/fast-track](/user/dashboard/fast-track) | Active selected-property journey | After selection or fast-track start |
-| [/user/dashboard/case-file](/user/dashboard/case-file) | Shared case record | For documents, requests, and journey context |
+| `/user/dashboard/case-file` | Shared case record, opened from a case link such as a notification | For documents, requests, and journey context |
 | [/user/dashboard/virtual-storage](/user/dashboard/virtual-storage) | Private reusable document storage | Before or during document requests |
 | [/user/dashboard/applications](/user/dashboard/applications) | Application progress | Once the journey becomes formal |
 | [/user/dashboard/viewings](/user/dashboard/viewings) | Viewing coordination | When a visit or appointment is proposed |

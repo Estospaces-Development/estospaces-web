@@ -70,9 +70,11 @@ import {
 } from "@/services/caseFilesService";
 import {
   getPropertyComplianceEvidence,
+  getPropertyComplianceReadiness,
   upsertPropertyComplianceEvidence,
   type PropertyComplianceReadiness,
 } from "@/services/propertyService";
+import { getUserContracts } from "@/services/contractsService";
 import { createOffer, getSaleProgressions } from "@/services/salesService";
 import {
   getNextSaleJourneyActions,
@@ -97,6 +99,7 @@ import {
 } from "@/lib/propertyCompliance";
 import { summarizeCaseFileDocuments } from "@/lib/caseFileDocuments";
 import {
+  findLatestApplicationContractId,
   getManagerRentNextAction,
   type ManagerRentNextActionPanel,
 } from "@/lib/managerRentWorkflow";
@@ -254,6 +257,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   >({});
   const [pendingOfferFocus, setPendingOfferFocus] = useState(false);
   const [rentCaseFile, setRentCaseFile] = useState<SharedCaseFile | null>(null);
+  // Readiness and contract for a rent application with no Fast Track case (so no case file).
+  const [rentWithoutCase, setRentWithoutCase] = useState<{
+    readiness: PropertyComplianceReadiness | null;
+    contractId: string | null;
+    unavailable: boolean;
+  }>({ readiness: null, contractId: null, unavailable: false });
   const [referencingCheck, setReferencingCheck] =
     useState<ReferencingCheck | null>(null);
   const [referencingDraft, setReferencingDraft] = useState({
@@ -385,6 +394,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const resetManagedRentWorkflowState = () => {
     setRentCaseFile(null);
+    setRentWithoutCase({ readiness: null, contractId: null, unavailable: false });
     setReferencingCheck(null);
     setRightToRentCheck(null);
     setReferencingDraft({ reviewNotes: "" });
@@ -551,15 +561,26 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   }, [managerWorkflowRequestOptions]);
 
   const loadRentWorkflow = useCallback(async (targetApplication: Application) => {
+    const hasCase = Boolean(targetApplication.fastTrackCaseId);
     const caseFilePromise = targetApplication.fastTrackCaseId
       ? getCaseFile(targetApplication.fastTrackCaseId, managerWorkflowRequestOptions)
       : Promise.resolve({ data: null, error: null });
+    // Without a case there is no case file, so read property readiness and the
+    // application's contract directly instead of reporting "not contract-ready" (MB-0499).
+    const readinessPromise = !hasCase && targetApplication.propertyId
+      ? getPropertyComplianceReadiness(targetApplication.propertyId)
+      : Promise.resolve({ data: null, error: null });
+    const contractsPromise = hasCase
+      ? Promise.resolve({ data: null, error: null })
+      : getUserContracts(managerWorkflowRequestOptions);
 
-    const [caseFileResult, referencingResult, rightToRentResult] =
+    const [caseFileResult, referencingResult, rightToRentResult, readinessResult, contractsResult] =
       await Promise.all([
         caseFilePromise,
         getReferencingCheck(targetApplication.id, managerWorkflowRequestOptions),
         getRightToRentCheck(targetApplication.id, managerWorkflowRequestOptions),
+        readinessPromise,
+        contractsPromise,
       ]);
 
     if (caseFileResult.error) {
@@ -573,6 +594,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     }
 
     setRentCaseFile(caseFileResult.data);
+    // A failed read only blocks the contract action (see createContractGuard), not referencing or approval.
+    setRentWithoutCase({
+      readiness: readinessResult.data,
+      contractId: findLatestApplicationContractId(contractsResult.data, targetApplication.id),
+      unavailable: Boolean(readinessResult.error || contractsResult.error),
+    });
     setReferencingCheck(referencingResult.data);
     setRightToRentCheck(rightToRentResult.data);
     setReferencingDraft({
@@ -927,7 +954,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     ? summarizeCaseFileDocuments(rentCaseFile.documents, rentCaseFile.requests)
     : null;
   const rentPropertyComplianceReadiness =
-    rentCaseFile?.property_compliance_readiness || null;
+    rentCaseFile?.property_compliance_readiness || rentWithoutCase.readiness || null;
+  const rentContractId = rentCaseFile?.contract_id || rentWithoutCase.contractId || undefined;
+  const rentApplicationApproved =
+    application?.status === APPLICATION_STATUS.APPROVED ||
+    application?.status === APPLICATION_STATUS.READY_FOR_CONTRACT;
   const rentPropertyReadinessBlockers = dedupeJourneyBlockers(
     rentPropertyComplianceReadiness?.blockers,
   );
@@ -938,10 +969,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     rentPropertyComplianceReadiness,
   );
   const createContractGuard = getManagerCreateContractGuard({
-    hasContract: Boolean(rentCaseFile?.contract_id),
-    applicationApproved: application?.status === APPLICATION_STATUS.APPROVED,
+    hasContract: Boolean(rentContractId),
+    applicationApproved: rentApplicationApproved,
     hasPropertyLink: Boolean(application?.propertyId),
-    workflowError: rentWorkflowError,
+    workflowError: rentWorkflowError || (rentWithoutCase.unavailable
+      ? "Property readiness is temporarily unavailable for this application. Refresh to retry before creating the contract."
+      : null),
     isRefreshing: isLoadingRentWorkflow,
     rentContractReady,
     propertyReadinessReason: rentPropertyComplianceReadiness?.status_reason,
@@ -1135,7 +1168,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       label: "Approval",
       description:
         "Approve once referencing and right-to-rent are both clear.",
-      complete: application.status === APPLICATION_STATUS.APPROVED,
+      complete: rentApplicationApproved,
       active: managerRentNextAction?.panel === "approval",
       onClick: () => scrollToRentPanel("approval"),
     },
@@ -1144,10 +1177,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       label: "Contract",
       description:
         "Create or open the contract after the property pack is ready.",
-      complete: Boolean(rentCaseFile?.contract_id),
+      complete: Boolean(rentContractId),
       active:
         managerRentNextAction?.id === "open_create_contract" ||
-        Boolean(rentCaseFile?.contract_id),
+        Boolean(rentContractId),
       onClick: () => handleRentContractAction(),
     },
   ];
@@ -1347,13 +1380,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         caseId: application.fastTrackCaseId,
         leadId: application.leadId,
         propertyId: application.propertyId,
-        contractId: rentCaseFile?.contract_id,
+        contractId: rentContractId,
       }),
     );
   };
 
   const handleRentContractAction = () => {
-    if (rentCaseFile?.contract_id) {
+    if (rentContractId) {
       handleOpenRentWorkspace("/manager/contracts");
       return;
     }
@@ -2099,7 +2132,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                 caseId: displayApplication.fastTrackCase.caseId,
                 leadId: displayApplication.leadId,
                 propertyId: displayApplication.propertyId,
-                contractId: rentCaseFile?.contract_id,
+                contractId: rentContractId,
               }}
               title="Linked fast-track controls"
               onRefresh={fetchApplications}
@@ -2135,6 +2168,32 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             {/* Overview Tab */}
             {activeTab === "overview" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Applicant's answers: what they submitted, which the manager reviews (MB-0493). */}
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800 lg:col-span-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <User size={20} className="text-orange-500" />
+                    Applicant&apos;s answers
+                  </h3>
+                  <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                    {[
+                      ["Name", application.applicantName],
+                      ["Email", application.applicantEmail],
+                      ["Phone", application.applicantPhone],
+                      ["Move-in date", application.moveInDate ? new Date(`${application.moveInDate.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC" }) : undefined],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</dt>
+                        <dd className="mt-1 break-words text-gray-900 dark:text-white">{value || "Not provided"}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {application.applicantMessage && (
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Message</p>
+                      <p className="mt-1 whitespace-pre-line break-words text-sm text-gray-900 dark:text-white">{application.applicantMessage}</p>
+                    </div>
+                  )}
+                </div>
                 {/* Agent Information */}
                 <div
                   ref={agentInfoSectionRef}
@@ -3143,7 +3202,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         disabled={
                           rentWorkflowAction !== null ||
                           !rentApprovalReady ||
-                          application.status === APPLICATION_STATUS.APPROVED
+                          rentApplicationApproved
                         }
                         className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -3155,13 +3214,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         onClick={handleRentContractAction}
                         disabled={
                           rentWorkflowAction !== null
-                          || (!rentCaseFile?.contract_id
+                          || (!rentContractId
                             && createContractGuard.status === "unavailable")
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                       >
                         <FileText size={16} />
-                        {rentCaseFile?.contract_id
+                        {rentContractId
                           ? "Open contract details"
                           : isLoadingRentWorkflow
                             ? "Refreshing workflow"
@@ -3174,9 +3233,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     </div>
 
                     {!isLoadingRentWorkflow &&
-                    !rentCaseFile?.contract_id &&
+                    !rentContractId &&
                     createContractGuard.status !== "ready" &&
-                    (application.status === APPLICATION_STATUS.APPROVED ||
+                    (rentApplicationApproved ||
                       managerRentNextAction?.id ===
                         "review_property_readiness" ||
                       managerRentNextAction?.id === "open_create_contract") ? (
@@ -3341,14 +3400,14 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         onClick={handleRentContractAction}
                         disabled={
                           rentWorkflowAction !== null ||
-                          (!rentCaseFile?.contract_id &&
+                          (!rentContractId &&
                             createContractGuard.status === "unavailable")
                         }
                         className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors shadow-sm"
                       >
                         <FileText size={18} />
                         <span>
-                          {rentCaseFile?.contract_id
+                          {rentContractId
                             ? "Open Contract"
                             : isLoadingRentWorkflow
                               ? "Refreshing workflow"

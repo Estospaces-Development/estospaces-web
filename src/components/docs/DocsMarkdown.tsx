@@ -100,7 +100,8 @@ const components: Components = {
         </td>
     ),
     a: ({ href, children }) => {
-        if (!href) {
+        // Route templates such as /user/properties/:id are not real pages, so never link them.
+        if (!href || href.includes('/:')) {
             return <span>{children}</span>;
         }
 

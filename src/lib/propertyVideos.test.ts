@@ -33,5 +33,6 @@ test('property create and both role detail pages share the supported video contr
     assert.match(createPage, /accept="video\/mp4,video\/webm,video\/quicktime,\.mp4,\.webm,\.mov"/);
     assert.match(managerPage, /getPropertyVideos\(property\)/);
     assert.match(userPage, /getPropertyVideos\(property\)/);
-    assert.match(userPage, /<video[\s\S]*?<source src=\{videoUrl\}/);
+    assert.match(userPage, /<PropertyVideoPlayer key=\{`\$\{videoUrl\}-\$\{index\}`\} src=\{videoUrl\} \/>/);
+    assert.match(userPage, /<video[\s\S]*?<source src=\{src\} onError=\{\(\) => setFailed\(true\)\} \/>/);
 });

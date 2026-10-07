@@ -544,7 +544,7 @@ test("fast-track notification deep links load the requested case before stale-li
   assert.match(source, /getFastTrackCaseById\(normalizedRequestedCaseParam, \{ suppressErrorToast: true \}\)/);
   assert.match(source, /pendingSelectedCaseIdRef\.current = result\.data\.caseId/);
   assert.match(source, /setCases\(\(previous\) => sortFastTrackWorkspaceCases\(\[/);
-  assert.match(source, /if \(result\.notFound\) \{/);
+  assert.match(source, /if \(result\.notFound \|\| result\.forbidden\) \{/);
   assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'miss' \}\)/);
   assert.match(source, /setRequestedCaseLookup\(\{ caseId: normalizedRequestedCaseParam, status: 'unavailable' \}\)/);
   assert.match(source, /setError\(result\.error \|\| 'The Fast Track service is temporarily unavailable\. Please try again\.'\);/);

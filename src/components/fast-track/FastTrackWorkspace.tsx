@@ -332,11 +332,20 @@ export const formatFastTrackCaseStage = (fastTrackCase: FastTrackCase, role: Wor
     return formatStageLabel(stage, fastTrackCase.journeyMode, role);
 };
 
+// Show the zone with every time so two parties in different zones cannot misread a viewing (MB-0451),
+// and keep date-only values on their calendar day instead of shifting them by the local offset (MB-0999).
+const formatFastTrackDateTime = (value: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+        return new Date(`${value.trim()}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    }
+    return new Date(value).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+};
+
 const formatDateTime = (value?: string) => {
     if (!value) {
         return 'Not set';
     }
-    return new Date(value).toLocaleString('en-GB');
+    return formatFastTrackDateTime(value);
 };
 
 const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
@@ -785,7 +794,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [requestedCaseLookup, setRequestedCaseLookup] = useState<{
         caseId: string;
-        status: 'loading' | 'miss' | 'unavailable' | 'forbidden';
+        status: 'loading' | 'miss' | 'unavailable';
     } | null>(null);
     const [requestedCaseRetryToken, setRequestedCaseRetryToken] = useState(0);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
@@ -802,6 +811,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [pendingAdminOverrideAction, setPendingAdminOverrideAction] = useState<PendingFastTrackAction | null>(null);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
+    const previewRequestKeyRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -1136,14 +1146,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 return;
             }
 
-            if (result.notFound) {
+            // A case that is not shared with this account must look exactly like a missing one.
+            if (result.notFound || result.forbidden) {
                 setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'miss' });
-                return;
-            }
-
-            if (result.forbidden) {
-                setError(null);
-                setRequestedCaseLookup({ caseId: normalizedRequestedCaseParam, status: 'forbidden' });
                 return;
             }
 
@@ -1351,11 +1356,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         requestedCaseLookupMissed,
         selectedCaseId,
     });
-    const requestedCaseForbidden = Boolean(
-        normalizedRequestedCaseParam
-        && requestedCaseLookup?.caseId === normalizedRequestedCaseParam
-        && requestedCaseLookup.status === 'forbidden',
-    );
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === displayedCaseId) || null,
         [filteredCases, displayedCaseId],
@@ -1403,6 +1403,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             window.localStorage.removeItem(documentDraftStorageKey);
         }
     }, [documentDraftStorageKey]);
+
+    // Files are staged per document type, so a file chosen on one case must not carry over to
+    // the next case, where one click would upload it there (MB-0418).
+    const stagedFilesCaseId = selectedCase?.caseId || '';
+    useEffect(() => {
+        setSelectedFiles({});
+        Object.values(fileInputRefs.current).forEach((input) => {
+            if (input) {
+                input.value = '';
+            }
+        });
+    }, [stagedFilesCaseId]);
 
     useEffect(() => {
         if (!documentDraftStorageKey) {
@@ -2160,6 +2172,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (openInModal) {
             setPreviewModalOpen(true);
         }
+        const previewRequestKey = getFastTrackPreviewSourceKey(item, Boolean(selectedFile));
+        const switchingPreviewFile = previewRequestKeyRef.current !== previewRequestKey;
+        previewRequestKeyRef.current = previewRequestKey;
         setPreviewItemId(item.id);
         if (selectedFile) {
             releasePreviewObjectUrl();
@@ -2198,12 +2213,21 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setPreviewBusyKey((current) => current ?? busyKey);
         handleDocumentFocus(item.id);
         setPreviewError(null);
+        if (switchingPreviewFile) {
+            // Never show the previous document's file under this document's heading while its URL loads.
+            setPreviewUrl(null);
+        }
 
         let nextUrl = item.fileUrl || null;
         let nextAccessUrl = item.fileUrl || null;
         try {
             if (item.documentRecordId) {
                 const access = await getDocumentAccessUrl(item.documentRecordId);
+                if (previewRequestKeyRef.current !== previewRequestKey) {
+                    // A newer preview for another file started while this URL loaded; drop the late answer.
+                    closeExternalDocumentWindow();
+                    return null;
+                }
                 if (access.error || !access.url) {
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
@@ -2253,8 +2277,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
             return nextUrl;
         } catch (error: any) {
-            setPreviewUrl(null);
-            setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            if (previewRequestKeyRef.current === previewRequestKey) {
+                setPreviewUrl(null);
+                setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            }
             closeExternalDocumentWindow();
             return null;
         } finally {
@@ -2552,7 +2578,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         className={cn(
                             'rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
                             previewZoom === 0
-                                ? 'flex h-[min(520px,calc(100vh-20rem))] min-h-[260px] items-center justify-center overflow-hidden p-3'
+                                ? 'flex h-[min(520px,calc(100vh-20rem))] min-h-[260px] flex-col items-center justify-center overflow-hidden p-3'
                                 : 'max-h-[520px] overflow-auto',
                         )}
                     >
@@ -2564,7 +2590,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 previewZoom === 0 ? 'max-h-full max-w-full' : 'max-w-none',
                             )}
                             style={{ width: previewZoom === 0 ? 'auto' : `${previewZoom * 100}%` }}
+                            onLoad={() => setPreviewLoadFailed(false)}
+                            onError={() => setPreviewLoadFailed(true)}
                         />
+                        {/* A missing or expired image used to leave a blank pane with no explanation (MB-0434). */}
+                        {previewLoadFailed && (
+                            <div role="alert" className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                <p className="font-semibold">The image preview failed to load.</p>
+                                <button type="button" onClick={() => handlePreviewRetry()} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40">
+                                    <RefreshCw size={14} />
+                                    Retry preview
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : previewKind === 'pdf' ? (
                     <div className="space-y-3 rounded-3xl border border-gray-100 bg-white p-4 text-sm dark:border-gray-800 dark:bg-gray-950">
@@ -2978,7 +3016,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Participants</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.clientName}</p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            Manager: {selectedCase.managerId ? 'Assigned to this workspace' : 'Waiting for claim'}
+                            {/* Admins oversee every manager's cases, so name the owner by the same ref the Users list shows (MB-0637). */}
+                            Manager: {selectedCase.managerId
+                                ? (role === 'admin' ? `Ref #U-${selectedCase.managerId.substring(0, 6)}` : 'Assigned to this workspace')
+                                : 'Waiting for claim'}
                         </p>
                     </div>
                 </div>
@@ -3282,6 +3323,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                     document_id: item.id,
                                                     outcome,
                                                     note: documentNotes[item.id] || '',
+                                                    // The upload this screen showed; booking refuses a review of a newer replacement (MB-0949).
+                                                    reviewed_uploaded_at: item.uploadedAt || '',
                                                 },
                                                 outcome === 'approved'
                                                     ? `${item.label} approved.`
@@ -3318,7 +3361,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40 sm:rounded-2xl sm:p-4">
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {selectedCase.viewing.scheduledAt
-                                    ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
+                                    ? formatFastTrackDateTime(selectedCase.viewing.scheduledAt)
                                     : 'No slot has been set yet'}
                             </p>
                             <p className="mt-1.5 text-xs leading-5 text-gray-500 dark:text-gray-400 sm:mt-2 sm:text-sm">
@@ -3386,7 +3429,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current slot</p>
                                 <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
                                     {selectedCase.viewing.scheduledAt
-                                        ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
+                                        ? formatFastTrackDateTime(selectedCase.viewing.scheduledAt)
                                         : 'No slot set yet'}
                                 </p>
                             </div>
@@ -4312,7 +4355,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <div className="flex min-w-0 gap-3">
                             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                             <div>
-                                <p className="font-semibold">Journey link recovered</p>
+                                <p className="font-semibold">Journey link unavailable</p>
                                 <p className="mt-1 leading-6">
                                     {DELETED_FAST_TRACK_CASE_MESSAGE} Choose an available journey below or return to your dashboard.
                                 </p>
@@ -4572,38 +4615,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 ) : null}
                             </div>
                         </>
-                    ) : requestedCaseForbidden ? (
-                        <div
-                            role="alert"
-                            data-fast-track-case-forbidden
-                            className="rounded-[32px] border border-red-200 bg-white px-6 py-16 text-center text-sm text-gray-600 shadow-sm dark:border-red-900/40 dark:bg-gray-950 dark:text-gray-300"
-                        >
-                            <p className="font-semibold text-gray-900 dark:text-white">
-                                You do not have access to this journey.
-                            </p>
-                            <p className="mt-2">
-                                This link belongs to a journey that is not shared with your account.
-                            </p>
-                            <div className="mt-6 flex flex-wrap justify-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setRequestedCaseLookup(null);
-                                        setSearchParams((previous) => stripCaseSearchParam(previous), { replace: true });
-                                    }}
-                                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
-                                >
-                                    View your journeys
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
-                                    className="inline-flex items-center justify-center rounded-xl bg-orange-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950"
-                                >
-                                    Back to dashboard
-                                </button>
-                            </div>
-                        </div>
                     ) : requestedCaseParam && !displayedCaseId ? (
                         <div role="status" className="flex items-center justify-center gap-3 rounded-[32px] border border-gray-200 bg-white px-6 py-20 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
                             <ActionSpinner size={16} aria-hidden />

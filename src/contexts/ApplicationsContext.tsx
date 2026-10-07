@@ -62,6 +62,7 @@ export const APPLICATION_STATUS = {
     UNDER_REVIEW: 'under_review',
     DOCUMENTS_REQUESTED: 'documents_requested',
     VERIFICATION_IN_PROGRESS: 'verification_in_progress',
+    REFERENCING: 'referencing',
     BUYER_QUALIFICATION: 'buyer_qualification',
     OFFER_READY: 'offer_ready',
     OFFER_SUBMITTED: 'offer_submitted',
@@ -72,6 +73,7 @@ export const APPLICATION_STATUS = {
     CONVEYANCING: 'conveyancing',
     EXCHANGE: 'exchange',
     APPROVED: 'approved',
+    READY_FOR_CONTRACT: 'ready_for_contract',
     REJECTED: 'rejected',
     WITHDRAWN: 'withdrawn',
     COMPLETED: 'completed',
@@ -89,6 +91,7 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
     under_review: { label: 'Under Review', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
     documents_requested: { label: 'Documents Required', color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
     verification_in_progress: { label: 'Verification in Progress', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+    referencing: { label: 'Referencing', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
     buyer_qualification: { label: 'Buyer Qualification', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
     offer_ready: { label: 'Offer Ready', color: 'violet', bgColor: 'bg-violet-100', textColor: 'text-violet-700' },
     offer_submitted: { label: 'Offer Submitted', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
@@ -99,6 +102,7 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
     conveyancing: { label: 'Conveyancing', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-700' },
     exchange: { label: 'Exchange', color: 'cyan', bgColor: 'bg-cyan-100', textColor: 'text-cyan-700' },
     approved: { label: 'Approved', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700' },
+    ready_for_contract: { label: 'Ready for Contract', color: 'teal', bgColor: 'bg-teal-100', textColor: 'text-teal-700' },
     rejected: { label: 'Rejected', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-700' },
     withdrawn: { label: 'Withdrawn', color: 'gray', bgColor: 'bg-gray-100', textColor: 'text-gray-500' },
     completed: { label: 'Completed', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700' },
@@ -140,6 +144,14 @@ export interface Application {
     stageGroup?: string;
     jurisdictionProfile?: string;
     journeyStatusReason?: string;
+    /** What the applicant submitted, shown to the reviewing manager (MB-0493). */
+    applicantName?: string;
+    applicantEmail?: string;
+    applicantPhone?: string;
+    moveInDate?: string;
+    applicantMessage?: string;
+    /** The manager's note on a decision, e.g. why an application was rejected (MB-0487). */
+    reviewNotes?: string;
     blockers?: JourneyBlocker[];
     deadlines?: JourneyDeadline[];
     requiredEvidence?: JourneyRequirement[];
@@ -495,6 +507,9 @@ const deriveStatusFromViewing = (application: BackendApplication, viewing?: View
     if (applicationStatusMatches(status, APPLICATION_STATUS.MEMORANDUM_ISSUED)) return APPLICATION_STATUS.MEMORANDUM_ISSUED;
     if (applicationStatusMatches(status, APPLICATION_STATUS.CONVEYANCING)) return APPLICATION_STATUS.CONVEYANCING;
     if (applicationStatusMatches(status, APPLICATION_STATUS.EXCHANGE)) return APPLICATION_STATUS.EXCHANGE;
+    // Rent workflow stages after approval/viewing; without these they fell through to Submitted (MB-0495).
+    if (applicationStatusMatches(status, APPLICATION_STATUS.REFERENCING)) return APPLICATION_STATUS.REFERENCING;
+    if (applicationStatusMatches(status, APPLICATION_STATUS.READY_FOR_CONTRACT)) return APPLICATION_STATUS.READY_FOR_CONTRACT;
     if (applicationStatusMatches(status, APPLICATION_STATUS.VIEWING_SCHEDULED)) return APPLICATION_STATUS.VIEWING_SCHEDULED;
     if (applicationStatusMatches(status, APPLICATION_STATUS.VIEWING_COMPLETED)) return APPLICATION_STATUS.VIEWING_COMPLETED;
     if (applicationStatusMatches(status, APPLICATION_STATUS.APPOINTMENT_BOOKED)) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
@@ -583,6 +598,12 @@ export const mapBackendApplication = (
         liveStage: application.liveStage,
         stageGroup: application.stageGroup,
         journeyStatusReason: application.journeyStatusReason,
+        applicantName: application.applicant_name || undefined,
+        applicantEmail: application.applicant_email || undefined,
+        applicantPhone: application.applicant_phone || undefined,
+        moveInDate: application.move_in_date || undefined,
+        applicantMessage: application.message || undefined,
+        reviewNotes: String((application as { review_notes?: string }).review_notes || '').trim() || undefined,
         blockers: application.blockers || [],
         deadlines: application.deadlines || [],
         requiredEvidence: application.requiredEvidence || [],

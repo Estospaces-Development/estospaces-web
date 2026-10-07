@@ -82,7 +82,7 @@ export default function ConversationList({
   onSelectConversation,
   selectedConversationId,
 }: ConversationListProps) {
-  const { conversations, allConversations, searchQuery, setSearchQuery } = useMessages();
+  const { conversations, allConversations, searchQuery, setSearchQuery, conversationsLoadFailed, refreshConversations } = useMessages();
   const identityDetails = buildConversationIdentityDetails(allConversations.map((conversation) => ({
     id: conversation.id,
     title: getDisplayTitle(conversation),
@@ -256,13 +256,20 @@ export default function ConversationList({
               <MessageSquare size={24} />
             </div>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {searchQuery ? "No matching messages" : "No messages yet"}
+              {conversationsLoadFailed ? "Messages could not load" : searchQuery ? "No matching messages" : "No messages yet"}
             </p>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {searchQuery
-                ? "Try a name, home, or agent."
-                : "Chats will appear here when a home journey or enquiry starts."}
+            <p role={conversationsLoadFailed ? "alert" : undefined} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {conversationsLoadFailed
+                ? "Check your connection and try again."
+                : searchQuery
+                  ? "Try a name, home, or agent."
+                  : "Chats will appear here when a home journey or enquiry starts."}
             </p>
+            {conversationsLoadFailed && (
+              <button type="button" onClick={() => void refreshConversations()} className="mt-4 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">
+                Retry
+              </button>
+            )}
           </div>
         )}
       </div>

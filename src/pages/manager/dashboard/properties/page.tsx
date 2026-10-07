@@ -421,8 +421,11 @@ function PropertiesContent() {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Stats Pills */}
+                    {/* Stats Pills: counts come from the loaded page, so say so when there are more pages (MB-0719). */}
                     <div className="hidden xl:flex items-center gap-2 mr-4">
+                        {pagination.totalPages > 1 && (
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">On this page:</span>
+                        )}
                         <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                             {stats.available} Available
                         </span>

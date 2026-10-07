@@ -9,7 +9,7 @@ const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'accelerometer=(), autoplay=(), camera=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+  'Permissions-Policy': 'accelerometer=(), autoplay=(self "https://www.youtube-nocookie.com"), camera=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
   'Content-Security-Policy': [
     "default-src 'self'",
     "base-uri 'self'",
@@ -20,7 +20,7 @@ const SECURITY_HEADERS = {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
     "connect-src 'self' http: https: ws: wss: https://lumberjack.razorpay.com",
-    "frame-src 'self' blob: https://storage.googleapis.com https://storage.cloud.google.com https://*.googleusercontent.com https://maps.google.com https://www.google.com https://cdn.pannellum.org https://checkout.razorpay.com https://api.razorpay.com",
+    "frame-src 'self' blob: https://www.youtube-nocookie.com https://storage.googleapis.com https://storage.cloud.google.com https://*.googleusercontent.com https://maps.google.com https://www.google.com https://cdn.pannellum.org https://checkout.razorpay.com https://api.razorpay.com",
     "media-src 'self' blob: http: https:",
     "form-action 'self'",
   ].join('; '),

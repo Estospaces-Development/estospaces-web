@@ -7,6 +7,8 @@ import Avatar from '@/components/ui/Avatar';
 interface CommunityPostCardProps {
     post: CommunityPost;
     isManager?: boolean;
+    /** Admins may pin; core refuses pin for anyone else (MB-0618). */
+    isAdmin?: boolean;
     currentUserId?: string | null;
     onEdit?: (post: CommunityPost) => void;
     onLike: (postId: string) => void;
@@ -19,6 +21,7 @@ interface CommunityPostCardProps {
 const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     post,
     isManager = true,
+    isAdmin = false,
     currentUserId,
     onEdit,
     onLike,
@@ -30,6 +33,8 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     const [showFullContent, setShowFullContent] = useState(false);
     const [showActions, setShowActions] = useState(false);
     const canEdit = Boolean(onEdit) && canEditCommunityPost(post, currentUserId);
+    // Hide and audience changes are limited to the author and admins, matching core (MB-0618).
+    const canModerate = isManager && (isAdmin || canEditCommunityPost(post, currentUserId));
 
     const handleLike = () => {
         onLike(post.postId);
@@ -83,7 +88,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                     </span>
                     {post.isPinned && <Pin className="w-4 h-4 text-indigo-600 fill-indigo-600" />}
 
-                    {(isManager || canEdit) && (
+                    {(canModerate || canEdit) && (
                         <div className="relative">
                             <button
                                 onClick={() => setShowActions(!showActions)}
@@ -100,11 +105,13 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                             <Pencil className="w-4 h-4" /> Edit Post
                                         </button>
                                     )}
-                                    {isManager && (
+                                    {canModerate && (
                                         <>
+                                        {isAdmin && (
                                         <button role="menuitem" aria-label={post.isPinned ? `Unpin ${post.title || 'post'}` : `Pin ${post.title || 'post'}`} onClick={() => { onPin(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
                                             <Pin className="w-4 h-4" /> {post.isPinned ? 'Unpin' : 'Pin'} Post
                                         </button>
+                                        )}
                                         <button role="menuitem" aria-label={`Archive ${post.title || 'post'}`} onClick={() => { onHide(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
                                             <EyeOff className="w-4 h-4" /> Hide Post
                                         </button>

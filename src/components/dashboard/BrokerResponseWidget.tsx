@@ -423,11 +423,11 @@ const BrokerResponseWidget: React.FC = () => {
         return selectManagerTrackerItems(filtered, TRACKER_ITEM_LIMIT);
     }, [requests, trackerFilter, trackerSort]);
 
-    const handleRespond = async (id: string) => {
+    const handleRespond = async (id: string): Promise<boolean> => {
         try {
             const selectedRequest = requests.find((request) => request.id === id);
             if (!selectedRequest) {
-                return;
+                return false;
             }
 
             const response = selectedRequest.requestKind === 'offer'
@@ -449,8 +449,14 @@ const BrokerResponseWidget: React.FC = () => {
                     },
                 });
                 await fetchRequests(true);
+                return true;
             }
+            toast.error(response.error || 'This request could not be accepted. It may have expired or been taken by another agent.');
+            await fetchRequests(true);
+            return false;
         } catch (_error) {
+            toast.error('This request could not be accepted. Please refresh and try again.');
+            return false;
         }
     };
 
@@ -670,7 +676,7 @@ const BrokerResponseWidget: React.FC = () => {
             {/* On phones the summary card above already shows the status and the Go live toggle (#535). */}
             <div className="mb-6 flex items-center justify-end sm:justify-between">
                 <div className="hidden items-center gap-2 sm:flex">
-                    <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg animate-pulse">
+                    <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg motion-safe:animate-pulse">
                         <BellRing className="w-5 h-5 text-red-600 dark:text-red-400" />
                     </div>
                     <div>

@@ -129,7 +129,7 @@ export function buildBookingDetailRows(booking: Booking) {
         { label: 'Check-in', value: new Date(booking.check_in_date).toLocaleDateString() },
         { label: 'Check-out', value: new Date(booking.check_out_date).toLocaleDateString() },
         { label: 'Guests', value: String(booking.guest_count) },
-        { label: 'Total', value: `${booking.currency}${booking.total_amount.toLocaleString()}` },
+        { label: 'Total', value: formatReservationTotal(booking) },
     ];
 
     if (booking.cancellation_reason) {
@@ -138,6 +138,13 @@ export function buildBookingDetailRows(booking: Booking) {
 
     return rows;
 }
+
+// Reservations do not record a price yet, so a stored 0 (in a default GBP) is not a real total (MB-0535).
+const formatReservationTotal = (booking: { currency?: string; total_amount?: number }) => (
+    booking.total_amount && booking.total_amount > 0
+        ? `${booking.currency || ''}${booking.total_amount.toLocaleString()}`
+        : 'Price to be confirmed by the agent'
+);
 
 export default function BookingsPage() {
     const navigate = useNavigate();
@@ -420,7 +427,7 @@ export default function BookingsPage() {
                                                 </div>
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</p>
-                                                    <p className="font-black text-orange-500 text-xl">{booking.currency}{booking.total_amount.toLocaleString()}</p>
+                                                    <p className="font-black text-orange-500 text-xl">{formatReservationTotal(booking)}</p>
                                                 </div>
                                             </div>
 

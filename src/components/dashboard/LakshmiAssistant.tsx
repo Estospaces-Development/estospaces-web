@@ -202,7 +202,7 @@ const LakshmiAssistant = () => {
                             <div>
                                 <h3 className="font-bold text-white text-base">Lakshmi Assistant</h3>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                                    <span className="w-2 h-2 bg-green-400 rounded-full motion-safe:animate-pulse"></span>
                                     <span className="text-xs text-white/90">Online</span>
                                 </div>
                             </div>
