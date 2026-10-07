@@ -293,14 +293,16 @@ export default function ViewingsPage() {
     );
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [filter, focusedViewingId, searchQuery]);
-
-    useEffect(() => {
         if (viewingPagination.currentPage !== currentPage) {
             setCurrentPage(viewingPagination.currentPage);
         }
     }, [currentPage, viewingPagination.currentPage]);
+
+    // Filter and search changes reset the page in their handlers. A reset effect for them would race
+    // the clamp above, which computes from the old page and wins (MB-0475). This one runs after it.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [focusedViewingId]);
     const formatViewingPrice = (viewing: any) => formatLaunchCurrencyForCountry(viewing.propertyPrice, {
         countryCode: viewing.propertyCountry,
         countryName: viewing.propertyCountry,
@@ -506,7 +508,10 @@ export default function ViewingsPage() {
                                 type="text"
                                 aria-label="Search viewings"
                                 value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
+                                onChange={(event) => {
+                                    setSearchQuery(event.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 placeholder="Search by home, area, or agent"
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-700 outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900"
                             />
@@ -522,7 +527,10 @@ export default function ViewingsPage() {
                                 key={option.value}
                                 type="button"
                                 aria-pressed={filter === option.value}
-                                onClick={() => setFilter(option.value)}
+                                onClick={() => {
+                                    setFilter(option.value);
+                                    setCurrentPage(1);
+                                }}
                                 className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
                                     filter === option.value
                                         ? 'bg-orange-500 text-white shadow-[0_14px_28px_-16px_rgba(249,115,22,0.85)]'

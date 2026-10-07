@@ -414,6 +414,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <div className="mt-4 flex items-center gap-2">
                     <Globe size={14} className="text-gray-400 flex-shrink-0" />
                     <select
+                        aria-label="Verification country"
                         value={activeMarket}
                         onChange={(event) => setSelectedMarket(event.target.value as SupportedLaunchCountryCode)}
                         className="bg-transparent text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide min-w-[11rem] shrink-0 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"

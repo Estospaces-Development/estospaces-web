@@ -193,6 +193,8 @@ export default function LoginPage() {
                     autoComplete="email"
                     maxLength={254}
                     placeholder="Enter your email"
+                    aria-invalid={emailError ? true : undefined}
+                    aria-describedby={emailError ? 'email-error' : undefined}
                     value={email}
                     onChange={(e) => {
                     setEmail(e.target.value);
@@ -201,7 +203,7 @@ export default function LoginPage() {
                     className={`w-full px-4 py-3 border rounded-md outline-none transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass} ${emailError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-primary'
                     }`}
                 />
-                {emailError && <p role="alert" className="mt-2 break-words text-xs text-red-500">{emailError}</p>}
+                {emailError && <p id="email-error" role="alert" className="mt-2 break-words text-xs text-red-700 dark:text-red-400">{emailError}</p>}
                 </div>
 
                 {/* Password Input */}
@@ -215,6 +217,8 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     maxLength={128}
                     placeholder="Enter your password"
+                    aria-invalid={passwordError ? true : undefined}
+                    aria-describedby={passwordError ? 'password-error' : undefined}
                     value={password}
                     onChange={(e) => {
                     setPassword(e.target.value);
@@ -232,7 +236,7 @@ export default function LoginPage() {
                     {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                     </button>
                 </div>
-                {passwordError && <p role="alert" className="mt-2 break-words text-xs text-red-500">{passwordError}</p>}
+                {passwordError && <p id="password-error" role="alert" className="mt-2 break-words text-xs text-red-700 dark:text-red-400">{passwordError}</p>}
                 </div>
 
                 {/* Forgot Password Link */}
@@ -270,7 +274,7 @@ export default function LoginPage() {
                 {generalError && (
                 <div role="alert" className="mt-4 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
                     <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-                    <p className="min-w-0 break-words text-sm text-red-600 dark:text-red-400">{generalError}</p>
+                    <p className="min-w-0 break-words text-sm text-red-700 dark:text-red-400">{generalError}</p>
                 </div>
                 )}
             </form>
