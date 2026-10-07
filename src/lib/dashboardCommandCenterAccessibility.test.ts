@@ -26,7 +26,7 @@ test('user dashboard broker request opt-in checkbox exposes an accessible name',
 test('matched broker requests lock replacement but keep a separate new-request path', () => {
   const brokerRequestWidget = readSource('src/components/dashboard/BrokerRequestWidget.tsx');
 
-  assert.ok(brokerRequestWidget.includes('const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);'));
+  assert.ok(brokerRequestWidget.includes('const requestReplacementLocked = Boolean(requestIsMatched && !requestIsClosed);'));
   assert.ok(brokerRequestWidget.includes("Your agent match is locked. Continue with this property agent or start another request separately."));
   assert.ok(brokerRequestWidget.includes("type={requestReplacementLocked ? 'button' : 'submit'}"));
   assert.ok(brokerRequestWidget.includes('onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}'));

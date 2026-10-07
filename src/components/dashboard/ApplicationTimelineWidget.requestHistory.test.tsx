@@ -71,7 +71,7 @@ test('agent requests history lists expired, active and closed requests with a st
         assert.equal(requestCards().length, 3);
         const text = container.textContent || '';
         assert.ok(text.includes('Request expired'), 'the expired original is listed truthfully');
-        assert.ok(text.includes('Request closed'), 'the cancelled request is listed truthfully');
+        assert.ok(text.includes('Request cancelled'), 'the cancelled request is listed truthfully');
         assert.ok(text.includes('Request Sent'), 'the active retry is listed');
 
         const statusFilter = container.querySelector('#agent-request-status-filter') as unknown as HTMLSelectElement | null;
@@ -93,7 +93,7 @@ test('agent requests history lists expired, active and closed requests with a st
 
         await setFilter('closed');
         assert.equal(requestCards().length, 1);
-        assert.ok((requestCards()[0].textContent || '').includes('Request closed'));
+        assert.ok((requestCards()[0].textContent || '').includes('Request cancelled'));
 
         await setFilter('all');
         assert.equal(requestCards().length, 3);
