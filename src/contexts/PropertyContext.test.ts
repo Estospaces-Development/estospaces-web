@@ -6,6 +6,8 @@ import {
   mapServicePropertyLocation,
   mapContextPropertyLocation,
   mapContextPropertyMedia,
+  mapContextPropertyRooms,
+  mapServicePropertyRooms,
   type Property,
   type PropertyFilters,
 } from './PropertyContext';
@@ -158,6 +160,37 @@ test('available manager filter keeps every backend live-status alias', () => {
   const filtered = filterContextProperties(properties, { status: ['available'] });
 
   assert.deepEqual(filtered.map((item) => item.id), ['available', 'published', 'online', 'active']);
+});
+
+test('pending and rented manager filters keep the statuses core returns for them (MB-0199)', () => {
+  const properties = ['pending_approval', 'pending', 'rented', 'let', 'draft', 'available'].map((status) => property({
+    id: status,
+    status: status as Property['status'],
+  }));
+
+  assert.deepEqual(filterContextProperties(properties, { status: ['pending'] }).map((item) => item.id), ['pending_approval', 'pending']);
+  assert.deepEqual(filterContextProperties(properties, { status: ['rented'] }).map((item) => item.id), ['rented', 'let']);
+  assert.deepEqual(filterContextProperties(properties, { status: ['let'] }).map((item) => item.id), ['rented', 'let']);
+  assert.deepEqual(filterContextProperties(properties, { status: ['draft'] }).map((item) => item.id), ['draft']);
+});
+
+test('balconies survive the form write and the list-to-edit read (MB-0171)', () => {
+  assert.deepEqual(mapContextPropertyRooms({ rooms: { bedrooms: 3, bathrooms: 2, balconies: 2, parkingSpaces: 1 } }), {
+    balconies: 2,
+    parking_spaces: 1,
+  });
+  assert.deepEqual(mapContextPropertyRooms({ rooms: { bedrooms: 0, bathrooms: 0, balconies: 0 } }), { balconies: 0 });
+  assert.deepEqual(mapContextPropertyRooms({ title: 'Title-only edit' }), {});
+
+  const source = {
+    id: 'qa-balconies', title: 'QA balconies', property_type: 'apartment', listing_type: 'rent',
+    status: 'draft', price: 1500, currency: 'GBP', bedrooms: 3, bathrooms: 2, balconies: 2, parking_spaces: 1,
+    address_line_1: '1 Balcony Street', city: 'London', postcode: 'SW1A 1AA', country: 'UK',
+  } satisfies ServiceProperty;
+  assert.deepEqual(mapServicePropertyRooms(source), { bedrooms: 3, bathrooms: 2, balconies: 2, parkingSpaces: 1 });
+  // Core before the balconies column omits the field: read it as 0.
+  const { balconies: _omitted, ...legacy } = source;
+  assert.equal(mapServicePropertyRooms(legacy).balconies, 0);
 });
 
 test("media updates always send present image and video lists, including empty ones", () => {

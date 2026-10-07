@@ -68,6 +68,8 @@ export const invalidatePropertyDetailCache = (id: string) => {
 interface PropertyMutationOptions {
   suppressErrorToast?: boolean;
   throwOnError?: boolean;
+  /** Create only: a repeated key returns the caller's property core already made. */
+  idempotencyKey?: string;
 }
 
 export interface Property {
@@ -94,6 +96,7 @@ export interface Property {
   furnished?: boolean;
   condition?: string;
   facing?: string;
+  balconies?: number;
   parking_spaces?: number;
   featured?: boolean;
   address_line_1: string;
@@ -454,6 +457,7 @@ export const createProperty = async (
   try {
     const data = await apiFetch<Property>(`${CORE_URL()}/api/v1/properties`, {
       method: "POST",
+      headers: options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : undefined,
       body: JSON.stringify(propertyData),
       suppressErrorToast: options.suppressErrorToast ?? true,
     });

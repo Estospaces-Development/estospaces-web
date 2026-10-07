@@ -4,6 +4,7 @@ import test from 'node:test';
 import { clearAuthToken, setAuthToken } from '@/lib/authToken';
 
 import {
+  createProperty,
   getPropertyContextsByIds,
   getPropertyById,
   getProperties,
@@ -249,6 +250,28 @@ test('anonymous property reads keep using public catalog routes', async () => {
     clearAuthToken();
     invalidatePropertyListCache();
     invalidatePropertyDetailCache('property-456');
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('property create sends the form idempotency key only when one is given (MB-0176)', async () => {
+  const originalFetch = globalThis.fetch;
+  const sentKeys: (string | null)[] = [];
+  setAuthToken('signed-in-token');
+  globalThis.fetch = async (_input, init) => {
+    sentKeys.push(new Headers(init?.headers).get('Idempotency-Key'));
+    return new Response(JSON.stringify({ success: true, data: { id: 'property-1', title: 'Draft' } }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  try {
+    assert.equal((await createProperty({ title: 'Draft' }, { idempotencyKey: 'form-key-1' })).data?.id, 'property-1');
+    await createProperty({ title: 'Draft' });
+    assert.deepEqual(sentKeys, ['form-key-1', null]);
+  } finally {
+    clearAuthToken();
     globalThis.fetch = originalFetch;
   }
 });
