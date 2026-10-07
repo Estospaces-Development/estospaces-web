@@ -418,6 +418,17 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                                             {application.journeyStatusReason}
                                         </p>
                                     )}
+                                    {(application.moveInDate || application.applicantMessage) && (
+                                        // What the applicant sent, so they can check it (MB-0493).
+                                        <div className="mt-3 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                                            {application.moveInDate && (
+                                                <p><span className="font-semibold">Move-in date: </span>{new Date(`${application.moveInDate.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' })}</p>
+                                            )}
+                                            {application.applicantMessage && (
+                                                <p className="whitespace-pre-line break-words"><span className="font-semibold">Your message: </span>{application.applicantMessage}</p>
+                                            )}
+                                        </div>
+                                    )}
                                     {String(application.status || '').toLowerCase() === 'rejected' && application.reviewNotes && (
                                         <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm leading-6 text-red-800 dark:bg-red-950/30 dark:text-red-200">
                                             <span className="font-semibold">Reason from the agent: </span>{application.reviewNotes}

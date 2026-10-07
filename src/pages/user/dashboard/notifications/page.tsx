@@ -45,6 +45,8 @@ export default function NotificationsPage() {
         markAllAsRead,
         deleteNotification,
     } = useNotifications();
+    // During an outage with nothing cached, 0 would be a false count (MB-0597).
+    const countsUnknown = Boolean(loadError) && notifications.length === 0;
 
     const [filter, setFilter] = useState<FilterType>('all');
     const [category, setCategory] = useState<CategoryType>('all');
@@ -313,15 +315,15 @@ export default function NotificationsPage() {
                     <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-6">
                         <div className="rounded-xl bg-orange-50 p-3 dark:bg-orange-900/10 sm:p-4">
                             <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">Unread</span>
-                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleUnreadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{countsUnknown ? "—" : visibleUnreadCount}</p>
                         </div>
                         <div className="rounded-xl bg-blue-50 p-3 dark:bg-blue-900/10 sm:p-4">
                             <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total</span>
-                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleTotalCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{countsUnknown ? "—" : visibleTotalCount}</p>
                         </div>
                         <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-900/10 sm:p-4">
                             <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Read</span>
-                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{visibleReadCount}</p>
+                            <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{countsUnknown ? "—" : visibleReadCount}</p>
                         </div>
                     </div>
                 </div>

@@ -88,9 +88,11 @@ function formatDateTime(dateTime: string) {
             month: 'short',
             year: 'numeric',
         }),
+        // Label the zone so manager and user cannot misread the slot (MB-0451).
         time: parsed.toLocaleTimeString('en-GB', {
             hour: '2-digit',
             minute: '2-digit',
+            timeZoneName: 'short',
         }),
     };
 }
@@ -115,6 +117,7 @@ function toTimeInputValue(dateTime: string) {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
+        timeZoneName: 'short',
     });
 }
 

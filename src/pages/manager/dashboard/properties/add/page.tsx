@@ -152,7 +152,9 @@ import {
   UNREADABLE_FILE_MESSAGE,
 } from "@/lib/uploadFileSignature";
 
-const MAX_PROPERTY_IMAGE_BYTES = 52_000_000;
+// Cloud Run refuses request bodies over 32 MiB before the media service sees them, so 52 MB uploads
+// failed with a bare "Failed to fetch" (MB-0223, MB-0224). Keep each image safely under that cap.
+const MAX_PROPERTY_IMAGE_BYTES = 30_000_000;
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
@@ -1735,9 +1737,8 @@ export default function AddPropertyPage() {
         return;
       }
 
-      // Same 52 MB per-image limit as every plan and the media service (MB-0223, MB-0225).
       if (file.size > MAX_PROPERTY_IMAGE_BYTES) {
-        showToast(`${file.name} is too large. Maximum size is 52 MB.`, "error");
+        showToast(`${file.name} is too large. Maximum size is 30 MB.`, "error");
         return;
       }
 

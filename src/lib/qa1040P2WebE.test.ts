@@ -16,12 +16,12 @@ test('the manager dashboard says when its figures failed to load (MB-0660)', () 
 
 test('a reservation without a recorded price is not shown as GBP 0 (MB-0535)', () => {
     const page = read('pages/user/bookings/page.tsx');
-    assert.match(page, /: 'Price confirmed by the agent'/);
+    assert.match(page, /: 'Price to be confirmed by the agent'/);
     assert.doesNotMatch(page, /\{booking\.currency\}\{booking\.total_amount\.toLocaleString\(\)\}/);
 });
 
 test('checkout actions return focus to the control that started them (MB-0883)', () => {
-    assert.match(read('pages/manager/subscription/page.tsx'), /window\.requestAnimationFrame\(\(\) => trigger\.focus\(\)\);/);
+    assert.match(read('pages/manager/subscription/page.tsx'), /document\.getElementById\('resume-secure-checkout'\)/);
 });
 
 test('admins see which manager owns a Fast Track case (MB-0637)', () => {

@@ -1,4 +1,5 @@
 "use client";
+import AnalyticsUnavailable from '@/components/ui/AnalyticsUnavailable';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -202,6 +203,10 @@ const Analytics = () => {
 
     if (loading) {
         return <BrandLoadingScreen variant="section" label="Loading analytics..." />;
+    }
+
+    if (analyticsError && !analyticsData) {
+        return <AnalyticsUnavailable message={analyticsError} onRetry={() => void fetchData(true)} />;
     }
 
     return (

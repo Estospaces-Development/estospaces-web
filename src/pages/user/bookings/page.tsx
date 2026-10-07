@@ -138,12 +138,12 @@ export function buildBookingDetailRows(booking: Booking) {
 
     return rows;
 }
-
+
 // Reservations do not record a price yet, so a stored 0 (in a default GBP) is not a real total (MB-0535).
 const formatReservationTotal = (booking: { currency?: string; total_amount?: number }) => (
     booking.total_amount && booking.total_amount > 0
         ? `${booking.currency || ''}${booking.total_amount.toLocaleString()}`
-        : 'Price confirmed by the agent'
+        : 'Price to be confirmed by the agent'
 );
 
 export default function BookingsPage() {

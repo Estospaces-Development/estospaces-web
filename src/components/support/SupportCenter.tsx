@@ -136,6 +136,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const [replyAttachments, setReplyAttachments] = useState<SupportAttachmentDraft[]>([]);
     const [replyDraftId, setReplyDraftId] = useState('');
     const [reply, setReply] = useState('');
+    // A reply refused because the ticket closed meanwhile is kept visible so it is not lost (MB-0959).
+    const [unsentReply, setUnsentReply] = useState('');
+    // A failed ticket load must not read as "No support tickets yet" (MB-1017).
+    const [ticketsLoadFailed, setTicketsLoadFailed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [resumingTicketId, setResumingTicketId] = useState<string | null>(null);
@@ -259,6 +263,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
             if (!supportCenterMountedRef.current || fetchingRef.current !== request) return;
 
             setAllTickets(data);
+            setTicketsLoadFailed(false);
             const visibleTickets = data.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
             setTickets(visibleTickets);
             const targetTicketId = getAutoSelectedSupportTicketId({
@@ -295,6 +300,9 @@ export function SupportCenter({ role }: SupportCenterProps) {
         } catch (error: any) {
             if (!silent && supportCenterMountedRef.current && fetchingRef.current === request) {
                 toast.error(error.message || 'Failed to load support tickets');
+            }
+            if (supportCenterMountedRef.current && fetchingRef.current === request) {
+                setTicketsLoadFailed(true);
             }
         } finally {
             if (fetchingRef.current === request) {
@@ -383,6 +391,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
         setReply('');
         setReplyAttachments([]);
         setReplyDraftId('');
+        setUnsentReply('');
     }, [selectedTicketId]);
 
     useEffect(() => {
@@ -558,6 +567,9 @@ export function SupportCenter({ role }: SupportCenterProps) {
             await fetchTickets(true);
             toast.success('Reply sent');
         } catch (error: any) {
+            if (error?.status === 409) {
+                setUnsentReply(reply.trim());
+            }
             toast.error(error.message || 'Failed to send reply');
         } finally {
             setSubmitting(false);
@@ -688,7 +700,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                     <div className="flex min-w-0 flex-col gap-3 rounded-[2rem] border border-orange-100 bg-white/90 px-5 py-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                         <div>
                             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{isAdmin ? 'Support queue' : 'My tickets'}</p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{tickets.length} visible right now</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{ticketsLoadFailed && tickets.length === 0 ? 'Could not load tickets' : `${tickets.length} visible right now`}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             {!isAdmin && <button type="button" onClick={handleStartNewTicket} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10 dark:focus-visible:ring-offset-gray-900">New ticket</button>}
@@ -702,7 +714,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             next.set('conversation', ticket.conversation_id);
                         }
                         setSearchParams(next, { replace: true });
-                    }} emptyLabel={hasActiveFilters ? 'No tickets match these filters' : (isAdmin ? 'No tickets in this queue' : 'No support tickets yet')} emptyDescription={hasActiveFilters ? 'The active search, status, priority, requester, or assignee filters removed every ticket from this view.' : undefined} emptyActionLabel={hasActiveFilters ? 'Clear filters' : undefined} onEmptyAction={hasActiveFilters ? clearSupportFilters : undefined} />}
+                    }} emptyLabel={ticketsLoadFailed ? 'Support tickets could not load' : hasActiveFilters ? 'No tickets match these filters' : (isAdmin ? 'No tickets in this queue' : 'No support tickets yet')} emptyDescription={ticketsLoadFailed ? 'Check your connection and try again.' : hasActiveFilters ? 'The active search, status, priority, requester, or assignee filters removed every ticket from this view.' : undefined} emptyActionLabel={ticketsLoadFailed ? 'Retry' : hasActiveFilters ? 'Clear filters' : undefined} onEmptyAction={ticketsLoadFailed ? () => void fetchTickets() : hasActiveFilters ? clearSupportFilters : undefined} />}
 
                     {loading && tickets.length > 0 && (
                         <div className="flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white/80 px-4 py-3 text-sm text-gray-600 dark:border-orange-500/15 dark:bg-gray-900/60 dark:text-gray-300" aria-live="polite">
@@ -770,6 +782,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                     perspective={isAdmin ? 'staff' : 'requester'}
                                     onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)}
                                 />
+                                {unsentReply && (
+                                    <div role="alert" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+                                        <p className="font-semibold">This ticket was closed, so your reply was not sent. Copy it into a new ticket if you still need help:</p>
+                                        <textarea readOnly value={unsentReply} aria-label="Your unsent reply" className="mt-2 w-full rounded-lg border border-amber-200 bg-white p-2 text-sm text-gray-900 dark:border-amber-900/40 dark:bg-gray-900 dark:text-white" rows={3} />
+                                    </div>
+                                )}
                                 {canReply && <div className="mt-6"><SupportComposer value={reply} onChange={setReply} onSubmit={() => void handleReply()} onFilesSelected={(files) => void handleFiles('reply', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('reply', localId)} attachments={replyAttachments} disabled={submitting} canSubmit={Boolean(reply.trim() || replyAttachments.length > 0)} placeholder={isAdmin ? 'Reply as the Estospaces Team' : 'Reply to support'} submitLabel={submitting ? 'Sending' : 'Send reply'} /></div>}
                             </div>
                         </>
