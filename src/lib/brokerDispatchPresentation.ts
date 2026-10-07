@@ -1,4 +1,5 @@
 import type { BrokerRequestRecord } from '@/services/leadsService';
+import { getBrokerRequestClosure } from '@/lib/applicationTracking';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { buildManagerFastTrackRequestPath } from '@/lib/managerFastTrackRequestNavigation';
 import {
@@ -149,7 +150,24 @@ export const getDispatchWorkspaceSummary = (
         };
     }
 
-    if (request.dispatch_status === 'expired' || request.status === 'expired') {
+    const closure = getBrokerRequestClosure(request);
+    if (closure === 'cancelled') {
+        return {
+            title: 'Request cancelled',
+            subtitle: 'You cancelled this request, so property agents can no longer accept it',
+            helper: 'Send another request when you are ready.',
+        };
+    }
+
+    if (closure === 'replaced') {
+        return {
+            title: 'Request replaced',
+            subtitle: 'You replaced this request with a newer one for the same area',
+            helper: 'Follow your newer request instead.',
+        };
+    }
+
+    if (closure === 'expired') {
         return {
             title: 'Request expired',
             subtitle: 'No property agent accepted in time',

@@ -8,6 +8,7 @@ import {
   apiFetchEnvelope,
   buildApiUrl,
   getErrorMessage,
+  getErrorStatus,
   getServiceUrl,
 } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
@@ -696,6 +697,30 @@ export const rematchBrokerRequest = async (
   }
 };
 
+/**
+ * Withdraws the user's own live agent request (MB-0313). `unsupported` is true
+ * when the core service predates the cancel route: its admin-only fallback
+ * answers 403 for a user. A 404 means the request itself is gone.
+ */
+export const cancelBrokerRequest = async (
+  requestId: string,
+): Promise<{ data: BrokerRequestRecord | null; error: string | null; unsupported: boolean }> => {
+  try {
+    const data = await apiFetch<BrokerRequestRecord>(
+      `${CORE_URL()}/api/v1/leads/broker-request/${encodeURIComponent(requestId)}/cancel`,
+      { method: "POST", suppressErrorToast: true },
+    );
+    return { data, error: null, unsupported: false };
+  } catch (error: unknown) {
+    const status = getErrorStatus(error);
+    return {
+      data: null,
+      error: getErrorMessage(error),
+      unsupported: status === 403 || status === 405,
+    };
+  }
+};
+
 export const acceptBrokerRequestOffer = async (
   requestId: string,
 ): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
@@ -1183,6 +1208,7 @@ export const leadsService = {
   syncBrokerRequestPropertyShares,
   selectBrokerRequestProperty,
   rematchBrokerRequest,
+  cancelBrokerRequest,
   acceptBrokerRequestOffer,
   getBrokerAvailability,
   updateBrokerAvailability,
