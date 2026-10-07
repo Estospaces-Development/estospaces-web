@@ -100,11 +100,12 @@ test('dev server sends the same release-blocking security headers as production'
   ]);
   expectDirectiveTokens(viteCspDirectives, 'connect-src', ['https://lumberjack.razorpay.com']);
   assert.match(viteConfigSource, /img-src 'self' data: blob: https: http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/);
-  assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
+  assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/www\.youtube-nocookie\.com https:\/\/storage\.googleapis\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
   assert.doesNotMatch(viteConfigSource, /stripe/i);
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   expectDirectiveTokens(viteCspDirectives, 'frame-src', [
+    'https://www.youtube-nocookie.com',
     'https://checkout.razorpay.com',
     'https://api.razorpay.com',
   ]);
@@ -113,14 +114,16 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /connect-src 'self' http: https: ws: wss:/);
   assert.doesNotMatch(viteConfigSource, /salesiq\.zoho\.in/);
   assert.doesNotMatch(viteConfigSource, /^.*zohocdn\.com.*$/m);
+  assert.match(viteConfigSource, /autoplay=\(self "https:\/\/www\.youtube-nocookie\.com"\)/);
   assert.match(viteConfigSource, /headers: SECURITY_HEADERS/);
 });
 
 test('production security headers allow signed and blob backed document previews', () => {
+  assert.match(nginxSecurityHeadersSource, /autoplay=\(self \\"https:\/\/www\.youtube-nocookie\.com\\"\)/);
   assert.match(nginxSecurityHeadersSource, /geolocation=\(self\)/);
   assert.match(nginxSecurityHeadersSource, /camera=\(\)/);
   assert.match(nginxSecurityHeadersSource, /microphone=\(\)/);
-  assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
+  assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/www\.youtube-nocookie\.com https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
   assert.doesNotMatch(nginxSecurityHeadersSource, /stripe/i);
   assert.doesNotMatch(nginxSecurityHeadersSource, /unsafe-eval/);
@@ -134,6 +137,7 @@ test('production security headers allow signed and blob backed document previews
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/api\.pincodeapi\.in/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/api\.postcodes\.io/);
   expectDirectiveTokens(nginxCspDirectives, 'frame-src', [
+    'https://www.youtube-nocookie.com',
     'https://checkout.razorpay.com',
     'https://api.razorpay.com',
   ]);
