@@ -99,6 +99,7 @@ import {
 } from "@/lib/propertyCompliance";
 import { summarizeCaseFileDocuments } from "@/lib/caseFileDocuments";
 import {
+  findLatestApplicationContractId,
   getManagerRentNextAction,
   type ManagerRentNextActionPanel,
 } from "@/lib/managerRentWorkflow";
@@ -260,7 +261,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const [rentWithoutCase, setRentWithoutCase] = useState<{
     readiness: PropertyComplianceReadiness | null;
     contractId: string | null;
-  }>({ readiness: null, contractId: null });
+    unavailable: boolean;
+  }>({ readiness: null, contractId: null, unavailable: false });
   const [referencingCheck, setReferencingCheck] =
     useState<ReferencingCheck | null>(null);
   const [referencingDraft, setReferencingDraft] = useState({
@@ -392,7 +394,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const resetManagedRentWorkflowState = () => {
     setRentCaseFile(null);
-    setRentWithoutCase({ readiness: null, contractId: null });
+    setRentWithoutCase({ readiness: null, contractId: null, unavailable: false });
     setReferencingCheck(null);
     setRightToRentCheck(null);
     setReferencingDraft({ reviewNotes: "" });
@@ -584,12 +586,6 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     if (caseFileResult.error) {
       throw new Error(caseFileResult.error);
     }
-    if (readinessResult.error) {
-      throw new Error(readinessResult.error);
-    }
-    if (contractsResult.error) {
-      throw new Error(contractsResult.error);
-    }
     if (referencingResult.error) {
       throw new Error(referencingResult.error);
     }
@@ -598,12 +594,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     }
 
     setRentCaseFile(caseFileResult.data);
+    // A failed read only blocks the contract action (see createContractGuard), not referencing or approval.
     setRentWithoutCase({
       readiness: readinessResult.data,
-      // Newest first, like the case file's own contract lookup.
-      contractId: (contractsResult.data || [])
-        .filter((contract) => contract.application_id === targetApplication.id)
-        .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))[0]?.id || null,
+      contractId: findLatestApplicationContractId(contractsResult.data, targetApplication.id),
+      unavailable: Boolean(readinessResult.error || contractsResult.error),
     });
     setReferencingCheck(referencingResult.data);
     setRightToRentCheck(rightToRentResult.data);
@@ -977,7 +972,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     hasContract: Boolean(rentContractId),
     applicationApproved: rentApplicationApproved,
     hasPropertyLink: Boolean(application?.propertyId),
-    workflowError: rentWorkflowError,
+    workflowError: rentWorkflowError || (rentWithoutCase.unavailable
+      ? "Property readiness is temporarily unavailable for this application. Refresh to retry before creating the contract."
+      : null),
     isRefreshing: isLoadingRentWorkflow,
     rentContractReady,
     propertyReadinessReason: rentPropertyComplianceReadiness?.status_reason,

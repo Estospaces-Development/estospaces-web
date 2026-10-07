@@ -273,9 +273,12 @@ function UserManagementContent() {
     const [leadReassignReason, setLeadReassignReason] = useState('Admin reassignment from relationship hub');
     const leadRequestId = useRef(0);
     const statsRequestId = useRef(0);
+    const usersRequestId = useRef(0);
     const PAGE_SIZE = 20;
 
     const fetchUsers = useCallback(async () => {
+        // Search and the URL page reset can fire two requests; only the latest may land.
+        const requestId = ++usersRequestId.current;
         try {
             setLoading(true);
             const roleFilter = activeTab === 'all' ? '' : activeTab;
@@ -283,6 +286,7 @@ function UserManagementContent() {
                     search: normalizeAdminUserSearch(searchQuery),
                     role: roleFilter,
                 });
+            if (requestId !== usersRequestId.current) return;
             if (userError) {
                 throw new Error(userError);
             }
@@ -290,9 +294,9 @@ function UserManagementContent() {
             setPagination(userPagination);
             setLoadError(null);
         } catch (error: any) {
-            setLoadError(error.message || 'User registry is not available right now.');
+            if (requestId === usersRequestId.current) setLoadError(error.message || 'User registry is not available right now.');
         } finally {
-            setLoading(false);
+            if (requestId === usersRequestId.current) setLoading(false);
         }
     }, [activeTab, currentPage, searchQuery]);
 

@@ -275,6 +275,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.VIEWING_SCHEDULED: return 30;
             case APPLICATION_STATUS.VIEWING_COMPLETED: return 40;
             case APPLICATION_STATUS.UNDER_REVIEW: return 55;
+            case APPLICATION_STATUS.REFERENCING:
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED: return 65;
             case APPLICATION_STATUS.VERIFICATION_IN_PROGRESS: return 80;
             case APPLICATION_STATUS.OFFER_SUBMITTED: return 20;
@@ -285,6 +286,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.CONVEYANCING: return 88;
             case APPLICATION_STATUS.EXCHANGE: return 95;
             case APPLICATION_STATUS.APPROVED:
+            case APPLICATION_STATUS.READY_FOR_CONTRACT:
             case APPLICATION_STATUS.COMPLETED: return 100;
             case APPLICATION_STATUS.REJECTED:
             case APPLICATION_STATUS.WITHDRAWN: return 0;

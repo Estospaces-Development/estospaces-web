@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getManagerRentNextAction } from "./managerRentWorkflow";
+import { findLatestApplicationContractId, getManagerRentNextAction } from "./managerRentWorkflow";
 
 test("manager rent next action starts with requesting documents when the shared lane is empty", () => {
   assert.deepEqual(
@@ -212,4 +212,16 @@ test("manager rent next action redirects to property readiness before contract c
     })?.panel,
     "property_readiness",
   );
+});
+
+test("an application without a case finds its own newest contract (MB-0499)", () => {
+  const contracts = [
+    { id: "other-app", application_id: "app-2", created_at: "2026-10-05T10:00:00Z" },
+    { id: "older", application_id: "app-1", created_at: "2026-10-01T10:00:00Z" },
+    { id: "newest", application_id: "app-1", created_at: "2026-10-03T10:00:00Z" },
+  ];
+
+  assert.equal(findLatestApplicationContractId(contracts, "app-1"), "newest");
+  assert.equal(findLatestApplicationContractId(contracts, "app-3"), null);
+  assert.equal(findLatestApplicationContractId(null, "app-1"), null);
 });

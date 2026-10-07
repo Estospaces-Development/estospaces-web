@@ -5,6 +5,7 @@ import test from 'node:test';
 import type { AnalyticsData } from '@/services/analyticsService';
 import { mapBackendApplication } from '../contexts/ApplicationsContext';
 import { buildAdminDashboardSnapshot } from './adminPlatformAnalytics';
+import { getManagerCreateContractGuard } from './managerWorkflowGuards';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -15,6 +16,7 @@ test('the admin user registry keeps page, role tab and search in the URL (MB-062
     assert.match(page, /const activeTab = ADMIN_USER_ROLE_TABS\.find\(\(tab\) => tab === searchParams\.get\('role'\)\) \?\? 'all';/);
     assert.match(page, /const currentPage = Math\.max\(1, Number\.parseInt\(searchParams\.get\('page'\)/);
     assert.match(page, /updateUserListParams\(\{ search: nextSearch \|\| null, page: null \}\);/);
+    assert.match(page, /if \(requestId !== usersRequestId\.current\) return;/);
     assert.doesNotMatch(page, /const \[currentPage, setCurrentPage\] = useState\(1\);/);
 });
 
@@ -73,6 +75,18 @@ test('a rent application without a Fast Track case reads readiness and its contr
     assert.match(detail, /rentCaseFile\?\.property_compliance_readiness \|\| rentWithoutCase\.readiness \|\| null;/);
     assert.match(detail, /hasContract: Boolean\(rentContractId\),/);
     assert.match(detail, /applicationApproved: rentApplicationApproved,/);
+    // A failed read must not take down referencing and approval; it only blocks the contract action.
+    assert.doesNotMatch(detail, /throw new Error\((readinessResult|contractsResult)\.error\)/);
+    assert.match(detail, /unavailable: Boolean\(readinessResult\.error \|\| contractsResult\.error\),/);
+
+    const guardInput = { hasContract: false, applicationApproved: true, hasPropertyLink: true, rentContractReady: true };
+    assert.equal(getManagerCreateContractGuard(guardInput).canRun, true);
+    const unavailable = getManagerCreateContractGuard({
+        ...guardInput,
+        workflowError: 'Property readiness is temporarily unavailable for this application. Refresh to retry before creating the contract.',
+    });
+    assert.equal(unavailable.status, 'unavailable');
+    assert.equal(unavailable.target, 'property_readiness');
 });
 
 test('the manager leads list keeps status, sort and page in the URL (MB-0336)', () => {
