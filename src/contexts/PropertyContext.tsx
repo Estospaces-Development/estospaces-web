@@ -179,6 +179,22 @@ export const mapContextPropertyLocation = (p: Partial<Property>): Partial<proper
   return result;
 };
 
+export const mapServicePropertyRooms = (p: propertyService.Property): NonNullable<Property['rooms']> => ({
+  bedrooms: p.bedrooms || 0,
+  bathrooms: p.bathrooms || 0,
+  balconies: p.balconies || 0,
+  parkingSpaces: p.parking_spaces || 0,
+});
+
+export const mapContextPropertyRooms = (
+  p: Partial<Property>,
+): Pick<Partial<propertyService.Property>, "balconies" | "parking_spaces"> => {
+  const result: Pick<Partial<propertyService.Property>, "balconies" | "parking_spaces"> = {};
+  if (p.rooms?.balconies !== undefined) result.balconies = p.rooms.balconies;
+  if (p.rooms?.parkingSpaces !== undefined) result.parking_spaces = p.rooms.parkingSpaces;
+  return result;
+};
+
 export interface PriceInfo {
   amount: number;
   currency: CurrencyCode;
@@ -387,6 +403,15 @@ const propertyPriceAmount = (property: Property) => {
   return toOptionalNumber(property.priceString?.replace(/[^\d.-]/g, "")) ?? 0;
 };
 
+// Same aliases as core's propertyStatusFilterAliases: the server already returns
+// every stored spelling of a filtered status, so the page filter must keep them.
+const PROPERTY_STATUS_FILTER_ALIASES: Record<string, readonly string[]> = {
+  available: ["available", "published", "online", "active"],
+  pending: ["pending", "pending_approval"],
+  rented: ["rented", "let"],
+  let: ["rented", "let"],
+};
+
 export const filterContextProperties = (
   properties: Property[],
   filters: PropertyFilters,
@@ -414,9 +439,10 @@ export const filterContextProperties = (
     if (statuses.size > 0) {
       const status = normalizePropertyFilterValue(property.status);
       const draft = property.draft ? "draft" : "";
-      const liveStatusMatch = statuses.has("available")
-        && ["available", "published", "online", "active"].includes(status);
-      if (!statuses.has(status) && !statuses.has(draft) && !liveStatusMatch) {
+      const matches = [...statuses].some((filter) => (
+        filter === draft || (PROPERTY_STATUS_FILTER_ALIASES[filter] ?? [filter]).includes(status)
+      ));
+      if (!matches) {
         return false;
       }
     }
@@ -585,6 +611,8 @@ interface PropertyContextType {
 interface PropertyMutationOptions {
   suppressErrorToast?: boolean;
   throwOnError?: boolean;
+  /** Create only: core returns the caller's existing property for a repeated key. */
+  idempotencyKey?: string;
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(
@@ -763,11 +791,7 @@ export const PropertyProvider = ({
       area: p.property_size_sqft,
       bedrooms: p.bedrooms,
       bathrooms: p.bathrooms,
-      rooms: {
-        bedrooms: p.bedrooms || 0,
-        bathrooms: p.bathrooms || 0,
-        parkingSpaces: p.parking_spaces || 0,
-      },
+      rooms: mapServicePropertyRooms(p),
       dimensions: {
         totalArea: p.property_size_sqft || 0,
         carpetArea: p.carpet_area || 0,
@@ -897,8 +921,7 @@ export const PropertyProvider = ({
       serviceProps.furnished = p.furnishing === "furnished";
     if (p.condition !== undefined) serviceProps.condition = p.condition;
     if (p.facing !== undefined) serviceProps.facing = p.facing;
-    if (p.rooms?.parkingSpaces !== undefined)
-      serviceProps.parking_spaces = p.rooms.parkingSpaces;
+    Object.assign(serviceProps, mapContextPropertyRooms(p));
     if (p.featured !== undefined) serviceProps.featured = p.featured;
 
     Object.assign(serviceProps, mapContextPropertyMedia(p));
@@ -1130,7 +1153,7 @@ export const PropertyProvider = ({
             if (error) throw new Error(error);
             if (data) {
               const newProp = mapServiceToContextProperty(data);
-              setProperties((prev) => [newProp, ...prev]);
+              setProperties((prev) => [newProp, ...prev.filter((item) => item.id !== newProp.id)]);
               publishWorkspaceSync({
                 key: `properties:create:${newProp.id}`,
                 source: "mutation",
