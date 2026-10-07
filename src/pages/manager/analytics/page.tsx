@@ -3,7 +3,7 @@ import AnalyticsUnavailable from '@/components/ui/AnalyticsUnavailable';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Building2, Users, Target, ArrowUpRight, ArrowDownRight, ArrowRight, Calendar, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import PieChart from '@/components/ui/PieChart';
@@ -278,6 +278,14 @@ const Analytics = () => {
                     }
                 ].map((metric, i) => {
                     const colorClasses = managerMetricColorClasses[metric.color as ManagerAnalyticsColor] || managerMetricColorClasses.blue;
+                    // The pill follows the sign of the growth value, so "-100%" is not shown green and up (MB-0650).
+                    const growthValue = Number.parseFloat(metric.growth);
+                    const GrowthIcon = growthValue < 0 ? ArrowDownRight : growthValue > 0 ? ArrowUpRight : ArrowRight;
+                    const growthClasses = growthValue < 0
+                        ? 'text-red-700 bg-red-100 dark:bg-red-950/40 dark:text-red-300'
+                        : growthValue > 0
+                            ? 'text-green-700 bg-green-100 dark:bg-green-950/40 dark:text-green-300'
+                            : 'text-gray-600 bg-gray-100 dark:bg-gray-900 dark:text-gray-300';
 
                     return (
                     <div
@@ -291,8 +299,8 @@ const Analytics = () => {
                             <div className={`p-3 ${colorClasses.iconWrap} rounded-2xl group-hover:scale-110 transition-transform`}>
                                 <metric.icon className={`w-6 h-6 ${colorClasses.icon}`} />
                             </div>
-                            <div className="flex items-center gap-1 text-green-700 text-xs font-bold bg-green-100 px-2 py-1 rounded-lg dark:bg-green-950/40 dark:text-green-300">
-                                <ArrowUpRight className="w-3 h-3" />
+                            <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${growthClasses}`}>
+                                <GrowthIcon className="w-3 h-3" aria-hidden="true" />
                                 {metric.growth}
                             </div>
                         </div>
@@ -427,6 +435,10 @@ const Analytics = () => {
                     const growthRate = startValue > 0
                         ? ((endValue - startValue) / startValue) * 100
                         : 0;
+                    // A rise from 0 has no percentage, so show the lead difference instead of 0.0%.
+                    const changeLabel = startValue > 0
+                        ? `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`
+                        : `${endValue > 0 ? '+' : ''}${endValue} ${endValue === 1 ? 'lead' : 'leads'}`;
 
                     return (
                         <div className="space-y-8">
@@ -435,7 +447,7 @@ const Analytics = () => {
                                     { label: 'Total Leads', value: String(totalLeads), color: 'blue' },
                                     { label: 'Avg per Month', value: String(averageLeads), color: 'green' },
                                     { label: 'Peak Month', value: totalLeads > 0 ? bestMonth.month : '—', color: 'orange' },
-                                    { label: 'Change', value: `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`, color: 'purple' }
+                                    { label: 'Change', value: changeLabel, color: 'purple' }
                                 ].map((item, i) => {
                                     const colorClasses = managerSummaryColorClasses[item.color as ManagerAnalyticsColor] || managerSummaryColorClasses.blue;
 
@@ -455,16 +467,17 @@ const Analytics = () => {
                                         const maxValue = Math.max(...trendData.map(d => d.value), 1);
                                         const height = (item.value / maxValue) * 100;
                                         
+                                        // The column fills the row height so the bar's percentage height resolves (it was 0px, MB-0650).
                                         return (
-                                            <div key={index} className="group flex min-w-0 flex-1 flex-col items-center">
-                                                <div className="w-full relative flex flex-col items-center justify-end h-full mb-4">
+                                            <div key={index} className="group flex h-full min-w-0 flex-1 flex-col items-center">
+                                                <div className="w-full relative flex flex-col items-center justify-end min-h-0 flex-1 mb-4">
                                                     <div
-                                                        className="relative w-full max-w-12 cursor-pointer rounded-t-xl bg-orange-500 shadow-lg shadow-orange-500/20 transition-all duration-500 group-hover:opacity-80 dark:bg-orange-600 sm:group-hover:w-14"
+                                                        className="relative w-full max-w-12 rounded-t-xl bg-orange-500 shadow-lg shadow-orange-500/20 transition-all duration-500 group-hover:opacity-80 dark:bg-orange-600 sm:group-hover:w-14"
                                                         style={{ height: `${height}%` }}
                                                     >
-                                                        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap z-20 shadow-xl scale-75 group-hover:scale-100">
-                                                            {item.value} {item.value === 1 ? 'lead' : 'leads'}
-                                                        </div>
+                                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-bold text-gray-700 dark:text-gray-200">
+                                                            {item.value}<span className="sr-only"> {item.value === 1 ? 'lead' : 'leads'}</span>
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <span className="truncate text-xs font-bold text-gray-700 dark:text-gray-300 sm:text-sm">{item.month}</span>

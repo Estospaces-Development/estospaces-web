@@ -222,7 +222,8 @@ function MessagesContent() {
                 </div>
             </div>
 
-            <div className={`${showThread ? 'flex' : 'hidden'} flex-1 flex-col h-full bg-white dark:bg-gray-800`}>
+            {/* min-w-0 lets a long unbroken message wrap instead of widening the pane past Send (MB-0565), as on the user page. */}
+            <div className={`${showThread ? 'flex' : 'hidden'} min-w-0 flex-1 flex-col h-full bg-white dark:bg-gray-800`}>
                 {selectedConversationId ? (
                     <>
                         {!isDesktop && (

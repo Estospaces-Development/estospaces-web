@@ -254,9 +254,23 @@ function buildLeadEscalationPath(lead: Lead, stage: string, remainingSeconds: nu
 
 export default function ManagerLeadsPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const searchParamQuery = searchParams.get('search') || '';
     const requestedLeadId = searchParams.get('lead');
+    // Filter, sort and page live in the URL so Back and reload return to the same list (MB-0336).
+    const statusFilter = STATUS_FILTERS.find((filter) => filter.value === searchParams.get('status'))?.value ?? 'all';
+    const sortMode = SORT_OPTIONS.find((option) => option.value === searchParams.get('sort'))?.value ?? 'newest';
+    const currentPage = Math.max(1, Number.parseInt(searchParams.get('page') || '', 10) || 1);
+    const updateListParams = useCallback((changes: Record<string, string | null>) => {
+        setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            Object.entries(changes).forEach(([key, value]) => (value ? next.set(key, value) : next.delete(key)));
+            return next;
+        }, { replace: true });
+    }, [setSearchParams]);
+    const setStatusFilter = (value: string) => updateListParams({ status: value === 'all' ? null : value, page: null });
+    const setSortMode = (value: ManagerLeadSortMode) => updateListParams({ sort: value === 'newest' ? null : value, page: null });
+    const setCurrentPage = (page: number) => updateListParams({ page: page > 1 ? String(page) : null });
     const toast = useToast();
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
@@ -266,9 +280,6 @@ export default function ManagerLeadsPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(searchParamQuery);
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [sortMode, setSortMode] = useState<ManagerLeadSortMode>('newest');
-    const [currentPage, setCurrentPage] = useState(1);
     const [actingLeadID, setActingLeadID] = useState<string | null>(null);
     const [expandedAuditLeadID, setExpandedAuditLeadID] = useState<string | null>(null);
     const [leadAuditEntries, setLeadAuditEntries] = useState<Record<string, LeadAuditEntry[]>>({});
@@ -402,18 +413,8 @@ export default function ManagerLeadsPage() {
     ), [currentPage, visibleLeads]);
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, sortMode, statusFilter]);
-
-    useEffect(() => {
         setSearchQuery(searchParamQuery);
     }, [searchParamQuery]);
-
-    useEffect(() => {
-        if (currentPage !== paginatedLeads.currentPage) {
-            setCurrentPage(paginatedLeads.currentPage);
-        }
-    }, [currentPage, paginatedLeads.currentPage]);
 
     const summary = useMemo(() => summarizeManagerLeads(visibleSourceLeads, now), [now, visibleSourceLeads]);
     const fastTrackCaseByLeadId = useMemo(() => {
@@ -856,7 +857,10 @@ export default function ManagerLeadsPage() {
                         <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <input
                             value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onChange={(event) => {
+                                setSearchQuery(event.target.value);
+                                if (currentPage !== 1) setCurrentPage(1);
+                            }}
                             placeholder="Search by user name, lead number, property, or email"
                             aria-label="Search leads"
                             className={`w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white ${managerLeadFocusClass}`}
@@ -1304,7 +1308,7 @@ export default function ManagerLeadsPage() {
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                                onClick={() => setCurrentPage(paginatedLeads.currentPage - 1)}
                                 disabled={paginatedLeads.currentPage === 1}
                                 aria-label="Previous leads page"
                                 className="rounded-full border border-gray-200 px-4 py-2 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
@@ -1313,7 +1317,7 @@ export default function ManagerLeadsPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setCurrentPage((page) => Math.min(paginatedLeads.totalPages, page + 1))}
+                                onClick={() => setCurrentPage(paginatedLeads.currentPage + 1)}
                                 disabled={paginatedLeads.currentPage === paginatedLeads.totalPages}
                                 aria-label="Next leads page"
                                 className="rounded-full border border-gray-200 px-4 py-2 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"

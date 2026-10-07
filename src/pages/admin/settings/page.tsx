@@ -180,40 +180,32 @@ export default function AdminSettingsPage() {
                         </div>
                         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Security</h2>
                     </div>
+                    {/* Nothing in sign-in reads these yet, so they are shown as not enforced instead of as live controls (MB-0635). */}
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-                            <div>
-                                <p className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
-                                <p className="text-sm text-gray-500">Require 2FA for admin accounts</p>
+                        {[
+                            { id: 'two-factor', label: 'Two-Factor Authentication', help: 'Admin sign-in uses email and password only. A second factor is not enforced yet.' },
+                            { id: 'session-timeout', label: 'Session Timeout', help: 'Sessions are not ended automatically after inactivity yet.' },
+                        ].map((item) => (
+                            <div key={item.id}>
+                                <span id={`admin-settings-${item.id}-label`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    {item.label}
+                                </span>
+                                <output
+                                    aria-labelledby={`admin-settings-${item.id}-label`}
+                                    aria-describedby={`admin-settings-${item.id}-help`}
+                                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                >
+                                    <span className="font-semibold">Not enforced</span>
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        <LockKeyhole size={14} aria-hidden="true" />
+                                        Not available yet
+                                    </span>
+                                </output>
+                                <p id={`admin-settings-${item.id}-help`} className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                    {item.help}
+                                </p>
                             </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-label="Require two-factor authentication for admin accounts"
-                                aria-checked={settings.twoFactorAuth}
-                                title="Require two-factor authentication for admin accounts"
-                                onClick={() => setSettings({ ...settings, twoFactorAuth: !settings.twoFactorAuth })}
-                                className={`relative w-12 h-6 rounded-full transition-colors ${settings.twoFactorAuth ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
-                            >
-                                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.twoFactorAuth ? 'right-1' : 'left-1'}`} />
-                            </button>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-                            <div>
-                                <p className="font-medium text-gray-900 dark:text-white">Session Timeout</p>
-                                <p className="text-sm text-gray-500">Auto-logout after inactivity</p>
-                            </div>
-                            <select
-                                aria-label="Session timeout"
-                                value={settings.sessionTimeout}
-                                onChange={(e) => setSettings({ ...settings, sessionTimeout: e.target.value })}
-                                className="px-3 py-1.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option>30 minutes</option>
-                                <option>1 hour</option>
-                                <option>4 hours</option>
-                            </select>
-                        </div>
+                        ))}
                     </div>
                 </div>
 

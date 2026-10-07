@@ -3,7 +3,7 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     UserPlus, Users,
     Filter, Search, Eye, Download, Shield, TrendingUp, UserCheck, Power, RefreshCw
@@ -233,14 +233,19 @@ export function sortAdminUsers(users: User[], sortBy: AdminUsersSortOption): Use
     }
 }
 
+const ADMIN_USER_ROLE_TABS = ['all', 'admin', 'manager', 'user'] as const;
+
 function UserManagementContent() {
     const navigate = useNavigate();
     const { user: currentUser } = useAuth();
     // The server refuses self-deactivation (MB-0626); the button says so up front.
     const isSelfDeactivation = (target: User) => Boolean(target.is_active && currentUser?.id && target.id === currentUser.id);
     const { success: showToastSuccess, error: showToastError } = useToast();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState('all');
+    // Page, role tab and search live in the URL so Back and reload return to the same registry page (MB-0623).
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchQuery, setSearchQuery] = useState(() => normalizeAdminUserSearchInput(searchParams.get('search') || ''));
+    const activeTab = ADMIN_USER_ROLE_TABS.find((tab) => tab === searchParams.get('role')) ?? 'all';
+    const currentPage = Math.max(1, Number.parseInt(searchParams.get('page') || '', 10) || 1);
     const [sortBy, setSortBy] = useState<AdminUsersSortOption>('newest');
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -252,7 +257,6 @@ function UserManagementContent() {
     const [stateChangeUser, setStateChangeUser] = useState<User | null>(null);
     const [stateChangeReason, setStateChangeReason] = useState('');
     const [stateChangeError, setStateChangeError] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState<{ total: number; page: number; limit: number } | null>(null);
     const [adminLeads, setAdminLeads] = useState<Lead[]>([]);
     const [adminBrokers, setAdminBrokers] = useState<AdminBrokerOption[]>([]);
@@ -510,14 +514,24 @@ function UserManagementContent() {
         showToastSuccess(`Exported ${filteredUsers.length} users to CSV.`);
     };
 
+    const updateUserListParams = (changes: Record<string, string | null>) => {
+        setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            Object.entries(changes).forEach(([key, value]) => (value ? next.set(key, value) : next.delete(key)));
+            return next;
+        }, { replace: true });
+    };
+
+    const setCurrentPage = (page: number) => updateUserListParams({ page: page > 1 ? String(page) : null });
+
     const handleUserSearchChange = (value: string) => {
-        setCurrentPage(1);
-        setSearchQuery(normalizeAdminUserSearchInput(value));
+        const nextSearch = normalizeAdminUserSearchInput(value);
+        setSearchQuery(nextSearch);
+        updateUserListParams({ search: nextSearch || null, page: null });
     };
 
     const handleRoleTabChange = (tab: string) => {
-        setCurrentPage(1);
-        setActiveTab(tab);
+        updateUserListParams({ role: tab === 'all' ? null : tab, page: null });
     };
 
     const handleLeadSearchChange = (value: string) => {
@@ -846,7 +860,7 @@ function UserManagementContent() {
             <div className="min-w-0 bg-white dark:bg-gray-800 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
                 <div className="px-4 py-6 sm:px-10 sm:py-8 border-b dark:border-gray-700 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex max-w-full gap-4 overflow-x-auto sm:gap-8">
-                        {['all', 'admin', 'manager', 'user'].map((tab) => (
+                        {ADMIN_USER_ROLE_TABS.map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => handleRoleTabChange(tab)}
