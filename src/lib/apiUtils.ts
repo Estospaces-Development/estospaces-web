@@ -183,6 +183,8 @@ export class ApiRequestError extends Error {
     unauthorizedState?: UnauthorizedResponseState;
     /** The error envelope's `data`, for structured detail such as a machine-readable reason. */
     data?: unknown;
+    /** For a 429, the server's Retry-After in milliseconds, when it sent one in seconds. */
+    retryAfterMs?: number;
 
     constructor(
         message: string,
@@ -568,7 +570,7 @@ export async function apiFetchEnvelope<T>(
             notifyApiFailure(response.status);
         }
         trackApiOutcome(url, method, false, response.status);
-        throw new ApiRequestError(
+        const requestError = new ApiRequestError(
             errorMsg,
             unauthorizedState === 'session-expired' || unauthorizedState === 'cleared-on-auth-page'
                 ? AUTH_EXPIRED_MESSAGE
@@ -579,6 +581,11 @@ export async function apiFetchEnvelope<T>(
             errorCode,
             errorData,
         );
+        const retryAfterSeconds = Number(response.headers?.get?.('Retry-After') ?? NaN);
+        if (response.status === 429 && Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+            requestError.retryAfterMs = retryAfterSeconds * 1_000;
+        }
+        throw requestError;
     }
 
     const json = await parseJsonResponse<T>(response, responseText);

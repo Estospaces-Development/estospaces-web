@@ -13,7 +13,7 @@ import {
 import { useLocation } from "react-router-dom";
 import * as propertyService from "../services/propertyService";
 import { getUserProperties } from "@/services/userPropertiesService";
-import { uploadMediaFile } from "@/services/mediaService";
+import { uploadMediaFiles } from "@/services/mediaService";
 import { getErrorMessage } from "@/lib/apiUtils";
 import { isAuthRoutePath } from "@/lib/authUtils";
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from "@/contexts/WorkspaceSyncContext";
@@ -1100,18 +1100,8 @@ export const PropertyProvider = ({
     entityId: string,
     files: File[],
   ): Promise<string[]> => {
-    const uploads = await Promise.all(
-      files.map(async (file) => {
-        const mediaFile = await uploadMediaFile(
-          file,
-          "property",
-          entityId,
-          file.name,
-        );
-        return mediaFile.file_url;
-      }),
-    );
-    return uploads;
+    const uploads = await uploadMediaFiles(files, "property", entityId);
+    return uploads.map((mediaFile) => mediaFile.file_url);
   };
 
   return (

@@ -1,4 +1,4 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { ApiRequestError, apiFetch, getServiceUrl } from '@/lib/apiUtils';
 
 const MEDIA_URL = () => getServiceUrl('media');
 
@@ -24,6 +24,107 @@ export interface MediaFile {
 // one second per 250 KB, which assumes an uplink of about 2 Mbit/s.
 export const mediaUploadTimeoutMs = (bytes: number) => 15_000 + Math.ceil(Math.max(bytes, 0) / 250_000) * 1_000;
 
+// Cloud Run refuses request bodies over 32 MiB, so larger files are sent to the media service in
+// chunks (16 MB each, set by the server) and assembled there.
+export const MEDIA_CHUNKED_UPLOAD_THRESHOLD_BYTES = 24_000_000;
+
+export const usesChunkedMediaUpload = (size: number) => size > MEDIA_CHUNKED_UPLOAD_THRESHOLD_BYTES;
+
+export interface MediaUploadChunk {
+    index: number;
+    start: number;
+    end: number;
+}
+
+/** Splits a file of `size` bytes into consecutive `[start, end)` ranges of at most `chunkSize` bytes. */
+export const planMediaUploadChunks = (size: number, chunkSize: number): MediaUploadChunk[] => {
+    const chunks: MediaUploadChunk[] = [];
+    if (chunkSize <= 0) return chunks;
+    for (let start = 0; start < size; start += chunkSize) {
+        chunks.push({ index: chunks.length, start, end: Math.min(start + chunkSize, size) });
+    }
+    return chunks;
+};
+
+interface MediaUploadSession {
+    upload_id: string;
+    chunk_size: number;
+    total_chunks: number;
+}
+
+const RATE_LIMIT_ATTEMPTS = 4;
+const RATE_LIMIT_FALLBACK_DELAY_MS = 2_000;
+const RATE_LIMIT_MAX_DELAY_MS = 60_000;
+
+/** Repeats a media request the server rate limited (429), waiting as long as its Retry-After asks. */
+export const withRateLimitRetry = async <T>(send: () => Promise<T>): Promise<T> => {
+    for (let attempt = 1; ; attempt += 1) {
+        try {
+            return await send();
+        } catch (error) {
+            if (!(error instanceof ApiRequestError) || error.status !== 429 || attempt >= RATE_LIMIT_ATTEMPTS) throw error;
+            const delay = Math.min(error.retryAfterMs ?? RATE_LIMIT_FALLBACK_DELAY_MS * attempt, RATE_LIMIT_MAX_DELAY_MS);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
+};
+
+const putMediaUploadChunk = async (url: string, body: Blob): Promise<void> => {
+    const send = () => withRateLimitRetry(() => apiFetch(url, {
+        method: 'PUT',
+        suppressErrorToast: true,
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body,
+        timeoutMs: mediaUploadTimeoutMs(body.size),
+    }));
+    try {
+        await send();
+    } catch (error) {
+        const status = error instanceof ApiRequestError ? error.status : undefined;
+        // Retry once; a 4xx means the server refused the chunk itself, so retrying cannot help.
+        if (status !== undefined && status >= 400 && status < 500) throw error;
+        await send();
+    }
+};
+
+const uploadMediaFileInChunks = async (
+    file: File,
+    entityType: string,
+    entityId: string,
+    altText: string,
+    isPublic: boolean,
+): Promise<MediaFile> => {
+    const uploadsUrl = `${MEDIA_URL()}/api/v1/media/uploads`;
+    const session = await withRateLimitRetry(() => apiFetch<MediaUploadSession>(uploadsUrl, {
+        method: 'POST',
+        suppressErrorToast: true,
+        body: JSON.stringify({
+            file_name: file.name,
+            mime_type: file.type,
+            file_size: file.size,
+            entity_type: entityType,
+            entity_id: entityId,
+            alt_text: altText,
+            is_public: isPublic,
+        }),
+    }));
+    const chunks = planMediaUploadChunks(file.size, session.chunk_size);
+    if (chunks.length !== session.total_chunks) {
+        throw new Error('The upload could not be split into parts. Please try again.');
+    }
+    for (const chunk of chunks) {
+        await putMediaUploadChunk(
+            `${uploadsUrl}/${session.upload_id}/chunks/${chunk.index}`,
+            file.slice(chunk.start, chunk.end),
+        );
+    }
+    return withRateLimitRetry(() => apiFetch<MediaFile>(`${uploadsUrl}/${session.upload_id}/complete`, {
+        method: 'POST',
+        suppressErrorToast: true,
+        timeoutMs: 60_000,
+    }));
+};
+
 export const uploadMediaFile = async (
     file: File,
     entityType: string,
@@ -31,6 +132,10 @@ export const uploadMediaFile = async (
     altText = '',
     isPublic = true,
 ): Promise<MediaFile> => {
+    if (usesChunkedMediaUpload(file.size)) {
+        return uploadMediaFileInChunks(file, entityType, entityId, altText, isPublic);
+    }
+
     const body = new FormData();
     body.append('file', file);
     body.append('entity_type', entityType);
@@ -38,12 +143,35 @@ export const uploadMediaFile = async (
     body.append('alt_text', altText);
     body.append('is_public', String(isPublic));
 
-    return apiFetch<MediaFile>(`${MEDIA_URL()}/api/v1/media`, {
+    return withRateLimitRetry(() => apiFetch<MediaFile>(`${MEDIA_URL()}/api/v1/media`, {
         method: 'POST',
         suppressErrorToast: true,
         body,
         timeoutMs: mediaUploadTimeoutMs(file.size),
-    });
+    }));
+};
+
+/**
+ * Uploads several files, at most `concurrency` at a time, so a batch of large photos does not
+ * flood the media service's per-client rate limit. Results keep the order of `files`.
+ */
+export const uploadMediaFiles = async (
+    files: File[],
+    entityType: string,
+    entityId: string,
+    concurrency = 2,
+): Promise<MediaFile[]> => {
+    const results: MediaFile[] = new Array(files.length);
+    let next = 0;
+    const worker = async () => {
+        while (next < files.length) {
+            const index = next;
+            next += 1;
+            results[index] = await uploadMediaFile(files[index], entityType, entityId, files[index].name);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(Math.max(concurrency, 1), files.length) }, worker));
+    return results;
 };
 
 export const reassignMediaEntity = async (
