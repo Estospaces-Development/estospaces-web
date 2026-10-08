@@ -54,44 +54,54 @@ function MapPositionController({ position, hasLocation }: { position: [number, n
   return null;
 }
 
+// At country zoom a click, the map centre or a drag lands hundreds of km from any street, which saved
+// pins far from the typed address (MB-0208). Every map placement waits for street level.
+const MIN_PIN_PLACEMENT_ZOOM = 15;
+const isStreetLevelZoom = (zoom: number) => zoom >= MIN_PIN_PLACEMENT_ZOOM;
+
+function MapZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  const map = useMap();
+  useMapEvents({ zoomend: () => onZoomChange(map.getZoom()) });
+  return null;
+}
+
 function MapClickHandler({
   onLocationChange,
   disabled,
 }: Pick<PropertyLocationPickerProps, "onLocationChange"> & {
   disabled: boolean;
 }) {
+  const map = useMap();
   useMapEvents({
     click: (event) => {
       const target = event.originalEvent?.target as { closest?: (selector: string) => Element | null } | null;
-      if (target?.closest?.('button')) return;
-      if (!disabled) {
-        onLocationChange(event.latlng.lat, event.latlng.lng);
+      if (target?.closest?.('button') || disabled) return;
+      if (!isStreetLevelZoom(map.getZoom())) {
+        // Below street level a click zooms towards that point instead of placing the pin.
+        map.setView(event.latlng, Math.min(map.getZoom() + 4, MIN_PIN_PLACEMENT_ZOOM));
+        return;
       }
+      onLocationChange(event.latlng.lat, event.latlng.lng);
     },
   });
   return null;
 }
 
-const MIN_CENTER_PLACEMENT_ZOOM = 15;
-
 function MapCenterPlacement({
   onLocationChange,
   disabled,
+  streetLevel,
 }: Pick<PropertyLocationPickerProps, "onLocationChange"> & {
   disabled: boolean;
+  streetLevel: boolean;
 }) {
   const map = useMap();
-  // At country zoom the centre is hundreds of km from any street, which saved pins far from the
-  // typed address (MB-0208); only allow it at street level.
-  const [zoom, setZoom] = useState(() => map.getZoom());
-  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
-  const zoomedInEnough = zoom >= MIN_CENTER_PLACEMENT_ZOOM;
 
   return (
     <button
       type="button"
-      disabled={disabled || !zoomedInEnough}
-      title={zoomedInEnough ? undefined : "Zoom in to street level to place the pin"}
+      disabled={disabled || !streetLevel}
+      title={streetLevel ? undefined : "Zoom in to street level to place the pin"}
       onClick={(event) => {
         event.stopPropagation();
         const center = map.getCenter();
@@ -100,7 +110,7 @@ function MapCenterPlacement({
       className="absolute left-4 top-4 z-[500] inline-flex min-h-11 items-center gap-2 rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm font-semibold text-orange-950 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-900 dark:bg-gray-900 dark:text-orange-50"
     >
       <Crosshair className="h-4 w-4" />
-      {zoomedInEnough ? "Place pin at map center" : "Zoom in to place the pin"}
+      {streetLevel ? "Place pin at map center" : "Zoom in to place the pin"}
     </button>
   );
 }
@@ -130,6 +140,8 @@ export default function PropertyLocationPicker({
     () => (hasLocation ? [latitude, longitude] : fallbackCenter),
     [fallbackCenter, hasLocation, latitude, longitude],
   );
+  const [mapZoom, setMapZoom] = useState(hasLocation ? 16 : 5);
+  const streetLevel = isStreetLevelZoom(mapZoom);
 
   return (
     <section
@@ -207,6 +219,7 @@ export default function PropertyLocationPicker({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             noWrap
           />
+          <MapZoomTracker onZoomChange={setMapZoom} />
           <MapClickHandler
             onLocationChange={onLocationChange}
             disabled={disabled || busy || !market}
@@ -215,6 +228,7 @@ export default function PropertyLocationPicker({
             <MapCenterPlacement
               onLocationChange={onLocationChange}
               disabled={disabled || busy || !market}
+              streetLevel={streetLevel}
             />
           )}
           <MapPositionController position={position} hasLocation={hasLocation} />
@@ -223,7 +237,7 @@ export default function PropertyLocationPicker({
               <Marker
                 position={position}
                 icon={markerIcon}
-                draggable={!disabled && !busy}
+                draggable={!disabled && !busy && streetLevel}
                 eventHandlers={{
                   dragend: (event) => {
                     const nextPosition = event.target.getLatLng();

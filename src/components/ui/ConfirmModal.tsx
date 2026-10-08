@@ -2,7 +2,7 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useId } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -47,6 +47,7 @@ const ConfirmModal = ({
     };
 
     const config = variants[variant] || variants.default;
+    const titleId = useId();
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -78,6 +79,9 @@ const ConfirmModal = ({
             {/* Modal */}
             <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 animate-scale-in">
                 <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby={titleId}
                     className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
                     onClick={(e) => e.stopPropagation()}
                 >
@@ -88,11 +92,11 @@ const ConfirmModal = ({
                                 <AlertTriangle size={24} className={config.iconColor} />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+                                <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{message}</p>
                             </div>
                             {!loading && (
-                                <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <button type="button" aria-label="Close" onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <X size={20} />
                                 </button>
                             )}

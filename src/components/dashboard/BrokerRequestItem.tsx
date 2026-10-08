@@ -32,6 +32,8 @@ export interface BrokerRequest {
     secondaryActionPath?: string;
     statusReason?: string;
     nextAction?: string;
+    /** Badge text for a closed request when it did not simply time out, e.g. cancelled by the client. */
+    closedLabel?: string;
 }
 
 interface BrokerRequestItemProps {
@@ -141,7 +143,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                 return (
                     <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                         <AlertCircle className="w-3 h-3" />
-                        Expired
+                        {request.closedLabel || 'Expired'}
                     </span>
                 );
             default:

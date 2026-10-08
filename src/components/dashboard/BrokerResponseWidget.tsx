@@ -39,6 +39,7 @@ import {
     useWorkflowWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { getBrokerRequestClosure } from '@/lib/applicationTracking';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { getManagerLiveResponseBadge } from '@/lib/managerDashboardDisplay';
 import {
@@ -246,6 +247,9 @@ const BrokerResponseWidget: React.FC = () => {
                 const hasSelectedProperty = Boolean(offer.selected_property_id || offer.selected_fast_track_case_id);
                 const hasSharedShortlist = (offer.property_shares?.length || 0) > 0;
                 const isMatchedOffer = offer.dispatch_status === 'broker_matched' || offer.status === 'matched';
+                // A client's cancelled or replaced request is closed like an expired one and can no longer be accepted.
+                const offerClosure = getBrokerRequestClosure(offer);
+                const offerIsClosed = offerClosure !== null || offer.dispatch_status === 'unavailable';
 
                 const offerArea = formatRequestArea(offer.location, offer.location_postcode);
 
@@ -264,9 +268,14 @@ const BrokerResponseWidget: React.FC = () => {
                 timestamp: new Date(offer.created_at || offer.dispatch_started_at || new Date().toISOString()),
                 status: offer.dispatch_status === 'broker_matched'
                     ? 'responded' as const
-                    : offer.dispatch_status === 'expired' || offer.status === 'expired' || offer.dispatch_status === 'unavailable'
+                    : offerIsClosed
                         ? 'expired' as const
                         : 'pending' as const,
+                closedLabel: offerClosure === 'cancelled'
+                    ? 'Cancelled by client'
+                    : offerClosure === 'replaced'
+                        ? 'Replaced by client'
+                        : undefined,
                 secondsRemaining: getManagerTrackerResponseCountdown(offer),
                 stageLabel: `${formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null)} - Workspace ${workspaceReference}`,
                 dispatchStatus: offer.dispatch_status,
@@ -277,7 +286,7 @@ const BrokerResponseWidget: React.FC = () => {
                     nextAction: offer.dispatch_status === 'broker_matched'
                         ? workspaceAction.label
                         : offer.next_action,
-                    trackerLane: offer.dispatch_status === 'expired' || offer.status === 'expired' || offer.dispatch_status === 'unavailable'
+                    trackerLane: offerIsClosed
                         ? 'expired' as const
                         : offer.dispatch_status === 'broker_matched'
                             ? hasSelectedProperty

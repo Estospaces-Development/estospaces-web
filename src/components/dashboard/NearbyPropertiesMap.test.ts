@@ -65,3 +65,14 @@ test('compact map overlays stay small and label the user pin (web-app#666)', () 
   assert.match(source, /\{compactMapStatus\}/);
   assert.match(source, /groupNearbyMapMarkers\(propertiesWithCoords\)/);
 });
+
+test('tile-failure notice stacks above every map overlay and clears the top controls (MB-0218)', () => {
+  const notice = source.match(/<div role="alert" className="([^"]+)"[^>]*>\s*The map could not load/);
+  assert.ok(notice, 'tile-failure notice must exist');
+  const noticeZ = Number(notice[1].match(/\bz-\[(\d+)\]/)?.[1]);
+  const otherZ = [...source.replace(notice[0], '').matchAll(/\bz-\[(\d+)\]/g)].map((match) => Number(match[1]));
+  // Leaflet's own .leaflet-top/.leaflet-bottom control corners sit at z-index 1000.
+  assert.ok(noticeZ > Math.max(1000, ...otherZ), `notice z ${noticeZ} must beat every overlay`);
+  assert.doesNotMatch(notice[1], /\btop-[0-4]\b/, 'notice must sit below the top control row, not under it');
+  assert.match(notice[1], /pointer-events-none/, 'notice must not block markers or controls underneath');
+});

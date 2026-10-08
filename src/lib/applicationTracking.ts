@@ -147,6 +147,24 @@ export const isLiveBrokerRequest = (
     return !CLOSED_REQUEST_STATUSES.has(status) && !CLOSED_REQUEST_STATUSES.has(dispatchStatus);
 };
 
+export type BrokerRequestClosure = 'cancelled' | 'replaced' | 'expired';
+
+/**
+ * Why a request stopped searching, or null while it is live or matched. Core keeps
+ * status `expired` on a request the user replaced and marks it with dispatch_status
+ * `superseded`, so that must be checked before the plain expiry.
+ */
+export const getBrokerRequestClosure = (
+    request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,
+): BrokerRequestClosure | null => {
+    const status = normalizeStatus(request?.status);
+    const dispatchStatus = normalizeStatus(request?.dispatch_status);
+    if (status === 'cancelled' || dispatchStatus === 'cancelled') return 'cancelled';
+    if (dispatchStatus === 'superseded') return 'replaced';
+    if (status === 'expired' || dispatchStatus === 'expired') return 'expired';
+    return null;
+};
+
 export type BrokerRequestListStatus = 'active' | 'expired' | 'closed';
 
 /** Groups a request for the Agent requests history filter. */
@@ -156,9 +174,26 @@ export const getBrokerRequestListStatus = (
     if (isLiveBrokerRequest(request)) {
         return 'active';
     }
-    const status = normalizeStatus(request?.status);
-    const dispatchStatus = normalizeStatus(request?.dispatch_status);
-    return status === 'expired' || dispatchStatus === 'expired' ? 'expired' : 'closed';
+    return getBrokerRequestClosure(request) === 'expired' ? 'expired' : 'closed';
+};
+
+const CLOSED_REQUEST_TRACKING_COPY: Record<BrokerRequestClosure | 'closed', { currentStage: string; nextAction: string }> = {
+    cancelled: {
+        currentStage: 'Request cancelled',
+        nextAction: 'You cancelled this request. Start a new request if you still need help',
+    },
+    replaced: {
+        currentStage: 'Request replaced',
+        nextAction: 'You sent a newer request for this area. Follow that request instead',
+    },
+    expired: {
+        currentStage: 'Request expired',
+        nextAction: 'No agent accepted in time. Start a new request if you still need help',
+    },
+    closed: {
+        currentStage: 'Request closed',
+        nextAction: 'This request is closed. Start a new request if you still need help',
+    },
 };
 
 export const getBrokerRequestTrackingSummary = (
@@ -181,16 +216,12 @@ export const getBrokerRequestTrackingSummary = (
     }
 
     // A closed request must never read as live or still searching.
-    const listStatus = getBrokerRequestListStatus(request);
-    if (listStatus !== 'active') {
+    if (getBrokerRequestListStatus(request) !== 'active') {
         return {
-            currentStage: listStatus === 'expired' ? 'Request expired' : 'Request closed',
+            ...CLOSED_REQUEST_TRACKING_COPY[getBrokerRequestClosure(request) || 'closed'],
             currentStageNumber: 1,
             totalStages: 5,
             progress: 0,
-            nextAction: listStatus === 'expired'
-                ? 'No agent accepted in time. Start a new request if you still need help'
-                : 'This request is closed. Start a new request if you still need help',
         };
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {  useNavigate, useSearchParams } from 'react-router-dom';
@@ -20,9 +21,11 @@ import {
     Send,
     Timer,
     UserCheck,
+    XCircle,
 } from 'lucide-react';
 import {
     BrokerRequestRecord,
+    cancelBrokerRequest,
     createBrokerRequest,
     getBrokerRequestById,
     getNearbyAvailableBrokers,
@@ -53,6 +56,7 @@ import {
     publishBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
+import { getBrokerRequestClosure, type BrokerRequestClosure } from '@/lib/applicationTracking';
 import {
     beginBrokerRequestAction,
     cancelBrokerRequestAction,
@@ -90,6 +94,18 @@ import { getMarketCurrencyCode, resolveLocationFormMarket } from '@/lib/preferre
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
+
+const CLOSED_REQUEST_CAPTIONS: Record<BrokerRequestClosure, string> = {
+    cancelled: 'Cancelled by you',
+    replaced: 'Replaced by a newer request',
+    expired: 'Window finished',
+};
+
+const CLOSED_REQUEST_AGENT_LABELS: Record<BrokerRequestClosure, string> = {
+    cancelled: 'Request cancelled',
+    replaced: 'Replaced by your newer request',
+    expired: 'No agent accepted in time',
+};
 
 const DISMISSED_REQUEST_KEY = 'estospaces_dismissed_broker_request_id';
 const NEW_REQUEST_MODE_KEY = 'estospaces_broker_new_request_mode';
@@ -336,6 +352,10 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
     const [workspacePulse, setWorkspacePulse] = useState(false);
     const [selectingPropertyId, setSelectingPropertyId] = useState<string | null>(null);
     const [rematching, setRematching] = useState(false);
+    const [cancellingRequest, setCancellingRequest] = useState(false);
+    const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+    // Older core services have no cancel route; hide the control once they say so.
+    const [cancelUnsupported, setCancelUnsupported] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
     const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(null);
     const [suppressAutoResume, setSuppressAutoResume] = useState(false);
@@ -419,6 +439,8 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         setFastTrackEnabled(true);
         setLoading(false);
         setRematching(false);
+        setCancellingRequest(false);
+        setConfirmCancelOpen(false);
         setSelectingPropertyId(null);
         setOpeningConversation(false);
         setError(null);
@@ -765,6 +787,58 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         }
     };
 
+    const handleCancelRequest = async () => {
+        const requestId = activeRequest?.id;
+        if (!requestId) {
+            return;
+        }
+        const action = beginAsyncAction(requestId);
+        if (!action) {
+            return;
+        }
+        setCancellingRequest(true);
+        setError(null);
+
+        try {
+            const { data, error: cancelError, unsupported } = await cancelBrokerRequest(requestId);
+            if (!isAsyncActionCurrent(action)) {
+                return;
+            }
+            if (unsupported) {
+                setCancelUnsupported(true);
+                toast.error('Cancelling is not available yet. Your request closes by itself when the response window ends.');
+                return;
+            }
+            if (cancelError || !data) {
+                // Usually a property agent accepted first or the window closed; show the current state.
+                toast.error(cancelError || 'Unable to cancel this request right now.');
+                const { data: latest } = await getBrokerRequestById(requestId, { suppressErrorToast: true });
+                if (latest && isAsyncActionCurrent(action)) {
+                    setActiveRequest(latest);
+                }
+                return;
+            }
+
+            setActiveRequest(data);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.USER_DASHBOARD,
+                ],
+                reason: 'User cancelled broker request',
+                ids: { leadId: data.id },
+            });
+            toast.success('Request cancelled. Property agents can no longer accept it.');
+        } finally {
+            setConfirmCancelOpen(false);
+            if (finishAsyncAction(action)) {
+                setCancellingRequest(false);
+            }
+        }
+    };
+
     const handleSelectProperty = async (propertyId: string) => {
         if (hasActiveBrokerRequestAction(asyncActionStateRef.current)) {
             return;
@@ -988,6 +1062,8 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         conversationActionRef.current = 0;
         setLoading(false);
         setRematching(false);
+        setCancellingRequest(false);
+        setConfirmCancelOpen(false);
         setSelectingPropertyId(null);
         setOpeningConversation(false);
         setActiveRequest(null);
@@ -1116,9 +1192,10 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
 
     const activeRequestSeconds = secondsUntilDeadline(activeRequest?.response_deadline_at, clockNow);
     const requestIsMatched = activeRequest?.dispatch_status === 'broker_matched' || activeRequest?.status === 'matched';
-    const requestIsExpired = activeRequest?.dispatch_status === 'expired' || activeRequest?.status === 'expired';
-    const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);
-    const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
+    const requestClosure = getBrokerRequestClosure(activeRequest);
+    const requestIsClosed = requestClosure !== null;
+    const requestReplacementLocked = Boolean(requestIsMatched && !requestIsClosed);
+    const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsClosed);
     const matchedBroker = activeRequest?.matched_broker || null;
     const sharedProperties = useMemo(
         () => activeRequest?.property_shares || [],
@@ -1224,7 +1301,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
     const handoffMinutesRemaining = formatMinutesUntil(activeRequest?.handoff_due_at, clockNow);
     const workspaceTone = requestIsMatched
         ? 'border-emerald-200 bg-white shadow-sm dark:border-emerald-900/40 dark:bg-gray-900'
-        : requestIsExpired
+        : requestIsClosed
             ? 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
             : 'border-orange-100 bg-orange-50/70 dark:border-orange-900/30 dark:bg-orange-950/20';
     const submittedArea = formatRequestArea(
@@ -1257,11 +1334,11 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
             eyebrow: 'Accepted',
             progress: 'bg-emerald-500',
         }
-        : requestIsExpired
+        : requestClosure
             ? {
                 pill: 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-300',
                 dot: 'bg-gray-400',
-                caption: 'Window finished',
+                caption: CLOSED_REQUEST_CAPTIONS[requestClosure],
                 eyebrow: 'Closed',
                 progress: 'bg-gray-400',
             }
@@ -1296,6 +1373,17 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
             <div role="status" aria-live="polite" className="sr-only">
                 {selectionStatusMessage}
             </div>
+            <ConfirmModal
+                isOpen={confirmCancelOpen}
+                onClose={() => setConfirmCancelOpen(false)}
+                onConfirm={() => void handleCancelRequest()}
+                title="Cancel this agent request?"
+                message="Property agents will no longer see or accept it. You can send a new request at any time."
+                confirmText="Cancel request"
+                cancelText="Keep request"
+                variant="danger"
+                loading={cancellingRequest}
+            />
             <div className="mb-3 flex items-start gap-2 sm:mb-6 sm:items-center sm:gap-3">
                 <div className="shrink-0 rounded-lg bg-orange-100 p-1.5 dark:bg-orange-900/30 sm:p-2">
                     <Send size={18} className="text-orange-600 dark:text-orange-400 sm:h-5 sm:w-5" />
@@ -1342,7 +1430,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                             <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
                                 <Timer size={14} className={requestIsActive ? 'motion-safe:animate-pulse' : ''} />
                                 <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
-                                    {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
+                                    {requestIsMatched ? 'LOCKED' : requestIsClosed ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
                                 </span>
                             </div>
                             <p className="mt-1 hidden text-[11px] font-medium text-gray-600 dark:text-gray-300 sm:block">
@@ -1861,7 +1949,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                     <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
                                         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">{brokerCopy.matchedBrokerLabel}</p>
                                         <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                            {activeRequest.matched_broker?.name || (requestIsExpired ? 'No agent accepted in time' : 'Looking for an agent')}
+                                            {activeRequest.matched_broker?.name || (requestClosure ? CLOSED_REQUEST_AGENT_LABELS[requestClosure] : 'Looking for an agent')}
                                         </p>
                                     </div>
                                 </div>
@@ -1871,7 +1959,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                 <button
                                     type="button"
                                     onClick={async () => {
-                                        if (requestIsExpired) {
+                                        if (requestIsClosed) {
                                             setActiveRequest(null);
                                             setError(null);
                                             return;
@@ -1882,8 +1970,20 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                     className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >
                                     <Radio size={14} />
-                                    {requestIsExpired ? brokerCopy.restartRequestLabel : brokerCopy.refreshRequestLabel}
+                                    {requestIsClosed ? brokerCopy.restartRequestLabel : brokerCopy.refreshRequestLabel}
                                 </button>
+                                {requestIsActive && !cancelUnsupported && (
+                                    <button
+                                        type="button"
+                                        data-testid="broker-cancel-request"
+                                        onClick={() => setConfirmCancelOpen(true)}
+                                        disabled={cancellingRequest || loading}
+                                        className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 shadow-sm transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/40 dark:bg-gray-900 dark:text-red-300 dark:hover:bg-red-950/30"
+                                    >
+                                        <XCircle size={14} aria-hidden="true" />
+                                        {cancellingRequest ? 'Cancelling...' : 'Cancel request'}
+                                    </button>
+                                )}
                                 <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                                     <UserCheck size={14} />
                                     {dispatchWorkspaceHeader.helper}

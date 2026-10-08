@@ -34,6 +34,7 @@ import {
 } from "@/lib/fastTrackWorkspace";
 import { getFastTrackDisplayTitle } from "@/lib/fastTrackDisplayTitle";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
+import { toLocalScheduledAt } from "@/lib/localScheduledAt";
 import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { upsertDirectConversation } from "@/services/messagesService";
@@ -345,20 +346,25 @@ export default function FastTrackCompanionPanel({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              const slot = toLocalScheduledAt(viewingDate, viewingTime);
+              if ("error" in slot) {
+                toast.error(slot.error);
+                return;
+              }
               void runAction(
                 fastTrackCase.viewing.status === "scheduled"
                   ? "reschedule_viewing"
                   : "schedule_viewing",
                 {
-                  scheduled_at: new Date(`${viewingDate}T${viewingTime}:00`).toISOString(),
+                  scheduled_at: slot.scheduledAt,
                   note: viewingNote,
                 },
                 fastTrackCase.viewing.status === "scheduled"
                   ? "Viewing rescheduled."
                   : "Viewing scheduled.",
-              )
-            }
+              );
+            }}
             disabled={
               activeAction === "schedule_viewing" ||
               activeAction === "reschedule_viewing" ||

@@ -21,5 +21,5 @@ test('a dashboard request card shows Responded only after the server accepts (MB
 });
 
 test('placeholder agent-request cards cannot be marked Won or Lost (MB-0325)', () => {
-    assert.match(read('pages/manager/leads/page.tsx'), /!String\(lead\.id\)\.startsWith\('broker-request-'\)/);
+    assert.match(read('pages/manager/leads/page.tsx'), /const canCloseLifecycle = hasLeadRecord && !isLeadLifecycleClosed\(lead\)/);
 });

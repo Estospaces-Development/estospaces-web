@@ -58,8 +58,12 @@ test('dashboard city searches carry their market through to Discover inventory f
   assert.match(discoverSource, /const searchMarket = resolvePropertySearchMarket\([\s\S]*market: preferredSearchDefaults\.market \|\| requestedMarket,[\s\S]*query: searchQuery,[\s\S]*fallback: geoMarket,/);
   assert.match(discoverSource, /usePreferredSearchDefaults\(user\?\.id\)/);
   assert.match(discoverSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)/);
-  assert.match(discoverSource, /getPropertySections\(searchMarket\)/);
-  assert.match(discoverSource, /filterPropertiesForMarket\(dedupeSectionProperties\([\s\S]*\), searchMarket\)/);
+  assert.match(discoverSource, /searchAll\(searchQuery, \{\s*country: searchMarket,/);
+  assert.match(discoverSource, /filterPropertiesForMarket\(result\.data, searchMarket\)/);
+  // The capped section lists hid published homes from every Discover search (MB-0262).
+  assert.doesNotMatch(discoverSource, /getPropertySections/);
+  // Price hints must stay market-wide, not capped by the narrowed matches.
+  assert.match(discoverSource, /\? globalFilterOptions \|\| filterOptions/);
 });
 
 test('broader search never removes an explicitly selected location', () => {

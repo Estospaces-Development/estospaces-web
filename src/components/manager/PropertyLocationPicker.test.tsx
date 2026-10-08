@@ -38,6 +38,10 @@ test('property map permits first-pin placement and resets its viewport when coun
     // At country zoom the centre is far from any street, so placement waits for street level (MB-0208).
     assert.equal(placeAtCenter.textContent, 'Zoom in to place the pin');
     assert.equal(placeAtCenter.hasAttribute('disabled'), true);
+    // A click at country zoom saved a pin ~850 km from the typed address (MB-0208): it must only zoom in.
+    await act(async () => { map!.fire('click', { latlng: L.latLng(20.61, 78.93) }); });
+    assert.deepEqual(changes, [], 'a country-zoom click must not place the pin');
+    assert.ok(map.getZoom() > 5, 'a country-zoom click zooms in towards the clicked point');
     await act(async () => { map!.setView([13.09, 80.28], 16, { animate: false }); });
     assert.equal(placeAtCenter.textContent, 'Place pin at map center');
     await act(async () => placeAtCenter.click());
@@ -52,6 +56,12 @@ test('property map permits first-pin placement and resets its viewport when coun
     assert.equal(markers[0].dragging?.enabled(), true);
     await act(async () => { markers[0].setLatLng([13.081, 80.271]).fire('dragend'); });
     assert.deepEqual(changes[1], [13.081, 80.271]);
+    await act(async () => { map!.setZoom(5, { animate: false }); });
+    assert.equal(markers[0].dragging?.enabled(), false, 'the pin cannot be dragged across the country at country zoom');
+    await act(async () => { map!.fire('click', { latlng: L.latLng(20.61, 78.93) }); });
+    assert.equal(changes.length, 2, 'a country-zoom click must not move an existing pin');
+    await act(async () => { map!.setZoom(16, { animate: false }); });
+    assert.equal(markers[0].dragging?.enabled(), true);
     await act(async () => root.render(<Picker {...props} latitude={null} longitude={null} countryCode="GB" />));
     assert.equal(map.getCenter().lat, 54.5);
     assert.equal(map.getCenter().lng, -3.4);

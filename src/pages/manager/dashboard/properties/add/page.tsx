@@ -1643,7 +1643,7 @@ export default function AddPropertyPage() {
       applyPropertyLocation(
         latitude,
         longitude,
-        "Exact property position selected. This pin will be saved with the listing.",
+        "Pin placed. Check it sits on the property's building before you save; this position is saved with the listing.",
       );
       void warnIfPinAddressMismatch();
     },

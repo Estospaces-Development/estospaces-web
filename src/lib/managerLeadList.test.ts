@@ -1,11 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
+  canRequestManagerLeadDocuments,
+  canScheduleManagerLeadViewing,
   filterVisibleManagerLeads,
   formatManagerLeadAddress,
   getManagerLeadMatchedBroker,
   getManagerLeadOperationalState,
+  hasManagerLeadRecord,
   isManagerLeadBreached,
   isActiveManagerLeadWorkspaceCase,
   isInternalAutomationManagerLead,
@@ -489,4 +493,39 @@ test('#672 the lead map selects the newest live lead before older expired ones',
   assert.equal(pickDefaultManagerLead([expiredDemo, olderOpen], now)?.id, 'older-open');
   assert.equal(pickDefaultManagerLead([expiredDemo], now)?.id, 'garden-court');
   assert.equal(pickDefaultManagerLead([], now), null);
+});
+
+test("agent-request offers without a lead never expose lead-endpoint actions (MB-0325)", () => {
+  const liveOffer = mapBrokerRequestOfferToManagerLead({
+    id: "467f6ed1-request", user_id: "user-1", request_type: "rent", location: "Guwahati",
+    location_postcode: "781011", status: "submitted", dispatch_status: "matching_wave_1",
+  });
+  assert.equal(liveOffer.stage, "matching");
+  assert.equal(hasManagerLeadRecord(liveOffer), false);
+  assert.equal(canRequestManagerLeadDocuments(liveOffer), false, "Request Documents would post the placeholder id");
+
+  const acceptedWithHome = {
+    id: "920bdcf4-request", user_id: "user-1", request_type: "rent", location: "Guwahati",
+    status: "matched", dispatch_status: "broker_matched", matched_broker_id: "manager-1",
+    selected_property_id: "property-1",
+  };
+  const acceptedOffer = mapBrokerRequestOfferToManagerLead(acceptedWithHome);
+  assert.equal(hasManagerLeadRecord(acceptedOffer), false);
+  assert.equal(canRequestManagerLeadDocuments(acceptedOffer), false);
+  assert.equal(canScheduleManagerLeadViewing(acceptedOffer), false, "Schedule Viewing would send the placeholder as lead_id");
+
+  const linkedLead = mapBrokerRequestOfferToManagerLead({ ...acceptedWithHome, selected_lead_id: "lead-9" });
+  assert.equal(linkedLead.id, "lead-9");
+  assert.equal(hasManagerLeadRecord(linkedLead), true);
+  assert.equal(canRequestManagerLeadDocuments(linkedLead), true);
+  assert.equal(canScheduleManagerLeadViewing(linkedLead), true);
+});
+
+test("lead cards only offer lead-endpoint actions on a real lead record (MB-0325)", () => {
+  const page = readFileSync(new URL("../pages/manager/leads/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /\{hasLeadRecord \? \(\s*<button[\s\S]{0,300}?handleToggleAudit/);
+  assert.match(page, /\{hasLeadRecord \? \(\s*<button[\s\S]{0,300}?handleRespondAndOpenMessages/);
+  assert.match(page, /navigate\('\/manager\/dashboard'\)[\s\S]*?Accept On Dashboard/);
+  assert.match(page, /canRequestDocuments=\{canRequestManagerLeadDocuments\}/);
+  assert.doesNotMatch(page, /broker-request-/);
 });

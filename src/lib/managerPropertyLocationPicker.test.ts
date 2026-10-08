@@ -21,9 +21,9 @@ test("property location picker replaces manual coordinates with clear actions", 
 test("property location picker saves map clicks and marker drags", () => {
   assert.match(
     pickerSource,
-    /if \(!disabled\)[\s\S]*onLocationChange\(event\.latlng\.lat, event\.latlng\.lng\)/,
+    /\|\| disabled\) return;[\s\S]*onLocationChange\(event\.latlng\.lat, event\.latlng\.lng\)/,
   );
-  assert.match(pickerSource, /draggable=\{!disabled && !busy\}/);
+  assert.match(pickerSource, /draggable=\{!disabled && !busy && streetLevel\}/);
   assert.match(pickerSource, /dragend:\s*\(event\)/);
   assert.match(pickerSource, /onLocationChange\(nextPosition\.lat, nextPosition\.lng\)/);
   assert.match(pickerSource, /aria-label="Fine-tune the property pin"/);
