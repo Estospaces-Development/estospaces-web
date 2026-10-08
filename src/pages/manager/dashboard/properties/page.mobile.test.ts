@@ -22,3 +22,13 @@ test('property search refetches show an inline spinner and a load failure is not
     assert.match(source, /inventoryError && !loading && tabFilteredProperties\.length === 0 \?[\s\S]*?Your properties could not be loaded\.[\s\S]*?fetchProperties\(\)/);
     assert.match(source, /tabFilteredProperties\.length === 0 && !loading/);
 });
+
+test('inventory status filter offers every real listing state and no phantom ones (MB-0199)', () => {
+    const block = source.slice(source.indexOf('const statusOptions'), source.indexOf('// Sort options'));
+    for (const status of ['available', 'pending', 'sold', 'rented', 'rejected', 'suspended', 'draft']) {
+        assert.match(block, new RegExp(`value: '${status}'`));
+    }
+    for (const phantom of ['under_contract', 'off_market', 'online', 'active']) {
+        assert.doesNotMatch(block, new RegExp(`value: '${phantom}'`));
+    }
+});
