@@ -25,6 +25,7 @@ import {
     copyProperty,
     deleteProperty as deletePropertyRequest,
     PROPERTY_ACTIVE_BOOKING_WORK_CODE,
+    PROPERTY_FORCE_DELETE_INCOMPLETE_CODE,
 } from '@/services/propertyService';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import PropertyMediaImage from '@/components/dashboard/PropertyMediaImage';
@@ -274,9 +275,18 @@ function PropertyManagementContent() {
             return;
         }
 
-        setUpdatingPropertyId(forceDelete.propertyId);
+        const { propertyId } = forceDelete;
+        setUpdatingPropertyId(propertyId);
         try {
-            const { error } = await deletePropertyRequest(forceDelete.propertyId, { force: true });
+            const { error, code } = await deletePropertyRequest(propertyId, { force: true });
+            if (error && code === PROPERTY_FORCE_DELETE_INCOMPLETE_CODE) {
+                // Some items may already be closed: keep "Delete anyway" open so the admin can finish.
+                setForceDelete({ propertyId, refusal: error });
+                showErrorToast(error);
+                await queryClient.invalidateQueries({ queryKey: ['case-file-fast-track-workspace'] });
+                return;
+            }
+            setForceDelete(null);
             if (error) {
                 throw new Error(error);
             }
@@ -286,7 +296,6 @@ function PropertyManagementContent() {
         } catch (error: any) {
             showErrorToast(error?.message || 'Failed to delete property.');
         } finally {
-            setForceDelete(null);
             setUpdatingPropertyId(null);
         }
     };

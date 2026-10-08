@@ -32,6 +32,7 @@ import {
     getAdminPropertyById,
     Property,
     PROPERTY_ACTIVE_BOOKING_WORK_CODE,
+    PROPERTY_FORCE_DELETE_INCOMPLETE_CODE,
 } from '@/services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
@@ -277,7 +278,15 @@ export default function AdminPropertyDetailPage() {
 
         setActionLoading(true);
         try {
-            const { error } = await deletePropertyRequest(propertyId, { force: true });
+            const { error, code } = await deletePropertyRequest(propertyId, { force: true });
+            if (error && code === PROPERTY_FORCE_DELETE_INCOMPLETE_CODE) {
+                // Some items may already be closed: keep "Delete anyway" open so the admin can finish.
+                setForceDeleteRefusal(error);
+                showErrorToast(error);
+                await queryClient.invalidateQueries({ queryKey: ['case-file-fast-track-workspace'] });
+                return;
+            }
+            setForceDeleteRefusal(null);
             if (error) {
                 throw new Error(error);
             }
@@ -288,7 +297,6 @@ export default function AdminPropertyDetailPage() {
         } catch (error: any) {
             showErrorToast(error?.message || 'Failed to delete property.');
         } finally {
-            setForceDeleteRefusal(null);
             setActionLoading(false);
         }
     };

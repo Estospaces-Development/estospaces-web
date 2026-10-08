@@ -2,7 +2,7 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
-import React, { useEffect, useId } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -51,6 +51,17 @@ const ConfirmModal = ({
 
     const config = variants[variant] || variants.default;
     const titleId = useId();
+    const cancelRef = useRef<HTMLButtonElement>(null);
+
+    // Move focus into the dialog, on the safe choice, and hand it back on close.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        cancelRef.current?.focus();
+        return () => {
+            if (opener?.isConnected) opener.focus();
+        };
+    }, [isOpen]);
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -110,6 +121,8 @@ const ConfirmModal = ({
                     {/* Actions */}
                     <div className="px-6 pb-6 flex items-center justify-end gap-3">
                         <button
+                            ref={cancelRef}
+                            type="button"
                             onClick={onClose}
                             disabled={loading}
                             className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

@@ -534,6 +534,9 @@ export const adminUpdatePropertyStatus = async (
 /** Core refuses a delete with this code while Booking has open work on the listing (MB-0196). */
 export const PROPERTY_ACTIVE_BOOKING_WORK_CODE = "property_has_active_booking_work";
 
+/** A forced delete that may have closed some items but deleted nothing; running it again finishes it. */
+export const PROPERTY_FORCE_DELETE_INCOMPLETE_CODE = "property_force_delete_incomplete";
+
 /**
  * Delete a property
  * DELETE /api/v1/properties/:id (core-service, owner/admin)
@@ -548,7 +551,8 @@ export const deleteProperty = async (
     await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}${options.force ? "?force=true" : ""}`, {
       method: "DELETE",
       suppressErrorToast: true,
-      ...(options.force ? { timeoutMs: 45_000 } : {}),
+      // Core allows Booking 60 s to close the work, then re-checks and deletes.
+      ...(options.force ? { timeoutMs: 90_000 } : {}),
     });
     invalidatePropertyListCache();
     invalidatePropertyDetailCache(id);

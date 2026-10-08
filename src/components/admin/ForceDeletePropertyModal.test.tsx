@@ -22,6 +22,9 @@ test('the "Delete anyway" dialog shows the refusal, what will be closed and what
         assert.ok(markup.includes(step.replace(/"/g, '&quot;')), `missing step: ${step}`);
     }
     assert.match(markup, /signed contract still in force, a confirmed stay that has not ended or a paid Fast Track still blocks the delete/);
+    // Exactly who Booking notifies, and who only sees the status.
+    assert.match(markup, /Notified: the person who booked each viewing, both parties to each contract, and the assigned manager of a Fast Track still in progress/);
+    assert.match(markup, /Applicants, Fast Track users and guests with a pending reservation are not notified/);
     assert.match(markup, />Delete anyway</);
 });
 
@@ -35,6 +38,8 @@ test('admin pages offer "Delete anyway" only for the active-booking refusal and 
         assert.match(source, /if \(error && code === PROPERTY_ACTIVE_BOOKING_WORK_CODE\) \{/, page);
         assert.match(source, /await deletePropertyRequest\([^)]*, \{ force: true \}\)/, page);
         assert.match(source, /<ForceDeletePropertyModal/, page);
+        // A force that may have closed some items keeps "Delete anyway" open with core's message.
+        assert.match(source, /if \(error && code === PROPERTY_FORCE_DELETE_INCOMPLETE_CODE\) \{\s*\/\/[^\n]*\n\s*setForceDelete(Refusal)?\((\{ propertyId, refusal: error \}|error)\);/, page);
         assert.doesNotMatch(source, /window\.confirm|[^.\w]confirm\(/, page);
     }
 });
