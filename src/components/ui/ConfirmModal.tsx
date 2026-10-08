@@ -15,6 +15,8 @@ interface ConfirmModalProps {
     cancelText?: string;
     variant?: 'danger' | 'warning' | 'default';
     loading?: boolean;
+    /** Extra detail shown under the message, such as what the action will change. */
+    children?: React.ReactNode;
 }
 
 const ConfirmModal = ({
@@ -27,6 +29,7 @@ const ConfirmModal = ({
     cancelText = 'Cancel',
     variant = 'default',
     loading = false,
+    children,
 }: ConfirmModalProps) => {
     const variants = {
         danger: {
@@ -94,6 +97,7 @@ const ConfirmModal = ({
                             <div className="flex-1 min-w-0">
                                 <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{message}</p>
+                                {children}
                             </div>
                             {!loading && (
                                 <button type="button" aria-label="Close" onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">

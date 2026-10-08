@@ -4,6 +4,7 @@
  */
 
 import {
+  ApiRequestError,
   apiFetch,
   apiFetchEnvelope,
   buildApiUrl,
@@ -530,23 +531,30 @@ export const adminUpdatePropertyStatus = async (
   }
 };
 
+/** Core refuses a delete with this code while Booking has open work on the listing (MB-0196). */
+export const PROPERTY_ACTIVE_BOOKING_WORK_CODE = "property_has_active_booking_work";
+
 /**
  * Delete a property
  * DELETE /api/v1/properties/:id (core-service, owner/admin)
+ * `force` is an admin's "Delete anyway": core first closes the listing's open
+ * Booking work, which takes longer than an ordinary request.
  */
 export const deleteProperty = async (
   id: string,
-): Promise<{ error: string | null }> => {
+  options: { force?: boolean } = {},
+): Promise<{ error: string | null; code?: string }> => {
   try {
-    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}`, {
+    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}${options.force ? "?force=true" : ""}`, {
       method: "DELETE",
       suppressErrorToast: true,
+      ...(options.force ? { timeoutMs: 45_000 } : {}),
     });
     invalidatePropertyListCache();
     invalidatePropertyDetailCache(id);
     return { error: null };
   } catch (error: any) {
-    return { error: getErrorMessage(error) };
+    return { error: getErrorMessage(error), code: error instanceof ApiRequestError ? error.code : undefined };
   }
 };
 

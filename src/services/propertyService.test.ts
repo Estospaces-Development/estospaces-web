@@ -5,13 +5,51 @@ import { clearAuthToken, setAuthToken } from '@/lib/authToken';
 
 import {
   createProperty,
+  deleteProperty,
   getPropertyContextsByIds,
   getPropertyById,
   getProperties,
   invalidatePropertyDetailCache,
   invalidatePropertyListCache,
+  PROPERTY_ACTIVE_BOOKING_WORK_CODE,
   recordPropertyView,
 } from './propertyService';
+
+test('a refused delete hands back core\'s code, and only force=true asks core to delete anyway', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: { url: string; method: string }[] = [];
+  setAuthToken('signed-in-token');
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    requests.push({ url, method: String(init?.method) });
+    if (url.endsWith('?force=true')) {
+      return new Response(JSON.stringify({ success: true, data: { message: 'Property deleted successfully' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify({
+      success: false,
+      code: 'property_has_active_booking_work',
+      error: 'This property cannot be deleted while it has active bookings (1 active Fast Track case). Finish or cancel them first.',
+    }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const refused = await deleteProperty('property-1');
+    assert.equal(refused.code, PROPERTY_ACTIVE_BOOKING_WORK_CODE);
+    assert.match(refused.error ?? '', /1 active Fast Track case/);
+
+    const forced = await deleteProperty('property-1', { force: true });
+    assert.deepEqual(forced, { error: null });
+    assert.deepEqual(requests.map((request) => request.method), ['DELETE', 'DELETE']);
+    assert.match(requests[0].url, /\/api\/v1\/properties\/property-1$/);
+    assert.match(requests[1].url, /\/api\/v1\/properties\/property-1\?force=true$/);
+  } finally {
+    clearAuthToken();
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('property context reads batch referenced ids through the authenticated catalog', async () => {
   const originalFetch = globalThis.fetch;
