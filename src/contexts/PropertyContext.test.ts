@@ -125,6 +125,16 @@ test('property context filters manager properties by search text', () => {
   assert.deepEqual(filtered.map((item) => item.id), ['address-match']);
 });
 
+test('property context search keeps rows where each word matches a different field, like core', () => {
+  const properties = [
+    property({ id: 'villa', title: 'Luxurious 3BHK Villa', propertyType: 'apartment' }),
+    property({ id: 'flat', title: 'Luxurious apartment' }),
+    property({ id: 'other', title: 'Luxurious House', propertyType: 'house' }),
+  ];
+
+  assert.deepEqual(filterContextProperties(properties, { search: '  Luxurious   apartment ' }).map((item) => item.id), ['villa', 'flat']);
+});
+
 test('property context combines search with status and price filters', () => {
   const properties = [
     property({
