@@ -570,8 +570,8 @@ interface PropertyContextType {
     property: Partial<Property>,
     options?: PropertyMutationOptions,
   ) => Promise<Property | null>;
-  deleteProperty: (id: string) => Promise<void>;
-  deleteProperties: (ids: string[]) => Promise<void>;
+  /** Resolves to the server's refusal message, or null once the listing is deleted. */
+  deleteProperty: (id: string) => Promise<string | null>;
   /** `source` is used when the property is not on the loaded inventory page. */
   duplicateProperty: (id: string, source?: Property) => Promise<Property | null>;
   /** Only searches the currently loaded inventory page. */
@@ -1219,7 +1219,9 @@ export const PropertyProvider = ({
           setLoading(true);
           try {
             const { error } = await propertyService.deleteProperty(id);
-            if (error) throw new Error(error);
+            // A refused delete (for example a listing with active bookings,
+            // MB-0196) keeps the list; the caller shows the reason.
+            if (error) return error;
             setProperties((prev) => prev.filter((p) => p.id !== id));
             setSelectedProperties((prev) => prev.filter((pid) => pid !== id));
             publishWorkspaceSync({
@@ -1229,29 +1231,7 @@ export const PropertyProvider = ({
               reason: "property-deleted",
               ids: { propertyId: id },
             });
-          } catch (err: any) {
-            setError(err.message);
-          } finally {
-            setLoading(false);
-          }
-        },
-        deleteProperties: async (ids: string[]) => {
-          setLoading(true);
-          try {
-            // Execute sequentially or parallel. Parallel is faster.
-            await Promise.all(
-              ids.map((id) => propertyService.deleteProperty(id)),
-            );
-            setProperties((prev) => prev.filter((p) => !ids.includes(p.id)));
-            setSelectedProperties([]);
-            publishWorkspaceSync({
-              key: `properties:delete-many:${ids.slice().sort().join(",")}`,
-              source: "mutation",
-              tags: syncTags,
-              reason: "properties-deleted",
-            });
-          } catch (err: any) {
-            setError(err.message);
+            return null;
           } finally {
             setLoading(false);
           }

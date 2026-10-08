@@ -11,6 +11,7 @@ import {
     Property
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import PaginationBar from '@/components/ui/PaginationBar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import ActionSpinner from '@/components/ui/ActionSpinner';
@@ -124,6 +125,7 @@ function PropertiesContent() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
+    const appToast = useToast();
     const geoMarket = useUserGeoMarket(user);
     const {
         filteredProperties,
@@ -136,7 +138,6 @@ function PropertiesContent() {
         error: inventoryError,
         fetchProperties,
         deleteProperty,
-        deleteProperties: _deleteProperties,
         duplicateProperty: _duplicateProperty,
         updateProperty: _updateProperty,
         selectProperty: _selectProperty,
@@ -372,8 +373,11 @@ function PropertiesContent() {
             return;
         }
 
-        await deleteProperty(pendingDeleteProperty.id);
+        const deleteError = await deleteProperty(pendingDeleteProperty.id);
         setPendingDeleteProperty(null);
+        if (deleteError) {
+            appToast.error(deleteError, { duration: 10000 });
+        }
     };
 
     const handlePageChange = (nextPage: number) => {
