@@ -5,13 +5,85 @@ import { clearAuthToken, setAuthToken } from '@/lib/authToken';
 
 import {
   createProperty,
+  deleteProperty,
   getPropertyContextsByIds,
   getPropertyById,
   getProperties,
   invalidatePropertyDetailCache,
   invalidatePropertyListCache,
+  PROPERTY_ACTIVE_BOOKING_WORK_CODE,
+  PROPERTY_FORCE_DELETE_INCOMPLETE_CODE,
   recordPropertyView,
 } from './propertyService';
+
+test('a forced delete with no clear answer, or new open work, is reported as unfinished so the admin can rerun it', async () => {
+  const originalFetch = globalThis.fetch;
+  setAuthToken('signed-in-token');
+  const answers: Array<() => Promise<Response>> = [
+    async () => { throw new TypeError('Failed to fetch'); },
+    async () => new Response('upstream request timeout', { status: 504 }),
+    async () => new Response('Bad Gateway', { status: 502 }),
+    async () => new Response(JSON.stringify({ success: false, code: 'property_has_active_booking_work', error: 'Finish or cancel them first.' }), { status: 409, headers: { 'Content-Type': 'application/json' } }),
+  ];
+  let next = 0;
+  globalThis.fetch = async () => answers[next++]();
+
+  try {
+    for (let i = 0; i < answers.length; i += 1) {
+      const result = await deleteProperty('property-1', { force: true });
+      assert.equal(result.code, PROPERTY_FORCE_DELETE_INCOMPLETE_CODE, `answer ${i}`);
+      // New open work keeps core's own list; anything else gets the generic unfinished text.
+      assert.match(result.error ?? '', i === 3 ? /Finish or cancel them first\. Choose Delete anyway again/ : /nothing was deleted/);
+    }
+
+    globalThis.fetch = async () => new Response('Bad Gateway', { status: 502 });
+    const plain = await deleteProperty('property-1');
+    assert.notEqual(plain.code, PROPERTY_FORCE_DELETE_INCOMPLETE_CODE);
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ success: false, code: 'property_has_binding_commitments', error: 'A signed contract still in force blocks this.' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+    const blocked = await deleteProperty('property-1', { force: true });
+    assert.equal(blocked.code, 'property_has_binding_commitments');
+  } finally {
+    clearAuthToken();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('a refused delete hands back core\'s code, and only force=true asks core to delete anyway', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: { url: string; method: string }[] = [];
+  setAuthToken('signed-in-token');
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    requests.push({ url, method: String(init?.method) });
+    if (url.endsWith('?force=true')) {
+      return new Response(JSON.stringify({ success: true, data: { message: 'Property deleted successfully' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify({
+      success: false,
+      code: 'property_has_active_booking_work',
+      error: 'This property cannot be deleted while it has active bookings (1 active Fast Track case). Finish or cancel them first.',
+    }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const refused = await deleteProperty('property-1');
+    assert.equal(refused.code, PROPERTY_ACTIVE_BOOKING_WORK_CODE);
+    assert.match(refused.error ?? '', /1 active Fast Track case/);
+
+    const forced = await deleteProperty('property-1', { force: true });
+    assert.deepEqual(forced, { error: null });
+    assert.deepEqual(requests.map((request) => request.method), ['DELETE', 'DELETE']);
+    assert.match(requests[0].url, /\/api\/v1\/properties\/property-1$/);
+    assert.match(requests[1].url, /\/api\/v1\/properties\/property-1\?force=true$/);
+  } finally {
+    clearAuthToken();
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('property context reads batch referenced ids through the authenticated catalog', async () => {
   const originalFetch = globalThis.fetch;

@@ -24,11 +24,15 @@ import {
     Video,
     XCircle,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import ForceDeletePropertyModal from '@/components/admin/ForceDeletePropertyModal';
 import {
     adminUpdatePropertyStatus,
     deleteProperty as deletePropertyRequest,
     getAdminPropertyById,
     Property,
+    PROPERTY_ACTIVE_BOOKING_WORK_CODE,
+    PROPERTY_FORCE_DELETE_INCOMPLETE_CODE,
 } from '@/services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
@@ -126,6 +130,8 @@ export default function AdminPropertyDetailPage() {
     const [rejectReason, setRejectReason] = useState('');
     const [rejectReasonError, setRejectReasonError] = useState('');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [forceDeleteRefusal, setForceDeleteRefusal] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     const mediaState = useMemo(() => getAdminPropertyDetailMedia(property), [property]);
     const imageUrls = mediaState.imageUrls;
@@ -245,12 +251,48 @@ export default function AdminPropertyDetailPage() {
 
         setActionLoading(true);
         try {
-            const { error } = await deletePropertyRequest(propertyId);
+            const { error, code } = await deletePropertyRequest(propertyId);
+            if (error && code === PROPERTY_ACTIVE_BOOKING_WORK_CODE) {
+                // Booking still has open work on the listing: offer the admin "Delete anyway".
+                setShowDeleteDialog(false);
+                setForceDeleteRefusal(error);
+                return;
+            }
             if (error) {
                 throw new Error(error);
             }
 
             showSuccessToast('Property deleted successfully.');
+            navigate('/admin/properties');
+        } catch (error: any) {
+            showErrorToast(error?.message || 'Failed to delete property.');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleForceDeleteConfirm = async () => {
+        if (!propertyId) {
+            return;
+        }
+
+        setActionLoading(true);
+        try {
+            const { error, code } = await deletePropertyRequest(propertyId, { force: true });
+            if (error && code === PROPERTY_FORCE_DELETE_INCOMPLETE_CODE) {
+                // Some items may already be closed: keep "Delete anyway" open so the admin can finish.
+                setForceDeleteRefusal(error);
+                showErrorToast(error);
+                await queryClient.invalidateQueries({ queryKey: ['case-file-fast-track-workspace'] });
+                return;
+            }
+            setForceDeleteRefusal(null);
+            if (error) {
+                throw new Error(error);
+            }
+
+            showSuccessToast('Property deleted. Its open bookings were closed first.');
+            await queryClient.invalidateQueries({ queryKey: ['case-file-fast-track-workspace'] });
             navigate('/admin/properties');
         } catch (error: any) {
             showErrorToast(error?.message || 'Failed to delete property.');
@@ -412,6 +454,12 @@ export default function AdminPropertyDetailPage() {
                     </form>
                 </div>
             ) : null}
+            <ForceDeletePropertyModal
+                refusal={forceDeleteRefusal}
+                loading={actionLoading}
+                onClose={() => setForceDeleteRefusal(null)}
+                onConfirm={handleForceDeleteConfirm}
+            />
             {showDeleteDialog ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-8 backdrop-blur-sm">
                     <div
