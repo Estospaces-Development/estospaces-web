@@ -32,7 +32,8 @@ test('a forced delete with no clear answer, or new open work, is reported as unf
     for (let i = 0; i < answers.length; i += 1) {
       const result = await deleteProperty('property-1', { force: true });
       assert.equal(result.code, PROPERTY_FORCE_DELETE_INCOMPLETE_CODE, `answer ${i}`);
-      assert.match(result.error ?? '', /nothing was deleted/);
+      // New open work keeps core's own list; anything else gets the generic unfinished text.
+      assert.match(result.error ?? '', i === 3 ? /Finish or cancel them first\. Choose Delete anyway again/ : /nothing was deleted/);
     }
 
     globalThis.fetch = async () => new Response('Bad Gateway', { status: 502 });

@@ -562,7 +562,7 @@ export const deleteProperty = async (
     await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}${options.force ? "?force=true" : ""}`, {
       method: "DELETE",
       suppressErrorToast: true,
-      // Core gives Booking 20 s to close the work, so its answer fits the prod load
+      // Core gives Booking 15 s to close the work, so its answer fits the prod load
       // balancer's 30 s backend timeout; anything longer is handled as unfinished below.
       ...(options.force ? { timeoutMs: 35_000 } : {}),
     });
@@ -571,7 +571,11 @@ export const deleteProperty = async (
     return { error: null };
   } catch (error: any) {
     if (options.force && isUnfinishedForceDelete(error)) {
-      return { error: PROPERTY_FORCE_DELETE_INCOMPLETE_MESSAGE, code: PROPERTY_FORCE_DELETE_INCOMPLETE_CODE };
+      // New open work after the close: keep core's list of what is still open.
+      const message = error.code === PROPERTY_ACTIVE_BOOKING_WORK_CODE
+        ? `${getErrorMessage(error)} Choose Delete anyway again to close them.`
+        : PROPERTY_FORCE_DELETE_INCOMPLETE_MESSAGE;
+      return { error: message, code: PROPERTY_FORCE_DELETE_INCOMPLETE_CODE };
     }
     return { error: getErrorMessage(error), code: error instanceof ApiRequestError ? error.code : undefined };
   }
