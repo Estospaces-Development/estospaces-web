@@ -62,6 +62,10 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: React.Rea
     pending_manager_signature: { label: 'Awaiting Your Signature', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', icon: <PenTool size={14} /> },
     active: { label: 'Active', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: <CheckCircle size={14} /> },
     terminated: { label: 'Terminated', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: <AlertCircle size={14} /> },
+    // Closed booking statuses (booking closedContractStatuses); without them these fell back to "Draft".
+    withdrawn: { label: 'Withdrawn', color: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400', icon: <AlertCircle size={14} /> },
+    cancelled: { label: 'Cancelled', color: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400', icon: <AlertCircle size={14} /> },
+    completed: { label: 'Completed', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: <CheckCircle size={14} /> },
 };
 
 export default function ManagerContractsPage() {

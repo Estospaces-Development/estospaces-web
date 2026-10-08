@@ -416,7 +416,9 @@ export const filterContextProperties = (
   properties: Property[],
   filters: PropertyFilters,
 ) => {
-  const search = normalizePropertyFilterValue(filters.search);
+  // Same rule as core's keywordSearchCondition: every word must match somewhere,
+  // so the page keeps every row the server counted for the search.
+  const searchWords = normalizePropertyFilterValue(filters.search).split(/\s+/).filter(Boolean);
   const propertyTypes = new Set((filters.propertyType || []).map(normalizePropertyFilterValue));
   const listingTypes = new Set((filters.listingType || []).map(normalizePropertyFilterValue));
   const statuses = new Set((filters.status || []).map(normalizePropertyFilterValue));
@@ -424,8 +426,11 @@ export const filterContextProperties = (
   const country = normalizePropertyFilterValue(filters.country);
 
   return properties.filter((property) => {
-    if (search && !propertySearchText(property).includes(search)) {
-      return false;
+    if (searchWords.length > 0) {
+      const text = propertySearchText(property);
+      if (!searchWords.every((word) => text.includes(word))) {
+        return false;
+      }
     }
 
     if (propertyTypes.size > 0 && !propertyTypes.has(normalizePropertyFilterValue(property.propertyType))) {
