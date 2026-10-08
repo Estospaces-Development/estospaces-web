@@ -700,8 +700,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const formatPrice = (price?: number) => {
-    if (price === undefined) return "Price on request";
-    return formatLaunchCurrencyForCountry(price, {
+    if (!(Number(price) > 0)) return "Price on request";
+    return formatLaunchCurrencyForCountry(Number(price), {
       countryCode: application?.propertyCountry,
       countryName: application?.propertyCountry,
       currencyCode: application?.propertyCurrency,
@@ -2048,7 +2048,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
                   <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                     {formatPrice(application.propertyPrice)}
-                    {application.listingType === "rent" && (
+                    {application.listingType === "rent" && Number(application.propertyPrice) > 0 && (
                       <span className="text-base font-normal text-gray-500 ml-1">
                         /month
                       </span>

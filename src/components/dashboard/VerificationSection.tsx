@@ -129,8 +129,9 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
         const pending = documents.filter((document) => document.status === 'pending').length;
         const underReview = documents.filter((document) => document.status === 'under_review').length;
         const approved = documents.filter((document) => document.status === 'approved').length;
+        const reupload = documents.filter((document) => document.status === 'reupload_required').length;
 
-        return { pending, underReview, approved };
+        return { pending, underReview, approved, reupload };
     }, [documents]);
 
     const completedSteps = Object.values(verificationSteps).filter(
@@ -497,6 +498,9 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                        {documentMetrics.reupload > 0 && (
+                            <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">{documentMetrics.reupload} re-upload</span>
+                        )}
                         <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">{documentMetrics.pending} pending</span>
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{documentMetrics.underReview} review</span>
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{documentMetrics.approved} approved</span>

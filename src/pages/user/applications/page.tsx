@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
+import { useApplications, APPLICATION_STATUS, STATUS_CONFIG, type Application } from '@/contexts/ApplicationsContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
@@ -168,26 +168,11 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-    const statusMap: Record<string, { label: string; color: string }> = {
-        draft: { label: 'Draft', color: 'bg-gray-100 text-gray-700' },
-        pending: { label: 'Pending Review', color: 'bg-yellow-100 text-yellow-700' },
-        submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-700' },
-        under_review: { label: 'Under Review', color: 'bg-amber-100 text-amber-700' },
-        documents_requested: { label: 'Documents Required', color: 'bg-orange-100 text-orange-700' },
-        offer_submitted: { label: 'Offer Submitted', color: 'bg-blue-100 text-blue-700' },
-        offer_under_review: { label: 'Offer Under Review', color: 'bg-amber-100 text-amber-700' },
-        offer_accepted: { label: 'Offer Accepted', color: 'bg-green-100 text-green-700' },
-        sale_agreed: { label: 'Sale Agreed', color: 'bg-emerald-100 text-emerald-700' },
-        memorandum_issued: { label: 'Memorandum Issued', color: 'bg-purple-100 text-purple-700' },
-        conveyancing: { label: 'Conveyancing', color: 'bg-indigo-100 text-indigo-700' },
-        exchange: { label: 'Exchange', color: 'bg-cyan-100 text-cyan-700' },
-        approved: { label: 'Approved', color: 'bg-green-100 text-green-700' },
-        rejected: { label: 'Rejected', color: 'bg-red-100 text-red-700' },
-        withdrawn: { label: 'Withdrawn', color: 'bg-gray-100 text-gray-500' },
-        completed: { label: 'Completed', color: 'bg-green-100 text-green-700' },
-    };
-
-    const statusInfo = statusMap[application.status] || { label: application.status, color: 'bg-gray-100 text-gray-700' };
+    // Shared labels, so the drawer never shows a raw code like "viewing_scheduled" the card already names.
+    const statusConfig = STATUS_CONFIG[application.status];
+    const statusInfo = statusConfig
+        ? { label: statusConfig.label, color: `${statusConfig.bgColor} ${statusConfig.textColor}` }
+        : { label: String(application.status || 'In progress').replace(/_/g, ' '), color: 'bg-gray-100 text-gray-700 capitalize' };
     const formatApplicationPrice = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode: application.propertyCountry,
         countryName: application.propertyCountry,
