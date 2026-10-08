@@ -104,7 +104,11 @@ export default function PropertyDetailPage() {
 
     const handleDelete = async () => {
         if (id) {
-            await deleteProperty(id);
+            const deleteError = await deleteProperty(id);
+            if (deleteError) {
+                setToast({ message: deleteError, type: 'error', visible: true });
+                return;
+            }
             navigate('/manager/dashboard/properties');
         }
     };
