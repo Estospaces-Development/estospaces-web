@@ -4,6 +4,7 @@
  */
 
 import {
+  ApiRequestError,
   apiFetch,
   apiFetchEnvelope,
   buildApiUrl,
@@ -530,23 +531,53 @@ export const adminUpdatePropertyStatus = async (
   }
 };
 
+/** Core refuses a delete with this code while Booking has open work on the listing (MB-0196). */
+export const PROPERTY_ACTIVE_BOOKING_WORK_CODE = "property_has_active_booking_work";
+
+/** A forced delete that may have closed some items but deleted nothing; running it again finishes it. */
+export const PROPERTY_FORCE_DELETE_INCOMPLETE_CODE = "property_force_delete_incomplete";
+
+const PROPERTY_FORCE_DELETE_INCOMPLETE_MESSAGE =
+  "Some open items may already be closed; nothing was deleted. Choose Delete anyway again to finish.";
+
+// A forced delete that never got a clear answer (network drop, timeout, gateway error such as
+// the load balancer's 30 s cut-off) or found new open work may have closed items already, so it
+// is reported as unfinished and the admin can rerun it; Booking's close is idempotent.
+const isUnfinishedForceDelete = (error: unknown): boolean =>
+  error instanceof ApiRequestError &&
+  (error.code === PROPERTY_ACTIVE_BOOKING_WORK_CODE ||
+    (!error.code && (error.status === undefined || [502, 503, 504].includes(error.status))));
+
 /**
  * Delete a property
  * DELETE /api/v1/properties/:id (core-service, owner/admin)
+ * `force` is an admin's "Delete anyway": core first closes the listing's open
+ * Booking work, which takes longer than an ordinary request.
  */
 export const deleteProperty = async (
   id: string,
-): Promise<{ error: string | null }> => {
+  options: { force?: boolean } = {},
+): Promise<{ error: string | null; code?: string }> => {
   try {
-    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}`, {
+    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}${options.force ? "?force=true" : ""}`, {
       method: "DELETE",
       suppressErrorToast: true,
+      // Core gives Booking 15 s to close the work, so its answer fits the prod load
+      // balancer's 30 s backend timeout; anything longer is handled as unfinished below.
+      ...(options.force ? { timeoutMs: 35_000 } : {}),
     });
     invalidatePropertyListCache();
     invalidatePropertyDetailCache(id);
     return { error: null };
   } catch (error: any) {
-    return { error: getErrorMessage(error) };
+    if (options.force && isUnfinishedForceDelete(error)) {
+      // New open work after the close: keep core's list of what is still open.
+      const message = error.code === PROPERTY_ACTIVE_BOOKING_WORK_CODE
+        ? `${getErrorMessage(error)} Choose Delete anyway again to close them.`
+        : PROPERTY_FORCE_DELETE_INCOMPLETE_MESSAGE;
+      return { error: message, code: PROPERTY_FORCE_DELETE_INCOMPLETE_CODE };
+    }
+    return { error: getErrorMessage(error), code: error instanceof ApiRequestError ? error.code : undefined };
   }
 };
 

@@ -16,9 +16,17 @@ import {
     Search,
     Trash2,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import ForceDeletePropertyModal from '@/components/admin/ForceDeletePropertyModal';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useToast } from '@/contexts/ToastContext';
-import { adminUpdatePropertyStatus, copyProperty, deleteProperty as deletePropertyRequest } from '@/services/propertyService';
+import {
+    adminUpdatePropertyStatus,
+    copyProperty,
+    deleteProperty as deletePropertyRequest,
+    PROPERTY_ACTIVE_BOOKING_WORK_CODE,
+    PROPERTY_FORCE_DELETE_INCOMPLETE_CODE,
+} from '@/services/propertyService';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import PropertyMediaImage from '@/components/dashboard/PropertyMediaImage';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
@@ -53,6 +61,8 @@ function PropertyManagementContent() {
     const [rejectReason, setRejectReason] = useState('');
     const [rejectReasonError, setRejectReasonError] = useState('');
     const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(null);
+    const [forceDelete, setForceDelete] = useState<{ propertyId: string; refusal: string } | null>(null);
+    const queryClient = useQueryClient();
     const [copyingPropertyId, setCopyingPropertyId] = useState<string | null>(null);
     const fetchPropertiesRef = useRef(fetchProperties);
     const hasRegistryFilters = Boolean(searchQuery.trim()) || filteringType !== 'all' || statusFilter !== 'all';
@@ -240,12 +250,48 @@ function PropertyManagementContent() {
 
         setUpdatingPropertyId(propertyId);
         try {
-            const { error } = await deletePropertyRequest(propertyId);
+            const { error, code } = await deletePropertyRequest(propertyId);
+            if (error && code === PROPERTY_ACTIVE_BOOKING_WORK_CODE) {
+                // Booking still has open work on the listing: offer the admin "Delete anyway".
+                closeDeleteDialog();
+                setForceDelete({ propertyId, refusal: error });
+                return;
+            }
             if (error) {
                 throw new Error(error);
             }
             showSuccessToast('Property deleted successfully.');
             closeDeleteDialog();
+            await fetchPropertiesRef.current();
+        } catch (error: any) {
+            showErrorToast(error?.message || 'Failed to delete property.');
+        } finally {
+            setUpdatingPropertyId(null);
+        }
+    };
+
+    const handleForceDeleteConfirm = async () => {
+        if (!forceDelete) {
+            return;
+        }
+
+        const { propertyId } = forceDelete;
+        setUpdatingPropertyId(propertyId);
+        try {
+            const { error, code } = await deletePropertyRequest(propertyId, { force: true });
+            if (error && code === PROPERTY_FORCE_DELETE_INCOMPLETE_CODE) {
+                // Some items may already be closed: keep "Delete anyway" open so the admin can finish.
+                setForceDelete({ propertyId, refusal: error });
+                showErrorToast(error);
+                await queryClient.invalidateQueries({ queryKey: ['case-file-fast-track-workspace'] });
+                return;
+            }
+            setForceDelete(null);
+            if (error) {
+                throw new Error(error);
+            }
+            showSuccessToast('Property deleted. Its open bookings were closed first.');
+            await queryClient.invalidateQueries({ queryKey: ['case-file-fast-track-workspace'] });
             await fetchPropertiesRef.current();
         } catch (error: any) {
             showErrorToast(error?.message || 'Failed to delete property.');
@@ -457,6 +503,12 @@ function PropertyManagementContent() {
                     </div>
                 </div>
             ) : null}
+            <ForceDeletePropertyModal
+                refusal={forceDelete?.refusal ?? null}
+                loading={forceDelete !== null && updatingPropertyId === forceDelete.propertyId}
+                onClose={() => setForceDelete(null)}
+                onConfirm={handleForceDeleteConfirm}
+            />
             {copyingPropertyId ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-8 backdrop-blur-sm">
                     <div
