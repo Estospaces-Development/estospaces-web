@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
+import { useSavedProperties, useRefreshSavedOnOpen } from '@/contexts/SavedPropertiesContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
@@ -75,6 +75,7 @@ export default function SavedPage() {
         removeProperty,
         refreshSavedProperties
     } = useSavedProperties();
+    useRefreshSavedOnOpen();
     const navigate = useNavigate();
     const { success: showToastSuccess } = useToast();
 
