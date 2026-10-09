@@ -1,8 +1,7 @@
 name: CD - Build and Deploy to Cloud Run
 
+# Deploys only on a manual run: the owner chose Cloud Build for dev builds (9 Oct 2026).
 on:
-  push:
-    branches: [develop]
   workflow_dispatch:
     inputs:
       target_environment:
@@ -30,7 +29,6 @@ concurrency:
 jobs:
   deploy:
     if: >-
-      github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && inputs.target_environment == 'dev') ||
       (github.event_name == 'workflow_dispatch' && inputs.target_environment == 'prod' && inputs.confirm_production && github.ref_name == 'main')
     runs-on: ubuntu-latest

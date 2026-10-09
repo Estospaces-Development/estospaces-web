@@ -35,11 +35,15 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
-    const formattedPropertyPrice = formatLaunchCurrencyForCountry(application.propertyPrice || 0, {
-        countryCode: application.propertyCountry,
-        countryName: application.propertyCountry,
-        currencyCode: application.propertyCurrency,
-    });
+    // A missing price (e.g. the listing was removed) reads "Price on request", not £0.
+    const hasPropertyPrice = Number(application.propertyPrice) > 0;
+    const formattedPropertyPrice = hasPropertyPrice
+        ? formatLaunchCurrencyForCountry(Number(application.propertyPrice), {
+            countryCode: application.propertyCountry,
+            countryName: application.propertyCountry,
+            currencyCode: application.propertyCurrency,
+        })
+        : 'Price on request';
     const saleDisplayStage = application.listingType !== 'rent'
         ? resolveSaleJourneyDisplayStage(application)
         : null;
@@ -460,7 +464,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 {formattedPropertyPrice}
                             </span>
                             <span className="text-xs font-normal text-gray-500 dark:text-gray-400 min-[360px]:text-sm">
-                                {application.listingType === 'rent' || application.listingType === 'lease' ? '/month' : ''}
+                                {hasPropertyPrice && (application.listingType === 'rent' || application.listingType === 'lease') ? '/month' : ''}
                             </span>
                         </div>
 
