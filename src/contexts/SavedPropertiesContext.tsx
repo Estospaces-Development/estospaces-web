@@ -18,7 +18,11 @@ interface SavedPropertiesContextType {
     isPropertySaved: (propertyId: string) => boolean;
     savedCount: number;
     refreshSavedProperties: () => void;
+    refreshSavedPropertiesIfStale: () => void;
 }
+
+// Skip a background refresh when a fetch started this recently (e.g. the first app load).
+const SAVED_REFRESH_MIN_INTERVAL_MS = 5000;
 
 const SavedPropertiesContext = createContext<SavedPropertiesContextType | undefined>(undefined);
 
@@ -38,7 +42,11 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
     const pendingPropertyIds = useRef(new Set<string>());
     const canUseSavedProperties = (user?.role || '').trim().toLowerCase() === 'user';
 
-    const fetchSavedProperties = useCallback(async () => {
+    // Starts at mount time so a page that mounts with the provider does not duplicate the first load.
+    const lastFetchStartedAt = useRef(Date.now());
+
+    // `silent` keeps the current list on screen (no skeleton) and keeps it if the refetch fails.
+    const loadSavedProperties = useCallback(async (silent: boolean) => {
         if (!user || !canUseSavedProperties) {
             setSavedProperties([]);
             setError(null);
@@ -46,7 +54,8 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
             return;
         }
 
-        setLoading(true);
+        lastFetchStartedAt.current = Date.now();
+        if (!silent) setLoading(true);
         try {
             const data = await apiFetch<Property[]>(
                 `${getServiceUrl('core')}/api/v1/properties/saved`,
@@ -56,12 +65,21 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
             setSavedProperties(Array.isArray(data) ? data : []);
             setError(null);
         } catch (err: any) {
-            setSavedProperties([]);
-            setError(err.message);
+            if (!silent) {
+                setSavedProperties([]);
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
     }, [user, canUseSavedProperties]);
+
+    const fetchSavedProperties = useCallback(() => loadSavedProperties(false), [loadSavedProperties]);
+
+    const refreshSavedPropertiesIfStale = useCallback(() => {
+        if (Date.now() - lastFetchStartedAt.current < SAVED_REFRESH_MIN_INTERVAL_MS) return;
+        void loadSavedProperties(true);
+    }, [loadSavedProperties]);
 
     useEffect(() => {
         fetchSavedProperties();
@@ -159,9 +177,23 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
                 isPropertySaved,
                 savedCount,
                 refreshSavedProperties: fetchSavedProperties,
+                refreshSavedPropertiesIfStale,
             }}
         >
             {children}
         </SavedPropertiesContext.Provider>
     );
+};
+
+/** Call on the Saved page: refetch live listing data (price/status) on open and when the tab regains focus. */
+export const useRefreshSavedOnOpen = () => {
+    const { refreshSavedPropertiesIfStale } = useSavedProperties();
+    useEffect(() => {
+        refreshSavedPropertiesIfStale();
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') refreshSavedPropertiesIfStale();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [refreshSavedPropertiesIfStale]);
 };
