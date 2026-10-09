@@ -130,5 +130,5 @@ export const formatReverificationWarning = (fields: string[]): string => {
     const subject = fields.length === 1
         ? fields[0]
         : `${fields.slice(0, -1).join(', ')} and ${fields[fields.length - 1]}`;
-    return `Changing ${subject} will require re-verification. Until an admin approves your profile again, you lose verified status, new Fast Track cases pause and subscription checkout is unavailable. Existing Fast Track cases, appointments and contracts stay viewable. Changing the value back later does not restore verification.`;
+    return `Changing ${subject} will require re-verification. Until an admin approves your profile again, you lose verified status, new Fast Track cases pause and subscription checkout is unavailable. Existing Fast Track cases, appointments and contracts stay open and you can keep working on them. Changing the value back later does not restore verification.`;
 };

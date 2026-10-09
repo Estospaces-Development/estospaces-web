@@ -76,6 +76,7 @@ export default function ManagerVerificationGate({ area, children }: ManagerVerif
         hasProfile: Boolean(managerProfile),
         verificationStatus,
         reverificationReason: managerProfile?.agency_verification_reason,
+        area,
     });
 
     if (decision.kind === 'loading') {
@@ -92,7 +93,7 @@ export default function ManagerVerificationGate({ area, children }: ManagerVerif
     const viewExistingLabel = VERIFIED_MANAGER_AREA_VIEW_ACTION[area];
     const retry = () => { void refetch(); };
 
-    if (showExisting && viewExistingLabel && !notice.retryable) {
+    if (decision.kind === 'open-with-notice' || (showExisting && viewExistingLabel && !notice.retryable)) {
         return (
             <>
                 <div className="px-4 pt-6 sm:px-6 lg:px-8">

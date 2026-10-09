@@ -120,7 +120,7 @@ test('the warning names the fields, the consequence and that reverting does not 
     const single = formatReverificationWarning(['Branch name']);
     assert.match(single, /^Changing Branch name will require re-verification\./);
     assert.match(single, /new Fast Track cases pause and subscription checkout is unavailable/);
-    assert.match(single, /Existing Fast Track cases, appointments and contracts stay viewable/);
+    assert.match(single, /Existing Fast Track cases, appointments and contracts stay open and you can keep working on them/);
     assert.match(single, /Changing the value back later does not restore verification/);
     assert.match(formatReverificationWarning(['Branch name', 'Tax ID', 'Complaints contact']), /^Changing Branch name, Tax ID and Complaints contact will/);
 });
