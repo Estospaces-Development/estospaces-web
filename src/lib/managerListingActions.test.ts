@@ -124,6 +124,21 @@ test('a lost answer does not claim that nothing was changed', () => {
     assert.doesNotMatch(failure.message, /Nothing was changed/);
 });
 
+test('a gateway error does not claim that nothing was changed either', () => {
+    for (const status of [502, 504]) {
+        const failure = presentManagerListingActionError('mark_sold', { error: 'Bad Gateway', status });
+        assert.equal(failure.title, "We didn't get an answer", String(status));
+        assert.doesNotMatch(failure.message, /Nothing was changed/, String(status));
+    }
+});
+
+test('the unpublish dialog says an edit sends the listing back to admin review', () => {
+    const copy = describeManagerListingAction('unpublish', { title: 'Powai Flat' });
+    const effects = copy.effects.join(' ');
+    assert.match(effects, /republish it as it is without waiting for admin approval/);
+    assert.match(effects, /If you edit it first, it goes back to admin review/);
+});
+
 test('state conflicts, the plan limit, ownership and readiness each get their own wording', () => {
     const conflict = presentManagerListingActionError('republish', {
         error: 'Only a listing you unpublished can be republished. A listing that was never approved, or that was rejected or suspended, needs admin approval.',

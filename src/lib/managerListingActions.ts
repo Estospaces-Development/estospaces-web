@@ -75,7 +75,7 @@ export const describeManagerListingAction = (
             summary: `${name} leaves search and public pages straight away.`,
             effects: [
                 'It stays in your inventory as a draft and nothing is deleted.',
-                'You can republish it yourself later without waiting for admin approval.',
+                'You can republish it as it is without waiting for admin approval. If you edit it first, it goes back to admin review.',
                 BOOKING_RULE,
             ],
             confirmLabel: 'Unpublish',
@@ -182,10 +182,18 @@ export const presentManagerListingActionError = (
             items: [],
         };
     }
-    if (status === 503 || status === 502 || status === 504) {
+    if (status === 503) {
         return {
             title: 'This could not be completed right now',
             message: 'Nothing was changed. Please try again in a moment.',
+            items: [],
+        };
+    }
+    if (status === 502 || status === 504) {
+        // A gateway error can arrive after core already made the change.
+        return {
+            title: "We didn't get an answer",
+            message: 'Refresh the page to see whether the change was made, then try again if it was not.',
             items: [],
         };
     }
