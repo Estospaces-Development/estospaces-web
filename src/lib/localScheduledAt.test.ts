@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { toLocalScheduledAt } from './localScheduledAt';
+import { getLocalTodayInputValue, toLocalScheduledAt } from './localScheduledAt';
 
 test('a local time inside a daylight-saving gap is refused, not shifted an hour (MB-0452)', () => {
     const originalTimeZone = process.env.TZ;
@@ -29,5 +29,21 @@ test('both Fast Track viewing forms build scheduled_at through the DST check (MB
         const source = readFileSync(new URL(`../components/fast-track/${file}`, import.meta.url), 'utf8');
         assert.match(source, /toLocalScheduledAt\(viewingDate, viewingTime\)/, file);
         assert.doesNotMatch(source, /new Date\(`\$\{viewingDate\}T/, file);
+    }
+});
+
+test('getLocalTodayInputValue returns the local calendar day, not the UTC day', () => {
+    assert.equal(getLocalTodayInputValue(new Date(2026, 9, 5, 0, 30)), '2026-10-05');
+    assert.equal(getLocalTodayInputValue(new Date(2026, 0, 31, 23, 59)), '2026-01-31');
+});
+
+test('manager reschedule and Fast Track viewing date pickers disable past days', () => {
+    const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+    for (const path of [
+        '../pages/manager/appointments/page.tsx',
+        '../components/fast-track/FastTrackWorkspace.tsx',
+        '../components/fast-track/FastTrackCompanionPanel.tsx',
+    ]) {
+        assert.match(read(path), /min=\{getLocalTodayInputValue\(\)\}/, path);
     }
 });

@@ -25,6 +25,14 @@ import { messagesService } from '@/services/messagesService';
 import { getSaleJourneyProgress, getSaleJourneyStageLabel, resolveSaleJourneyDisplayStage } from '@/lib/saleJourney';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
+const normalizeCardText = (value?: string | null) => (value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+// The listing title often is the address; show the address line only when it adds something.
+export const shouldShowAddressLine = (title?: string | null, address?: string | null): boolean => {
+    const normalizedTitle = normalizeCardText(title);
+    return !normalizedTitle || normalizedTitle !== normalizeCardText(address);
+};
+
 interface ApplicationCardProps {
     application: Application;
     onClick: () => void;
@@ -395,10 +403,12 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 <h3 className="font-semibold text-gray-900 dark:text-white text-base lg:text-lg truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                                     {application.propertyTitle || 'Untitled Property'}
                                 </h3>
-                                <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                                    <MapPin size={13} className="flex-shrink-0" />
-                                    <span className="truncate">{application.propertyAddress || 'Address not specified'}</span>
-                                </div>
+                                {shouldShowAddressLine(application.propertyTitle, application.propertyAddress) ? (
+                                    <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                        <MapPin size={13} className="flex-shrink-0" />
+                                        <span className="truncate">{application.propertyAddress || 'Address not specified'}</span>
+                                    </div>
+                                ) : null}
                             </div>
                             <ChevronRight size={20} className="text-gray-300 dark:text-gray-600 group-hover:text-orange-400 transition-colors flex-shrink-0 mt-1" />
                         </div>
@@ -406,7 +416,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm min-[360px]:grid-cols-2 lg:grid-cols-3">
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <User size={14} className="flex-shrink-0 text-gray-400" />
-                                <span className="truncate">{application.agentName}</span>
+                                <span className="truncate">{application.applicantName || 'Applicant'}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <Clock size={14} className="flex-shrink-0 text-gray-400" />
@@ -473,7 +483,8 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 onClick={handleMessageAgent}
                                 disabled={openingConversation}
                                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:hover:bg-orange-900/20"
-                                title="Message Agent"
+                                title="Message applicant"
+                                aria-label="Message applicant"
                             >
                                 <MessageSquare size={18} />
                             </button>
