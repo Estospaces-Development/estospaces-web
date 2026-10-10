@@ -31,7 +31,7 @@ const response = (prefix: string, total: number, page = 1): PropertyResponse => 
   error: null,
 });
 
-const installDashboard = async () => {
+const installDashboard = async (options: { viewOnly?: boolean } = {}) => {
   const browserWindow = new Window({ url: 'https://estospaces.test/manager/dashboard' });
   const replacements = {
     window: browserWindow, document: browserWindow.document, navigator: browserWindow.navigator,
@@ -59,7 +59,7 @@ const installDashboard = async () => {
   let refresh: () => Promise<void> = async () => {};
   const location = { pathname: '/manager/dashboard', search: '' };
   const navigate = () => {};
-  const toast = { success() {}, error() {} };
+  const toast = { success() {}, error() {}, info() {} };
   const verification = {
     managerProfile: { verification_status: 'approved' },
     verificationStatus: 'approved', isLoading: false, error: null,
@@ -67,7 +67,10 @@ const installDashboard = async () => {
   const boundaries: Record<string, unknown> = {
     'react-router-dom': { useNavigate: () => navigate, useLocation: () => location },
     '@/contexts/ToastContext': { useToast: () => toast },
-    '@/contexts/ManagerVerificationContext': { useManagerVerification: () => verification },
+    '@/contexts/ManagerVerificationContext': {
+      useManagerVerification: () => verification,
+      useManagerViewOnly: () => Boolean(options.viewOnly),
+    },
     '@/contexts/WorkspaceSyncContext': {
       useDashboardWorkspaceRefresh: (options: { refresh: () => Promise<void> }) => { refresh = options.refresh; },
     },
@@ -265,5 +268,51 @@ test('property pagination still requests and displays the selected page', async 
     assert.match(ui.text(), /Showing 7-12 of 14 properties/);
     assert.deepEqual(ui.cards(), Array.from({ length: 6 }, (_, index) => `second-page-${index}`));
     assert.equal(nextButton.disabled, false);
+  } finally { await ui.restore(); }
+});
+
+// Owner decision (10 Oct 2026): a manager whose verification was rejected or revoked cannot start or confirm anything.
+const pendingBooking = {
+  id: 'booking-pending-1', property_id: 'property-1', check_in_date: '2026-11-01', check_out_date: '2026-11-05', status: 'pending',
+};
+const dashboardControls = (host: Awaited<ReturnType<typeof installDashboard>>['host']) => {
+  const byText = (label: string) => [...host.querySelectorAll('button')].filter((button) => button.textContent?.trim() === label);
+  return {
+    confirm: byText('Confirm Reservation'),
+    addCase: [...byText('Add 24h case'), ...byText('Add 24h case manually')],
+    notes: [...host.querySelectorAll('[data-dashboard-view-only]')].map((note) => note.textContent || ''),
+  };
+};
+
+test('a view-only manager sees Confirm Reservation and Add 24h case disabled with an explanation', async () => {
+  const ui = await installDashboard({ viewOnly: true });
+  try {
+    await act(async () => { ui.requests[0].complete(response('view-only', 1)); ui.bookings.complete([pendingBooking] as never); });
+    const controls = dashboardControls(ui.host);
+
+    assert.equal(controls.confirm.length, 1);
+    assert.equal(controls.addCase.length, 2, 'the lane header button and the empty-lane button');
+    for (const button of [...controls.confirm, ...controls.addCase]) {
+      assert.equal(button.disabled, true, button.textContent || '');
+      assert.match(button.title, /View only until an admin re-approves you/);
+    }
+    assert.equal(controls.notes.length, 2);
+    assert.match(controls.notes.join(' '), /You cannot confirm reservations/);
+    assert.match(controls.notes.join(' '), /You cannot start new Fast Track cases/);
+  } finally { await ui.restore(); }
+});
+
+test('an approved manager keeps Confirm Reservation and Add 24h case enabled with no view-only note', async () => {
+  const ui = await installDashboard();
+  try {
+    await act(async () => { ui.requests[0].complete(response('approved', 1)); ui.bookings.complete([pendingBooking] as never); });
+    const controls = dashboardControls(ui.host);
+
+    assert.equal(controls.confirm.length, 1);
+    assert.equal(controls.addCase.length, 2);
+    for (const button of [...controls.confirm, ...controls.addCase]) {
+      assert.equal(button.disabled, false, button.textContent || '');
+    }
+    assert.deepEqual(controls.notes, []);
   } finally { await ui.restore(); }
 });

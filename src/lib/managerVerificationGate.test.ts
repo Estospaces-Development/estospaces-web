@@ -5,7 +5,9 @@ import type { VerificationStatus } from '@/services/managerVerificationService';
 import {
     VERIFIED_MANAGER_AREA_DETAIL,
     VERIFIED_MANAGER_AREA_VIEW_ACTION,
+    VIEW_ONLY_MANAGER_AREA_DETAIL,
     getManagerVerificationNotice,
+    getVerifiedManagerAreaDetail,
     resolveManagerVerificationGate,
 } from './managerVerificationGate';
 
@@ -98,4 +100,20 @@ test('a first-time incomplete manager, analytics and a failed lookup keep the fu
 test('the copy promises exactly what stays open and what pauses', () => {
     assert.match(VERIFIED_MANAGER_AREA_DETAIL['fast-track'], /existing Fast Track cases stay open and you can keep working on them/);
     assert.match(VERIFIED_MANAGER_AREA_DETAIL['fast-track'], /new cases is paused/);
+});
+
+// Owner decision (10 Oct 2026): rejected or revoked managers are read-only; managers waiting for review keep working.
+test('banner copy says view only for rejected managers and keep working for managers waiting for review', () => {
+    for (const area of ['fast-track', 'appointments', 'contracts'] as const) {
+        const viewOnly = getVerifiedManagerAreaDetail(area, true);
+        assert.equal(viewOnly, VIEW_ONLY_MANAGER_AREA_DETAIL[area]);
+        assert.match(viewOnly, /until an admin re-approves you/);
+        assert.doesNotMatch(viewOnly, /keep working/i);
+
+        // Managers waiting for review after an approval (submitted, under_review, verification_required) keep working.
+        assert.equal(getVerifiedManagerAreaDetail(area, false), VERIFIED_MANAGER_AREA_DETAIL[area]);
+    }
+    assert.match(getVerifiedManagerAreaDetail('fast-track', true), /cannot change them or start new cases/);
+    assert.match(getVerifiedManagerAreaDetail('fast-track', false), /keep working on them/);
+    assert.equal(getVerifiedManagerAreaDetail('analytics', true), VERIFIED_MANAGER_AREA_DETAIL.analytics);
 });

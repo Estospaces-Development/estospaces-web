@@ -401,11 +401,30 @@ test("closed manager and admin Fast Track stages are read-only while user record
   const source = workspaceSource();
   assert.match(source, /data-fast-track-closed-case-read-only/);
   assert.match(source, /Closed case — view only/);
-  assert.match(source, /disabled=\{isFastTrackStageReadOnly\(selectedCase, role\) && effectiveVisibleStage !== 'documents'\s*&& !\(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\)\)\}/);
-  assert.match(source, /readOnly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
-  assert.match(source, /aria-readonly=\{isFastTrackStageReadOnly\(selectedCase, role\)\}/);
+  assert.match(source, /disabled=\{isFastTrackStageReadOnly\(selectedCase, role, managerViewOnly\) && effectiveVisibleStage !== 'documents'\s*&& !\(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\) && !managerViewOnly\)\}/);
+  assert.match(source, /readOnly=\{isFastTrackStageReadOnly\(selectedCase, role, managerViewOnly\)\}/);
+  assert.match(source, /aria-readonly=\{isFastTrackStageReadOnly\(selectedCase, role, managerViewOnly\)\}/);
   assert.match(source, /action === 'retry_handover_sync'\s*&& canRefreshFastTrackCompletion\(selectedCase, role, user\?\.id\)/);
   assert.match(source, /isFastTrackStageReadOnly\(selectedCase, role\) && !completionRefreshAllowed/);
+});
+
+// Owner decision (10 Oct 2026): a manager whose verification was rejected or revoked is read-only on every case.
+test("a manager whose verification was rejected or revoked is view only on active cases; admins and users are not", () => {
+  const activeCase = buildFastTrackCase({ workspaceFinalStatus: "active" });
+
+  assert.equal(isFastTrackStageReadOnly(activeCase, "manager", true), true);
+  assert.equal(isFastTrackStageReadOnly(activeCase, "manager", false), false);
+  assert.equal(isFastTrackStageReadOnly(activeCase, "manager"), false);
+  assert.equal(isFastTrackStageReadOnly(activeCase, "admin", true), false);
+  assert.equal(isFastTrackStageReadOnly(activeCase, "user", true), false);
+
+  const source = workspaceSource();
+  assert.match(source, /const managerViewOnly = role === 'manager' && managerVerificationViewOnly;/);
+  // The action runner refuses before any request and says why; the Close button is hidden.
+  assert.match(source, /if \(managerViewOnly\) \{[^}]*toast\.info\(MANAGER_VIEW_ONLY_REASON\);[^}]*return MANAGER_VIEW_ONLY_REASON;/s);
+  assert.match(source, /selectedCase\.workspaceFinalStatus === 'active' && !managerViewOnly \? \(/);
+  assert.match(source, /data-fast-track-manager-view-only/);
+  assert.match(source, /&& !managerViewOnly\s*&& selectedCase\.workspaceFinalStatus === 'active'/);
 });
 
 test("user still sees handover confirmation when manager has completed the case", () => {

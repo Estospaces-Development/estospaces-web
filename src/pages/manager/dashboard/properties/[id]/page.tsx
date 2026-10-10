@@ -23,6 +23,10 @@ import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice
 import { useToast } from '@/contexts/ToastContext';
 import { describePropertyMutationError, getPropertyMutationFieldReasons } from '@/lib/propertyValidationErrors';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
+import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
+import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
+import { isOwnerUnpublished } from '@/lib/managerListingActions';
+import type { ManagerListingAction } from '@/services/propertyService';
 import {
     loadManagerPropertyDetail,
     managerPropertyDetailQueryKey,
@@ -50,11 +54,12 @@ export default function PropertyDetailPage() {
     const navigate = useNavigate();
     const appToast = useToast();
 
-    const { getProperty, fetchPropertyById, deleteProperty, updateProperty, duplicateProperty, incrementShares } = useProperties();
+    const { getProperty, fetchPropertyById, deleteProperty, changeListingStatus, updateProperty, duplicateProperty, incrementShares } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [pendingListingAction, setPendingListingAction] = useState<ManagerListingAction | null>(null);
     const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -325,6 +330,14 @@ export default function PropertyDetailPage() {
                         <span className="hidden sm:inline">Edit</span>
                     </button>
 
+                    {/* Unpublish / Republish / Mark sold|let: core refuses while bookings are open */}
+                    <ManagerListingActionButtons
+                        listing={property}
+                        variant="labelled"
+                        disabled={Boolean(pendingListingAction)}
+                        onSelect={setPendingListingAction}
+                    />
+
                     {/* Delete */}
                     <button
                         type="button"
@@ -582,8 +595,9 @@ export default function PropertyDetailPage() {
                             </h3>
 
                             <div className="space-y-3">
-                                {/* Publish Property Button - Show only when status is draft or draft flag is true */}
-                                {(property.status === 'draft' || property.draft === true) && (
+                                {/* Publish Property Button - Show only when status is draft or draft flag is true.
+                                    A listing the manager unpublished has Republish in the header instead. */}
+                                {(property.status === 'draft' || property.draft === true) && !isOwnerUnpublished(property) && (
                                     <button
                                         onClick={handlePublish}
                                         disabled={publishing}
@@ -892,6 +906,21 @@ export default function PropertyDetailPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {pendingListingAction && id && (
+                <ManagerListingStatusModal
+                    listing={{ ...property, id }}
+                    action={pendingListingAction}
+                    onClose={() => setPendingListingAction(null)}
+                    onConfirm={changeListingStatus}
+                    onChanged={(message) => {
+                        setPendingListingAction(null);
+                        appToast.success(message);
+                        // The service dropped its cached copy; re-read the saved state.
+                        void detailQuery.refetch();
+                    }}
+                />
             )}
         </div>
     );

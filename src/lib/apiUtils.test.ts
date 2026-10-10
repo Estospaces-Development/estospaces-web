@@ -392,3 +392,75 @@ test('booking documents gate refusals surface the backend message', async () => 
         });
     }
 });
+
+// Booking makes rejected or revoked managers read-only. Its refusal carries a code, and the toast must say what
+// booking said instead of "Invalid data provided" (any other 4xx) or "temporarily unreachable" (any 5xx).
+test('booking manager read-only and verification-check refusals toast the backend message', async () => {
+    const originalFetch = globalThis.fetch;
+    const cases = [
+        { status: 403, code: 'manager_read_only', message: 'Your manager verification was rejected or revoked. You can view your cases but cannot make changes until an admin re-approves you.', title: 'View only' },
+        { status: 503, code: 'manager_verification_unavailable', message: 'We could not check your manager verification right now, so this change was not made. Please retry in a moment.', title: 'Please retry' },
+    ];
+
+    for (const refusal of cases) {
+        const toasts: Array<{ message: string; title?: string }> = [];
+        const unregister = registerErrorToastHandler((message, options) => {
+            toasts.push({ message, title: options?.title });
+        });
+        Object.defineProperty(globalThis, 'fetch', {
+            value: async () => new Response(JSON.stringify({ success: false, error: refusal.message, code: refusal.code }), {
+                status: refusal.status,
+                headers: { 'Content-Type': 'application/json' },
+            }),
+            configurable: true,
+        });
+
+        try {
+            await assert.rejects(
+                () => apiFetch('https://example.test/api/v1/fast-track/case-1/actions', {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'start_documents' }),
+                }),
+                (error: unknown) => {
+                    assert.equal(getErrorMessage(error), refusal.message);
+                    assert.equal((error as ApiRequestError).userMessage, refusal.message);
+                    assert.equal((error as ApiRequestError).status, refusal.status);
+                    return true;
+                },
+            );
+            assert.deepEqual(toasts, [{ message: refusal.message, title: refusal.title }]);
+        } finally {
+            unregister();
+            Object.defineProperty(globalThis, 'fetch', {
+                value: originalFetch,
+                configurable: true,
+            });
+        }
+    }
+});
+
+test('other 403 refusals keep the generic toast', async () => {
+    const originalFetch = globalThis.fetch;
+    const toasts: string[] = [];
+    const unregister = registerErrorToastHandler((message) => {
+        toasts.push(message);
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+        value: async () => new Response(JSON.stringify({ success: false, error: 'Unauthorized: only managers can confirm viewings' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+        }),
+        configurable: true,
+    });
+
+    try {
+        await assert.rejects(() => apiFetch('https://example.test/api/v1/viewings/v-1/confirm', { method: 'PUT' }));
+        assert.deepEqual(toasts, ['Invalid data provided. Please check your inputs.']);
+    } finally {
+        unregister();
+        Object.defineProperty(globalThis, 'fetch', {
+            value: originalFetch,
+            configurable: true,
+        });
+    }
+});

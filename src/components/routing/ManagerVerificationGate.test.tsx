@@ -23,6 +23,8 @@ interface VerificationState {
     verificationStatus?: VerificationStatus | null;
     hasProfile?: boolean;
     agencyReason?: string;
+    /** Core: rejected or revoked and not approved since, even though the status shows pending review. */
+    bookingReadOnly?: boolean;
 }
 
 interface Harness {
@@ -66,6 +68,7 @@ async function mount(path: string, area: VerifiedManagerArea, state: Verificatio
             id: 'manager-1',
             verification_status: status ?? 'incomplete',
             agency_verification_reason: state.agencyReason,
+            booking_read_only: state.bookingReadOnly,
         } as unknown),
         documents: [],
         verificationStatus: status,
@@ -139,7 +142,7 @@ test('a first-time incomplete manager opening Fast Track sees an explicit gate o
     }
 });
 
-for (const status of ['submitted', 'under_review', 'verification_required', 'rejected'] as const) {
+for (const status of ['submitted', 'under_review', 'verification_required'] as const) {
     test(`a manager in ${status} opens existing Fast Track cases directly under a notice`, async () => {
         const harness = await mount('/manager/fast-track', 'fast-track', { verificationStatus: status });
         try {
@@ -155,6 +158,51 @@ for (const status of ['submitted', 'under_review', 'verification_required', 'rej
         }
     });
 }
+
+// Owner decision (10 Oct 2026): rejected or revoked managers can open everything but change nothing.
+test('a rejected or revoked manager opens existing Fast Track cases under a view-only notice', async () => {
+    const harness = await mount('/manager/fast-track', 'fast-track', { verificationStatus: 'rejected' });
+    try {
+        assert.equal(harness.location(), '/manager/fast-track');
+        assert.match(harness.text(), /fast-track page content/);
+        assert.equal(harness.query('[data-manager-verification-gate]'), null);
+        assert.equal(harness.query('[data-manager-verification-banner]')?.getAttribute('data-manager-verification-banner'), 'rejected');
+        assert.match(harness.text(), /cannot change them or start new cases until an admin re-approves you/);
+        assert.doesNotMatch(harness.text(), /keep working/);
+        assert.ok(harness.query('[data-manager-verification-banner] a[href="/manager/verification"]'));
+    } finally {
+        await harness.unmount();
+    }
+});
+
+test('a rejected manager who resubmitted (pending review) still sees view-only copy', async () => {
+    const harness = await mount('/manager/fast-track', 'fast-track', { verificationStatus: 'submitted', bookingReadOnly: true });
+    try {
+        assert.match(harness.text(), /fast-track page content/);
+        assert.equal(harness.query('[data-manager-verification-banner]')?.getAttribute('data-manager-verification-banner'), 'submitted');
+        assert.match(harness.text(), /cannot change them or start new cases until an admin re-approves you/);
+        assert.doesNotMatch(harness.text(), /keep working/);
+    } finally {
+        await harness.unmount();
+    }
+});
+
+test('rejected managers see view-only copy on appointments and contracts too', async () => {
+    const appointments = await mount('/manager/appointments', 'appointments', { verificationStatus: 'rejected' });
+    try {
+        assert.match(appointments.text(), /appointments page content/);
+        assert.match(appointments.text(), /cannot confirm, reschedule, complete or cancel them until an admin re-approves you/);
+    } finally {
+        await appointments.unmount();
+    }
+    const contracts = await mount('/manager/contracts', 'contracts', { verificationStatus: 'rejected' });
+    try {
+        assert.match(contracts.text(), /contracts page content/);
+        assert.match(contracts.text(), /cannot create, sign or withdraw them until an admin re-approves you/);
+    } finally {
+        await contracts.unmount();
+    }
+});
 
 test('re-verification explains the profile-change cause and keeps existing appointments and contracts open', async () => {
     const reason = 'Agency profile details changed and require admin review.';

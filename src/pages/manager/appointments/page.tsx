@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
+import { useManagerViewOnly } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
@@ -32,6 +33,7 @@ import {
 } from '@/lib/fastTrackCaseContext';
 import { getFastTrackViewingCompletionBlockReason } from '@/lib/fastTrackWorkspace';
 import { toLocalScheduledAt } from '@/lib/localScheduledAt';
+import { MANAGER_VIEW_ONLY_HINT, MANAGER_VIEW_ONLY_REASON } from '@/lib/managerViewOnly';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
 const FILTERS = [
@@ -275,6 +277,8 @@ export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
+    // A manager whose verification was rejected or revoked can open every appointment but not change any.
+    const managerViewOnly = useManagerViewOnly();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [appointments, setAppointments] = useState<Viewing[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
@@ -447,6 +451,10 @@ export default function ManagerAppointmentsPage() {
         successMessage: string,
         fastTrackSync?: { action: string; payload?: Record<string, unknown> },
     ) => {
+        if (managerViewOnly) {
+            toast.info(MANAGER_VIEW_ONLY_REASON);
+            return;
+        }
         setActingID(appointmentID);
         try {
             const appointment = appointments.find((item) => item.id === appointmentID);
@@ -748,7 +756,7 @@ export default function ManagerAppointmentsPage() {
                                 />
                             </div>
                         )}
-                        {focusedAppointmentId && (
+                        {focusedAppointmentId && !managerViewOnly && (
                             <div className="border-b border-orange-200 bg-orange-50 px-6 py-4 text-sm text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                                 The appointment linked to your live workflow is pinned first so you can confirm or reschedule it without searching manually.
                             </div>
@@ -757,6 +765,8 @@ export default function ManagerAppointmentsPage() {
                             const { date, time } = formatDateTime(appointment.scheduled_at);
                             const isBusy = actingID === appointment.id;
                             const isWorkflowLocked = Boolean(appointment.workflow_locked);
+                            // Hidden, not just disabled: a view-only manager has no change to make here.
+                            const canChange = !isWorkflowLocked && !managerViewOnly;
                             // Only the links booking-service uses (case, application, viewing) gate completion.
                             const completionBlockReason = getFastTrackViewingCompletionBlockReason(findLinkedFastTrackCase(fastTrackCases, {
                                 caseId: appointment.fast_track_case_id,
@@ -814,6 +824,17 @@ export default function ManagerAppointmentsPage() {
                                                 </div>
                                             )}
 
+                                            {managerViewOnly && !isWorkflowLocked && (
+                                                <div
+                                                    data-appointment-view-only
+                                                    role="note"
+                                                    className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
+                                                >
+                                                    <p className="font-semibold">View only</p>
+                                                    <p className="mt-1">{MANAGER_VIEW_ONLY_HINT} You cannot confirm, reschedule, complete or cancel this appointment.</p>
+                                                </div>
+                                            )}
+
                                             {isWorkflowLocked && (
                                                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
                                                     <p className="font-semibold">Workflow locked</p>
@@ -833,7 +854,7 @@ export default function ManagerAppointmentsPage() {
                                                 </button>
                                             ) : null}
 
-                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'rescheduled') && (
+                                            {canChange && (appointment.status === 'pending' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => runAction(
                                                         appointment.id,
@@ -855,7 +876,7 @@ export default function ManagerAppointmentsPage() {
                                                 </button>
                                             )}
 
-                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
+                                            {canChange && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => openReschedule(appointment)}
                                                     disabled={isBusy}
@@ -865,7 +886,7 @@ export default function ManagerAppointmentsPage() {
                                                 </button>
                                             )}
 
-                                            {!isWorkflowLocked && appointment.status === 'confirmed' && (
+                                            {canChange && appointment.status === 'confirmed' && (
                                                 <button
                                                     onClick={() => runAction(
                                                         appointment.id,
@@ -886,7 +907,7 @@ export default function ManagerAppointmentsPage() {
                                                     Mark Completed
                                                 </button>
                                             )}
-                                            {!isWorkflowLocked && appointment.status === 'confirmed' && completionBlockReason ? (
+                                            {canChange && appointment.status === 'confirmed' && completionBlockReason ? (
                                                 <p
                                                     id={`appointment-completion-hint-${appointment.id}`}
                                                     data-appointment-completion-hint
@@ -896,7 +917,7 @@ export default function ManagerAppointmentsPage() {
                                                 </p>
                                             ) : null}
 
-                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
+                                            {canChange && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => openCancel(appointment)}
                                                     disabled={isBusy}

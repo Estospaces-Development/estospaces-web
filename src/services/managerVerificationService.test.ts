@@ -151,3 +151,16 @@ test('manager profile mapping leaves an absent agency verification optional', ()
   assert.equal(profile.verification_status, 'approved');
   assert.equal(profile.agency_verification_status, undefined);
 });
+
+// Owner decision (10 Oct 2026): rejected or revoked managers are read-only until an admin re-approves them.
+test('manager profile mapping reads core booking_read_only and treats a revoked status as rejected', () => {
+  const base = { user_id: 'manager-1', created_at: '2026-06-15T08:00:00.000Z' };
+
+  assert.equal(mapManagerProfile({ ...base, verification_status: 'documents_submitted', booking_read_only: true }).booking_read_only, true);
+  assert.equal(mapManagerProfile({ ...base, verification_status: 'documents_submitted', booking_read_only: false }).booking_read_only, undefined);
+  assert.equal(mapManagerProfile({ ...base, verification_status: 'approved' }).booking_read_only, undefined);
+
+  assert.equal(mapManagerProfile({ ...base, verification_status: 'rejected' }).verification_status, 'rejected');
+  assert.equal(mapManagerProfile({ ...base, verification_status: 'revoked' }).verification_status, 'rejected');
+  assert.equal(mapManagerProfile({ ...base, verification_status: 'documents_submitted' }).verification_status, 'submitted');
+});

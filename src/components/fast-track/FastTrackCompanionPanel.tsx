@@ -10,6 +10,7 @@ import DateField from "@/components/ui/DateField";
 import TimeField from "@/components/ui/TimeField";
 import FastTrackCompletionRefresh from "@/components/fast-track/FastTrackCompletionRefresh";
 import { useAuth } from "@/contexts/AuthContext";
+import { useManagerViewOnly } from "@/contexts/ManagerVerificationContext";
 import { useToast } from "@/contexts/ToastContext";
 import { usePublishWorkspaceSync } from "@/contexts/WorkspaceSyncContext";
 import {
@@ -36,6 +37,7 @@ import { getFastTrackDisplayTitle } from "@/lib/fastTrackDisplayTitle";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import { toLocalScheduledAt } from "@/lib/localScheduledAt";
 import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
+import { MANAGER_VIEW_ONLY_REASON } from "@/lib/managerViewOnly";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { upsertDirectConversation } from "@/services/messagesService";
 
@@ -109,6 +111,8 @@ export default function FastTrackCompanionPanel({
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const managerVerificationViewOnly = useManagerViewOnly();
+  const managerViewOnly = role === "manager" && managerVerificationViewOnly;
   const publishWorkspaceSync = usePublishWorkspaceSync();
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [openingConversation, setOpeningConversation] = useState(false);
@@ -162,6 +166,10 @@ export default function FastTrackCompanionPanel({
 
   const runAction = useCallback(
     async (action: string, payload: Record<string, unknown>, successMessage: string) => {
+      if (managerViewOnly) {
+        toast.info(MANAGER_VIEW_ONLY_REASON);
+        return MANAGER_VIEW_ONLY_REASON;
+      }
       if (action === "retry_handover_sync" && !canRefreshFastTrackCompletion(fastTrackCase, role, user?.id)) {
         return "Completion refresh is not available for this case.";
       }
@@ -204,7 +212,7 @@ export default function FastTrackCompanionPanel({
         setActiveAction(null);
       }
     },
-    [fastTrackCase, onCaseUpdated, onRefresh, publishWorkspaceSync, role, toast, user?.id],
+    [fastTrackCase, managerViewOnly, onCaseUpdated, onRefresh, publishWorkspaceSync, role, toast, user?.id],
   );
 
   const completionRefresh = canRefreshFastTrackCompletion(fastTrackCase, role, user?.id) ? (
@@ -880,7 +888,21 @@ export default function FastTrackCompanionPanel({
         </div>
       </div>
 
-      <div className="mt-5">{renderStageActions()}</div>
+      {managerViewOnly ? (
+        <p
+          role="status"
+          data-fast-track-companion-view-only="true"
+          className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100"
+        >
+          {MANAGER_VIEW_ONLY_REASON}
+        </p>
+      ) : null}
+      <fieldset
+        disabled={managerViewOnly}
+        className="m-0 mt-5 min-w-0 border-0 p-0 disabled:cursor-not-allowed disabled:opacity-75"
+      >
+        {renderStageActions()}
+      </fieldset>
     </div>
   );
 }
