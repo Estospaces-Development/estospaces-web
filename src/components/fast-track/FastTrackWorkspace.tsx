@@ -28,7 +28,9 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useManagerViewOnly } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
+import { MANAGER_VIEW_ONLY_REASON } from '@/lib/managerViewOnly';
 import {
     usePublishWorkspaceSync,
     useWorkspaceRefresh,
@@ -295,10 +297,13 @@ export const isFastTrackCaseVisibleForFilter = (
     filter: FilterMode,
 ) => filter === 'all' || fastTrackCase.workspaceFinalStatus === filter;
 
+// A closed case is view only for managers and admins. A manager whose verification was rejected or revoked is
+// view only on every case until an admin re-approves them; booking refuses their writes too.
 export const isFastTrackStageReadOnly = (
     fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
     role: WorkspaceRole,
-) => role !== 'user' && fastTrackCase.workspaceFinalStatus !== 'active';
+    managerViewOnly = false,
+) => role !== 'user' && (fastTrackCase.workspaceFinalStatus !== 'active' || (role === 'manager' && managerViewOnly));
 
 export const formatFastTrackCaseDeadline = (
     fastTrackCase: FastTrackCase,
@@ -728,6 +733,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const navigate = useNavigate();
     const { user } = useAuth();
     const toast = useToast();
+    const managerVerificationViewOnly = useManagerViewOnly();
+    const managerViewOnly = role === 'manager' && managerVerificationViewOnly;
     const [searchParams, setSearchParams] = useSerializedSearchParams();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -1646,6 +1653,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const completionRefreshAllowed = action === 'retry_handover_sync'
             && canRefreshFastTrackCompletion(selectedCase, role, user?.id);
+        if (managerViewOnly) {
+            setPendingAdminOverrideAction(null);
+            setStageConfirmDialog(null);
+            setCancelCaseDialogOpen(false);
+            toast.info(MANAGER_VIEW_ONLY_REASON);
+            return MANAGER_VIEW_ONLY_REASON;
+        }
         if ((action === 'retry_handover_sync' && !completionRefreshAllowed)
             || (isFastTrackStageReadOnly(selectedCase, role) && !completionRefreshAllowed)
             || (role === 'user' && isFastTrackUserActionBlockedOnClosedCase(selectedCase, action))) {
@@ -1719,7 +1733,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return refreshedCase.error || 'Completion was saved, but the confirming read failed. Try refreshing again.';
         }
         return null;
-    }, [publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
+    }, [managerViewOnly, publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
 
     const runAction = useCallback((
         action: string,
@@ -1768,9 +1782,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        if (isFastTrackStageReadOnly(selectedCase, role)) {
+        if (isFastTrackStageReadOnly(selectedCase, role, managerViewOnly)) {
             setStageConfirmDialog(null);
-            toast.info('This Fast Track is closed and available for viewing only.');
+            toast.info(managerViewOnly ? MANAGER_VIEW_ONLY_REASON : 'This Fast Track is closed and available for viewing only.');
             return;
         }
 
@@ -1780,7 +1794,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setActiveStageOverride(stage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, stage, true));
         void runAction('start_documents', {}, 'Documents stage started.');
-    }, [role, runAction, selectedCase, setSearchParams, stageConfirmDialog, toast]);
+    }, [managerViewOnly, role, runAction, selectedCase, setSearchParams, stageConfirmDialog, toast]);
 
     const handleRequestDocument = useCallback((item: FastTrackDocumentItem, reason: string, dueAt: string) => {
         const request = buildFastTrackDocumentRequestPayload(item.id, reason, dueAt);
@@ -3094,6 +3108,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             role,
                             item.status,
                             Boolean(item.documentRecordId || item.fileUrl),
+                            managerViewOnly,
                         );
                         const canUpload = documentPermissions.canUpload;
                         const rowPresentation = getFastTrackDocumentRowPresentation({
@@ -3112,6 +3127,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             ? (item.reviewNote || '')
                             : (item.reviewNote || item.uploadNote || item.note || '');
                         const canRequestDocument = role !== 'user'
+                            && !managerViewOnly
                             && selectedCase.workspaceFinalStatus === 'active'
                             && selectedCase.stage === 'documents'
                             && !canPreview
@@ -3248,8 +3264,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {rowPresentation.noteField ? <input
                                         type="text"
                                         value={documentNotes[item.id] || ''}
-                                        readOnly={isFastTrackStageReadOnly(selectedCase, role)}
-                                        aria-readonly={isFastTrackStageReadOnly(selectedCase, role)}
+                                        readOnly={isFastTrackStageReadOnly(selectedCase, role, managerViewOnly)}
+                                        aria-readonly={isFastTrackStageReadOnly(selectedCase, role, managerViewOnly)}
                                         onChange={(event) => setDocumentNotes((previous) => ({
                                             ...previous,
                                             [item.id]: event.target.value,
@@ -3315,7 +3331,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             item={item}
                                             hasAttachedFile={canPreview}
                                             busy={activeAction === 'review_document'}
-                                            readOnly={isFastTrackStageReadOnly(selectedCase, role)}
+                                            readOnly={isFastTrackStageReadOnly(selectedCase, role, managerViewOnly)}
                                             permissions={documentPermissions}
                                             viewer={role === 'user' ? 'user' : 'reviewer'}
                                             onReview={(outcome) => void runAction(
@@ -4510,7 +4526,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 onOpenCustomize={handleOpenCustomization}
                             />
 
-                            {role !== 'user' && selectedCase.workspaceFinalStatus === 'active' ? (
+                            {role !== 'user' && selectedCase.workspaceFinalStatus === 'active' && !managerViewOnly ? (
                                 <div className="flex justify-end">
                                     <ActionButton
                                         tone="danger"
@@ -4531,7 +4547,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
                             )}>
                                 <div ref={contentRef} className="min-w-0 max-w-full space-y-3 sm:space-y-6" data-mobile-current-task>
-                                    {isFastTrackStageReadOnly(selectedCase, role) ? (
+                                    {managerViewOnly ? (
+                                        <div
+                                            role="status"
+                                            data-fast-track-manager-view-only
+                                            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100"
+                                        >
+                                            <p className="font-semibold">View only</p>
+                                            <p className="mt-1">{MANAGER_VIEW_ONLY_REASON}</p>
+                                        </div>
+                                    ) : isFastTrackStageReadOnly(selectedCase, role) ? (
                                         <div
                                             role="status"
                                             data-fast-track-closed-case-read-only
@@ -4544,9 +4569,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </div>
                                     ) : null}
                                     <fieldset
-                                        disabled={isFastTrackStageReadOnly(selectedCase, role) && effectiveVisibleStage !== 'documents'
-                                            && !(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion(selectedCase, role, user?.id))}
-                                        aria-label={isFastTrackStageReadOnly(selectedCase, role) ? 'Closed Fast Track stage — view only' : undefined}
+                                        disabled={isFastTrackStageReadOnly(selectedCase, role, managerViewOnly) && effectiveVisibleStage !== 'documents'
+                                            && !(effectiveVisibleStage === 'handover' && canRefreshFastTrackCompletion(selectedCase, role, user?.id) && !managerViewOnly)}
+                                        aria-label={isFastTrackStageReadOnly(selectedCase, role, managerViewOnly) ? (managerViewOnly ? 'Fast Track stage — view only' : 'Closed Fast Track stage — view only') : undefined}
                                         className="m-0 min-w-0 border-0 p-0 disabled:cursor-not-allowed disabled:opacity-75"
                                     >
                                         {renderActiveStage()}

@@ -75,6 +75,8 @@ export interface ManagerProfile {
     agency_verification_reason?: string;
     rejection_reason?: string;
     revision_notes?: string;
+    /** Core: the manager was rejected or revoked and no admin has approved them since, so booking refuses their writes. */
+    booking_read_only?: boolean;
     submitted_at?: string;
     approved_at?: string;
     approved_by?: string;
@@ -314,6 +316,8 @@ const mapVerificationStatus = (backendStatus?: string): VerificationStatus => {
         fully_verified: 'approved',
         approved: 'approved',
         rejected: 'rejected',
+        // Core stores an admin revoke as `rejected`; keep a dedicated `revoked` read-only too.
+        revoked: 'rejected',
         verification_required: 'verification_required',
         incomplete: 'incomplete',
     };
@@ -426,6 +430,7 @@ export const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => 
         agency_verification_reason: data.agency_verification_reason || undefined,
         rejection_reason: data.verification_status === 'rejected' ? data.admin_notes || undefined : undefined,
         revision_notes: data.admin_notes || undefined,
+        booking_read_only: data.booking_read_only === true ? true : undefined,
         submitted_at: data.submitted_at || (submittedStatuses.has(backendVerificationStatus) ? data.updated_at : data.created_at) || undefined,
         approved_at: data.verified_at || undefined,
         approved_by: data.verified_by || undefined,

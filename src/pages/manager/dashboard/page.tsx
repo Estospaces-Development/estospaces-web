@@ -23,7 +23,8 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { dedupeFastTrackWorkspaceCases } from '@/lib/fastTrackWorkspaceLoad';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
-import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import { useManagerVerification, useManagerViewOnly } from '@/contexts/ManagerVerificationContext';
+import { MANAGER_VIEW_ONLY_HINT, MANAGER_VIEW_ONLY_REASON } from '@/lib/managerViewOnly';
 import {
   canLoadManagerOperationalDashboard,
   getManagerDashboardAccessState,
@@ -122,6 +123,8 @@ function DashboardContent() {
     isLoading: managerVerificationLoading,
     error: managerVerificationError,
   } = useManagerVerification();
+  // A manager whose verification was rejected or revoked can open everything but start or confirm nothing.
+  const managerViewOnly = useManagerViewOnly();
   const getTabFromPath = (): string => {
     const path = location.pathname;
     if (path.startsWith('/manager/dashboard/properties')) return 'properties';
@@ -180,10 +183,10 @@ function DashboardContent() {
     : managerVerificationError || readinessCopy?.description;
 
   useEffect(() => {
-    if (canLoadOperationalDashboard && fastTrackRequestContext !== null) {
+    if (canLoadOperationalDashboard && !managerViewOnly && fastTrackRequestContext !== null) {
       setIsManualFastTrackOpen(true);
     }
-  }, [canLoadOperationalDashboard, fastTrackRequestContext]);
+  }, [canLoadOperationalDashboard, fastTrackRequestContext, managerViewOnly]);
 
   const resetOperationalDashboardData = useCallback(() => {
     propertyRequestGeneration.current += 1;
@@ -492,6 +495,10 @@ function DashboardContent() {
   };
 
   const handleConfirmReservation = async (booking: Booking) => {
+    if (managerViewOnly) {
+      toast.info(MANAGER_VIEW_ONLY_REASON);
+      return;
+    }
     setConfirmingBookingID(booking.id);
     setBookingError(null);
     try {
@@ -678,6 +685,16 @@ function DashboardContent() {
               </div>
             ) : null}
 
+            {managerViewOnly ? (
+              <p
+                role="note"
+                data-dashboard-view-only="reservations"
+                className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100"
+              >
+                <span className="font-semibold">View only.</span> {MANAGER_VIEW_ONLY_HINT} You cannot confirm reservations.
+              </p>
+            ) : null}
+
             <div className="mt-6 space-y-3">
               {pendingReservations.length > 0 ? pendingReservations.map((booking, bookingIndex) => (
                 <div
@@ -704,7 +721,8 @@ function DashboardContent() {
                   <button
                     type="button"
                     onClick={() => void handleConfirmReservation(booking)}
-                    disabled={confirmingBookingID === booking.id}
+                    disabled={confirmingBookingID === booking.id || managerViewOnly}
+                    title={managerViewOnly ? MANAGER_VIEW_ONLY_HINT : undefined}
                     className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                   >
                     {confirmingBookingID === booking.id ? <ActionSpinner className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -738,7 +756,9 @@ function DashboardContent() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={() => setIsManualFastTrackOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                  disabled={managerViewOnly}
+                  title={managerViewOnly ? MANAGER_VIEW_ONLY_HINT : undefined}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
                 >
                   <Plus className="w-4 h-4" />
                   Add 24h case
@@ -752,6 +772,16 @@ function DashboardContent() {
                 </button>
               </div>
             </div>
+
+            {managerViewOnly ? (
+              <p
+                role="note"
+                data-dashboard-view-only="fast-track"
+                className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100"
+              >
+                <span className="font-semibold">View only.</span> {MANAGER_VIEW_ONLY_HINT} You cannot start new Fast Track cases.
+              </p>
+            ) : null}
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
@@ -816,7 +846,9 @@ function DashboardContent() {
                   <p>Active fast-track cases will appear here automatically.</p>
                   <button
                     onClick={() => setIsManualFastTrackOpen(true)}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                    disabled={managerViewOnly}
+                    title={managerViewOnly ? MANAGER_VIEW_ONLY_HINT : undefined}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Plus className="w-4 h-4" />
                     Add 24h case manually
@@ -1012,7 +1044,7 @@ function DashboardContent() {
       )}
 
       <ManualFastTrackModal
-        open={canLoadOperationalDashboard && isManualFastTrackOpen}
+        open={canLoadOperationalDashboard && !managerViewOnly && isManualFastTrackOpen}
         existingCases={fastTrackCases}
         requestContext={fastTrackRequestContext}
         onClose={closeManualFastTrack}

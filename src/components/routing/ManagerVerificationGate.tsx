@@ -4,11 +4,12 @@ import { ShieldAlert } from 'lucide-react';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import { resolveManagerViewOnly } from '@/lib/managerViewOnly';
 import {
     MANAGER_VERIFICATION_PATH,
-    VERIFIED_MANAGER_AREA_DETAIL,
     VERIFIED_MANAGER_AREA_LABELS,
     VERIFIED_MANAGER_AREA_VIEW_ACTION,
+    getVerifiedManagerAreaDetail,
     resolveManagerVerificationGate,
     type ManagerVerificationNotice,
     type VerifiedManagerArea,
@@ -89,7 +90,7 @@ export default function ManagerVerificationGate({ area, children }: ManagerVerif
 
     const { notice } = decision;
     const areaLabel = VERIFIED_MANAGER_AREA_LABELS[area];
-    const areaDetail = VERIFIED_MANAGER_AREA_DETAIL[area];
+    const areaDetail = getVerifiedManagerAreaDetail(area, resolveManagerViewOnly(verificationStatus, managerProfile?.booking_read_only));
     const viewExistingLabel = VERIFIED_MANAGER_AREA_VIEW_ACTION[area];
     const retry = () => { void refetch(); };
 

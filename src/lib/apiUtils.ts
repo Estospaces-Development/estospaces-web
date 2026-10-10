@@ -12,6 +12,7 @@ import {
     syncAuthExpiryState,
 } from '@/lib/authExpiry';
 import { clearAuthToken, getAuthToken } from '@/lib/authToken';
+import { isManagerVerificationGuardErrorCode } from '@/lib/managerViewOnly';
 import { trackApiOutcome } from '@/lib/productAnalytics';
 
 const VITE_ENV = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env ?? {};
@@ -566,15 +567,25 @@ export async function apiFetchEnvelope<T>(
             ? await handleUnauthorizedResponse(url, requestToken)
             : 'unhandled';
         if (isDebug) console.error('[API Response Error] %s %s: %s', method, url, errorMsg);
+        // Booking's manager read-only and verification-check refusals say exactly what happened; show that, not the generic 4xx or outage text.
+        const showServerMessage = isManagerVerificationGuardErrorCode(errorCode);
         if (!suppressErrorToast && unauthorizedState === 'unhandled' && shouldEmitApiFailureToast(response.status, method)) {
-            notifyApiFailure(response.status);
+            if (showServerMessage) {
+                emitErrorToast(errorMsg, {
+                    title: response.status === 403 ? 'View only' : 'Please retry',
+                    duration: 6000,
+                    position: 'top-right',
+                });
+            } else {
+                notifyApiFailure(response.status);
+            }
         }
         trackApiOutcome(url, method, false, response.status);
         const requestError = new ApiRequestError(
             errorMsg,
             unauthorizedState === 'session-expired' || unauthorizedState === 'cleared-on-auth-page'
                 ? AUTH_EXPIRED_MESSAGE
-                : getToastPayload(response.status).message,
+                : showServerMessage ? errorMsg : getToastPayload(response.status).message,
             response.status,
             fieldErrors,
             unauthorizedState,

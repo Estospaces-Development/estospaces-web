@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import * as managerVerificationService from '../services/managerVerificationService';
 import { getManagerPropertySubmissionBlocker } from '../lib/managerPropertySubmission';
+import { resolveManagerViewOnly } from '../lib/managerViewOnly';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import type {
@@ -316,6 +317,16 @@ export const useManagerVerification = () => {
         throw new Error('useManagerVerification must be used within a ManagerVerificationProvider');
     }
     return context;
+};
+
+/**
+ * True when the signed-in manager's verification was rejected or revoked: their
+ * pages stay open but every write is off (booking refuses them too). Returns
+ * false outside the provider, so shared components can call it for any role.
+ */
+export const useManagerViewOnly = (): boolean => {
+    const context = useContext(ManagerVerificationContext);
+    return resolveManagerViewOnly(context?.verificationStatus, context?.managerProfile?.booking_read_only);
 };
 
 export default ManagerVerificationContext;
