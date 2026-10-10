@@ -72,6 +72,6 @@ test('index.html loads asset recovery before the app entry and main.tsx clears i
 });
 
 test('lazy routes also recover when Vite cannot preload a missing route stylesheet', () => {
-    const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
-    assert.match(app, /'Unable to preload CSS',/);
+    const chunkReload = readFileSync(new URL('./chunkReload.ts', import.meta.url), 'utf8');
+    assert.match(chunkReload, /'Unable to preload CSS',/);
 });

@@ -5,6 +5,7 @@ import './globals.css';
 import { AuthProvider } from "@/contexts/AuthContext";
 import AppProviders from '@/components/providers/AppProviders';
 import { BrowserRouter } from 'react-router-dom';
+import { reloadOnceForMissingChunk } from '@/lib/chunkReload';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', (event) => {
@@ -13,6 +14,12 @@ if (typeof window !== 'undefined') {
             event.target.style.visibility = 'hidden';
         }
     }, true);
+
+    // Vite fires this for every failed lazy import, including nested lazy() components that lazyPage
+    // does not wrap (e.g. SatelliteMap on the manager dashboard after a deploy).
+    window.addEventListener('vite:preloadError', () => {
+        reloadOnceForMissingChunk();
+    });
 
     // The entry bundle loaded, so stop public/asset-recovery-v1.js from reloading and let a later deploy retry.
     (window as Window & { __estospacesBooted?: boolean }).__estospacesBooted = true;
