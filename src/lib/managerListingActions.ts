@@ -198,7 +198,12 @@ export const presentManagerListingActionError = (
         };
     }
     if (status === 404) {
-        return { title: 'Listing not found', message: 'This listing no longer exists. Go back to your properties and refresh.', items: [] };
+        // Core answers "property not found" for a missing listing; anything else is a core
+        // that does not have the route yet (web and core deploy independently).
+        if (/property not found/i.test(serverMessage)) {
+            return { title: 'Listing not found', message: 'This listing no longer exists. Go back to your properties and refresh.', items: [] };
+        }
+        return { title: 'Not available yet', message: 'This action is not available yet. Nothing was changed. Please try again later.', items: [] };
     }
     return {
         title: 'Nothing was changed',

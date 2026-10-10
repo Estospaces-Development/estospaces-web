@@ -145,6 +145,10 @@ test('state conflicts, the plan limit, ownership and readiness each get their ow
     assert.match(notReady.message, /manager verification must be approved/);
 
     assert.match(presentManagerListingActionError('unpublish', { error: 'property not found', status: 404 }).message, /no longer exists/);
+    // A web that is deployed before core has the route gets core's router 404, which is not a missing listing.
+    const skew = presentManagerListingActionError('unpublish', { error: 'Cannot PUT /api/v1/properties/property-1/manager-status', status: 404 });
+    assert.equal(skew.title, 'Not available yet');
+    assert.doesNotMatch(skew.message, /no longer exists/);
     assert.match(presentManagerListingActionError('unpublish', { error: 'Internal server error', status: 500 }).message, /Something went wrong on our side/);
     assert.equal(presentManagerListingActionError('unpublish', { error: 'action must be one of unpublish, republish or mark_sold', status: 400 }).message, 'action must be one of unpublish, republish or mark_sold');
 });
