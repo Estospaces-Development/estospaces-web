@@ -126,42 +126,70 @@ async function mount(path: string, area: VerifiedManagerArea, state: Verificatio
     };
 }
 
-test('a pending manager opening Fast Track sees an explicit gate on the same URL', async () => {
-    const harness = await mount('/manager/fast-track', 'fast-track', { verificationStatus: 'submitted' });
+test('a first-time incomplete manager opening Fast Track sees an explicit gate on the same URL', async () => {
+    const harness = await mount('/manager/fast-track', 'fast-track', { verificationStatus: 'incomplete' });
     try {
         assert.equal(harness.location(), '/manager/fast-track');
         assert.doesNotMatch(harness.text(), /dashboard page|fast-track page content/);
-        assert.match(harness.text(), /Your manager profile is pending verification/);
-        assert.equal(harness.query('[data-manager-verification-status]')?.textContent, 'Pending review');
+        assert.match(harness.text(), /Complete your manager verification/);
+        assert.equal(harness.query('[data-manager-verification-status]')?.textContent, 'Not verified');
         assert.ok(harness.query('a[href="/manager/verification"]'), 'links to the verification page');
     } finally {
         await harness.unmount();
     }
 });
 
-test('re-verification explains the profile-change cause and keeps existing appointments viewable', async () => {
-    const harness = await mount('/manager/appointments', 'appointments', {
-        verificationStatus: 'verification_required',
-        agencyReason: 'Agency profile details changed and require admin review.',
+for (const status of ['submitted', 'under_review', 'verification_required', 'rejected'] as const) {
+    test(`a manager in ${status} opens existing Fast Track cases directly under a notice`, async () => {
+        const harness = await mount('/manager/fast-track', 'fast-track', { verificationStatus: status });
+        try {
+            assert.equal(harness.location(), '/manager/fast-track');
+            assert.match(harness.text(), /fast-track page content/);
+            assert.equal(harness.query('[data-manager-verification-gate]'), null);
+            assert.equal(harness.query('[data-manager-verification-banner]')?.getAttribute('data-manager-verification-banner'), status);
+            assert.match(harness.text(), /existing Fast Track cases stay open and you can keep working on them/);
+            assert.match(harness.text(), /Starting new cases is paused/);
+            assert.ok(harness.query('[data-manager-verification-banner] a[href="/manager/verification"]'));
+        } finally {
+            await harness.unmount();
+        }
     });
-    try {
-        assert.match(harness.text(), /Re-verification required after profile changes/);
-        assert.match(harness.text(), /Agency profile details changed and require admin review\./);
-        assert.equal(harness.query('[data-manager-verification-status]')?.textContent, 'Re-verification required');
-        assert.doesNotMatch(harness.text(), /appointments page content/);
+}
 
+test('re-verification explains the profile-change cause and keeps existing appointments and contracts open', async () => {
+    const reason = 'Agency profile details changed and require admin review.';
+    const appointments = await mount('/manager/appointments', 'appointments', { verificationStatus: 'verification_required', agencyReason: reason });
+    try {
+        assert.match(appointments.text(), /appointments page content/);
+        assert.equal(appointments.query('[data-manager-verification-banner]')?.getAttribute('data-manager-verification-banner'), 'verification_required');
+        assert.match(appointments.text(), /Re-verification required/);
+    } finally {
+        await appointments.unmount();
+    }
+    const contracts = await mount('/manager/contracts', 'contracts', { verificationStatus: 'rejected' });
+    try {
+        assert.match(contracts.text(), /contracts page content/);
+        assert.ok(contracts.query('[data-manager-verification-banner]'));
+    } finally {
+        await contracts.unmount();
+    }
+});
+
+test('a first-time incomplete manager keeps the gate on appointments with the verification link', async () => {
+    const harness = await mount('/manager/appointments', 'appointments', { verificationStatus: 'incomplete' });
+    try {
+        assert.doesNotMatch(harness.text(), /appointments page content/);
+        assert.match(harness.text(), /Complete your manager verification/);
         await harness.click('View existing appointments');
-        assert.equal(harness.location(), '/manager/appointments');
         assert.match(harness.text(), /appointments page content/);
-        assert.equal(harness.query('[data-manager-verification-banner]')?.getAttribute('data-manager-verification-banner'), 'verification_required');
-        assert.ok(harness.query('[data-manager-verification-banner] a[href="/manager/verification"]'));
+        assert.ok(harness.query('[data-manager-verification-banner]'));
     } finally {
         await harness.unmount();
     }
 });
 
 test('the verification link on the gate leads to the verification page', async () => {
-    const harness = await mount('/manager/contracts', 'contracts', { verificationStatus: 'rejected' });
+    const harness = await mount('/manager/contracts', 'contracts', { verificationStatus: 'incomplete' });
     try {
         await harness.click('Go to verification');
         assert.equal(harness.location(), '/manager/verification');
@@ -172,7 +200,7 @@ test('the verification link on the gate leads to the verification page', async (
 });
 
 test('analytics stays gated without a partial view', async () => {
-    const harness = await mount('/manager/analytics', 'analytics', { verificationStatus: 'under_review' });
+    const harness = await mount('/manager/analytics', 'analytics', { verificationStatus: 'verification_required' });
     try {
         assert.match(harness.text(), /Analytics open once your manager verification is approved/);
         assert.doesNotMatch(harness.text(), /View existing/);
