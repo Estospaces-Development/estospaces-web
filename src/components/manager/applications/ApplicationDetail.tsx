@@ -98,6 +98,7 @@ import {
   type PropertyComplianceEvidenceDraft,
 } from "@/lib/propertyCompliance";
 import { summarizeCaseFileDocuments } from "@/lib/caseFileDocuments";
+import { tenancyComplianceLabel } from "@/lib/tenancyComplianceLabel";
 import {
   findLatestApplicationContractId,
   getManagerRentNextAction,
@@ -186,7 +187,8 @@ const managerRentPanelLabels: Record<
 > = {
   documents: "Shared documents",
   referencing: "Referencing",
-  compliance: "Right-to-rent",
+  // Rendered as tenancyComplianceLabel(jurisdiction); this is only the type-required fallback.
+  compliance: "Tenancy compliance",
   approval: "Approval",
   property_readiness: "Property readiness",
   appointments: "Appointments",
@@ -277,6 +279,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     timeLimited: false,
   });
   const [rightToRentError, setRightToRentError] = useState("");
+  const complianceLabel = tenancyComplianceLabel(
+    rightToRentCheck?.jurisdiction || application?.jurisdictionProfile,
+  );
   const [rentWorkflowError, setRentWorkflowError] = useState<string | null>(
     null,
   );
@@ -1154,9 +1159,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     },
     {
       key: "compliance",
-      label: "Right-to-rent",
-      description:
-        "Complete the right-to-rent or equivalent jurisdiction check here.",
+      label: complianceLabel,
+      description: `Complete the ${complianceLabel} check here.`,
       complete:
         rightToRentCheck?.status === "completed" ||
         rightToRentCheck?.status === "not_required",
@@ -1166,8 +1170,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     {
       key: "approval",
       label: "Approval",
-      description:
-        "Approve once referencing and right-to-rent are both clear.",
+      description: `Approve once referencing and ${complianceLabel} are both clear.`,
       complete: rentApplicationApproved,
       active: managerRentNextAction?.panel === "approval",
       onClick: () => scrollToRentPanel("approval"),
@@ -1301,10 +1304,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         review_notes:
           reviewNotes ||
           (status === "completed"
-            ? "Right-to-rent check completed from the manager application workflow."
+            ? `${complianceLabel} check completed from the manager application workflow.`
             : status === "not_required"
-              ? "Jurisdiction-specific right-to-rent check marked as not required."
-              : "Right-to-rent check started from the manager application workflow."),
+              ? `${complianceLabel} check marked as not required.`
+              : `${complianceLabel} check started from the manager application workflow.`),
         checked_at:
           status === "completed" ? new Date().toISOString() : undefined,
       }, managerWorkflowRequestOptions);
@@ -2924,7 +2927,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     {managerRentNextAction ? (
                       <div className="mt-5 rounded-xl border border-orange-200 bg-white/80 p-5 dark:border-orange-800/50 dark:bg-gray-950/40">
                         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300">
-                          {managerRentPanelLabels[managerRentNextAction.panel]}
+                          {managerRentNextAction.panel === "compliance"
+                            ? complianceLabel
+                            : managerRentPanelLabels[managerRentNextAction.panel]}
                         </p>
                         <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
                           {managerRentNextAction.title}
@@ -3032,15 +3037,15 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40"
                       >
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
-                          Right-to-rent
+                          {complianceLabel}
                         </p>
                         <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">
                           {rightToRentCheck?.status?.replace(/_/g, " ") ||
                             "Pending"}
                         </p>
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                          Complete the right-to-rent or equivalent jurisdiction
-                          check here before approving the tenancy application.
+                          Complete the {complianceLabel} check here before
+                          approving the tenancy application.
                         </p>
                         <div className="mt-4 space-y-3">
                           <label className="block text-sm">
@@ -3106,7 +3111,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }
                             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                           >
-                            Start right-to-rent
+                            Start {complianceLabel}
                           </button>
                           <button
                             type="button"
@@ -3119,7 +3124,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }
                             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Mark right-to-rent complete
+                            Mark {complianceLabel} complete
                           </button>
                           {rightToRentCheck?.jurisdiction &&
                           rightToRentCheck.jurisdiction !== "england" ? (
