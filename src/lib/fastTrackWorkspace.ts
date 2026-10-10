@@ -562,15 +562,17 @@ export const isFastTrackUserActionBlockedOnClosedCase = (
 // Per-document permissions derived from case state and role. Mirrors the
 // booking-service rules: only managers/admins review, only on open cases;
 // approval happens during document collection, and a replacement can also be
-// requested while the viewing is still unscheduled. Users only upload.
+// requested while the viewing is still unscheduled. Users only upload. A manager
+// whose verification was rejected or revoked reviews nothing (managerViewOnly).
 export const getFastTrackDocumentItemPermissions = (
     fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus' | 'stage' | 'viewing'>,
     role: FastTrackWorkspaceRole,
     status: FastTrackCase['documents']['items'][number]['status'],
     hasAttachedFile: boolean,
+    managerViewOnly = false,
 ) => {
     const isOpen = fastTrackCase.workspaceFinalStatus === 'active';
-    const isReviewer = role === 'manager' || role === 'admin';
+    const isReviewer = (role === 'manager' && !managerViewOnly) || role === 'admin';
     const reviewActions = getFastTrackDocumentReviewActions(status, hasAttachedFile);
     const viewingUnscheduled = fastTrackCase.stage === 'viewing'
         && String(fastTrackCase.viewing?.status || '').trim().toLowerCase() === 'pending';

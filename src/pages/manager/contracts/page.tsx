@@ -18,6 +18,7 @@ import {
     type TenancyPackServiceRecord,
 } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
+import { useManagerViewOnly } from '@/contexts/ManagerVerificationContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
@@ -39,6 +40,7 @@ import {
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
 import { getCreateContractEntryState } from '@/lib/contractsWorkspaceLoad';
+import { MANAGER_VIEW_ONLY_HINT, MANAGER_VIEW_ONLY_REASON } from '@/lib/managerViewOnly';
 
 type Tab = 'all' | 'draft' | 'pending' | 'active' | 'terminated';
 
@@ -90,6 +92,8 @@ export default function ManagerContractsPage() {
     const [activeTab, setActiveTab] = useState<Tab>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const { success, error: toastError, info } = useToast();
+    // A manager whose verification was rejected or revoked can open every contract but not change any.
+    const managerViewOnly = useManagerViewOnly();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
     const removedCaseNoticeRef = React.useRef<string | null>(null);
@@ -163,6 +167,10 @@ export default function ManagerContractsPage() {
     }, [info, loading, removedCaseId, setSearchParams]);
 
     const handleCountersign = async (id: string) => {
+        if (managerViewOnly) {
+            info(MANAGER_VIEW_ONLY_REASON);
+            return;
+        }
         setSigningId(id);
         const { data, error } = await signContract(id, 'manager');
         const latestContractResult = await getContract(id, { suppressErrorToast: true });
@@ -196,6 +204,10 @@ export default function ManagerContractsPage() {
     };
 
     const handleWithdraw = async (contract: Contract) => {
+        if (managerViewOnly) {
+            info(MANAGER_VIEW_ONLY_REASON);
+            return;
+        }
         const reason = window.prompt('Why are you withdrawing this contract? The tenant will no longer be able to sign it.');
         if (!reason || !reason.trim()) {
             return;
@@ -281,6 +293,10 @@ export default function ManagerContractsPage() {
         if (!viewContract) {
             return;
         }
+        if (managerViewOnly) {
+            info(MANAGER_VIEW_ONLY_REASON);
+            return;
+        }
         const now = new Date().toISOString();
         setWorkflowSaving('tenancy');
         const { data, error } = await updateTenancyPackService(viewContract.id, {
@@ -308,6 +324,10 @@ export default function ManagerContractsPage() {
 
     const handleUpdateDepositProtection = async () => {
         if (!viewContract) {
+            return;
+        }
+        if (managerViewOnly) {
+            info(MANAGER_VIEW_ONLY_REASON);
             return;
         }
         const now = new Date().toISOString();
@@ -383,6 +403,10 @@ export default function ManagerContractsPage() {
         contracts,
     });
     const handleCreateContractEntry = () => {
+        if (managerViewOnly) {
+            info(MANAGER_VIEW_ONLY_REASON);
+            return;
+        }
         if (createContractEntryState.status === 'loading') {
             info('Loading approved applications before drafting a contract.');
             return;
@@ -491,6 +515,7 @@ export default function ManagerContractsPage() {
                     />
                 </div>
                 <div data-manager-mobile-actions className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center md:gap-3 md:self-auto">
+                    {!managerViewOnly && (
                     <button
                         type="button"
                         aria-label="Create contract from approved application"
@@ -500,6 +525,7 @@ export default function ManagerContractsPage() {
                     >
                         <PenTool size={16} /> {createContractEntryState.status === 'loading' ? 'Loading...' : 'Create contract'}
                     </button>
+                    )}
                     <button
                         onClick={() => void fetchContracts()}
                         className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 sm:px-4"
@@ -565,7 +591,7 @@ export default function ManagerContractsPage() {
                             >
                                 Show all contracts
                             </button>
-                        ) : (
+                        ) : !managerViewOnly ? (
                             <button
                                 type="button"
                                 aria-label="Create contract from approved application"
@@ -575,7 +601,7 @@ export default function ManagerContractsPage() {
                             >
                                 Create contract
                             </button>
-                        )}
+                        ) : null}
                         <button
                             type="button"
                             onClick={() => navigate('/manager/applications')}
@@ -611,7 +637,7 @@ export default function ManagerContractsPage() {
                                             : (focusedFastTrackCase?.nextAction || focusedFastTrackCase?.statusReason || 'Continue the live case from fast-track or applications and this workspace will populate automatically once the next record is created.')}
                             </p>
                             <div className="mt-4 flex flex-wrap gap-3">
-                                {canDraftLinkedContract && focusedApplication && (
+                                {canDraftLinkedContract && focusedApplication && !managerViewOnly && (
                                     <button
                                         type="button"
                                         onClick={() => setCreateContractTarget(focusedApplication)}
@@ -729,7 +755,7 @@ export default function ManagerContractsPage() {
                                         >
                                             <Eye size={16} /> View
                                         </button>
-                                        {needsCountersign && (
+                                        {needsCountersign && !managerViewOnly && (
                                             <button
                                                 onClick={() => handleCountersign(contract.id)}
                                                 disabled={signingId === contract.id}
@@ -839,6 +865,16 @@ export default function ManagerContractsPage() {
                                 </div>
                             </div>
 
+                            {managerViewOnly && (
+                                <p
+                                    role="note"
+                                    data-contract-view-only
+                                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100"
+                                >
+                                    <span className="font-semibold">View only.</span> {MANAGER_VIEW_ONLY_HINT} You cannot update the tenancy pack or deposit protection, confirm or withdraw this contract.
+                                </p>
+                            )}
+
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
                                     <div className="flex items-start justify-between gap-3">
@@ -852,7 +888,7 @@ export default function ManagerContractsPage() {
                                         </div>
                                         {tenancyPackComplete && <CheckCircle size={18} className="text-green-500" />}
                                     </div>
-                                    <div className="mt-4 grid gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <fieldset disabled={managerViewOnly} className="m-0 mt-4 grid min-w-0 gap-3 border-0 p-0 text-xs text-gray-500 disabled:opacity-75 dark:text-gray-400">
                                         <div className="grid grid-cols-2 gap-3">
                                             <span>Issued {formatDate(tenancyPack?.issued_at || undefined)}</span>
                                             <span>Served {formatDate(tenancyPack?.served_at || undefined)}</span>
@@ -872,7 +908,7 @@ export default function ManagerContractsPage() {
                                         >
                                             {workflowSaving === 'tenancy' ? 'Updating...' : tenancyPackComplete ? 'Update tenancy pack' : 'Mark tenancy pack served'}
                                         </button>
-                                    </div>
+                                    </fieldset>
                                 </div>
 
                                 <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
@@ -887,7 +923,7 @@ export default function ManagerContractsPage() {
                                         </div>
                                         {depositProtectionComplete && <CheckCircle size={18} className="text-green-500" />}
                                     </div>
-                                    <div className="mt-4 grid gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <fieldset disabled={managerViewOnly} className="m-0 mt-4 grid min-w-0 gap-3 border-0 p-0 text-xs text-gray-500 disabled:opacity-75 dark:text-gray-400">
                                         <select
                                             value={depositScheme}
                                             onChange={(event) => setDepositScheme(event.target.value)}
@@ -917,7 +953,7 @@ export default function ManagerContractsPage() {
                                         >
                                             {workflowSaving === 'deposit' ? 'Updating...' : depositProtectionComplete ? 'Update deposit protection' : 'Mark deposit protected'}
                                         </button>
-                                    </div>
+                                    </fieldset>
                                 </div>
                             </div>
                         </div>
@@ -930,7 +966,7 @@ export default function ManagerContractsPage() {
                             >
                                 Close
                             </button>
-                            {!(viewContract.user_signed_at && viewContract.manager_signed_at)
+                            {!managerViewOnly && !(viewContract.user_signed_at && viewContract.manager_signed_at)
                                 && ['draft', 'pending_user', 'pending_manager', 'pending_user_signature', 'pending_manager_signature'].includes(String(viewContract.status || '')) && (
                                 <button
                                     type="button"
@@ -941,7 +977,7 @@ export default function ManagerContractsPage() {
                                     Withdraw
                                 </button>
                             )}
-                            {isPendingManagerSignature(viewContract.status) && (
+                            {!managerViewOnly && isPendingManagerSignature(viewContract.status) && (
                                 <button
                                     onClick={() => handleCountersign(viewContract.id)}
                                     disabled={signingId === viewContract.id}

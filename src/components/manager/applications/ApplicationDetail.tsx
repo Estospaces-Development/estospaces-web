@@ -37,7 +37,9 @@ import FastTrackCompanionPanel from "@/components/fast-track/FastTrackCompanionP
 import CreateContractModal from "@/components/manager/contracts/CreateContractModal";
 import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/placeholders";
 import { useAuth } from "@/contexts/AuthContext";
+import { useManagerViewOnly } from "@/contexts/ManagerVerificationContext";
 import { useToast } from "@/contexts/ToastContext";
+import { MANAGER_VIEW_ONLY_HINT, MANAGER_VIEW_ONLY_REASON } from "@/lib/managerViewOnly";
 import { messagesService } from "@/services/messagesService";
 import Avatar from "@/components/ui/Avatar";
 import {
@@ -204,6 +206,15 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  // A manager whose verification was rejected or revoked can open every application but not change any.
+  const managerViewOnly = useManagerViewOnly();
+  const rejectViewOnlyWrite = () => {
+    if (!managerViewOnly) {
+      return false;
+    }
+    toast.info(MANAGER_VIEW_ONLY_REASON);
+    return true;
+  };
   const { allApplications, fetchApplications } = useApplications();
   const application =
     allApplications?.find((app) => app.id === applicationId) ||
@@ -716,7 +727,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const handleManagerDecision = async (
     nextStatus: "approved" | "rejected" | "under_review" | "documents_requested",
   ) => {
-    if (!onUpdateStatus || managerDecisionAction) {
+    if (!onUpdateStatus || managerDecisionAction || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -742,7 +753,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const handleManualStatusUpdate = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!onUpdateStatus || isUpdatingManualStatus) {
+    if (!onUpdateStatus || isUpdatingManualStatus || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -767,6 +778,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleComplete = async () => {
+    if (rejectViewOnlyWrite()) {
+      setShowCompleteConfirm(false);
+      return;
+    }
     if (onUpdateStatus) {
       await Promise.resolve(
         onUpdateStatus(
@@ -779,7 +794,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleSaleProgressionUpdate = async (nextStatus: string) => {
-    if (!onUpdateStatus) {
+    if (!onUpdateStatus || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -855,7 +870,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const displayApplication = linkedApplication || application;
 
   const showManagerDecisionControls =
-    shouldShowManagerDecisionControls(application);
+    shouldShowManagerDecisionControls(application) && !managerViewOnly;
   const saleNextActions = getNextSaleJourneyActions(application.status);
   const purchaseStageLabel = purchaseDisplayStage
     ? getSaleJourneyStageLabel(purchaseDisplayStage)
@@ -1236,7 +1251,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const handleReferencingStatusUpdate = async (
     status: "in_progress" | "completed",
   ) => {
-    if (!application) {
+    if (!application || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -1281,7 +1296,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const handleRightToRentStatusUpdate = async (
     status: "in_progress" | "completed" | "not_required",
   ) => {
-    if (!application) {
+    if (!application || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -1338,7 +1353,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleApproveRentApplication = async () => {
-    if (!application) {
+    if (!application || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -1409,6 +1424,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
+    if (rejectViewOnlyWrite()) {
+      return;
+    }
     setShowContractModal(true);
   };
 
@@ -1455,7 +1473,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleBuyerQualificationUpdate = async () => {
-    if (!application) {
+    if (!application || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -1501,7 +1519,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleAMLReviewUpdate = async () => {
-    if (!application) {
+    if (!application || rejectViewOnlyWrite()) {
       return;
     }
 
@@ -1542,6 +1560,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleCreateOffer = async () => {
+    if (rejectViewOnlyWrite()) {
+      return;
+    }
     if (!recordOfferGuard.canRun) {
       if (recordOfferGuard.target === "buyer") {
         scrollToWorkflowSection("buyer");
@@ -1880,6 +1901,15 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
               data-application-review-actions
               className="flex w-full min-w-0 flex-wrap items-center justify-start gap-3 sm:w-auto sm:justify-end"
             >
+              {managerViewOnly && shouldShowManagerDecisionControls(application) && (
+                <p
+                  role="note"
+                  data-application-view-only
+                  className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100 sm:max-w-md"
+                >
+                  <span className="font-semibold">View only.</span> {MANAGER_VIEW_ONLY_HINT} You cannot review, approve or reject this application.
+                </p>
+              )}
               {showManagerDecisionControls && (
                 <>
                   <div className="w-full min-w-0 sm:w-64">
@@ -2429,6 +2459,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     </div>
 
                     <div className="mt-6 grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
+                      <fieldset
+                        disabled={managerViewOnly}
+                        className="m-0 min-w-0 border-0 p-0 disabled:opacity-75"
+                      >
                       <section
                         ref={buyerQualificationSectionRef}
                         className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800"
@@ -2525,7 +2559,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           </button>
                         </div>
                       </section>
+                      </fieldset>
 
+                      <fieldset
+                        disabled={managerViewOnly}
+                        className="m-0 min-w-0 border-0 p-0 disabled:opacity-75"
+                      >
                       <section
                         ref={amlSectionRef}
                         className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800"
@@ -2624,6 +2663,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           </button>
                         </div>
                       </section>
+                      </fieldset>
 
                       <section
                         ref={sellerReadinessSectionRef}
@@ -2795,6 +2835,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         </div>
                       </section>
 
+                      <fieldset
+                        disabled={managerViewOnly}
+                        className="m-0 min-w-0 border-0 p-0 disabled:opacity-75"
+                      >
                       <section
                         ref={offerSectionRef}
                         className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800"
@@ -2875,6 +2919,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           </button>
                         </div>
                       </section>
+                      </fieldset>
                     </div>
 
                     {(purchaseWorkflowError || isLoadingPurchaseWorkflow) && (
@@ -2907,7 +2952,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           live booking workflow.
                         </p>
                       </div>
-                      {managerRentNextAction ? (
+                      {managerRentNextAction
+                      && (!managerViewOnly || ["documents", "appointments"].includes(managerRentNextAction.panel)) ? (
                         <button
                           type="button"
                           onClick={() => void handleManagerRentNextAction()}
@@ -2942,6 +2988,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
                     {renderGuidedProgressRail(rentGuidedSteps)}
 
+                    <fieldset
+                      disabled={managerViewOnly}
+                      className="m-0 min-w-0 border-0 p-0 disabled:opacity-75"
+                    >
                     <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                       <div
                         ref={rentDocumentsSectionRef}
@@ -3237,6 +3287,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       </button>
                     </div>
 
+                    </fieldset>
+
                     {!isLoadingRentWorkflow &&
                     !rentContractId &&
                     createContractGuard.status !== "ready" &&
@@ -3405,6 +3457,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         onClick={handleRentContractAction}
                         disabled={
                           rentWorkflowAction !== null ||
+                          (!rentContractId && managerViewOnly) ||
                           (!rentContractId &&
                             createContractGuard.status === "unavailable")
                         }
@@ -3427,7 +3480,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
                             <button
                               onClick={() => setShowCompleteConfirm(true)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+                              disabled={managerViewOnly}
+                              title={managerViewOnly ? MANAGER_VIEW_ONLY_HINT : undefined}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <FileText size={18} />
                               <span>Sign & Complete</span>

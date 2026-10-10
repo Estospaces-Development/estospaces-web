@@ -144,6 +144,25 @@ export const VERIFIED_MANAGER_AREA_DETAIL: Record<Exclude<VerifiedManagerArea, '
     analytics: 'Analytics open once your manager verification is approved.',
 };
 
+/**
+ * The same pages for a manager whose verification was rejected or revoked
+ * (core stores a revoke as `rejected`) and not approved since. Booking refuses
+ * every write from them, so the banner says view only, not "keep working".
+ */
+export const VIEW_ONLY_MANAGER_AREA_DETAIL: Record<Exclude<VerifiedManagerArea, 'subscription'>, string> = {
+    'fast-track': 'Your existing Fast Track cases stay open to view, but you cannot change them or start new cases until an admin re-approves you.',
+    appointments: 'Your existing appointments stay open to view, but you cannot confirm, reschedule, complete or cancel them until an admin re-approves you.',
+    contracts: 'Your existing contracts stay open to view, but you cannot create, sign or withdraw them until an admin re-approves you.',
+    analytics: VERIFIED_MANAGER_AREA_DETAIL.analytics,
+};
+
+export const getVerifiedManagerAreaDetail = (
+    area: Exclude<VerifiedManagerArea, 'subscription'>,
+    viewOnly: boolean,
+): string => (
+    viewOnly ? VIEW_ONLY_MANAGER_AREA_DETAIL[area] : VERIFIED_MANAGER_AREA_DETAIL[area]
+);
+
 /** Pages whose existing records can be opened while verification is pending. */
 export const VERIFIED_MANAGER_AREA_VIEW_ACTION: Partial<Record<VerifiedManagerArea, string>> = {
     'fast-track': 'View existing Fast Track cases',

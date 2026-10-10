@@ -1095,6 +1095,20 @@ test('closed cases give managers and admins no document review permissions', () 
     }
 });
 
+test('a manager whose verification was rejected or revoked gets no review permissions on any case', () => {
+    for (const stage of ['documents', 'viewing'] as const) {
+        const fastTrackCase = buildCase({ stage, viewing: { status: 'pending' } });
+        assert.deepEqual(getFastTrackDocumentItemPermissions(fastTrackCase, 'manager', 'uploaded', true, true), {
+            canUpload: false,
+            canApprove: false,
+            canRequestReplacement: false,
+        });
+        // The flag is only about managers: admins keep reviewing, and without it managers do too.
+        assert.equal(getFastTrackDocumentItemPermissions(fastTrackCase, 'admin', 'uploaded', true, true).canRequestReplacement, true);
+        assert.equal(getFastTrackDocumentItemPermissions(fastTrackCase, 'manager', 'uploaded', true, false).canRequestReplacement, true);
+    }
+});
+
 test('manager review permissions mirror the booking stage rules', () => {
     const documentsStage = buildCase({ stage: 'documents' });
     assert.deepEqual(getFastTrackDocumentItemPermissions(documentsStage, 'manager', 'uploaded', true), {
