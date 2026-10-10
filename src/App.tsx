@@ -27,23 +27,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { buildPreservedUserSearchRedirect } from '@/lib/userSearchRoute';
 import { getPublicHomeHref } from '@/lib/utils/hostUtils';
-
-const CHUNK_RELOAD_KEY = 'estospaces:lazy-route-reload';
-
-const isChunkLoadError = (error: unknown) => {
-    if (!(error instanceof Error)) {
-        return false;
-    }
-
-    return [
-        'Failed to fetch dynamically imported module',
-        'Importing a module script failed',
-        'ChunkLoadError',
-        'error loading dynamically imported module',
-        // Vite's preload helper when a lazy route's CSS file is missing after a deploy.
-        'Unable to preload CSS',
-    ].some((message) => error.message.includes(message));
-};
+import { CHUNK_RELOAD_KEY, isChunkLoadError, reloadOnceForMissingChunk } from '@/lib/chunkReload';
 
 function lazyPage<T extends React.ComponentType<any>>(importer: () => Promise<{ default: T }>) {
     return lazy(async () => {
@@ -56,17 +40,8 @@ function lazyPage<T extends React.ComponentType<any>>(importer: () => Promise<{ 
             }
             return page;
         } catch (error) {
-            if (typeof window !== 'undefined' && isChunkLoadError(error)) {
-                const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-                const lastReloadLocation = window.sessionStorage.getItem(CHUNK_RELOAD_KEY);
-
-                if (lastReloadLocation !== currentLocation) {
-                    window.sessionStorage.setItem(CHUNK_RELOAD_KEY, currentLocation);
-                    window.location.reload();
-                    return new Promise<{ default: T }>(() => {});
-                }
-
-                window.sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+            if (typeof window !== 'undefined' && isChunkLoadError(error) && reloadOnceForMissingChunk()) {
+                return new Promise<{ default: T }>(() => {});
             }
 
             throw error;

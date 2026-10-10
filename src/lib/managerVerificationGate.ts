@@ -24,6 +24,8 @@ export interface ManagerVerificationGateInput {
     verificationStatus: VerificationStatus | null;
     /** Reason recorded by core when it moved the profile back to review. */
     reverificationReason?: string | null;
+    /** The page being opened; areas with existing records open read-through while review is under way. */
+    area?: VerifiedManagerArea;
 }
 
 export type ManagerVerificationGateStatus = VerificationStatus | 'unknown';
@@ -40,6 +42,8 @@ export interface ManagerVerificationNotice {
 export type ManagerVerificationGateDecision =
     | { kind: 'loading' }
     | { kind: 'allow' }
+    /** Not verified, but existing records stay open under a banner. */
+    | { kind: 'open-with-notice'; notice: ManagerVerificationNotice }
     | { kind: 'gate'; notice: ManagerVerificationNotice };
 
 const STATUS_LABELS: Record<ManagerVerificationGateStatus, string> = {
@@ -111,20 +115,30 @@ export function resolveManagerVerificationGate(input: ManagerVerificationGateInp
     }
 
     const notice = getManagerVerificationNotice(input);
-    return notice ? { kind: 'gate', notice } : { kind: 'allow' };
+    if (!notice) {
+        return { kind: 'allow' };
+    }
+    // Every status except a first-time `incomplete` profile means the manager
+    // submitted or held verification, so live cases, appointments and contracts
+    // may exist. Booking enforces role and ownership only, so they stay open.
+    if (!notice.retryable && notice.status !== 'incomplete' && input.area && input.area in VERIFIED_MANAGER_AREA_VIEW_ACTION) {
+        return { kind: 'open-with-notice', notice };
+    }
+    return { kind: 'gate', notice };
 }
 
 /**
  * What stays true while the manager is not verified, stated per page. Only
  * restrictions that a backend actually enforces are described as blocked:
  * core clears `fast_track_eligible` on re-verification and refuses new Fast
- * Track case links for ineligible managers, while booking keeps serving
- * existing appointments, contracts and Fast Track cases to their manager.
+ * Track case links for ineligible managers, while booking keeps serving and
+ * accepting actions on existing appointments, contracts and Fast Track cases
+ * for their manager (it checks role and ownership, never verification).
  */
 export const VERIFIED_MANAGER_AREA_DETAIL: Record<Exclude<VerifiedManagerArea, 'subscription'>, string> = {
-    'fast-track': 'Existing Fast Track cases stay available to view. Fast Track eligibility for new cases is paused until an admin approves your verification.',
-    appointments: 'Existing appointments stay available to view while your verification is reviewed.',
-    contracts: 'Existing contracts stay available to view while your verification is reviewed.',
+    'fast-track': 'Your existing Fast Track cases stay open and you can keep working on them. Starting new cases is paused until an admin approves your verification.',
+    appointments: 'Your existing appointments stay open while your verification is reviewed.',
+    contracts: 'Your existing contracts stay open while your verification is reviewed.',
     // The manager lead and property feeds that analytics summarises only load
     // for verified managers, so a partial view would be misleading.
     analytics: 'Analytics open once your manager verification is approved.',

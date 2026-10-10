@@ -75,5 +75,27 @@ test('existing work stays viewable only where the backend serves it; analytics s
     assert.equal(VERIFIED_MANAGER_AREA_VIEW_ACTION.analytics, undefined);
     assert.equal(VERIFIED_MANAGER_AREA_VIEW_ACTION.subscription, undefined);
     // Core refuses new Fast Track case links for ineligible managers; the copy must say so.
-    assert.match(VERIFIED_MANAGER_AREA_DETAIL['fast-track'], /eligibility for new cases is paused/);
+    assert.match(VERIFIED_MANAGER_AREA_DETAIL['fast-track'], /Starting new cases is paused/);
+});
+
+test('re-verification and rejected states open existing cases, appointments and contracts under a notice', () => {
+    for (const area of ['fast-track', 'appointments', 'contracts'] as const) {
+        for (const status of ['verification_required', 'submitted', 'under_review', 'rejected'] as const) {
+            const decision = resolveManagerVerificationGate(input(status, { area }));
+            assert.equal(decision.kind, 'open-with-notice', `${area} / ${status}`);
+        }
+    }
+});
+
+test('a first-time incomplete manager, analytics and a failed lookup keep the full gate', () => {
+    assert.equal(resolveManagerVerificationGate(input('incomplete', { area: 'fast-track' })).kind, 'gate');
+    assert.equal(resolveManagerVerificationGate(input(null, { hasProfile: false, area: 'fast-track' })).kind, 'gate');
+    assert.equal(resolveManagerVerificationGate(input('verification_required', { area: 'analytics' })).kind, 'gate');
+    assert.equal(resolveManagerVerificationGate(input(null, { error: 'Network error', hasProfile: false, area: 'fast-track' })).kind, 'gate');
+    assert.equal(resolveManagerVerificationGate(input('approved', { area: 'fast-track' })).kind, 'allow');
+});
+
+test('the copy promises exactly what stays open and what pauses', () => {
+    assert.match(VERIFIED_MANAGER_AREA_DETAIL['fast-track'], /existing Fast Track cases stay open and you can keep working on them/);
+    assert.match(VERIFIED_MANAGER_AREA_DETAIL['fast-track'], /new cases is paused/);
 });
