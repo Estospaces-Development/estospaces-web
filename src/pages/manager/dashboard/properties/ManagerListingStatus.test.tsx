@@ -83,6 +83,8 @@ test('the inventory and the detail page open the same confirmation and refresh f
     assert.match(detail, /<ManagerListingStatusModal[\s\S]*?onConfirm=\{changeListingStatus\}/);
     // The saved state is re-read once core accepted the change.
     assert.match(detail, /appToast\.success\(message\);[\s\S]*?void detailQuery\.refetch\(\);/);
+    // An owner-unpublished listing is brought back with Republish, not sent to approval by Publish Property.
+    assert.match(detail, /property\.draft === true\) && !isOwnerUnpublished\(property\) && \(/);
 });
 
 test('the context re-reads the inventory through the workspace sync instead of trusting its own copy', () => {

@@ -25,6 +25,7 @@ import { describePropertyMutationError, getPropertyMutationFieldReasons } from '
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
 import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
 import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
+import { isOwnerUnpublished } from '@/lib/managerListingActions';
 import type { ManagerListingAction } from '@/services/propertyService';
 import {
     loadManagerPropertyDetail,
@@ -594,8 +595,9 @@ export default function PropertyDetailPage() {
                             </h3>
 
                             <div className="space-y-3">
-                                {/* Publish Property Button - Show only when status is draft or draft flag is true */}
-                                {(property.status === 'draft' || property.draft === true) && (
+                                {/* Publish Property Button - Show only when status is draft or draft flag is true.
+                                    A listing the manager unpublished has Republish in the header instead. */}
+                                {(property.status === 'draft' || property.draft === true) && !isOwnerUnpublished(property) && (
                                     <button
                                         onClick={handlePublish}
                                         disabled={publishing}
