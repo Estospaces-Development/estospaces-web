@@ -4,7 +4,7 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Clock, BadgeCheck, Search, X } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import { isPlaceholderManagerCompanyName } from '@/services/managerVerificationService';
@@ -86,7 +86,6 @@ export const orderNearbyAgents = (
 };
 
 export const NearbyBrokerCard = ({ broker, index, isMatched = false }: { broker: LeadBrokerSummary; index: number; isMatched?: boolean }) => {
-    const agentProfileLink = `/user/dashboard/messages?recipient=${encodeURIComponent(broker.id)}&name=${encodeURIComponent(broker.name)}`;
     return (
     <div className="flex min-w-0 items-start gap-2.5 sm:gap-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300 sm:h-12 sm:w-12 sm:rounded-2xl">
@@ -94,12 +93,9 @@ export const NearbyBrokerCard = ({ broker, index, isMatched = false }: { broker:
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
             <div className="grid min-w-0 gap-1 sm:flex sm:items-start sm:justify-between sm:gap-2">
-                <Link
-                    to={agentProfileLink}
-                    className="min-w-0 max-w-full break-words text-xs font-medium text-gray-900 transition-colors hover:text-orange-600 dark:text-white dark:hover:text-orange-400 sm:text-sm sm:font-semibold"
-                >
+                <span className="min-w-0 max-w-full break-words text-xs font-medium text-gray-900 dark:text-white sm:text-sm sm:font-semibold">
                     {broker.name}
-                </Link>
+                </span>
                 <span className={`inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-medium sm:shrink-0 sm:px-2.5 sm:text-[10px] sm:font-semibold ${isMatched
                     ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300'}`}>

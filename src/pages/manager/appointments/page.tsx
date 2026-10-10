@@ -32,7 +32,7 @@ import {
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
 import { getFastTrackViewingCompletionBlockReason } from '@/lib/fastTrackWorkspace';
-import { toLocalScheduledAt } from '@/lib/localScheduledAt';
+import { getLocalTodayInputValue, toLocalScheduledAt } from '@/lib/localScheduledAt';
 import { MANAGER_VIEW_ONLY_HINT, MANAGER_VIEW_ONLY_REASON } from '@/lib/managerViewOnly';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
@@ -978,6 +978,7 @@ export default function ManagerAppointmentsPage() {
                                     className="w-full"
                                     buttonClassName="bg-gray-50 dark:bg-gray-900"
                                     ariaLabel="Appointment reschedule date"
+                                    min={getLocalTodayInputValue()}
                                     ariaDescribedBy={rescheduleFormErrors.requested_date ? 'manager-reschedule-date-error' : undefined}
                                 />
                                 {rescheduleFormErrors.requested_date ? (

@@ -25,9 +25,9 @@ test('nearby-agent postcode search preserves a readable UK separator while typin
   assert.match(source, /if \(manualPostcode \|\| isSearchOpen\) \{/);
 });
 
-// ── #316: broker name is clickable and links to messaging conversation ──
+// Broker name is plain text: the messages page ignores `recipient`, so a link was a dead end.
 
-test('[SCENARIO 1 - happy] nearby broker name is clickable and navigates to messaging', () => {
+test('[SCENARIO 1 - happy] nearby broker name renders as plain text with no dead-end link', () => {
   const markup = renderToStaticMarkup(
     <MemoryRouter>
       <NearbyBrokerCard
@@ -47,8 +47,7 @@ test('[SCENARIO 1 - happy] nearby broker name is clickable and navigates to mess
     </MemoryRouter>,
   );
 
-  // name rendered as an <a> that opens the messages page for this broker
-  assert.match(markup, /href="\/user\/dashboard\/messages\?recipient=broker-1/);
+  assert.doesNotMatch(markup, /href="[^"]*messages\?recipient=/);
   assert.match(markup, /Arun Realty/);
 });
 
@@ -76,7 +75,7 @@ test('[SCENARIO 2 - empty] empty broker list shows empty state without link', ()
     </MemoryRouter>,
   );
 
-  assert.match(cardMarkup, /href="\/user\/dashboard\/messages\?recipient=e1/);
+  assert.doesNotMatch(cardMarkup, /messages\?recipient=/);
   // Confirm the source contains the empty-state copy for users that the
   // NearbyAgenciesList falls through to. This locks in the copy.
   // @ts-ignore - reading source for assertion only
@@ -113,8 +112,7 @@ test('[SCENARIO 3 - error] error state shows error message without broker link',
     </MemoryRouter>,
   );
 
-  // Even with null company / null postcode the card still renders a link
-  assert.match(markup, /href="\/user\/dashboard\/messages\?recipient=x/);
+  assert.doesNotMatch(markup, /messages\?recipient=/);
   assert.match(markup, /Broker Name/);
   assert.match(markup, /Independent agent/);
 });
@@ -187,7 +185,7 @@ test('[SCENARIO 4 - edge] very long names and unicode characters do not overflow
   );
 
   assert.match(markup, /break-words/);
-  assert.match(markup, /href="\/user\/dashboard\/messages\?recipient=broker-long/);
+  assert.doesNotMatch(markup, /messages\?recipient=/);
   // SW1A → Indian format (6-digit PIN style) per existing distance formatting
   assert.match(markup, /km away/);
 });
@@ -197,8 +195,6 @@ test('[SCENARIO 5 - cross-role] NearbyAgenciesList is only on user dashboard; ma
   const nearbyImport = require.cache[require.resolve('./NearbyAgenciesList')];
   assert.ok(nearbyImport, 'component module loads');
 
-  // The NearbyBrokerCard renders a <a href="/user/dashboard/messages..."> which
-  // resolves relative to the user dashboard route, not /manager or /admin.
   const markup = renderToStaticMarkup(
     <MemoryRouter>
       <NearbyBrokerCard
@@ -208,8 +204,8 @@ test('[SCENARIO 5 - cross-role] NearbyAgenciesList is only on user dashboard; ma
     </MemoryRouter>,
   );
 
-  assert.match(markup, /href="\/user\/dashboard\/messages/);
-  // Confirm the href is scoped to the user dashboard route
+  // The card carries no link at all, so nothing can point at a manager or admin route.
+  assert.doesNotMatch(markup, /<a /);
   assert.doesNotMatch(markup, /\/manager\//);
   assert.doesNotMatch(markup, /\/admin\//);
 });
@@ -262,7 +258,7 @@ test('[REGRESSION] broker card renders with only required fields (no optional fi
   );
 
   assert.match(markup, /Minimal Broker/);
-  assert.match(markup, /href="\/user\/dashboard\/messages\?recipient=reg-1/);
+  assert.doesNotMatch(markup, /messages\?recipient=/);
   assert.match(markup, /Independent agent/);
   assert.match(markup, /Service area not listed/);
 });

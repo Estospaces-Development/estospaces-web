@@ -26,3 +26,9 @@ export const toLocalScheduledAt = (
     }
     return { scheduledAt: value.toISOString() };
 };
+
+// Local calendar day as YYYY-MM-DD, used as the `min` of date pickers so past days are disabled.
+export const getLocalTodayInputValue = (now: Date = new Date()): string => {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
