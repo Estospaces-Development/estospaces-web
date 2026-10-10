@@ -137,6 +137,8 @@ export interface Property {
   preferred_contact_method?: "email" | "phone" | "whatsapp" | "any";
   license_number?: string;
   agent_company?: string;
+  /** Set when an admin approves the listing; an unpublished draft that still has it can be republished by its owner. */
+  published_at?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -578,6 +580,71 @@ export const deleteProperty = async (
       return { error: message, code: PROPERTY_FORCE_DELETE_INCOMPLETE_CODE };
     }
     return { error: getErrorMessage(error), code: error instanceof ApiRequestError ? error.code : undefined };
+  }
+};
+
+/** What a manager can do to their own listing: take it off the market, bring it back, or record it sold/let. */
+export type ManagerListingAction = "unpublish" | "republish" | "mark_sold";
+
+/** Core's 409 code when the listing is in a state the action does not apply to. */
+export const PROPERTY_STATUS_CONFLICT_CODE = "property_status_conflict";
+
+/** Core's 503 code when Booking could not confirm the listing has no open work. */
+export const BOOKING_ACTIVITY_UNAVAILABLE_CODE = "booking_activity_unavailable";
+
+export interface ManagerListingStatusResult {
+  data: Property | null;
+  error: string | null;
+  status?: number;
+  code?: string;
+  /** Booking's non-zero counts when the refusal is about open work. */
+  activeWork?: Record<string, number>;
+}
+
+const toActiveWorkCounts = (value: unknown): Record<string, number> | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const counts: Record<string, number> = {};
+  for (const [key, count] of Object.entries(value)) {
+    if (typeof count === "number" && Number.isFinite(count) && count > 0) {
+      counts[key] = count;
+    }
+  }
+  return Object.keys(counts).length > 0 ? counts : undefined;
+};
+
+/**
+ * Unpublish, republish or mark a listing sold/let (owner decision, 10 Oct 2026).
+ * PUT /api/v1/properties/:id/manager-status (core-service, owner/admin)
+ * Core refuses with 409 while Booking has open work on the listing and with 503
+ * when Booking cannot confirm there is none.
+ */
+export const updateManagerPropertyStatus = async (
+  id: string,
+  action: ManagerListingAction,
+): Promise<ManagerListingStatusResult> => {
+  try {
+    const data = await apiFetch<Property>(
+      `${CORE_URL()}/api/v1/properties/${encodeURIComponent(id)}/manager-status`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ action }),
+        suppressErrorToast: true,
+      },
+    );
+    invalidatePropertyListCache();
+    invalidatePropertyDetailCache(id);
+    return { data, error: null };
+  } catch (error: any) {
+    const apiError = error instanceof ApiRequestError ? error : undefined;
+    return {
+      data: null,
+      error: getErrorMessage(error),
+      status: apiError?.status,
+      code: apiError?.code,
+      activeWork: toActiveWorkCounts(apiError?.data),
+    };
   }
 };
 

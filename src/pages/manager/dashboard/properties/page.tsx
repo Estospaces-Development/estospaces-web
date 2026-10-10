@@ -30,6 +30,9 @@ import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
+import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
+import type { ManagerListingAction } from '@/services/propertyService';
 
 const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
@@ -138,6 +141,7 @@ function PropertiesContent() {
         error: inventoryError,
         fetchProperties,
         deleteProperty,
+        changeListingStatus,
         duplicateProperty: _duplicateProperty,
         updateProperty: _updateProperty,
         selectProperty: _selectProperty,
@@ -165,6 +169,7 @@ function PropertiesContent() {
     const [showShareModal, setShowShareModal] = useState(false);
     const [selectedPropertyForShare, setSelectedPropertyForShare] = useState<Property | null>(null);
     const [pendingDeleteProperty, setPendingDeleteProperty] = useState<Property | null>(null);
+    const [pendingListingAction, setPendingListingAction] = useState<{ property: Property; action: ManagerListingAction } | null>(null);
     const priceRanges = useMemo(() => buildPriceRanges(geoMarket), [geoMarket]);
 
     // Once the first inventory request settles, later refetches (search,
@@ -714,6 +719,12 @@ function PropertiesContent() {
                             />
                             {/* Quick Actions Overlay (visible on hover) */}
                             <div className="absolute right-3 top-14 z-10 flex flex-col gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                                <ManagerListingActionButtons
+                                    listing={property}
+                                    variant="floating"
+                                    disabled={Boolean(pendingListingAction)}
+                                    onSelect={(action) => setPendingListingAction({ property, action })}
+                                />
                                 <button
                                     aria-label={`Delete ${property.title}`}
                                     onClick={(e) => {
@@ -802,6 +813,12 @@ function PropertiesContent() {
                                                 >
                                                     <Share2 className="w-4 h-4" />
                                                 </button>
+                                                <ManagerListingActionButtons
+                                                    listing={property}
+                                                    variant="icon"
+                                                    disabled={Boolean(pendingListingAction)}
+                                                    onSelect={(action) => setPendingListingAction({ property, action })}
+                                                />
                                                 <button
                                                     aria-label={`Delete ${property.title}`}
                                                     onClick={(e) => {
@@ -902,6 +919,18 @@ function PropertiesContent() {
                         </div>
                     </div>
                 </div>
+            )}
+            {pendingListingAction && (
+                <ManagerListingStatusModal
+                    listing={pendingListingAction.property}
+                    action={pendingListingAction.action}
+                    onClose={() => setPendingListingAction(null)}
+                    onConfirm={changeListingStatus}
+                    onChanged={(message) => {
+                        setPendingListingAction(null);
+                        appToast.success(message);
+                    }}
+                />
             )}
         </div>
     );
