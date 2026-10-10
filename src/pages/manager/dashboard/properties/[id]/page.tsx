@@ -23,6 +23,9 @@ import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice
 import { useToast } from '@/contexts/ToastContext';
 import { describePropertyMutationError, getPropertyMutationFieldReasons } from '@/lib/propertyValidationErrors';
 import ManagerPropertyLoadState from '@/components/manager/ManagerPropertyLoadState';
+import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
+import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
+import type { ManagerListingAction } from '@/services/propertyService';
 import {
     loadManagerPropertyDetail,
     managerPropertyDetailQueryKey,
@@ -50,11 +53,12 @@ export default function PropertyDetailPage() {
     const navigate = useNavigate();
     const appToast = useToast();
 
-    const { getProperty, fetchPropertyById, deleteProperty, updateProperty, duplicateProperty, incrementShares } = useProperties();
+    const { getProperty, fetchPropertyById, deleteProperty, changeListingStatus, updateProperty, duplicateProperty, incrementShares } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [pendingListingAction, setPendingListingAction] = useState<ManagerListingAction | null>(null);
     const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -324,6 +328,14 @@ export default function PropertyDetailPage() {
                         <Edit className="w-5 h-5" />
                         <span className="hidden sm:inline">Edit</span>
                     </button>
+
+                    {/* Unpublish / Republish / Mark sold|let: core refuses while bookings are open */}
+                    <ManagerListingActionButtons
+                        listing={property}
+                        variant="labelled"
+                        disabled={Boolean(pendingListingAction)}
+                        onSelect={setPendingListingAction}
+                    />
 
                     {/* Delete */}
                     <button
@@ -892,6 +904,21 @@ export default function PropertyDetailPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {pendingListingAction && id && (
+                <ManagerListingStatusModal
+                    listing={{ ...property, id }}
+                    action={pendingListingAction}
+                    onClose={() => setPendingListingAction(null)}
+                    onConfirm={changeListingStatus}
+                    onChanged={(message) => {
+                        setPendingListingAction(null);
+                        appToast.success(message);
+                        // The service dropped its cached copy; re-read the saved state.
+                        void detailQuery.refetch();
+                    }}
+                />
             )}
         </div>
     );

@@ -338,6 +338,8 @@ export interface Property {
   propertyId?: string;
   createdAt: string;
   updatedAt: string;
+  /** When an admin approved the listing; a draft that has it was unpublished by its owner. */
+  publishedAt?: string;
   published: boolean;
   draft: boolean;
   featured?: boolean;
@@ -577,6 +579,11 @@ interface PropertyContextType {
   ) => Promise<Property | null>;
   /** Resolves to the server's refusal message, or null once the listing is deleted. */
   deleteProperty: (id: string) => Promise<string | null>;
+  /** Unpublish, republish or mark sold/let; the result carries core's refusal when there is one. */
+  changeListingStatus: (
+    id: string,
+    action: propertyService.ManagerListingAction,
+  ) => Promise<propertyService.ManagerListingStatusResult>;
   /** `source` is used when the property is not on the loaded inventory page. */
   duplicateProperty: (id: string, source?: Property) => Promise<Property | null>;
   /** Only searches the currently loaded inventory page. */
@@ -857,6 +864,7 @@ export const PropertyProvider = ({
       },
       createdAt: p.created_at || new Date().toISOString(),
       updatedAt: p.updated_at || new Date().toISOString(),
+      publishedAt: p.published_at || undefined,
       availableFrom:
         normalizeDateInputValue(p.available_from) ||
         normalizeDateInputValue(p.created_at) ||
@@ -1240,6 +1248,24 @@ export const PropertyProvider = ({
           } finally {
             setLoading(false);
           }
+        },
+        changeListingStatus: async (id: string, action: propertyService.ManagerListingAction) => {
+          // No global loading flag: the confirmation dialog shows its own pending state,
+          // and the list must not flash a loader behind it.
+          const result = await propertyService.updateManagerPropertyStatus(id, action);
+          if (result.data) {
+            const updatedProp = mapServiceToContextProperty(result.data);
+            setProperties((prev) => prev.map((p) => (p.id === id ? updatedProp : p)));
+            // The sync re-reads the inventory, so a live-only filter drops an unpublished listing.
+            publishWorkspaceSync({
+              key: `properties:status:${id}`,
+              source: "mutation",
+              tags: syncTags,
+              reason: "property-status-changed",
+              ids: { propertyId: id },
+            });
+          }
+          return result;
         },
         duplicateProperty: async (id: string, source?: Property) => {
           const propertyToDuplicate =
