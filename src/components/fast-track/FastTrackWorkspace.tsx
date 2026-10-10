@@ -1,6 +1,7 @@
 'use client';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -112,7 +113,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
-import { toLocalScheduledAt } from '@/lib/localScheduledAt';
+import { getLocalTodayInputValue, toLocalScheduledAt } from '@/lib/localScheduledAt';
 import { getFastTrackConnectedRecordPath, type FastTrackConnectedRecordKind } from '@/lib/fastTrackConnectedRecords';
 import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
@@ -743,6 +744,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         caseId: string;
         stage: FastTrackStage;
     } | null>(null);
+    const [signAgreementConfirmOpen, setSignAgreementConfirmOpen] = useState(false);
     const [stageConfirmDialog, setStageConfirmDialog] = useState<{ open: boolean; stage: FastTrackStage } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -3489,6 +3491,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             value={viewingDate}
                             onChange={setViewingDate}
                             ariaLabel="Viewing date"
+                            min={getLocalTodayInputValue()}
                         />
                         <TimeField
                             value={viewingTime}
@@ -3616,6 +3619,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         value={decisionAmount}
                         onChange={(event) => setDecisionAmount(event.target.value)}
                         placeholder="Offer amount"
+                        aria-label="Offer amount"
                         className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                     />
                 ) : null}
@@ -3723,7 +3727,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                         <ActionButton
-                            onClick={() => void runAction('confirm_agreement', {}, 'Agreement accepted.')}
+                            onClick={() => setSignAgreementConfirmOpen(true)}
                             busy={activeAction === 'confirm_agreement'}
                             disabled={selectedCase.agreement.status === 'accepted'}
                         >
@@ -4807,6 +4811,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 </div>
             )) : null}
+
+            <ConfirmModal
+                isOpen={signAgreementConfirmOpen && Boolean(selectedCase)}
+                onClose={() => setSignAgreementConfirmOpen(false)}
+                onConfirm={() => {
+                    setSignAgreementConfirmOpen(false);
+                    void runAction('confirm_agreement', {}, 'Agreement accepted.');
+                }}
+                title="Sign this agreement?"
+                message={`You are signing the agreement for ${selectedCaseDisplayTitle}. This confirms you accept its terms.`}
+                confirmText="Sign agreement"
+                cancelText="Cancel"
+            />
 
             {stageConfirmDialog && selectedCase ? renderFastTrackPortal((
                 <div

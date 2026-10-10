@@ -2275,7 +2275,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     <span>
                       {openingConversation
                         ? "Opening thread..."
-                        : "Message Agent"}
+                        : "Message applicant"}
                     </span>
                   </button>
                 </div>

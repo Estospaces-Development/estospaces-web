@@ -35,7 +35,7 @@ import {
 } from "@/lib/fastTrackWorkspace";
 import { getFastTrackDisplayTitle } from "@/lib/fastTrackDisplayTitle";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
-import { toLocalScheduledAt } from "@/lib/localScheduledAt";
+import { getLocalTodayInputValue, toLocalScheduledAt } from "@/lib/localScheduledAt";
 import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import { MANAGER_VIEW_ONLY_REASON } from "@/lib/managerViewOnly";
 import type { FastTrackCase } from "@/services/fastTrackService";
@@ -331,6 +331,7 @@ export default function FastTrackCompanionPanel({
               className="w-full"
               buttonClassName="bg-white dark:bg-gray-950"
               ariaLabel="Companion viewing date"
+              min={getLocalTodayInputValue()}
             />
           </label>
           <label className="space-y-2 text-sm">
@@ -462,6 +463,7 @@ export default function FastTrackCompanionPanel({
             value={decisionAmount}
             onChange={(event) => setDecisionAmount(event.target.value)}
             placeholder="Offer amount"
+            aria-label="Offer amount"
             className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
           />
         ) : null}
