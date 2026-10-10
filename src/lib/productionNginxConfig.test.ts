@@ -27,3 +27,11 @@ test('hosted login routes render the SPA without redirecting to the internal por
   }
   assert.match(developmentConfig, /location = \/login\s*\{[\s\S]*?rewrite \^ \/index\.html last;/);
 });
+
+test('hosted nginx compresses text assets behind the Google front end', () => {
+  for (const hostedConfig of [config, developmentConfig]) {
+    assert.match(hostedConfig, /gzip on;/);
+    assert.match(hostedConfig, /gzip_proxied any;/);
+    assert.match(hostedConfig, /gzip_types [^;]*application\/javascript[^;]*text\/css|gzip_types [^;]*text\/css[^;]*application\/javascript/);
+  }
+});
