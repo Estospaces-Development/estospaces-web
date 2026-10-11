@@ -27,6 +27,7 @@ import {
     formatLaunchPropertyText,
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
+    LAUNCH_COUNTRY_CODE,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -126,6 +127,7 @@ export default function ManagerProfilePage() {
         taxId: '',
     });
     const geoMarket = useUserGeoMarket(user, { locationCode: formData.postcode || user?.postcode });
+    const isIndiaMarket = geoMarket === LAUNCH_COUNTRY_CODE;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
@@ -360,6 +362,7 @@ export default function ManagerProfilePage() {
         }
         const missingVerificationProfileFields = getMissingManagerVerificationProfileFields({
             profileType: managerProfile?.profile_type,
+            market: geoMarket,
             companyName: formData.companyName,
             businessPhone: formData.businessPhone,
             companyAddress: formData.companyAddress,
@@ -519,6 +522,7 @@ export default function ManagerProfilePage() {
     const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
     const missingVerificationProfileFields = getMissingManagerVerificationProfileFields({
         profileType: managerProfile?.profile_type,
+        market: geoMarket,
         companyName: formData.companyName,
         businessPhone: formData.businessPhone,
         companyAddress: formData.companyAddress,
@@ -853,7 +857,7 @@ export default function ManagerProfilePage() {
                                     </div>
                                     <div>
                                         <label htmlFor="manager-license-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                            <RequiredFieldLabel>License / Reg Number</RequiredFieldLabel>
+                                            <RequiredFieldLabel>{isIndiaMarket && managerProfile?.profile_type !== 'company' ? 'RERA registration number' : 'License / Reg Number'}</RequiredFieldLabel>
                                         </label>
                                         <input id="manager-license-number" type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
                                             required
@@ -934,6 +938,8 @@ export default function ManagerProfilePage() {
                                             className={iconInputClass} />
                                         </div>
                                     </div>
+                                    {!isIndiaMarket && (
+                                    <>
                                     <div>
                                         <label htmlFor="manager-redress-scheme" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"><RequiredFieldLabel>Redress Scheme</RequiredFieldLabel></label>
                                         <input id="manager-redress-scheme" type="text" name="redressSchemeName" value={formData.redressSchemeName} onChange={handleChange}
@@ -948,6 +954,8 @@ export default function ManagerProfilePage() {
                                             placeholder="TPO-123456"
                                             className={inputClass} />
                                     </div>
+                                    </>
+                                    )}
                                     <div>
                                         <label htmlFor="manager-cmp-provider" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                                             {managerProfile?.has_client_money ? <RequiredFieldLabel>CMP Provider</RequiredFieldLabel> : 'CMP Provider'}
