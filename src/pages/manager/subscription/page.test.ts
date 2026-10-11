@@ -55,3 +55,11 @@ test('checkout waits for a code preview and only opens Razorpay for the exact ac
     assert.ok(page.includes('checkoutDisabled={busy || discountChecking !== null ||'));
     assert.ok(page.includes("if (discount.kind === 'discounted' && checkout.price?.price_digest !== discount.fields.price_digest) {"));
 });
+
+test('cancelling a subscription asks in a real modal dialog, not an inline block (MB-0889)', () => {
+    assert.match(source, /import ConfirmModal from '@\/components\/ui\/ConfirmModal';/);
+    assert.match(source, /<ConfirmModal\s+isOpen=\{confirmCancel\}\s+onClose=\{\(\) => setConfirmCancel\(false\)\}\s+onConfirm=\{\(\) => void cancel\(\)\}/);
+    assert.match(source, /confirmText="Confirm cancellation"[\s\S]*?cancelText="Keep subscription"[\s\S]*?loading=\{busy\}/);
+    // The old inline block had no role, focus handling or Escape.
+    assert.doesNotMatch(source, /\{confirmCancel \? <div className="mt-4 rounded-xl border p-4">/);
+});
