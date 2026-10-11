@@ -21,6 +21,7 @@ import {
   pickDefaultManagerLead,
   resolveManagerLeadWorkspaceCase,
   shouldShowManagerLeadWorkspaceMissingNotice,
+  getManagerLeadDocumentsLabel,
   getManagerLeadShortlistPath,
   sortManagerLeads,
   summarizeManagerLeads,
@@ -530,6 +531,18 @@ test("lead cards only offer lead-endpoint actions on a real lead record (MB-0325
   assert.match(page, /navigate\('\/manager\/dashboard'\)[\s\S]*?Accept On Dashboard/);
   assert.match(page, /canRequestDocuments=\{canRequestManagerLeadDocuments\}/);
   assert.doesNotMatch(page, /broker-request-/);
+});
+
+test('#695 the lead card reports the linked case documents, not the user-wide profile flag', () => {
+  const lead = { documents_uploaded: true, documents_requested: true };
+  const caseWith = (...statuses: string[]) => ({ documents: { items: statuses.map((status) => ({ status })) } });
+  assert.equal(getManagerLeadDocumentsLabel(lead, caseWith('requested', 'requested')), 'Requested');
+  assert.equal(getManagerLeadDocumentsLabel(lead, caseWith('uploaded', 'requested')), 'Uploaded');
+  assert.equal(getManagerLeadDocumentsLabel(lead, caseWith('approved', 'reupload_needed')), 'Re-upload needed');
+  assert.equal(getManagerLeadDocumentsLabel(lead, caseWith('approved', 'approved')), 'Approved');
+  assert.equal(getManagerLeadDocumentsLabel(lead, null), 'On file in profile');
+  assert.equal(getManagerLeadDocumentsLabel({ documents_requested: true }, null), 'Requested');
+  assert.equal(getManagerLeadDocumentsLabel({}, null), 'Not requested');
 });
 
 test('#686 #683 a matched agent request offers its shortlist instead of a missing-workspace warning', () => {

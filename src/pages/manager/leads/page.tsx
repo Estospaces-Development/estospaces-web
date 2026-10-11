@@ -39,6 +39,7 @@ import {
     paginateManagerLeads,
     resolveManagerLeadWorkspaceCase,
     shouldShowManagerLeadWorkspaceMissingNotice,
+    getManagerLeadDocumentsLabel,
     getManagerLeadShortlistPath,
     sortManagerLeads,
     summarizeManagerLeads,
@@ -1073,7 +1074,7 @@ export default function ManagerLeadsPage() {
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Documents</p>
                                                     <p className="mt-1 font-medium text-gray-900 dark:text-white">
-                                                        {lead.documents_verified ? 'Approved' : lead.documents_uploaded ? 'Uploaded' : lead.documents_requested ? 'Requested' : 'Not requested'}
+                                                        {getManagerLeadDocumentsLabel(lead, linkedCase)}
                                                     </p>
                                                 </div>
                                             </div>
