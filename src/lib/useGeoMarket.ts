@@ -3,8 +3,8 @@
 import {
   fetchClientGeoHint,
   getBrowserGeoMarketSignals,
-  getCataloguePinnedMarket,
-  getGeoMarketSignalsFromUser,
+  getCatalogueGeoSignals,
+  getUserGeoSignals,
   mergeWithBrowserSignals,
   resolveGeoMarket,
   resolveGeoMarketFromClientHint,
@@ -55,22 +55,17 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
 export const useUserGeoMarket = (
   user?: GeoMarketUserContext | null,
   overrides: GeoMarketSignals = {},
-): GeoMarketCode => useGeoMarket({
-  ...getGeoMarketSignalsFromUser(user),
-  ...overrides,
-});
+): GeoMarketCode => useGeoMarket(getUserGeoSignals(user, overrides));
 
 /**
  * Market for the property catalogue (dashboard, Discover, Search). A postcode or PIN the
  * person typed wins, then the account's declared country, so a saved city, a stored
  * postcode or browser language never moves an India account into the UK catalogue.
- * Accounts without a country fall back to the usual signals.
+ * Accounts without a country fall back to a saved city or country preference, then their
+ * saved postcode, then the browser's time zone and language (see `getCatalogueGeoSignals`).
  */
 export const useCatalogueGeoMarket = (
   user: GeoMarketUserContext | null | undefined,
   overrides: GeoMarketSignals = {},
   typedLocationCode?: string | null,
-): GeoMarketCode => {
-  const pinned = getCataloguePinnedMarket(user, typedLocationCode);
-  return useUserGeoMarket(pinned ? null : user, pinned ? { countryCode: pinned } : overrides);
-};
+): GeoMarketCode => useGeoMarket(getCatalogueGeoSignals(user, overrides, typedLocationCode));
