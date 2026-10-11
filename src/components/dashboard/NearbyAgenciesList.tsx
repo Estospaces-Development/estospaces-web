@@ -108,13 +108,17 @@ export const NearbyBrokerCard = ({ broker, index, isMatched = false }: { broker:
                 {broker.postcode ? ` - ${formatBrokerArea(broker.postcode)}` : ''}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
-                    <Star size={12} className="mr-0.5 fill-yellow-400 text-yellow-400" />
-                    {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
-                    <span className="ml-0.5 font-normal text-gray-400 dark:text-gray-500">
-                        ({broker.review_count || 0})
-                    </span>
-                </div>
+                {broker.review_count ? (
+                    <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
+                        <Star size={12} className="mr-0.5 fill-yellow-400 text-yellow-400" />
+                        {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
+                        <span className="ml-0.5 font-normal text-gray-400 dark:text-gray-500">
+                            ({broker.review_count})
+                        </span>
+                    </div>
+                ) : (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">No ratings yet</span>
+                )}
                 <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                     <Clock size={10} className="mr-0.5" />

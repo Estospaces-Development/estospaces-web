@@ -164,6 +164,35 @@ test('nearby broker cards hide the bare Estospaces placeholder before appending 
   assert.match(markup, /Independent agent - 321123/);
 });
 
+// web-app#677: core always sends rating 0 / review_count 0 for an agent with no reviews.
+test('nearby broker card with no reviews says "No ratings yet" instead of a star and 0.0 (0)', () => {
+  for (const noReviews of [{ rating: 0, review_count: 0 }, { rating: undefined, review_count: undefined }]) {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <NearbyBrokerCard broker={{ id: 'no-reviews', name: 'New Agent', service_areas: [], fast_track_eligible: false, ...noReviews }} index={0} />
+      </MemoryRouter>,
+    );
+
+    assert.match(markup, /No ratings yet/);
+    assert.doesNotMatch(markup, /lucide-star/);
+    assert.doesNotMatch(markup, /0\.0/);
+    assert.doesNotMatch(markup, /\(0\)/);
+  }
+});
+
+test('nearby broker card with reviews still shows the star, rating and review count', () => {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter>
+      <NearbyBrokerCard broker={{ id: 'reviewed', name: 'Rated Agent', service_areas: [], rating: 4.5, review_count: 12, fast_track_eligible: false }} index={0} />
+    </MemoryRouter>,
+  );
+
+  assert.match(markup, /lucide-star/);
+  assert.match(markup, /4\.5/);
+  assert.match(markup, /\(12\)/);
+  assert.doesNotMatch(markup, /No ratings yet/);
+});
+
 test('[SCENARIO 4 - edge] very long names and unicode characters do not overflow or break the link', () => {
   const markup = renderToStaticMarkup(
     <MemoryRouter>
