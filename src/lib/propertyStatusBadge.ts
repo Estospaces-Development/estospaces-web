@@ -120,6 +120,27 @@ export const formatPropertyStatusLabel = (status?: string) => {
     return formatTitleCase(normalized);
 };
 
+const DELETE_WARNING_STATUSES: ReadonlySet<string> = new Set([
+    'rented',
+    'let',
+    'sold',
+    'under_offer',
+    'under_contract',
+]);
+
+/**
+ * Extra line for the delete confirmation of a listing that has been rented,
+ * sold or is under offer. Core only refuses the delete when Booking holds an
+ * active tenancy or open work, so a listing merely marked Rented deletes fine.
+ */
+export const getListingDeleteWarning = (status?: string | null) => {
+    const normalizedStatus = status?.trim().toLowerCase() ?? '';
+    if (!DELETE_WARNING_STATUSES.has(normalizedStatus)) {
+        return null;
+    }
+    return `This listing is marked ${formatPropertyStatusLabel(normalizedStatus)}. Deleting it removes it for good. It will be refused while there is an active tenancy or open booking.`;
+};
+
 export const getManagerPropertyStatusBadge = (status?: string) => {
     const normalizedStatus = status?.trim().toLowerCase() || 'draft';
 
