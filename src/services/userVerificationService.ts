@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '@/lib/apiUtils';
 import type { ApiFetchOptions } from '@/lib/apiUtils';
 import { getUserVerificationWorkflowStatus } from '@/lib/userVerificationQueue';
 import type { Lead } from '@/services/leadsService';
@@ -113,7 +113,7 @@ export const reviewUserDocument = async (
     documentId: string,
     status: 'approved' | 'rejected' | 'reupload_required',
     rejectReason?: string,
-): Promise<{ error: string | null }> => {
+): Promise<{ error: string | null; conflict?: boolean }> => {
     try {
         const basePath = scope === 'admin'
             ? `${getScopeBasePath(scope)}/documents/${documentId}/review`
@@ -129,7 +129,8 @@ export const reviewUserDocument = async (
         });
         return { error: null };
     } catch (error: any) {
-        return { error: getErrorMessage(error) };
+        // 409: the document was reviewed by someone else first, so the caller's copy is stale.
+        return { error: getErrorMessage(error), conflict: getErrorStatus(error) === 409 };
     }
 };
 
