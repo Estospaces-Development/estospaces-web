@@ -34,7 +34,8 @@ export interface GeoMarketUserContext {
 const INDIA_LANGUAGE_PATTERN = /\b(en-IN|hi-IN|ta-IN|te-IN|kn-IN|ml-IN|bn-IN|mr-IN|gu-IN|pa-IN)\b/i;
 const UK_LANGUAGE_PATTERN = /\b(en-GB|cy-GB|gd-GB)\b/i;
 
-const INDIA_TIMEZONE_PATTERN = /\bAsia\/Kolkata\b/i;
+// Chrome still reports the old IANA name Asia/Calcutta.
+const INDIA_TIMEZONE_PATTERN = /\bAsia\/(Kolkata|Calcutta)\b/i;
 const UK_TIMEZONE_PATTERN = /\bEurope\/London\b/i;
 
 const normalizeCountrySignal = (value?: string | null): string => (
@@ -85,19 +86,21 @@ export const resolveGeoMarket = ({
     return normalizedCountryName;
   }
 
-  const language = String(acceptLanguage || "").trim();
-  if (INDIA_LANGUAGE_PATTERN.test(language)) {
-    return LAUNCH_COUNTRY_CODE;
-  }
-  if (UK_LANGUAGE_PATTERN.test(language)) {
-    return UK_COUNTRY_CODE;
-  }
-
+  // The device time zone says where the person is; many browsers in India send
+  // en-GB (British English), so language only decides when the zone is neither.
   const zone = String(timeZone || "").trim();
   if (INDIA_TIMEZONE_PATTERN.test(zone)) {
     return LAUNCH_COUNTRY_CODE;
   }
   if (UK_TIMEZONE_PATTERN.test(zone)) {
+    return UK_COUNTRY_CODE;
+  }
+
+  const language = String(acceptLanguage || "").trim();
+  if (INDIA_LANGUAGE_PATTERN.test(language)) {
+    return LAUNCH_COUNTRY_CODE;
+  }
+  if (UK_LANGUAGE_PATTERN.test(language)) {
     return UK_COUNTRY_CODE;
   }
 

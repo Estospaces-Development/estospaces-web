@@ -48,3 +48,14 @@ test("geo market does not let client IP override authenticated user country", ()
   assert.equal(resolveGeoMarketFromClientHint({ cloudflareCountry: "IN" }, { countryCode: "GB" }), "GB");
   assert.equal(resolveGeoMarketFromClientHint({ cloudflareCountry: "GB" }, { locationCode: "600001" }), "IN");
 });
+
+test('an India device stays in India even when the browser sends British English', () => {
+  for (const timeZone of ['Asia/Kolkata', 'Asia/Calcutta']) {
+    assert.equal(resolveGeoMarket({ acceptLanguage: 'en-GB', timeZone }), 'IN');
+    assert.equal(resolveGeoMarketFromClientHint({ acceptLanguage: 'en-GB' }, { acceptLanguage: 'en-US,en-IN', timeZone }), 'IN');
+  }
+  assert.equal(resolveGeoMarket({ acceptLanguage: 'en-IN', timeZone: 'Europe/London' }), 'GB');
+  assert.equal(resolveGeoMarket({ acceptLanguage: 'en-GB' }), 'GB');
+  assert.equal(resolveGeoMarket({ countryName: 'United Kingdom', timeZone: 'Asia/Kolkata' }), 'GB');
+  assert.equal(resolveGeoMarket({ countryCode: 'GB', timeZone: 'Asia/Kolkata' }), 'GB');
+});
