@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Mail, Phone, MapPin } from 'lucide-react';
+import { Building2, Mail, MapPin } from 'lucide-react';
 
 const Footer: React.FC = () => {
     const currentYear = new Date().getFullYear();
@@ -47,10 +47,6 @@ const Footer: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <Mail className="h-4 w-4 text-orange-300/70" />
                                 <span>hello@estospaces.com</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4 text-orange-300/70" />
-                                <span>+91 44 7123 4567</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-orange-300/70" />

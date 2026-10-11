@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Mail, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
 import { contactService } from '@/services/contactService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -91,55 +91,6 @@ export default function ContactPage() {
                                     <a href="mailto:hello@estospaces.com" className="text-orange-500 hover:underline text-sm">
                                         hello@estospaces.com
                                     </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                                    <Phone className="text-green-500" size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">UK office phone</h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">England support, Mon-Fri, 9am-6pm GMT</p>
-                                    <a href="tel:+442012345678" className="text-orange-500 hover:underline text-sm">
-                                        +44 20 1234 5678
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                    <MapPin className="text-blue-500" size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">UK office address</h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">England regional office</p>
-                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                        123 Property Street<br />
-                                        London, EC1A 1BB<br />
-                                        United Kingdom
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                                    <MapPin className="text-orange-500" size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">India office address</h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Chennai regional office</p>
-                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                        456 Property Avenue<br />
-                                        Chennai, Tamil Nadu 600001<br />
-                                        India
-                                    </p>
                                 </div>
                             </div>
                         </div>
