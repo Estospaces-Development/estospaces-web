@@ -556,14 +556,10 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
             }
             if (data) {
                 clearNewRequestMode();
+                // The request card shows this request. The form is only ever for the next
+                // one, so a reload or refresh must not copy the old request into it (#685).
                 setActiveRequest(data);
                 publishBrokerRequestWorkspaceSelection(data.id);
-                setRequestType(toBrokerRequestType(data.request_type));
-                setLocationPostcode(data.location_postcode || '');
-                setLocation(data.location || '');
-                setBudget(data.budget || '');
-                setDetails(data.details || '');
-                setFastTrackEnabled(data.fast_track_enabled !== false);
                 return;
             }
         }
@@ -616,12 +612,6 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
 
         setActiveRequest(latestRequest);
         publishBrokerRequestWorkspaceSelection(latestRequest.id);
-        setRequestType(toBrokerRequestType(latestRequest.request_type));
-        setLocationPostcode(latestRequest.location_postcode || '');
-        setLocation(latestRequest.location || '');
-        setBudget(latestRequest.budget || '');
-        setDetails(latestRequest.details || '');
-        setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
     }, [clearNewRequestMode, dismissedRequestId, preferredRequestId, requestedWorkspaceRequestId, resetWorkspaceForm, suppressAutoResume, user]);
 
     useEffect(() => {
@@ -1162,6 +1152,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
 
                 createdRequestIdRef.current = resolvedRequest.id;
                 setActiveRequest(resolvedRequest);
+                resetWorkspaceForm();
                 publishBrokerRequestWorkspaceSelection(resolvedRequest.id);
                 publishWorkspaceSync({
                     source: 'mutation',
@@ -1958,15 +1949,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                             <div className="mt-4 flex flex-wrap gap-3">
                                 <button
                                     type="button"
-                                    onClick={async () => {
-                                        if (requestIsClosed) {
-                                            setActiveRequest(null);
-                                            setError(null);
-                                            return;
-                                        }
-
-                                        await refreshActiveRequest();
-                                    }}
+                                    onClick={requestIsClosed ? handleStartAnotherRequest : () => void refreshActiveRequest()}
                                     className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >
                                     <Radio size={14} />
@@ -2048,7 +2031,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
 
                 {requestIsActive && (
                     <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-sm text-gray-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-gray-200">
-                        An agent request is already running. You can still adjust the form below and start a new one if your needs change.
+                        An agent request is already running. You can still fill in the form below to send a new one if your needs change.
                     </div>
                 )}
                 {requestReplacementLocked && (
