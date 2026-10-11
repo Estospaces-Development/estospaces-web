@@ -418,6 +418,70 @@ export const isAdminOverrideActivityEntry = (
     entry: Pick<FastTrackActivityEntry, 'actorRole'>,
 ) => String(entry.actorRole || '').trim().toLowerCase() === 'admin';
 
+const FAST_TRACK_ACTIVITY_COMPACT_LIMIT = 8;
+
+/** Case activity, newest first: the latest few updates, with a toggle for the full history. */
+export const FastTrackActivityList = ({ activity, role }: { activity: FastTrackActivityEntry[]; role: WorkspaceRole }) => {
+    const [showAll, setShowAll] = useState(false);
+    const activityKeyFor = createDuplicateSafeKeyResolver('fast-track-activity');
+    const hasMore = activity.length > FAST_TRACK_ACTIVITY_COMPACT_LIMIT;
+    const visibleActivity = showAll ? activity : activity.slice(0, FAST_TRACK_ACTIVITY_COMPACT_LIMIT);
+
+    return (
+        <div className="space-y-3">
+            {visibleActivity.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
+                </p>
+            ) : visibleActivity.map((entry, entryIndex) => {
+                const adminOverrideActivity = isAdminOverrideActivityEntry(entry);
+                return (
+                    <div
+                        key={activityKeyFor(entry.id, entryIndex)}
+                        data-fast-track-admin-override-activity={adminOverrideActivity || undefined}
+                        className={cn(
+                            'rounded-[24px] border px-4 py-4',
+                            adminOverrideActivity
+                                ? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20'
+                                : 'border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
+                        )}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                {adminOverrideActivity ? (
+                                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                                        Admin override
+                                    </p>
+                                ) : null}
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
+                            </div>
+                            <span className={cn(
+                                'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]',
+                                adminOverrideActivity
+                                    ? 'border-amber-300 bg-white text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+                                    : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                            )}>
+                                {adminOverrideActivity ? 'Admin' : entry.actorRole}
+                            </span>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
+                    </div>
+                );
+            })}
+            {hasMore ? (
+                <button
+                    type="button"
+                    onClick={() => setShowAll((current) => !current)}
+                    aria-expanded={showAll}
+                    className="min-h-11 w-full rounded-full border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-offset-gray-900"
+                >
+                    {showAll ? 'Show fewer' : `Show all activity (${activity.length})`}
+                </button>
+            ) : null}
+        </div>
+    );
+};
+
 export const getFastTrackDocumentUploadCopy = ({
     status,
     hasAttachedFile,
@@ -2038,10 +2102,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
     }, [previewItemId, role, utilityModules]);
 
-    const compactActivity = useMemo(
-        () => (selectedCase?.activity || []).slice(0, 8),
-        [selectedCase?.activity],
-    );
     const showAdminOverrideBanner = isAdminOverrideFastTrackCase(role, selectedCase);
 
     const previewItem = useMemo(
@@ -2893,53 +2953,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         );
     };
 
-    const renderActivityModule = () => {
-        const activityKeyFor = createDuplicateSafeKeyResolver('fast-track-activity');
-
-        return (
-        <div className="space-y-3">
-            {compactActivity.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
-                </p>
-            ) : compactActivity.map((entry, entryIndex) => {
-                const adminOverrideActivity = isAdminOverrideActivityEntry(entry);
-                return (
-                    <div
-                        key={activityKeyFor(entry.id, entryIndex)}
-                        data-fast-track-admin-override-activity={adminOverrideActivity || undefined}
-                        className={cn(
-                            'rounded-[24px] border px-4 py-4',
-                            adminOverrideActivity
-                                ? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20'
-                                : 'border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
-                        )}
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                {adminOverrideActivity ? (
-                                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
-                                        Admin override
-                                    </p>
-                                ) : null}
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
-                            </div>
-                            <span className={cn(
-                                'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]',
-                                adminOverrideActivity
-                                    ? 'border-amber-300 bg-white text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
-                                    : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
-                            )}>
-                                {adminOverrideActivity ? 'Admin' : entry.actorRole}
-                            </span>
-                        </div>
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
-                    </div>
-                );
-            })}
-        </div>
-        );
-    };
+    const renderActivityModule = () => (
+        <FastTrackActivityList key={selectedCase?.id} activity={selectedCase?.activity || []} role={role} />
+    );
 
     const renderConnectedRecordsModule = () => {
         if (!selectedCase) {
