@@ -842,7 +842,12 @@ export const describeFastTrackWorkspaceFocus = (
 
     switch (fastTrackCase.stage) {
         case 'documents':
-            return role === 'user' ? 'Upload the core files' : 'Review the uploaded files';
+            if (role === 'user') {
+                return 'Upload the core files';
+            }
+            return fastTrackCase.documents.items.some((item) => item.status === 'uploaded')
+                ? 'Review the uploaded files'
+                : "Waiting for the client's files";
         case 'viewing':
             return role === 'user' ? 'Check or change your viewing' : 'Set or update the viewing';
         case 'decision':

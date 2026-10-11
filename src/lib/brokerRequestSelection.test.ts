@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import type { BrokerRequestRecord } from '@/services/leadsService';
+import { isLiveBrokerRequest } from '@/lib/applicationTracking';
 import {
     dedupeBrokerRequestsBySubmissionSignature,
+    getPreferredBrokerRequestId,
     selectAutoResumeBrokerRequest,
     selectPrimaryBrokerRequest,
     selectPrimaryBrokerRequestBy,
@@ -235,7 +239,7 @@ test('selectAutoResumeBrokerRequest skips closed broker requests', () => {
     assert.equal(selected, null);
 });
 
-test('dedupeBrokerRequestsBySubmissionSignature collapses duplicate matched workspaces for the same submitted request', () => {
+test('dedupeBrokerRequestsBySubmissionSignature keeps two matched requests with the same brief as separate workspaces', () => {
     const deduped = dedupeBrokerRequestsBySubmissionSignature([
         makeRequest({
             id: 'workspace-f859c836',
@@ -269,7 +273,7 @@ test('dedupeBrokerRequestsBySubmissionSignature collapses duplicate matched work
         }),
     ]);
 
-    assert.deepEqual(deduped.map((request) => request.id), ['workspace-e1a73164']);
+    assert.deepEqual(deduped.map((request) => request.id), ['workspace-e1a73164', 'workspace-f859c836']);
 });
 
 test('dedupeBrokerRequestsBySubmissionSignature keeps separate users with the same request area visible', () => {
@@ -328,25 +332,7 @@ test('dedupeBrokerRequestsBySubmissionSignature preserves a later repeat request
     assert.deepEqual(deduped.map((request) => request.id), ['new-request', 'older-request']);
 });
 
-test('submission dedupe does not chain requests beyond the ten-minute retry window', () => {
-    const common = {
-        user_id: 'chain-user',
-        request_type: 'rent',
-        location: 'Chennai',
-        location_postcode: '600001',
-        budget: '650000',
-        details: 'Need a Chennai rental quickly',
-    };
-    const deduped = dedupeBrokerRequestsBySubmissionSignature([
-        makeRequest({ ...common, id: 'minute-zero', created_at: '2026-07-08T02:00:00.000Z' }),
-        makeRequest({ ...common, id: 'minute-nine', created_at: '2026-07-08T02:09:00.000Z' }),
-        makeRequest({ ...common, id: 'minute-eighteen', created_at: '2026-07-08T02:18:00.000Z' }),
-    ]);
-
-    assert.deepEqual(deduped.map((request) => request.id), ['minute-eighteen', 'minute-nine']);
-});
-
-test('submission retry windows are stable when API records arrive out of order', () => {
+test('submission dedupe never merges distinct request ids, whatever the gap or arrival order', () => {
     const common = {
         user_id: 'unordered-user',
         request_type: 'rent',
@@ -361,7 +347,7 @@ test('submission retry windows are stable when API records arrive out of order',
         makeRequest({ ...common, id: 'minute-eighteen', created_at: '2026-07-08T02:18:00.000Z' }),
     ]);
 
-    assert.deepEqual(deduped.map((request) => request.id), ['minute-eighteen', 'minute-nine']);
+    assert.deepEqual(deduped.map((request) => request.id), ['minute-eighteen', 'minute-nine', 'minute-zero']);
 });
 
 test('submission dedupe preserves a new request after matching history is closed', () => {
@@ -590,4 +576,105 @@ test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of o
     ]);
 
     assert.deepEqual(sorted.map((request) => request.id), ['matched-newer', 'matched-older']);
+});
+
+// web-app#691: distinct requests must never hide each other, and "latest" means the newest created_at.
+const sameBrief = {
+    user_id: 'user-691',
+    request_type: 'rent',
+    location: 'Chennai',
+    location_postcode: '600001',
+    budget: '650000',
+    details: 'Need a Chennai rental quickly',
+};
+
+test('#691: a new pending request is not hidden behind an older matched request with the same brief', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            ...sameBrief,
+            id: 'older-matched',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            matched_broker_id: 'manager-1',
+            handoff_status: 'portfolio_shared',
+            property_shares: [{ id: 'share-1' } as any],
+            created_at: '2026-10-11T10:00:00.000Z',
+            updated_at: '2026-10-11T10:08:00.000Z',
+        }),
+        makeRequest({
+            ...sameBrief,
+            id: 'new-pending',
+            status: 'submitted',
+            dispatch_status: 'matching_wave_1',
+            created_at: '2026-10-11T10:05:00.000Z',
+            updated_at: '2026-10-11T10:05:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['new-pending', 'older-matched']);
+});
+
+test('#691: the same request id arriving twice is collapsed to the most advanced record', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({ ...sameBrief, id: 'request-a', status: 'submitted', created_at: '2026-10-11T10:00:00.000Z' }),
+        makeRequest({
+            ...sameBrief,
+            id: 'request-a',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            matched_broker_id: 'manager-1',
+            created_at: '2026-10-11T10:00:00.000Z',
+        }),
+        makeRequest({ ...sameBrief, id: 'request-b', status: 'submitted', created_at: '2026-10-11T10:02:00.000Z' }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['request-b', 'request-a']);
+    assert.equal(deduped[1].matched_broker_id, 'manager-1');
+});
+
+test('#691: the dashboard picks its latest agent request with the shared created_at rule', () => {
+    const dashboard = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
+    assert.doesNotMatch(
+        dashboard,
+        /right\.updated_at \|\| right\.created_at/,
+        'updated_at is re-stamped by core on every read, so it cannot order requests',
+    );
+    assert.match(dashboard, /selectPrimaryBrokerRequestBy\(brokerResult\.data, isLiveBrokerRequest\)/);
+    assert.match(dashboard, /preferredRequestId=\{getPreferredBrokerRequestId\(activeBrokerRequest, activeJourney\?\.brokerRequestId\)\}/);
+});
+
+test('#691: the newest live request is chosen by created_at even when an older one was updated later', () => {
+    const latest = selectPrimaryBrokerRequestBy([
+        makeRequest({
+            id: 'older-matched',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            created_at: '2026-10-11T10:00:00.000Z',
+            updated_at: '2026-10-11T10:09:00.000Z',
+        }),
+        makeRequest({
+            id: 'new-pending',
+            status: 'submitted',
+            created_at: '2026-10-11T10:05:00.000Z',
+            updated_at: '2026-10-11T10:05:00.000Z',
+        }),
+    ], isLiveBrokerRequest);
+
+    assert.equal(latest?.id, 'new-pending');
+});
+
+test('#691: the dashboard card opens the newest open request before the journey request', () => {
+    const pending = makeRequest({ id: 'new-pending', status: 'submitted' });
+    const journeyRequest = makeRequest({
+        id: 'journey-request',
+        status: 'matched',
+        dispatch_status: 'broker_matched',
+        selected_property_id: 'property-1',
+    });
+
+    assert.equal(getPreferredBrokerRequestId(pending, 'journey-request'), 'new-pending');
+    assert.equal(getPreferredBrokerRequestId(journeyRequest, 'journey-request'), 'journey-request');
+    assert.equal(getPreferredBrokerRequestId(null, 'journey-request'), 'journey-request');
+    assert.equal(getPreferredBrokerRequestId(null, null), null);
+    assert.equal(getPreferredBrokerRequestId(journeyRequest), null);
 });

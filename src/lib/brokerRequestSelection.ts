@@ -45,7 +45,6 @@ export const sortBrokerRequestsByPriority = (
     : [];
 
 const normalizeSubmissionToken = (value?: string | null) => normalizeValue(value).replace(/\s+/g, ' ');
-const normalizeCompactSubmissionToken = (value?: string | null) => normalizeSubmissionToken(value).replace(/\s+/g, '');
 
 const isClosedBrokerRequest = (request: BrokerRequestRecord) => {
     const status = normalizeValue(request.status);
@@ -56,25 +55,6 @@ const isClosedBrokerRequest = (request: BrokerRequestRecord) => {
         || CLOSED_AUTO_RESUME_STATUSES.has(handoffStatus)
         || status === 'expired'
         || dispatchStatus === 'expired';
-};
-
-const getRequestSubmissionSignature = (request: BrokerRequestRecord) => {
-    const requesterKey = normalizeSubmissionToken(request.user_id)
-        || normalizeSubmissionToken(request.requester_email)
-        || normalizeSubmissionToken(request.requester_phone);
-    const requestDetails = [
-        normalizeSubmissionToken(request.request_type),
-        normalizeSubmissionToken(request.location),
-        normalizeCompactSubmissionToken(request.location_postcode),
-        normalizeSubmissionToken(request.budget),
-        normalizeSubmissionToken(request.details),
-    ];
-
-    if (!requesterKey || requestDetails.every((item) => item === '')) {
-        return '';
-    }
-
-    return [requesterKey, ...requestDetails].join('|');
 };
 
 const SUBMISSION_DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
@@ -156,6 +136,10 @@ const shouldReplaceDuplicateBrokerRequest = (
     return getRequestTimestamp(candidate) > getRequestTimestamp(current);
 };
 
+// Distinct request ids are distinct requests, even when the client repeats the same brief:
+// core already merges an identical resubmission into one record, and a repeat sent after
+// the first was answered is a new request that its own agents must still see (web-app#691).
+// Only the same id arriving twice, or parallel workspaces on one selected property, collapse.
 export const dedupeBrokerRequestsBySubmissionSignature = (
     requests: BrokerRequestRecord[] | null | undefined,
 ) => {
@@ -163,13 +147,20 @@ export const dedupeBrokerRequestsBySubmissionSignature = (
         return [];
     }
 
+    const requestsById = new Map<string, BrokerRequestRecord>();
+    requests.forEach((request, index) => {
+        const key = request.id || `unidentified-${index}`;
+        const current = requestsById.get(key);
+        if (!current || shouldReplaceDuplicateBrokerRequest(request, current)) {
+            requestsById.set(key, request);
+        }
+    });
+
     const deduped: BrokerRequestRecord[] = [];
-    const submissionIndexesBySignature = new Map<string, number[]>();
-    const submissionAnchorByIndex = new Map<number, BrokerRequestRecord>();
     const selectedIndexesBySignature = new Map<string, number[]>();
     const selectedAnchorByIndex = new Map<number, BrokerRequestRecord>();
 
-    const requestsBySubmissionTime = [...requests].sort(
+    const requestsBySubmissionTime = [...requestsById.values()].sort(
         (left, right) => getRequestTimestamp(left) - getRequestTimestamp(right),
     );
 
@@ -201,31 +192,7 @@ export const dedupeBrokerRequestsBySubmissionSignature = (
             continue;
         }
 
-        const signature = getRequestSubmissionSignature(request);
-        if (!signature) {
-            deduped.push(request);
-            continue;
-        }
-
-        const existingIndex = (submissionIndexesBySignature.get(signature) || [])
-            .find((index) => submissionRequestsAreDuplicates(
-                request,
-                submissionAnchorByIndex.get(index) || deduped[index],
-            ));
-        if (existingIndex === undefined) {
-            const nextIndex = deduped.length;
-            submissionIndexesBySignature.set(signature, [
-                ...(submissionIndexesBySignature.get(signature) || []),
-                nextIndex,
-            ]);
-            submissionAnchorByIndex.set(nextIndex, request);
-            deduped.push(request);
-            continue;
-        }
-
-        if (shouldReplaceDuplicateBrokerRequest(request, deduped[existingIndex])) {
-            deduped[existingIndex] = request;
-        }
+        deduped.push(request);
     }
 
     return sortBrokerRequestsByPriority(deduped);
@@ -297,3 +264,14 @@ export const selectAutoResumeBrokerRequest = (
     shouldAutoResumeBrokerRequest,
     preferredRequestId,
 );
+
+/**
+ * The request the dashboard agent card opens: the newest live request that is still being worked
+ * (created_at, never updated_at, which core re-stamps on every read), else the active journey's own.
+ */
+export const getPreferredBrokerRequestId = (
+    latestLiveRequest: BrokerRequestRecord | null | undefined,
+    journeyRequestId?: string | null,
+) => (latestLiveRequest && shouldAutoResumeBrokerRequest(latestLiveRequest) ? latestLiveRequest.id : null)
+    || journeyRequestId
+    || null;

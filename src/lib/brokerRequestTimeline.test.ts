@@ -57,6 +57,24 @@ test('timeline collapses parallel duplicates but preserves a later separate jour
   assert.deepEqual(records.map((record) => record.id).sort(), ['different', 'later-journey', 'newer']);
 });
 
+test('#691: the timeline lists a new request next to an older matched request with the same brief', () => {
+  const brief = { user_id: 'user-1', request_type: 'rent', location: 'Chennai', location_postcode: '600001', budget: '650000', details: 'Need a Chennai rental quickly' };
+  const records = dedupeBrokerRequestsForTimeline([
+    request({
+      ...brief,
+      id: 'older-matched',
+      matched_broker_id: 'manager-1',
+      handoff_status: 'portfolio_shared',
+      property_shares: [{ id: 'share-1' } as never],
+      updated_at: '2026-08-26T08:09:00Z',
+    }),
+    request({ ...brief, id: 'new-pending', status: 'submitted', dispatch_status: 'matching_wave_1', created_at: '2026-08-26T08:05:00Z', updated_at: '2026-08-26T08:05:00Z' }),
+  ]);
+
+  assert.deepEqual(records.map((record) => record.id), ['new-pending', 'older-matched']);
+  assert.equal(records[0].property_shares?.length ?? 0, 0, 'the new request carries no shared homes from the older request');
+});
+
 test('timeline gives separate requests a precise submitted time instead of a shared update label', () => {
   assert.match(
     getBrokerRequestRequestedLabel(request({ created_at: '2026-08-26T08:00:05Z' })),

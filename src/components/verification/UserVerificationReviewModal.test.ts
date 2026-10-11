@@ -247,7 +247,12 @@ test('approved document rows separate correction actions from pending review act
     assert.match(source, /border-emerald-200 bg-emerald-50\/70/);
     assert.match(source, /aria-label=\{`Request re-upload for approved \$\{document\.file_name\}`\}/);
     assert.match(source, /aria-label=\{`Reject approved \$\{document\.file_name\}`\}/);
-    assert.match(source, /\) : canEdit && \(/);
+    assert.match(source, /\) : hasReviewActions && \(/);
+});
+
+test('re-upload confirmation is amber so it cannot be mistaken for the red Reject confirmation', () => {
+    assert.match(source, /reviewMode === 'reject' \? 'bg-red-600 hover:bg-red-700' : 'bg-amber-700 hover:bg-amber-800'/);
+    assert.doesNotMatch(source, /bg-red-100 text-red-600/);
 });
 
 test('user verification review surfaces are cleanly scoped and avoid mojibake', () => {

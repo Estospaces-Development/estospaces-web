@@ -436,6 +436,14 @@ test('lead stage resolves live workflow states from documents and response state
     assert.equal(formatLeadStage('broker_matched'), 'Broker Matched');
 });
 
+test('a closed lead shows its closed stage even when core kept a stale live stage (#682)', () => {
+    assert.equal(resolveLeadStage({ status: 'closed_won', stage: 'under_review' }, []), 'completed');
+    assert.equal(resolveLeadStage({ status: 'closed_lost', stage: 'under_review' }, []), 'expired');
+    assert.equal(resolveLeadStage({ status: 'cancelled', stage: 'broker_matched' }, []), 'expired');
+    assert.equal(resolveLeadStage({ status: 'closed_won' }, []), 'completed');
+    assert.equal(resolveLeadStage({ status: 'broker_responded', stage: 'under_review' }, []), 'under_review');
+});
+
 test('document requests are only allowed while the lead is still in the live response stage', () => {
     assert.equal(
         canRequestLeadDocuments({

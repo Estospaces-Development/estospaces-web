@@ -323,23 +323,36 @@ export const resolveManagerLeadWorkspaceCase = <T extends ManagerLeadWorkspaceCa
   )
 )) || null;
 
+// Stages where the lead has moved past matching, so a missing Fast Track case is worth explaining.
+const CASE_EXPECTED_STAGES = new Set([
+  "docs_requested",
+  "docs_uploaded",
+  "under_review",
+  "approved",
+  "viewing_scheduled",
+]);
+
 export const shouldShowManagerLeadWorkspaceMissingNotice = (
   lead: ManagerLeadVisibilityItem,
   hasLinkedCase: boolean,
 ) => {
-  if (hasLinkedCase) {
+  if (hasLinkedCase || ["closed_won", "closed_lost", "cancelled"].includes(lead.status || "")) {
     return false;
   }
 
   const stage = normalizeStage(resolveLeadStage(lead));
-  return Boolean(
-    lead.fast_track_enabled
-    || lead.broker_request_id
-    || lead.documents_requested
-    || lead.documents_uploaded
-    || lead.documents_verified
-    || LIVE_PROCESSING_STAGES.has(stage)
-  );
+  return Boolean(lead.documents_requested || CASE_EXPECTED_STAGES.has(stage));
+};
+
+// A matched agent request shares its home shortlist from the dashboard's matched client workspaces.
+export const getManagerLeadShortlistPath = (lead: ManagerLeadVisibilityItem) => {
+  if (!lead.broker_request_id || ["closed_won", "closed_lost", "cancelled"].includes(lead.status || "")) {
+    return null;
+  }
+
+  return normalizeStage(resolveLeadStage(lead)) === "broker_matched"
+    ? `/manager/dashboard?shortlist=${encodeURIComponent(lead.broker_request_id)}#matched-client-workspaces`
+    : null;
 };
 
 export const getManagerLeadSlaRemainingSeconds = (lead: ManagerLeadSummaryItem, now: number) => {
@@ -523,4 +536,22 @@ export const pickDefaultManagerLead = <T extends ManagerLeadSummaryItem>(
       && !CLOSED_MANAGER_LEAD_STAGES.has(normalizeStage(resolveLeadStage(lead))))
     || newestFirst[0]
     || null;
+};
+
+// The lead's own document flags are user-wide (profile vault), so a lead with a Fast Track case
+// reports that case's documents instead (#695).
+export const getManagerLeadDocumentsLabel = (
+  lead: Pick<ManagerLeadVisibilityItem, "documents_verified" | "documents_uploaded" | "documents_requested">,
+  linkedCase?: { documents: { items: ReadonlyArray<{ status: string }> } } | null,
+) => {
+  const items = linkedCase?.documents.items || [];
+  if (items.length > 0) {
+    if (items.every((item) => item.status === "approved")) return "Approved";
+    if (items.some((item) => item.status === "reupload_needed")) return "Re-upload needed";
+    if (items.some((item) => item.status === "uploaded" || item.status === "approved")) return "Uploaded";
+    return "Requested";
+  }
+  if (lead.documents_verified) return "Approved";
+  if (lead.documents_uploaded) return "On file in profile";
+  return lead.documents_requested ? "Requested" : "Not requested";
 };
