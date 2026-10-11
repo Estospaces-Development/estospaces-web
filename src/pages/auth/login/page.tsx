@@ -23,6 +23,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  // The full-screen loader only covers the page once sign-in has succeeded; while the request runs
+  // (and after a wrong password) the form stays visible and the button shows its own pending state.
+  const [redirecting, setRedirecting] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
@@ -110,10 +113,12 @@ export default function LoginPage() {
 
       // Successfully logged in - redirect using role from response
       const role = result.role || getRole();
+      setRedirecting(true);
       await continueWithRole(role);
     } catch (err: any) {
       setGeneralError(err.message || 'An unexpected error occurred. Please try again.');
       setLoading(false);
+      setRedirecting(false);
     }
   };
 
@@ -295,7 +300,7 @@ export default function LoginPage() {
         <Link to="/privacy" className={`text-primary hover:underline ${authFocusClass}`}>privacy policy</Link>
       </p>
 
-      {loading ? <BrandLoadingScreen label="Signing you in..." /> : null}
+      {redirecting ? <BrandLoadingScreen label="Signing you in..." /> : null}
     </section>
   );
 }
