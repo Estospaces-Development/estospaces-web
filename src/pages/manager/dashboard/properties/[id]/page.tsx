@@ -13,7 +13,7 @@ import { useProperties } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
@@ -449,8 +449,12 @@ export default function PropertyDetailPage() {
                                     </h1>
                                     <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <MapPin className="w-5 h-5 text-orange-600" />
-                                        {property.location?.addressLine1 || property.address}, {property.location?.city || property.city}, {property.location?.state || property.state}
-                                        {property.location?.country && `, ${property.location.country}`}
+                                        {formatLaunchPropertyLocation([
+                                            property.location?.addressLine1 || property.address,
+                                            property.location?.city || property.city,
+                                            property.location?.state || property.state,
+                                            property.location?.country,
+                                        ])}
                                     </p>
                                 </div>
                                 <div className="text-right">
