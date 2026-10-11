@@ -1276,3 +1276,12 @@ test('expired viewing completion copy says the case can be revived', () => {
     assert.match(FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE, /revive/i);
     assert.doesNotMatch(FAST_TRACK_EXPIRED_VIEWING_COMPLETION_MESSAGE, /closed/i);
 });
+
+test('#695 managers are not told to review files before any are uploaded', () => {
+    const waiting = buildCase({ stage: 'documents' });
+    waiting.documents.items = [{ id: 'identity', label: 'Identity', status: 'requested' }];
+    assert.equal(describeFastTrackWorkspaceFocus(waiting, 'manager'), "Waiting for the client's files");
+    const uploaded = buildCase({ stage: 'documents' });
+    uploaded.documents.items = [{ id: 'identity', label: 'Identity', status: 'uploaded' }];
+    assert.equal(describeFastTrackWorkspaceFocus(uploaded, 'manager'), 'Review the uploaded files');
+});

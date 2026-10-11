@@ -524,3 +524,21 @@ export const pickDefaultManagerLead = <T extends ManagerLeadSummaryItem>(
     || newestFirst[0]
     || null;
 };
+
+// The lead's own document flags are user-wide (profile vault), so a lead with a Fast Track case
+// reports that case's documents instead (#695).
+export const getManagerLeadDocumentsLabel = (
+  lead: Pick<ManagerLeadVisibilityItem, "documents_verified" | "documents_uploaded" | "documents_requested">,
+  linkedCase?: { documents: { items: ReadonlyArray<{ status: string }> } } | null,
+) => {
+  const items = linkedCase?.documents.items || [];
+  if (items.length > 0) {
+    if (items.every((item) => item.status === "approved")) return "Approved";
+    if (items.some((item) => item.status === "reupload_needed")) return "Re-upload needed";
+    if (items.some((item) => item.status === "uploaded" || item.status === "approved")) return "Uploaded";
+    return "Requested";
+  }
+  if (lead.documents_verified) return "Approved";
+  if (lead.documents_uploaded) return "On file in profile";
+  return lead.documents_requested ? "Requested" : "Not requested";
+};
