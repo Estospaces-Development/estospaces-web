@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
     formatPropertyFloorCaption,
     formatPropertyInventoryCaption,
+    getListingDeleteWarning,
     type PropertyFloorCaptionInput,
 } from './propertyStatusBadge';
 
@@ -68,5 +69,20 @@ test('formatPropertyInventoryCaption keeps the whole-building occupancy wording'
     ];
     for (const [totalFloors, occupiedUnits, expected] of cases) {
         assert.equal(formatPropertyInventoryCaption(totalFloors, occupiedUnits), expected);
+    }
+});
+
+test('delete warning names the status for listings that were rented, sold or under offer (#693)', () => {
+    const tail = ' Deleting it removes it for good. It will be refused while there is an active tenancy or open booking.';
+    assert.equal(getListingDeleteWarning('rented'), `This listing is marked Rented.${tail}`);
+    assert.equal(getListingDeleteWarning(' LET '), `This listing is marked Rented.${tail}`);
+    assert.equal(getListingDeleteWarning('sold'), `This listing is marked Sold.${tail}`);
+    assert.equal(getListingDeleteWarning('under_offer'), `This listing is marked Under Offer.${tail}`);
+    assert.equal(getListingDeleteWarning('under_contract'), `This listing is marked Under Contract.${tail}`);
+});
+
+test('delete warning stays out of the way for listings with no tenancy or sale state (#693)', () => {
+    for (const status of ['draft', 'published', 'available', 'pending_approval', 'rejected', 'suspended', '', undefined]) {
+        assert.equal(getListingDeleteWarning(status), null);
     }
 });

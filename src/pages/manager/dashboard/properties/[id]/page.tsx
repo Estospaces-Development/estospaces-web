@@ -17,6 +17,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { getListingDeleteWarning } from '@/lib/propertyStatusBadge';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
@@ -90,6 +91,7 @@ export default function PropertyDetailPage() {
     const detail = id ? detailQuery.data : { kind: 'not_found' as const };
     const property = detail?.kind === 'found' ? detail.property : undefined;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
+    const deleteWarning = getListingDeleteWarning(property?.status);
     const amenities = flattenPropertyAmenities(property?.amenities);
 
     if (!property) {
@@ -828,9 +830,14 @@ export default function PropertyDetailPage() {
                         className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6"
                     >
                         <h3 id="delete-property-title" className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Property?</h3>
-                        <p id="delete-property-description" className="text-gray-600 dark:text-gray-400 mb-6">
-                            Are you sure you want to delete this property? This action cannot be undone.
-                        </p>
+                        <div id="delete-property-description" className="mb-6 space-y-3 text-gray-600 dark:text-gray-400">
+                            <p>Are you sure you want to delete this property? This action cannot be undone.</p>
+                            {deleteWarning && (
+                                <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                                    {deleteWarning}
+                                </p>
+                            )}
+                        </div>
                         <div className="flex gap-3">
                             <button
                                 type="button"

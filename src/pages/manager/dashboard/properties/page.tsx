@@ -24,7 +24,7 @@ import {
     managerPropertyStatusFiltersEqual,
     normalizeManagerPropertyStatusFilters,
 } from '@/lib/managerPropertyDashboard';
-import { formatPropertyFloorCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyFloorCaption, getListingDeleteWarning, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
@@ -365,6 +365,8 @@ function PropertiesContent() {
     const openDeleteDialog = (property: Property) => {
         setPendingDeleteProperty(property);
     };
+
+    const deleteWarning = getListingDeleteWarning(pendingDeleteProperty?.status);
 
     const closeDeleteDialog = () => {
         if (loading) {
@@ -899,6 +901,11 @@ function PropertiesContent() {
                         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
                             Delete {pendingDeleteProperty.title}? This action cannot be undone.
                         </p>
+                        {deleteWarning && (
+                            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                                {deleteWarning}
+                            </p>
+                        )}
                         <div className="mt-6 flex justify-end gap-3">
                             <button
                                 type="button"

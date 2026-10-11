@@ -27,3 +27,13 @@ test('the property detail stays open and shows why a delete was refused', () => 
         /const deleteError = await deleteProperty\(id\);\s*if \(deleteError\) \{\s*setToast\(\{ message: deleteError, type: 'error', visible: true \}\);\s*return;\s*\}\s*navigate\('\/manager\/dashboard\/properties'\);/,
     );
 });
+
+// #693: a Rented/Sold listing deletes fine when Booking holds no open work, so the
+// dialog must say what the status means before the manager confirms.
+test('both delete dialogs show the status-aware warning (#693)', () => {
+    const inventory = read('src/pages/manager/dashboard/properties/page.tsx');
+    assert.match(inventory, /getListingDeleteWarning\(pendingDeleteProperty\?\.status\)/);
+    const detail = read('src/pages/manager/dashboard/properties/[id]/page.tsx');
+    assert.match(detail, /getListingDeleteWarning\(property\?\.status\)/);
+    assert.match(detail, /id="delete-property-description"[\s\S]*?\{deleteWarning && \(/);
+});
