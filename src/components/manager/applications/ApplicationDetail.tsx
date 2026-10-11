@@ -1865,7 +1865,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         id: 4,
         type: "withdrawn",
         title: "Application Withdrawn",
-        description: "You withdrew this application",
+        // The server says who closed it (the applicant, a cancelled case, or a sale to another buyer).
+        description:
+          application.journeyStatusReason || "The applicant withdrew this application",
         date: application.lastUpdated || new Date().toISOString(),
         icon: XCircle,
         color: "gray",
