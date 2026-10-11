@@ -155,3 +155,27 @@ export function createConversationRefreshFailedIssue(conversationId: string): Co
         message: REFRESH_FAILED_THREAD_MESSAGE,
     };
 }
+
+export const CONVERSATION_LOAD_RETRY_DELAY_MS = 1500;
+
+// The messaging service scales to zero, so the first inbox load after idle can time out or get a
+// 5xx while it starts. One retry hides that cold start; a second failure is thrown so the inbox
+// still shows "Messages could not load". Errors a retry cannot fix (401, 403, 404...) are thrown at once.
+export async function loadConversationsWithOneRetry<T>(
+    load: () => Promise<T>,
+    options: { delayMs?: number; isCurrent?: () => boolean } = {},
+): Promise<T> {
+    try {
+        return await load();
+    } catch (error) {
+        const status = getErrorStatus(error);
+        if (status !== undefined && status < 500) {
+            throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, options.delayMs ?? CONVERSATION_LOAD_RETRY_DELAY_MS));
+        if (options.isCurrent && !options.isCurrent()) {
+            throw error;
+        }
+        return load();
+    }
+}
