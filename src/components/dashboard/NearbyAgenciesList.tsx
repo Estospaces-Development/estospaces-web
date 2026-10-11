@@ -478,7 +478,7 @@ const NearbyAgenciesList = () => {
                         setPostcodeInput(manualPostcode || liveRequestPostcode);
                         setSearchError(null);
                     }}
-                    className={`mt-6 w-full rounded-lg bg-gray-50 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
+                    className={`mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
                 >
                     Find nearest agent by {locationCodeLabel}
                 </button>
