@@ -39,6 +39,7 @@ import {
     paginateManagerLeads,
     resolveManagerLeadWorkspaceCase,
     shouldShowManagerLeadWorkspaceMissingNotice,
+    getManagerLeadShortlistPath,
     sortManagerLeads,
     summarizeManagerLeads,
     type ManagerLeadSortMode,
@@ -941,6 +942,7 @@ export default function ManagerLeadsPage() {
                                 lead,
                                 Boolean(linkedCase),
                             );
+                            const leadShortlistPath = linkedCase ? null : getManagerLeadShortlistPath(lead);
                             const leadWorkspacePath = linkedCase
                                 ? buildWorkspacePath('/manager/fast-track', {
                                     caseId: linkedCase.caseId,
@@ -1121,11 +1123,21 @@ export default function ManagerLeadsPage() {
                                                     Open Documents
                                                 </button>
                                             ) : null}
+                                            {leadShortlistPath ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(leadShortlistPath)}
+                                                    aria-label={`Share homes with ${lead.name || 'this client'}`}
+                                                    className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 ${managerLeadFocusClass}`}
+                                                >
+                                                    Share homes
+                                                </button>
+                                            ) : null}
                                             {showWorkspaceMissingNotice ? (
                                                 <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
-                                                    <p className="font-bold">Live workspace unavailable</p>
+                                                    <p className="font-bold">No Fast Track case yet</p>
                                                     <p className="mt-1">
-                                                        No active Fast Track case is linked to this lead. The stale workspace shortcut is hidden so you can continue from the lead card.
+                                                        This lead has no active Fast Track case, so there is no workspace to open. Continue from this lead card.
                                                     </p>
                                                 </div>
                                             ) : null}
