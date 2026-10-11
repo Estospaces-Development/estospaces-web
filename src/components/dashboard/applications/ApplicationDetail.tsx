@@ -272,7 +272,8 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                 id: 4,
                 type: 'withdrawn',
                 title: 'Application Withdrawn',
-                description: 'You withdrew this application',
+                // The server says who closed it (you, a cancelled case, or a sale to another buyer).
+                description: application.journeyStatusReason || 'You withdrew this application',
                 date: application.lastUpdated || new Date().toISOString(),
                 icon: XCircle,
                 color: 'gray'
