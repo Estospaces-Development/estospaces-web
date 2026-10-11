@@ -125,7 +125,8 @@ test('a later case-file decision wins over an earlier Fast Track approval', () =
         const state = getCaseFileDocumentReviewState({ linkStatus, documentId: 'doc-identity', fastTrackApprovedIds: approved, caseClosed: false });
         assert.equal(state.effectiveStatus, linkStatus, linkStatus);
         assert.equal(state.approvedInFastTrack, false, linkStatus);
-        assert.equal(state.canApprove, true, linkStatus);
+        // core#118: a manager may not approve a document that is waiting for its replacement.
+        assert.equal(state.canApprove, linkStatus !== 'reupload_required', linkStatus);
     }
     const linked = getCaseFileDocumentReviewState({ linkStatus: 'linked', documentId: 'doc-identity', fastTrackApprovedIds: approved, caseClosed: false });
     assert.equal(linked.effectiveStatus, 'approved');
@@ -186,4 +187,39 @@ test('the case file hides the request form, guards submission and closes the wai
     assert.ok(source.includes('<ActorWaitingCard caseFile={caseFile} caseClosed={fastTrackCaseClosed} />'));
     assert.ok(source.includes('getCaseFileWaitingCopy(summary, caseFile.requests, caseClosed)'));
     assert.ok(source.includes('getCaseFileWaitingCopy(summary, caseFile?.requests || [], fastTrackCaseClosed)'));
+});
+
+// core#122 verifier P3: Core refuses a manager's approval and a second re-upload request while
+// the document waits for its replacement, so the case file must not offer either.
+test('a document waiting for its replacement offers neither Approve nor another re-upload request', () => {
+    const base = { documentId: 'doc-x', fastTrackApprovedIds: new Set<string>(), caseClosed: false };
+    const onLink = getCaseFileDocumentReviewState({ ...base, linkStatus: 'reupload_required' });
+    assert.equal(onLink.canApprove, false);
+    assert.equal(onLink.canRequestReupload, false);
+    assert.equal(onLink.canChangeReview, true);
+    // The same document linked to another case: this link is still "uploaded", the document is not.
+    const sharedDocument = getCaseFileDocumentReviewState({ ...base, linkStatus: 'uploaded', documentStatus: 'reupload_required' });
+    assert.equal(sharedDocument.canApprove, false);
+    assert.equal(sharedDocument.canRequestReupload, false);
+    const pending = getCaseFileDocumentReviewState({ ...base, linkStatus: 'uploaded', documentStatus: 'pending' });
+    assert.equal(pending.canApprove, true);
+    assert.equal(pending.canRequestReupload, true);
+    const approved = getCaseFileDocumentReviewState({ ...base, linkStatus: 'approved', documentStatus: 'approved' });
+    assert.equal(approved.canApprove, false);
+    assert.equal(approved.canRequestReupload, true);
+    const closed = getCaseFileDocumentReviewState({ ...base, linkStatus: 'uploaded', caseClosed: true });
+    assert.equal(closed.canRequestReupload, false);
+});
+
+test('the case file row follows the document status, and a refused review reloads the row', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
+    assert.ok(source.includes('documentStatus: document.document?.status,'));
+    const reupload = source.indexOf('openReviewDialog(document, "reupload_required")');
+    assert.ok(source.slice(Math.max(0, reupload - 300), reupload).includes('{reviewState.canRequestReupload ? ('));
+    const handlerStart = source.indexOf('const handleReviewDocument');
+    const handler = source.slice(handlerStart, source.indexOf('toast.success(', handlerStart));
+    assert.match(handler, /toast\.error\(result\.error\);\s*\/\/[^\n]*\n\s*setReviewDialog\(null\);\s*await loadCaseFile\(true\);\s*return;/);
+    const service = readFileSync(resolve(process.cwd(), 'src/services/caseFilesService.ts'), 'utf8');
+    const reviewStart = service.indexOf('export const reviewCaseFileDocumentLink');
+    assert.ok(service.slice(reviewStart, service.indexOf('};', reviewStart)).includes('suppressErrorToast: true'));
 });

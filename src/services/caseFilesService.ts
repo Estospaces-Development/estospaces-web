@@ -214,6 +214,8 @@ export const reviewCaseFileDocumentLink = async (
         const data = await apiFetch<CaseFileDocument>(`${CORE_URL()}/api/v1/case-files/${caseId}/document-links/${linkId}/review`, {
             method: 'PUT',
             body: JSON.stringify(payload),
+            // The case file shows Core's own reason (e.g. a 409); skip the generic 4xx toast.
+            suppressErrorToast: true,
         });
         return { data, error: null };
     } catch (error: any) {

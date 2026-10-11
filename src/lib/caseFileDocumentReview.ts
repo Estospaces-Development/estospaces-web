@@ -55,11 +55,13 @@ export const getCaseFileDocumentReviewState = ({
     documentId,
     fastTrackApprovedIds,
     caseClosed,
+    documentStatus,
 }: {
     linkStatus: string | null | undefined;
     documentId: string | null | undefined;
     fastTrackApprovedIds: Set<string>;
     caseClosed: boolean;
+    documentStatus?: string | null;
 }) => {
     const status = text(linkStatus) || 'uploaded';
     // Sync runs Fast Track -> case file only, so a Fast Track approval may only
@@ -67,10 +69,14 @@ export const getCaseFileDocumentReviewState = ({
     // decision (re-upload, rejected, under review) always wins.
     const approvedInFastTrack = PENDING_LINK_STATUSES.has(status) && fastTrackApprovedIds.has(String(documentId || '').trim());
     const effectiveStatus = approvedInFastTrack ? 'approved' : status;
+    // Core refuses a manager's approval and a second re-upload request while the
+    // document (shared across cases) waits for its replacement (core#116, #118, #122).
+    const awaitingReplacement = effectiveStatus === 'reupload_required' || text(documentStatus) === 'reupload_required';
     return {
         effectiveStatus,
         approvedInFastTrack,
-        canApprove: !caseClosed && effectiveStatus !== 'approved',
+        canApprove: !caseClosed && effectiveStatus !== 'approved' && !awaitingReplacement,
+        canRequestReupload: !caseClosed && !awaitingReplacement,
         canChangeReview: !caseClosed,
     };
 };
