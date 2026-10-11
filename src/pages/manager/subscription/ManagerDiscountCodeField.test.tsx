@@ -16,11 +16,11 @@ const field = (overrides: Partial<Parameters<typeof ManagerDiscountCodeField>[0]
 }));
 
 test('the code field is labelled, pre-filled and reports the uniform refusal accessibly', () => {
-    const markup = field({ initialCode: 'LAUNCH20', error: "This code can't be used on this plan." });
+    const markup = field({ initialCode: 'LAUNCH20', error: "This code isn't valid or has expired." });
     assert.match(markup, /<label for="([^"]+)"[^>]*>Have a discount code\?<\/label>/);
     assert.match(markup, /value="LAUNCH20"/);
     assert.match(markup, /aria-invalid="true" aria-describedby="[^"]+-error"/);
-    assert.match(markup, /role="alert"[^>]*>This code can(&#x27;|')t be used on this plan\.<\/p>/);
+    assert.match(markup, /role="alert"[^>]*>This code isn(&#x27;|')t valid or has expired\.<\/p>/);
     assert.match(markup, /<button type="submit"[^>]*>[^<]*Apply<\/button>/);
     assert.doesNotMatch(field(), /role="alert"/);
     assert.match(field(), /<button type="submit" disabled=""/);

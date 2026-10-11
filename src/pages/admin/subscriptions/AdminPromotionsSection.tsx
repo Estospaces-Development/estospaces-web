@@ -26,6 +26,7 @@ import {
     getAdminTrialGrantState,
     getOfferChecklist,
     getPromotionActions,
+    getPromotionDisplayStatus,
     getPromotionErrorMessage,
     isManagerEmailInput,
     isOfferChecklistComplete,
@@ -74,11 +75,12 @@ const actionSuccess: Record<AdminPromotionAction, string> = {
     archive: 'Promotion archived. Existing trials and discounts continue.',
 };
 
-const statusClasses: Record<AdminPromotion['status'], string> = {
+const statusClasses: Record<AdminPromotion['status'] | 'ended', string> = {
     draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
     active: 'bg-green-100 text-green-900 dark:bg-green-950/50 dark:text-green-100',
     paused: 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-100',
     archived: 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+    ended: 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
 };
 
 const inputClass = 'mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white';
@@ -291,16 +293,16 @@ export default function AdminPromotionsSection() {
                     : promotionList.length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">No promotions yet.</p>
                         : <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm">
                             <thead className="text-xs uppercase text-gray-500 dark:text-gray-400"><tr><th scope="col" className="py-2 pr-4">Name</th><th scope="col" className="py-2 pr-4">Kind</th><th scope="col" className="py-2 pr-4">Plan</th><th scope="col" className="py-2 pr-4">Benefit</th><th scope="col" className="py-2 pr-4">Window</th><th scope="col" className="py-2 pr-4">Used/cap</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2">Actions</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{promotionList.map((promotion) => <Fragment key={promotion.id}><tr className={offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'border-b-0 align-top' : 'align-top'}>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{promotionList.map((promotion) => { const displayStatus = getPromotionDisplayStatus(promotion, now); return <Fragment key={promotion.id}><tr className={offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'border-b-0 align-top' : 'align-top'}>
                                 <td className="py-3 pr-4"><p className="font-bold">{promotion.name}</p>{promotion.code ? <code className="text-xs">{promotion.code}</code> : null}{promotion.auto_apply_on_signup ? <p className="text-xs text-emerald-700 dark:text-emerald-300">Auto-applies on signup</p> : null}</td>
                                 <td className="py-3 pr-4">{formatPromotionKind(promotion.kind)}</td>
                                 <td className="py-3 pr-4">{formatPromotionPlan(promotion)}</td>
                                 <td className="py-3 pr-4">{formatPromotionBenefit(promotion)}</td>
                                 <td className="py-3 pr-4 text-xs">{formatWindow(promotion)}<br />{formatPromotionMarkets(promotion)}</td>
                                 <td className="py-3 pr-4">{formatPromotionUsage(promotion)}</td>
-                                <td className="py-3 pr-4"><span className={`rounded-full px-2 py-1 text-xs font-bold capitalize ${statusClasses[promotion.status]}`}>{promotion.status}</span></td>
+                                <td className="py-3 pr-4"><span className={`rounded-full px-2 py-1 text-xs font-bold capitalize ${statusClasses[displayStatus]}`}>{displayStatus}</span></td>
                                 <td className="py-3"><div className="flex flex-wrap gap-2">
-                                    {getPromotionActions(promotion.status).map((action) => action === 'activate' && promotion.kind === 'percent_discount'
+                                    {getPromotionActions(promotion.status).filter((action) => !(displayStatus === 'ended' && action === 'pause')).map((action) => action === 'activate' && promotion.kind === 'percent_discount'
                                         ? <button key={action} type="button" aria-expanded={offerCheck?.key === `${promotion.id}:${promotion.version}`} disabled={busy !== null} onClick={() => setOfferCheck(offerCheck?.key === `${promotion.id}:${promotion.version}` ? null : { key: `${promotion.id}:${promotion.version}`, ticked: [] })} className={buttonSecondary}>{offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'Close offer check' : 'Activate…'}</button>
                                         : <button key={action} type="button" disabled={busy !== null} onClick={() => void changeStatus(promotion, action)} className={buttonSecondary}>{busy === `${action}:${promotion.id}:${promotion.version}` ? 'Saving…' : actionLabels[action]}</button>)}
                                     {canEditPromotion(promotion) ? <button type="button" aria-expanded={editing?.id === promotion.id} disabled={busy !== null} onClick={() => setEditing(editing?.id === promotion.id ? null : { id: promotion.id, values: promotionEditValues(promotion), errors: {} })} className={buttonSecondary}>{editing?.id === promotion.id ? 'Close edit' : 'Edit'}</button> : null}
@@ -316,7 +318,7 @@ export default function AdminPromotionsSection() {
                                 </div> : null}</td>
                             </tr>
                             {offerCheck?.key === `${promotion.id}:${promotion.version}` ? <tr><td colSpan={8} className="pb-3"><OfferChecklist promotion={promotion} windowLabel={formatWindow(promotion)} ticked={offerCheck.ticked} busy={busy} onToggle={(id, checked) => setOfferCheck({ key: offerCheck.key, ticked: checked ? [...offerCheck.ticked, id] : offerCheck.ticked.filter((item) => item !== id) })} onActivate={async () => { if (await changeStatus(promotion, 'activate')) setOfferCheck(null); }} /></td></tr> : null}
-                            </Fragment>)}</tbody>
+                            </Fragment>; })}</tbody>
                         </table></div>}
         </section>
 
