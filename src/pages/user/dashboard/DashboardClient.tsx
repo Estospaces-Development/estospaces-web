@@ -37,7 +37,7 @@ import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
 import { hasFastTrackReachedCompletion } from '@/lib/fastTrackWorkflow';
 import { getUserBrokerRequests, type BrokerRequestRecord } from '@/services/leadsService';
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
-import { shouldAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
+import { getPreferredBrokerRequestId, selectPrimaryBrokerRequestBy } from '@/lib/brokerRequestSelection';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/userDashboardJourneySummary';
@@ -519,12 +519,7 @@ const DashboardClient = () => {
           return;
         }
 
-        const liveBrokerRequest = (brokerResult.data || [])
-          .filter((request) => isLiveBrokerRequest(request))
-          .sort((left, right) => (
-            new Date(right.updated_at || right.created_at || 0).getTime()
-            - new Date(left.updated_at || left.created_at || 0).getTime()
-          ))[0] || null;
+        const liveBrokerRequest = selectPrimaryBrokerRequestBy(brokerResult.data, isLiveBrokerRequest);
 
         const fastTrackCases = fastTrackResult.data || [];
         const liveFastTrackJourney = fastTrackCases
@@ -1180,11 +1175,7 @@ const DashboardClient = () => {
                 <BrokerRequestWidget
                   onLocationContextChange={handleBrokerRequestLocationContextChange}
                   activeJourney={activeJourney}
-                  preferredRequestId={activeJourney?.brokerRequestId || (
-                    activeBrokerRequest && shouldAutoResumeBrokerRequest(activeBrokerRequest)
-                      ? activeBrokerRequest.id
-                      : null
-                  )}
+                  preferredRequestId={getPreferredBrokerRequestId(activeBrokerRequest, activeJourney?.brokerRequestId)}
                 />
               </Suspense>
             </div>

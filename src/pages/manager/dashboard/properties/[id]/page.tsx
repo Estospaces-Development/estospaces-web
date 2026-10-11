@@ -10,7 +10,6 @@ import {
     Send, Video, ExternalLink
 } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
-import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
@@ -55,7 +54,6 @@ export default function PropertyDetailPage() {
     const appToast = useToast();
 
     const { getProperty, fetchPropertyById, deleteProperty, changeListingStatus, updateProperty, duplicateProperty, incrementShares } = useProperties();
-    const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -91,7 +89,6 @@ export default function PropertyDetailPage() {
     });
     const detail = id ? detailQuery.data : { kind: 'not_found' as const };
     const property = detail?.kind === 'found' ? detail.property : undefined;
-    const isFavorited = id ? isPropertySaved(id) : false;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
     const amenities = flattenPropertyAmenities(property?.amenities);
 
@@ -205,41 +202,6 @@ export default function PropertyDetailPage() {
         }
     };
 
-    const handleFavoriteToggle = async () => {
-        if (!property || !id) {
-            setToast({
-                message: 'Property not found',
-                type: 'error',
-                visible: true
-            });
-            return;
-        }
-
-        try {
-            const result = await toggleProperty(id);
-
-            if (result?.success) {
-                setToast({
-                    message: isFavorited ? 'Removed from favorites' : 'Added to favorites',
-                    type: 'success',
-                    visible: true
-                });
-            } else {
-                setToast({
-                    message: result?.error || 'Failed to update favorites',
-                    type: 'error',
-                    visible: true
-                });
-            }
-        } catch (_err) {
-            setToast({
-                message: 'An error occurred. Please try again.',
-                type: 'error',
-                visible: true
-            });
-        }
-    };
-
     const getStatusColor = (status: string) => {
         const colors: Record<string, string> = {
             online: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -281,20 +243,6 @@ export default function PropertyDetailPage() {
                     Back to Properties
                 </button>
                 <div className="flex flex-wrap gap-2">
-                    {/* Favorite */}
-                    <button
-                        type="button"
-                        aria-label={isFavorited ? 'Remove property from saved' : 'Save property'}
-                        onClick={handleFavoriteToggle}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${isFavorited
-                            ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-600'
-                            : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                            }`}
-                    >
-                        <Heart className={`w-5 h-5 ${isFavorited ? '-current' : ''}`} />
-                        <span className="hidden sm:inline">{isFavorited ? 'Saved' : 'Favorite'}</span>
-                    </button>
-
                     {/* Share */}
                     <button
                         type="button"

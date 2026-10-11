@@ -3,8 +3,8 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, ChevronDown, Info, BellRing, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
@@ -160,6 +160,9 @@ const BrokerResponseWidget: React.FC = () => {
     const [shareSelections, setShareSelections] = useState<Record<string, string[]>>({});
     const [shareSavingRequestId, setShareSavingRequestId] = useState<string | null>(null);
     const [focusedWorkspaceRequestId, setFocusedWorkspaceRequestId] = useState<string | null>(null);
+    const [searchParams] = useSearchParams();
+    const shortlistRequestId = searchParams.get('shortlist');
+    const openedShortlistRequestId = useRef<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [availableForFastResponse, setAvailableForFastResponse] = useState(false);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -393,6 +396,21 @@ const BrokerResponseWidget: React.FC = () => {
     useEffect(() => {
         setMatchedWorkspacePage((current) => Math.min(current, matchedWorkspacePageCount));
     }, [matchedWorkspacePageCount]);
+
+    // A lead card links here with ?shortlist=<request id>; open that workspace once its request has loaded.
+    useEffect(() => {
+        if (!shortlistRequestId || openedShortlistRequestId.current === shortlistRequestId) {
+            return;
+        }
+        const targetIndex = matchedRequests.findIndex((request) => request.id === shortlistRequestId);
+        if (targetIndex < 0) {
+            return;
+        }
+        openedShortlistRequestId.current = shortlistRequestId;
+        setMatchedWorkspaceSearch('');
+        setMatchedWorkspacePage(Math.floor(targetIndex / MATCHED_WORKSPACE_PAGE_SIZE) + 1);
+        setFocusedWorkspaceRequestId(shortlistRequestId);
+    }, [shortlistRequestId, matchedRequests]);
 
     useEffect(() => {
         if (!focusedWorkspaceRequestId) {

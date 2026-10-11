@@ -40,6 +40,7 @@ import {
     resolveManagerLeadWorkspaceCase,
     shouldShowManagerLeadWorkspaceMissingNotice,
     getManagerLeadDocumentsLabel,
+    getManagerLeadShortlistPath,
     sortManagerLeads,
     summarizeManagerLeads,
     type ManagerLeadSortMode,
@@ -300,17 +301,16 @@ export default function ManagerLeadsPage() {
         return () => window.clearInterval(timer);
     }, []);
 
-    const fetchLeads = useCallback(async (
-        selectedStatus = statusFilter,
-        options: { silent?: boolean } = {},
-    ) => {
+    // Leads are fetched unfiltered so the summary cards always show overall totals (#694);
+    // the status filter is applied on the page.
+    const fetchLeads = useCallback(async (options: { silent?: boolean } = {}) => {
         if (!options.silent) {
             setLoading(true);
             setError(null);
         }
         try {
             const [result, brokerRequestOffersResult, fastTrackCasesResult] = await Promise.all([
-                getBrokerLeads(selectedStatus === 'all' ? undefined : selectedStatus),
+                getBrokerLeads(),
                 getBrokerRequestOffers({ limit: 100, sort: 'created_at_desc', suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
@@ -320,7 +320,6 @@ export default function ManagerLeadsPage() {
             setLeads(mergeBrokerRequestOffersIntoManagerLeads(
                 result.data || [],
                 brokerRequestOffersResult.data || [],
-                selectedStatus,
             ));
             setFastTrackCases(fastTrackCasesResult.data || []);
             return true;
@@ -335,11 +334,11 @@ export default function ManagerLeadsPage() {
                 setLoading(false);
             }
         }
-    }, [statusFilter]);
+    }, []);
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true);
-        const refreshed = await fetchLeads(statusFilter, { silent: true });
+        const refreshed = await fetchLeads({ silent: true });
         setIsRefreshing(false);
         if (refreshed) {
             toast.success('Lead response desk refreshed.');
@@ -349,8 +348,8 @@ export default function ManagerLeadsPage() {
     };
 
     useEffect(() => {
-        void fetchLeads(statusFilter);
-    }, [fetchLeads, statusFilter]);
+        void fetchLeads();
+    }, [fetchLeads]);
 
     useWorkflowWorkspaceRefresh({
         tags: [
@@ -362,13 +361,16 @@ export default function ManagerLeadsPage() {
             WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
         ],
         refresh: async () => {
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         },
     });
 
-    const visibleSourceLeads = useMemo(() => (
+    const allVisibleLeads = useMemo(() => (
         filterVisibleManagerLeads(leads)
     ), [leads]);
+    const visibleSourceLeads = useMemo(() => (
+        statusFilter === 'all' ? allVisibleLeads : allVisibleLeads.filter((lead) => lead.status === statusFilter)
+    ), [allVisibleLeads, statusFilter]);
 
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -409,7 +411,7 @@ export default function ManagerLeadsPage() {
         setSearchQuery(searchParamQuery);
     }, [searchParamQuery]);
 
-    const summary = useMemo(() => summarizeManagerLeads(visibleSourceLeads, now), [now, visibleSourceLeads]);
+    const summary = useMemo(() => summarizeManagerLeads(allVisibleLeads, now), [allVisibleLeads, now]);
     const fastTrackCaseByLeadId = useMemo(() => {
         const mapping = new Map<string, FastTrackCase>();
 
@@ -516,13 +518,13 @@ export default function ManagerLeadsPage() {
                 },
             });
             toast.success('Document request sent to the user and the chat thread is live.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to request documents right now.');
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, publishWorkspaceSync, sendLeadMessage, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, sendLeadMessage, toast]);
 
     const handleRespondAndOpenMessages = useCallback(async (lead: Lead) => {
         if (!lead.user_id) {
@@ -561,7 +563,7 @@ export default function ManagerLeadsPage() {
                     propertyId: lead.property_id,
                 },
             });
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
             toast.success('Lead responded to. Opening the conversation thread.');
             navigate(`/manager/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
@@ -569,7 +571,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, navigate, publishWorkspaceSync, sendLeadMessage, statusFilter, toast]);
+    }, [fetchLeads, navigate, publishWorkspaceSync, sendLeadMessage, toast]);
 
     const openScheduleViewing = useCallback((lead: Lead) => {
         setScheduleLead(lead);
@@ -633,12 +635,12 @@ export default function ManagerLeadsPage() {
                 propertyInterested: result.data!.propertyInterested || result.data!.property_name,
             }, ...previous]);
             toast.success('Manual lead created and added to the response desk.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         } catch (createError: any) {
             toast.error(createError?.message || 'Unable to create the manual lead.');
             throw createError;
         }
-    }, [fetchLeads, statusFilter, toast]);
+    }, [fetchLeads, toast]);
 
     const handleScheduleViewing = useCallback(async () => {
         const assignedManagerId = scheduleLead?.broker_id || scheduleLead?.matched_broker_id;
@@ -689,13 +691,13 @@ export default function ManagerLeadsPage() {
                 },
             });
             toast.success('Viewing created successfully. The appointment and linked application are now in sync.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         } catch (scheduleError: any) {
             toast.error(scheduleError?.message || 'Unable to schedule the viewing right now.');
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, publishWorkspaceSync, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, toast]);
 
     const handleLifecycleUpdate = useCallback(async (lead: Lead, nextOutcome: 'completed' | 'rejected') => {
         const closingAsWon = nextOutcome === 'completed';
@@ -733,7 +735,7 @@ export default function ManagerLeadsPage() {
                 },
             });
             toast.success(closingAsWon ? 'Lead marked won and lifecycle synced.' : 'Lead marked lost and lifecycle synced.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
             window.requestAnimationFrame(() => {
                 document.getElementById(`lead-lifecycle-status-${lead.id}`)?.focus();
             });
@@ -742,7 +744,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, publishWorkspaceSync, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, toast]);
 
     const handleExportCsv = useCallback(() => {
         if (visibleLeads.length === 0) {
@@ -942,6 +944,7 @@ export default function ManagerLeadsPage() {
                                 lead,
                                 Boolean(linkedCase),
                             );
+                            const leadShortlistPath = linkedCase ? null : getManagerLeadShortlistPath(lead);
                             const leadWorkspacePath = linkedCase
                                 ? buildWorkspacePath('/manager/fast-track', {
                                     caseId: linkedCase.caseId,
@@ -1122,11 +1125,21 @@ export default function ManagerLeadsPage() {
                                                     Open Documents
                                                 </button>
                                             ) : null}
+                                            {leadShortlistPath ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(leadShortlistPath)}
+                                                    aria-label={`Share homes with ${lead.name || 'this client'}`}
+                                                    className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 ${managerLeadFocusClass}`}
+                                                >
+                                                    Share homes
+                                                </button>
+                                            ) : null}
                                             {showWorkspaceMissingNotice ? (
                                                 <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
-                                                    <p className="font-bold">Live workspace unavailable</p>
+                                                    <p className="font-bold">No Fast Track case yet</p>
                                                     <p className="mt-1">
-                                                        No active Fast Track case is linked to this lead. The stale workspace shortcut is hidden so you can continue from the lead card.
+                                                        This lead has no active Fast Track case, so there is no workspace to open. Continue from this lead card.
                                                     </p>
                                                 </div>
                                             ) : null}

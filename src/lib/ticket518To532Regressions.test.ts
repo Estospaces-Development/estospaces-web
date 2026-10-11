@@ -18,7 +18,7 @@ test('user journey separates formal applications from agent requests', () => {
 test('dashboard agent request workspace follows the active journey', () => {
     const dashboard = readSource('src/pages/user/dashboard/DashboardClient.tsx');
     const widget = readSource('src/components/dashboard/BrokerRequestWidget.tsx');
-    assert.match(dashboard, /activeBrokerRequest && shouldAutoResumeBrokerRequest\(activeBrokerRequest\)/);
+    assert.match(dashboard, /getPreferredBrokerRequestId\(activeBrokerRequest, activeJourney\?\.brokerRequestId\)/);
     assert.match(widget, /requestedWorkspaceRequestId \|\| preferredRequestId/);
     assert.match(widget, /getBrokerRequestById\(exactRequestId/);
     assert.match(widget, /activeRequestLoadIdRef\.current !== loadId/);

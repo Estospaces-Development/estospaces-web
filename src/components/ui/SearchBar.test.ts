@@ -104,7 +104,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(userDashboardSource, /locationContextCode=\{brokerRequestLocationContext \|\| activeBrokerRequest\?\.location_postcode \|\| undefined\}/);
     assert.match(userDashboardSource, /countryContextName=\{activeJourney\?\.propertyCountry\}/);
     assert.match(userDashboardSource, /fallbackCountryName=\{LAUNCH_COUNTRY_NAME\}/);
-    assert.match(userDashboardSource, /<BrokerRequestWidget[\s\S]*onLocationContextChange=\{handleBrokerRequestLocationContextChange\}[\s\S]*preferredRequestId=\{activeJourney\?\.brokerRequestId \|\| \([\s\S]*activeBrokerRequest && shouldAutoResumeBrokerRequest\(activeBrokerRequest\)[\s\S]*\? activeBrokerRequest\.id[\s\S]*: null[\s\S]*\)\}[\s\S]*\/>/);
+    assert.match(userDashboardSource, /<BrokerRequestWidget[\s\S]*onLocationContextChange=\{handleBrokerRequestLocationContextChange\}[\s\S]*preferredRequestId=\{getPreferredBrokerRequestId\(activeBrokerRequest, activeJourney\?\.brokerRequestId\)\}[\s\S]*\/>/);
 });
 
 test('recognised city queries select their market without treating arbitrary property titles as locations', () => {

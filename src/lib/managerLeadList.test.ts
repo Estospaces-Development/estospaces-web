@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolveLeadStage } from "./fastTrackWorkflow";
 
 import {
   canRequestManagerLeadDocuments,
@@ -21,6 +22,7 @@ import {
   resolveManagerLeadWorkspaceCase,
   shouldShowManagerLeadWorkspaceMissingNotice,
   getManagerLeadDocumentsLabel,
+  getManagerLeadShortlistPath,
   sortManagerLeads,
   summarizeManagerLeads,
 } from "./managerLeadList";
@@ -541,4 +543,36 @@ test('#695 the lead card reports the linked case documents, not the user-wide pr
   assert.equal(getManagerLeadDocumentsLabel(lead, null), 'On file in profile');
   assert.equal(getManagerLeadDocumentsLabel({ documents_requested: true }, null), 'Requested');
   assert.equal(getManagerLeadDocumentsLabel({}, null), 'Not requested');
+});
+
+test('#686 #683 a matched agent request offers its shortlist instead of a missing-workspace warning', () => {
+  const matched = mapBrokerRequestOfferToManagerLead({
+    id: 'b1aa5a65-0000-0000-0000-000000000000', request_type: 'rent', location: 'Chennai',
+    status: 'matched', dispatch_status: 'broker_matched', fast_track_enabled: true,
+    matched_at: '2026-10-08T09:00:00Z', matched_broker_id: 'manager-1',
+  });
+  assert.equal(resolveLeadStage(matched), 'broker_matched');
+  assert.equal(shouldShowManagerLeadWorkspaceMissingNotice(matched, false), false);
+  assert.equal(
+    getManagerLeadShortlistPath(matched),
+    '/manager/dashboard?shortlist=b1aa5a65-0000-0000-0000-000000000000#matched-client-workspaces',
+  );
+});
+
+test('#683 closed leads never show the missing-workspace warning or a shortlist link', () => {
+  for (const status of ['closed_won', 'closed_lost', 'cancelled']) {
+    const lead = { id: 'lead-closed', status, stage: 'under_review', broker_request_id: 'req-1', documents_uploaded: true };
+    assert.equal(shouldShowManagerLeadWorkspaceMissingNotice(lead, false), false, status);
+    assert.equal(getManagerLeadShortlistPath(lead), null, status);
+  }
+});
+
+test('a lead still matching has no shortlist link yet', () => {
+  assert.equal(getManagerLeadShortlistPath({ id: 'broker-request-x', status: 'new', stage: 'matching', broker_request_id: 'x' }), null);
+});
+
+test('#686 the dashboard opens the shortlist named in ?shortlist=', () => {
+  const widget = readFileSync(new URL('../components/dashboard/BrokerResponseWidget.tsx', import.meta.url), 'utf8');
+  assert.ok(widget.includes("searchParams.get('shortlist')"));
+  assert.ok(widget.includes('setFocusedWorkspaceRequestId(shortlistRequestId)'));
 });
