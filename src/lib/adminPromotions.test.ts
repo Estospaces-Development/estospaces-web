@@ -18,6 +18,7 @@ import {
     getOfferChecklist,
     getPromotionActions,
     getPromotionActivationReason,
+    getPromotionDisplayStatus,
     getPromotionErrorMessage,
     isOfferChecklistComplete,
     promotionEditValues,
@@ -316,4 +317,15 @@ test('activating a percent discount needs every Razorpay offer setting ticked, o
     const trial = getOfferChecklist({ ...discount, kind: 'trial_grant' }, 'window');
     assert.deepEqual(trial, []);
     assert.equal(isOfferChecklistComplete(trial, []), false);
+});
+
+test('an active promotion past its end date reads as ended, other states are untouched (MB-0750)', () => {
+    const now = new Date('2026-10-11T12:00:00Z');
+    assert.equal(getPromotionDisplayStatus(promotion({ valid_until: '2026-10-11T11:59:59Z' }), now), 'ended');
+    assert.equal(getPromotionDisplayStatus(promotion({ valid_until: '2026-10-11T12:00:00Z' }), now), 'ended');
+    assert.equal(getPromotionDisplayStatus(promotion({ valid_until: '2026-10-12T00:00:00Z' }), now), 'active');
+    assert.equal(getPromotionDisplayStatus(promotion({ valid_until: undefined }), now), 'active');
+    assert.equal(getPromotionDisplayStatus(promotion({ status: 'paused', valid_until: '2026-10-01T00:00:00Z' }), now), 'paused');
+    assert.equal(getPromotionDisplayStatus(promotion({ status: 'archived', valid_until: '2026-10-01T00:00:00Z' }), now), 'archived');
+    assert.equal(getPromotionDisplayStatus(promotion({ valid_until: 'not-a-date' }), now), 'active');
 });
