@@ -234,3 +234,40 @@ test('a form shown beside a running request starts blank and a refresh does not 
         await page.unmount();
     }
 });
+
+// web-app#681: a closed request showed "CLOSED" twice in its status pill (eyebrow and timer text).
+// Earlier tests leave "dismissed request" and "new request mode" markers behind, which would hide the request.
+const clearStoredRequestMarkers = () => { window.localStorage.clear(); window.sessionStorage.clear(); };
+const countdownPill = () => {
+    const pill = window.document.querySelector('[data-testid="broker-request-countdown"]');
+    assert.ok(pill, 'expected the request status pill');
+    return pill.textContent || '';
+};
+
+test('a closed request says Closed once in its status pill and keeps the reason', async () => {
+    clearStoredRequestMarkers();
+    stub.requestsById.clear();
+    stub.requestsById.set(closedChennaiRequest.id, closedChennaiRequest);
+    const page = await mountWidget(closedChennaiRequest.id);
+    try {
+        const pill = countdownPill();
+        assert.equal(pill.match(/closed/gi)?.length, 1, `"Closed" must appear once, got: ${pill}`);
+        assert.match(pill, /Cancelled by you/);
+    } finally {
+        await page.unmount();
+    }
+});
+
+test('a running request still shows its countdown in the status pill', async () => {
+    clearStoredRequestMarkers();
+    stub.requestsById.clear();
+    stub.requestsById.set(chennaiRequest.id, chennaiRequest);
+    const page = await mountWidget(chennaiRequest.id);
+    try {
+        const pill = countdownPill();
+        assert.match(pill, /\d+:\d{2}/);
+        assert.doesNotMatch(pill, /closed/i);
+    } finally {
+        await page.unmount();
+    }
+});
