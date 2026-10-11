@@ -67,3 +67,29 @@ test("case-file waiting copy reports ready when the request lane is clear", () =
       "The document lane is clear, so the manager can move the case into the next operational step.",
   });
 });
+
+// MB-0438 (web half): a completed case still read "Ready for next workflow step ... move the case into the next operational step".
+test("a closed case says it is closed instead of pointing at a next workflow step", () => {
+  const clear = { openRequestCount: 0, pendingReviewCount: 0, reuploadCount: 0 };
+  const closedCopy = getCaseFileWaitingCopy(clear, [{ status: "approved" }], true);
+
+  assert.equal(getCaseFileLaneState(clear, [{ status: "approved" }], true), "case_closed");
+  assert.equal(closedCopy.waitingOn, "Case closed");
+  assert.match(closedCopy.explanation, /no further/i);
+  assert.doesNotMatch(closedCopy.explanation, /next operational step|next workflow step/);
+
+  // Leftover open work on a closed case does not make it look like someone is still waiting.
+  const openWork = { openRequestCount: 2, pendingReviewCount: 1, reuploadCount: 1 };
+  assert.equal(getCaseFileWaitingCopy(openWork, [{ status: "requested" }], true).waitingOn, "Case closed");
+});
+
+test("an active case keeps its existing waiting copy", () => {
+  const clear = { openRequestCount: 0, pendingReviewCount: 0, reuploadCount: 0 };
+
+  assert.equal(getCaseFileWaitingCopy(clear, []).waitingOn, "Ready for next workflow step");
+  assert.equal(getCaseFileWaitingCopy(clear, [], false).waitingOn, "Ready for next workflow step");
+  assert.equal(
+    getCaseFileWaitingCopy({ openRequestCount: 1, pendingReviewCount: 0, reuploadCount: 0 }, [{ status: "requested" }], false).waitingOn,
+    "Waiting for documents",
+  );
+});
