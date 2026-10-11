@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { Window } from 'happy-dom';
 import ts from 'typescript';
 
-import type { Lead } from '@/services/leadsService';
+import type { BrokerRequestRecord, Lead } from '@/services/leadsService';
 
 const require = createRequire(import.meta.url);
 const pendingLead: Lead = {
@@ -17,7 +17,7 @@ const pendingLead: Lead = {
     created_at: '2026-09-10T10:00:00Z', updated_at: '2026-09-10T10:00:00Z', sla_remaining_seconds: 480,
 };
 
-const loadWidget = (available: boolean, leads: Lead[], blockedReason?: string) => {
+const loadWidget = (available: boolean, leads: Lead[], blockedReason?: string, offers: BrokerRequestRecord[] = []) => {
     const compile = (filename: string): { default: React.ComponentType } => {
         const compiled = ts.transpileModule(readFileSync(new URL(filename, import.meta.url), 'utf8'), {
             compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
@@ -35,7 +35,7 @@ const loadWidget = (available: boolean, leads: Lead[], blockedReason?: string) =
             }
             if (id === '@/services/leadsService') return {
                 getBrokerLeads: async () => ({ data: leads, error: null }),
-                getBrokerRequestOffers: async () => ({ data: [], error: null }),
+                getBrokerRequestOffers: async () => ({ data: offers, error: null }),
                 getBrokerAvailability: async () => ({ data: {
                     broker_id: 'manager-fixture', available_for_fast_response: available,
                     seconds_remaining: 0, blocked_reason: blockedReason,
@@ -52,7 +52,7 @@ const loadWidget = (available: boolean, leads: Lead[], blockedReason?: string) =
     return compile('./BrokerResponseWidget.tsx').default;
 };
 
-const renderTracker = async (available: boolean, leads: Lead[], blockedReason?: string) => {
+const renderTracker = async (available: boolean, leads: Lead[], blockedReason?: string, offers: BrokerRequestRecord[] = []) => {
     const window = new Window();
     const globals = { window, document: window.document, navigator: window.navigator,
         HTMLElement: window.HTMLElement, Node: window.Node, IS_REACT_ACT_ENVIRONMENT: true };
@@ -64,7 +64,7 @@ const renderTracker = async (available: boolean, leads: Lead[], blockedReason?: 
     window.document.body.append(container);
     const root = createRoot(container as unknown as HTMLElement);
     try {
-        const Widget = loadWidget(available, leads, blockedReason);
+        const Widget = loadWidget(available, leads, blockedReason, offers);
         await act(async () => root.render(<MemoryRouter><Widget /></MemoryRouter>));
         return container.textContent;
     } finally {
@@ -97,6 +97,22 @@ test('responded history is not counted as a waiting request', async () => {
     assert.match(text, /Standing by/);
     assert.match(text, /No waiting requests/);
     assert.doesNotMatch(text, /Response required in:/);
+});
+
+test('#691: a new request stays in the live queue next to an older accepted request with the same brief', async () => {
+    const brief = { user_id: 'client-691', request_type: 'rent', location: 'Chennai', location_postcode: '600001',
+        budget: '650000', details: 'Need a Chennai rental quickly' };
+    const offers: BrokerRequestRecord[] = [
+        { ...brief, id: 'aaaaaaaa-0000-4000-8000-000000000001', status: 'matched', dispatch_status: 'broker_matched',
+            matched_broker_id: 'manager-fixture', created_at: '2026-10-11T10:00:00Z', updated_at: '2026-10-11T10:08:00Z' },
+        { ...brief, id: 'bbbbbbbb-0000-4000-8000-000000000002', status: 'submitted', dispatch_status: 'matching_wave_1',
+            broker_offer_status: 'pending', broker_offer_expires_at: new Date(Date.now() + 8 * 60_000).toISOString(),
+            created_at: '2026-10-11T10:05:00Z', updated_at: '2026-10-11T10:05:00Z' },
+    ];
+    const text = await renderTracker(true, [], undefined, offers);
+    assert.match(text, /1 waiting/);
+    assert.match(text, /Response required in:/);
+    assert.doesNotMatch(text, /No waiting requests/);
 });
 
 test('offline and blocked dispatch do not imply availability', async () => {
