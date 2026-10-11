@@ -92,3 +92,14 @@ test('a verified manager is warned before a save that core will send back to ver
     // Editing a field after the warning invalidates it, so a stale confirmation cannot save new values.
     assert.match(source, /setSaveError\(''\);\s*setReverificationFields\(null\);/);
 });
+
+test('manager profile edits the signup country until verification is approved', () => {
+    // Loaded from the stored user and tracked in the baseline so only a real change is sent.
+    assert.match(source, /const loadedCountry = resolveManagerProfileCountry\(user\);/);
+    assert.match(source, /personalBaselineRef\.current = \{[^}]*country: loadedCountry,/);
+    assert.match(source, /const submittedPersonalValues: ProfileFormValues = \{[^}]*country: formData\.country,/);
+    // Locked by the same status the rest of the page uses, and rendered through the shared field.
+    assert.match(source, /<ManagerCountryField\s+value=\{formData\.country\}\s+locked=\{isVerified\}\s+disabled=\{isManagerProfileLoading\}/);
+    // A refusal shows the server's own message, puts the select back and re-reads the profile.
+    assert.match(source, /if \(payload\.country !== undefined && isManagerCountryRefusal\(error\)\) \{[\s\S]*?country: personalBaseline\.country \?\? ''[\s\S]*?void refetchManagerData\(\);[\s\S]*?\}\s*throw new Error\(error\);/);
+});
