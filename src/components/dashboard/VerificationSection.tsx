@@ -341,8 +341,8 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 </div>
 
                 <div className="flex-1 min-w-0">
-                    <div className="flex min-w-0 flex-col items-stretch gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between min-[360px]:gap-4">
-                        <div className="min-w-0">
+                    <div className="flex min-w-0 flex-col items-stretch gap-3 min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:items-center min-[360px]:justify-between min-[360px]:gap-4">
+                        <div className="min-w-0 flex-1 min-[360px]:min-w-[10rem]">
                             <h3 className={`font-bold text-sm ${titleClass}`}>{title}</h3>
                             <p className={`text-xs mt-0.5 ${subtitleClass}`}>{subtitle}</p>
                         </div>

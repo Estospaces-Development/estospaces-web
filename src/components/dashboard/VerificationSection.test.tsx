@@ -30,3 +30,12 @@ test("profile verification uses country-aware identity and address guidance", ()
   assert.ok(guidanceSource.includes("British or Irish passport, driving licence, BRP/BRC, or right-to-rent share code"));
   assert.ok(guidanceSource.includes("right-to-rent evidence may be required separately"));
 });
+
+test("verification step text keeps a readable width when the re-upload button and badge are shown (#705)", () => {
+  const source = verificationSectionSource();
+  const row = source.match(/<div className="([^"]*min-\[360px\]:flex-row[^"]*min-\[360px\]:justify-between[^"]*)">\s*<div className="([^"]*)">\s*<h3/);
+  assert.ok(row, "step header row not found");
+  assert.match(row[1], /min-\[360px\]:flex-wrap/);
+  assert.match(row[2], /\bflex-1\b/);
+  assert.match(row[2], /min-\[360px\]:min-w-\[10rem\]/);
+});
