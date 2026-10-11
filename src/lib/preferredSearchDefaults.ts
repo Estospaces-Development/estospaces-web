@@ -23,6 +23,21 @@ export function resolvePreferredSearchDefaults(preferredCity: string | null | un
 }
 
 /**
+ * A saved city only steers search inside the account's own market. An India account
+ * with "Manchester" saved keeps the India catalogue; accounts without a declared
+ * country still follow their saved city.
+ */
+export function applyAccountMarket(
+  defaults: PreferredSearchDefaults,
+  accountMarket: SupportedLaunchCountryCode | null | undefined,
+): PreferredSearchDefaults {
+  if (accountMarket && defaults.market && defaults.market !== accountMarket) {
+    return { market: null, location: '' };
+  }
+  return defaults;
+}
+
+/**
  * Country a location form should validate and price against. A recognised
  * city or country typed by the user wins over the account market, so London
  * asks for a UK postcode in GBP even on an India account. A PIN code or

@@ -46,7 +46,8 @@ import {
     isValidLaunchLocationCode,
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { getExplicitUserMarket } from '@/lib/geoMarket';
+import { useCatalogueGeoMarket } from '@/lib/useGeoMarket';
 import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
@@ -239,7 +240,7 @@ function DiscoverContent() {
     }
     const initialSearchParams = initialSearchParamsRef.current;
     const { user, getDisplayName } = useAuth();
-    const preferredSearchDefaults = usePreferredSearchDefaults(user?.id);
+    const preferredSearchDefaults = usePreferredSearchDefaults(user?.id, getExplicitUserMarket(user));
     const toast = useToast();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const { activeTab, setActiveTab } = usePropertyFilter();
@@ -306,12 +307,12 @@ function DiscoverContent() {
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
-    const geoMarket = useUserGeoMarket(user, {
+    const geoMarket = useCatalogueGeoMarket(user, {
         countryCode: preferredSearchDefaults.market || undefined,
         locationCode: preferredSearchDefaults.market
             ? preferredSearchDefaults.location || undefined
             : locationQuery || searchParams.get('postcode'),
-    });
+    }, locationQuery || searchParams.get('postcode'));
     const requestedMarket = useMemo(
         () => readSearchUrlFilters(new URLSearchParams(searchParamSnapshot)).market,
         [searchParamSnapshot],

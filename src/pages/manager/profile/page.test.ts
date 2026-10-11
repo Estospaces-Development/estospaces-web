@@ -23,7 +23,7 @@ test('manager profile makes save-blocking fields visibly required', () => {
     assert.match(source, /id="manager-profile-required-help"/);
     assert.match(source, /<RequiredFieldLabel>First Name<\/RequiredFieldLabel>/);
     assert.match(source, /<RequiredFieldLabel>Last Name<\/RequiredFieldLabel>/);
-    assert.match(source, /<RequiredFieldLabel>License \/ Reg Number<\/RequiredFieldLabel>/);
+    assert.match(source, /<RequiredFieldLabel>\{[^}]*'License \/ Reg Number'\}<\/RequiredFieldLabel>/);
     assert.match(source, /aria-describedby=\{requiredHelpId\}/);
 });
 

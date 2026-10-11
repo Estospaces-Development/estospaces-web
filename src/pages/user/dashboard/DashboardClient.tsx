@@ -44,7 +44,8 @@ import { buildCompletedUserJourneyCopy, buildUserJourneyNowCopy } from '@/lib/us
 import { userDocs } from '@/lib/roleDocsContent';
 import { LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 import { inferSearchMarketFromText, serializeSearchMarketParam } from '@/lib/propertySearchControls';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { getExplicitUserMarket } from '@/lib/geoMarket';
+import { useCatalogueGeoMarket } from '@/lib/useGeoMarket';
 import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import {
@@ -287,8 +288,8 @@ const DashboardClient = () => {
   }
   const initialDashboardSearchParams = initialDashboardSearchParamsRef.current;
   const { user } = useAuth();
-  const preferredSearchDefaults = usePreferredSearchDefaults(user?.id);
-  const geoMarket = useUserGeoMarket(user, {
+  const preferredSearchDefaults = usePreferredSearchDefaults(user?.id, getExplicitUserMarket(user));
+  const geoMarket = useCatalogueGeoMarket(user, {
     countryCode: preferredSearchDefaults.market || undefined,
     locationCode: preferredSearchDefaults.market
       ? preferredSearchDefaults.location || undefined

@@ -34,7 +34,8 @@ export interface GeoMarketUserContext {
 const INDIA_LANGUAGE_PATTERN = /\b(en-IN|hi-IN|ta-IN|te-IN|kn-IN|ml-IN|bn-IN|mr-IN|gu-IN|pa-IN)\b/i;
 const UK_LANGUAGE_PATTERN = /\b(en-GB|cy-GB|gd-GB)\b/i;
 
-const INDIA_TIMEZONE_PATTERN = /\bAsia\/Kolkata\b/i;
+// Chrome still reports the old IANA name Asia/Calcutta.
+const INDIA_TIMEZONE_PATTERN = /\bAsia\/(Kolkata|Calcutta)\b/i;
 const UK_TIMEZONE_PATTERN = /\bEurope\/London\b/i;
 
 const normalizeCountrySignal = (value?: string | null): string => (
@@ -85,19 +86,21 @@ export const resolveGeoMarket = ({
     return normalizedCountryName;
   }
 
-  const language = String(acceptLanguage || "").trim();
-  if (INDIA_LANGUAGE_PATTERN.test(language)) {
-    return LAUNCH_COUNTRY_CODE;
-  }
-  if (UK_LANGUAGE_PATTERN.test(language)) {
-    return UK_COUNTRY_CODE;
-  }
-
+  // The device time zone says where the person is; many browsers in India send
+  // en-GB (British English), so language only decides when the zone is neither.
   const zone = String(timeZone || "").trim();
   if (INDIA_TIMEZONE_PATTERN.test(zone)) {
     return LAUNCH_COUNTRY_CODE;
   }
   if (UK_TIMEZONE_PATTERN.test(zone)) {
+    return UK_COUNTRY_CODE;
+  }
+
+  const language = String(acceptLanguage || "").trim();
+  if (INDIA_LANGUAGE_PATTERN.test(language)) {
+    return LAUNCH_COUNTRY_CODE;
+  }
+  if (UK_LANGUAGE_PATTERN.test(language)) {
     return UK_COUNTRY_CODE;
   }
 
@@ -142,6 +145,34 @@ export const getGeoMarketSignalsFromUser = (user?: GeoMarketUserContext | null):
     locationCode: user?.postcode || metadataPostcode,
   };
 };
+
+/**
+ * The market the account itself declares (profile country, then stored country code).
+ * It outranks postcodes, saved cities and browser signals, so an India account
+ * never lands in the UK catalogue by accident.
+ */
+export const getExplicitUserMarket = (user?: GeoMarketUserContext | null): GeoMarketCode | null => {
+  const signals = getGeoMarketSignalsFromUser(user);
+  if (String(signals.countryName || "").trim()) {
+    return normalizeGeoCountryCode(signals.countryName);
+  }
+  return normalizeGeoCountryCode(signals.countryCode);
+};
+
+/** Catalogue market pinned by a typed postcode/PIN first, then the account's declared country. */
+export const getCataloguePinnedMarket = (
+  user?: GeoMarketUserContext | null,
+  typedLocationCode?: string | null,
+): GeoMarketCode | null => getLaunchCountryFromLocationCode(typedLocationCode) || getExplicitUserMarket(user);
+
+/** Explicit signals win over the browser's, but unset ones never erase the browser's time zone or language. */
+export const mergeWithBrowserSignals = (
+  browserSignals: GeoMarketSignals,
+  signals: GeoMarketSignals,
+): GeoMarketSignals => ({
+  ...browserSignals,
+  ...Object.fromEntries(Object.entries(signals).filter(([, value]) => value != null && value !== "")),
+});
 
 export const getBrowserGeoMarketSignals = (): GeoMarketSignals => {
   if (typeof window === "undefined") {
