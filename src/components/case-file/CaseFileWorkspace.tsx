@@ -1561,6 +1561,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
 
     if (result.error) {
       toast.error(result.error);
+      // A refusal (e.g. 409: the review changed elsewhere) means this row is stale.
+      setReviewDialog(null);
+      await loadCaseFile(true);
       return;
     }
 
@@ -2946,6 +2949,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     documentId: document.document_id,
                     fastTrackApprovedIds: fastTrackApprovedDocumentIds,
                     caseClosed: fastTrackCaseClosed,
+                    documentStatus: document.document?.status,
                   });
                   return (
                     <div
@@ -3043,6 +3047,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                             Approve
                           </button>
                           ) : null}
+                          {reviewState.canRequestReupload ? (
                           <button
                             type="button"
                             onClick={() => openReviewDialog(document, "reupload_required")}
@@ -3056,6 +3061,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                             )}
                             Request re-upload
                           </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => openReviewDialog(document, "under_review")}
