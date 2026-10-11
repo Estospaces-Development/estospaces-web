@@ -36,6 +36,7 @@ import {
     type AppliedDiscount,
 } from '@/lib/managerDiscountCode';
 import ActionSpinner from '@/components/ui/ActionSpinner';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
 import ManagerBillingCountryNotice from './ManagerBillingCountryNotice';
 import ManagerDiscountCodeField from './ManagerDiscountCodeField';
@@ -548,7 +549,17 @@ export default function ManagerSubscriptionPage() {
                         {activeCheckout.provider_subscription_id && !terminal && summary?.cancellation?.status !== 'confirmed' ? <button disabled={busy} type="button" onClick={() => setConfirmCancel(true)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Cancel subscription / renewal</button> : null}
                     </div>
                     {checkingStatus ? <p role="status" className="mt-3">Checking your payment with Razorpay. This can take up to a minute; please do not pay again.</p> : null}
-                    {confirmCancel ? <div className="mt-4 rounded-xl border p-4"><p>Stop this subscription’s future charges? Any verified paid-through access remains until its end date. Cancelling does not delete your documents or ongoing cases.</p><div className="mt-3 flex flex-wrap gap-3"><button disabled={busy} type="button" onClick={() => void cancel()} className="rounded-xl bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-50">Confirm cancellation</button><button disabled={busy} type="button" onClick={() => setConfirmCancel(false)} className="rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">Keep subscription</button></div></div> : null}
+                    <ConfirmModal
+                        isOpen={confirmCancel}
+                        onClose={() => setConfirmCancel(false)}
+                        onConfirm={() => void cancel()}
+                        title="Cancel subscription?"
+                        message="Stop this subscription’s future charges? Any verified paid-through access remains until its end date. Cancelling does not delete your documents or ongoing cases."
+                        confirmText="Confirm cancellation"
+                        cancelText="Keep subscription"
+                        variant="warning"
+                        loading={busy}
+                    />
                 </section> : null}
                 {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{error}</div> : null}
                 {offersError ? <ManagerBillingCountryNotice message={offersError} reviewNeeded={needsBillingCountryReview(billingMarketBlocked, billingProfile)} billingProfile={billingProfile} documents={billingDocuments} managerVerified={verification.isVerified} /> : null}

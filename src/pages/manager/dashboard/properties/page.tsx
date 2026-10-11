@@ -29,7 +29,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
-import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
 import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
 import type { ManagerListingAction } from '@/services/propertyService';
@@ -803,7 +803,7 @@ function PropertiesContent() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `Publish ${property.title} before sharing`}
+                                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `${property.title}: ${getShareBlockedReason(property.status)}`}
                                                     disabled={!isPropertyPubliclyShareable(property.status)}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -811,7 +811,7 @@ function PropertiesContent() {
                                                         setShowShareModal(true);
                                                     }}
                                                     className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
-                                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : "Publish this property before sharing"}
+                                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : getShareBlockedReason(property.status)}
                                                 >
                                                     <Share2 className="w-4 h-4" />
                                                 </button>

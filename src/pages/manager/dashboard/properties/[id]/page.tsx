@@ -16,7 +16,7 @@ import { getPropertyMapState } from '@/lib/propertyMaps';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
-import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import { getListingDeleteWarning } from '@/lib/propertyStatusBadge';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
@@ -91,6 +91,7 @@ export default function PropertyDetailPage() {
     const detail = id ? detailQuery.data : { kind: 'not_found' as const };
     const property = detail?.kind === 'found' ? detail.property : undefined;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
+    const shareBlockedReason = getShareBlockedReason(property?.status);
     const deleteWarning = getListingDeleteWarning(property?.status);
     const amenities = flattenPropertyAmenities(property?.amenities);
 
@@ -248,10 +249,10 @@ export default function PropertyDetailPage() {
                     {/* Share */}
                     <button
                         type="button"
-                        aria-label={canSharePublicly ? "Share property" : "Publish property before sharing"}
+                        aria-label={canSharePublicly ? "Share property" : shareBlockedReason}
                         onClick={() => setShowShareModal(true)}
                         disabled={!canSharePublicly}
-                        title={canSharePublicly ? "Share public listing" : "Publish this property before sharing"}
+                        title={canSharePublicly ? "Share public listing" : shareBlockedReason}
                         className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
                     >
                         <Share2 className="w-5 h-5" />
@@ -575,10 +576,10 @@ export default function PropertyDetailPage() {
                                 </button>
 
                                 <button
-                                    aria-label={canSharePublicly ? "Share property" : "Publish property before sharing"}
+                                    aria-label={canSharePublicly ? "Share property" : shareBlockedReason}
                                     onClick={() => setShowShareModal(true)}
                                     disabled={!canSharePublicly}
-                                    title={canSharePublicly ? "Share public listing" : "Publish this property before sharing"}
+                                    title={canSharePublicly ? "Share public listing" : shareBlockedReason}
                                     className="w-full py-3 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
                                 >
                                     <Share2 className="w-5 h-5" />

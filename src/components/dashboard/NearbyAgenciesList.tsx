@@ -108,13 +108,17 @@ export const NearbyBrokerCard = ({ broker, index, isMatched = false }: { broker:
                 {broker.postcode ? ` - ${formatBrokerArea(broker.postcode)}` : ''}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
-                    <Star size={12} className="mr-0.5 fill-yellow-400 text-yellow-400" />
-                    {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
-                    <span className="ml-0.5 font-normal text-gray-400 dark:text-gray-500">
-                        ({broker.review_count || 0})
-                    </span>
-                </div>
+                {broker.review_count ? (
+                    <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
+                        <Star size={12} className="mr-0.5 fill-yellow-400 text-yellow-400" />
+                        {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
+                        <span className="ml-0.5 font-normal text-gray-400 dark:text-gray-500">
+                            ({broker.review_count})
+                        </span>
+                    </div>
+                ) : (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">No ratings yet</span>
+                )}
                 <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                     <Clock size={10} className="mr-0.5" />
@@ -474,7 +478,7 @@ const NearbyAgenciesList = () => {
                         setPostcodeInput(manualPostcode || liveRequestPostcode);
                         setSearchError(null);
                     }}
-                    className={`mt-6 w-full rounded-lg bg-gray-50 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
+                    className={`mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
                 >
                     Find nearest agent by {locationCodeLabel}
                 </button>

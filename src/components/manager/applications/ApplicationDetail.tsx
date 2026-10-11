@@ -109,6 +109,7 @@ import {
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import CaseFileWorkspace from "@/components/case-file/CaseFileWorkspace";
 import {
+  getHeaderApproveBlockedReason,
   resolveManagerApplicationOverviewFocus,
   resolveManagerApplicationTab,
   shouldShowManagerDecisionControls,
@@ -1015,6 +1016,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     referencingCheck?.status === "completed" &&
     (rightToRentCheck?.status === "completed" ||
       rightToRentCheck?.status === "not_required");
+  const headerApproveBlockedReason = getHeaderApproveBlockedReason({
+    isRentApplication,
+    rentApprovalReady,
+  });
 
   const renderGuidedProgressRail = (
     steps: Array<{
@@ -2012,7 +2017,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     type="button"
                     aria-label="Approve application"
                     onClick={() => void handleManagerDecision("approved")}
-                    disabled={managerDecisionAction !== null}
+                    disabled={managerDecisionAction !== null || headerApproveBlockedReason !== null}
+                    title={headerApproveBlockedReason ?? undefined}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {managerDecisionAction === "approved" ? (
@@ -2535,6 +2541,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }}
                             rows={3}
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            aria-label="Buyer qualification review notes"
                             placeholder="Add notes about the affordability evidence or follow-up needed."
                           />
                           {buyerQualificationError ? (
@@ -2642,6 +2649,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }}
                             rows={3}
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            aria-label="Anti-money-laundering review notes"
                             placeholder="Add AML or source-of-funds notes for the live audit trail."
                           />
                           {amlReviewError ? (
@@ -2801,6 +2809,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                                       }
                                       rows={3}
                                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                      aria-label={`${requirement.label} review notes`}
                                       placeholder="Add context about the seller pack, material information, or next follow-up."
                                     />
                                     <button
@@ -2901,6 +2910,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }
                             rows={4}
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            aria-label="Offer notes"
                             placeholder="Record the buyer's offer terms, timing, or negotiation notes."
                           />
                           <button
@@ -3045,6 +3055,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           }}
                           rows={3}
                           className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          aria-label="Referencing review notes"
                           placeholder="Add referencing notes for the application audit trail."
                         />
                         {referencingError ? (
@@ -3141,6 +3152,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }}
                             rows={3}
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            aria-label="Right to rent review notes"
                             placeholder="Add compliance notes or a reason if this check is not required."
                           />
                           {rightToRentError ? (
