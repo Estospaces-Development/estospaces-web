@@ -79,8 +79,10 @@ export type CanonicalFastTrackStep =
     | 'viewing_completed'
     | 'application_in_review'
     | 'ready_for_contract'
-    | 'completed';
+    | 'completed'
+    | 'closed';
 
+// 'closed' is a terminal state off this track: it has no position, so progress bars show none reached.
 export const FAST_TRACK_STEP_SEQUENCE: CanonicalFastTrackStep[] = [
     'property_selected',
     'documents_requested',
@@ -125,6 +127,10 @@ export const FAST_TRACK_STEP_META: Record<CanonicalFastTrackStep, { label: strin
         label: 'Completed',
         description: 'The fast-track workflow is fully complete and the linked deal is locked in.',
     },
+    closed: {
+        label: 'Closed',
+        description: 'This fast-track case was cancelled or rejected and will not continue.',
+    },
 };
 
 export type FastTrackDocumentReviewStatus = 'missing' | 'uploaded' | 'verified' | 'reupload_required';
@@ -152,6 +158,8 @@ export const isActiveFastTrackCase = (
 );
 
 const CLOSED_LEAD_STATUSES = new Set(['closed_won', 'closed_lost', 'cancelled']);
+// Booking reports a cancelled case as 'rejected'. 'expired' is not closed: it returns to in_progress on the next write.
+const CLOSED_FINAL_STATUSES = new Set(['rejected', 'cancelled']);
 const REUPLOAD_STATUSES = new Set(['reupload_required', 'rejected']);
 const REVIEW_PENDING_STATUSES = new Set(['pending', 'under_review']);
 const APPROVED_DOCUMENT_STATUSES = new Set(['approved', 'verified']);
@@ -245,6 +253,11 @@ export const normalizeCanonicalFastTrackStep = (value?: string | null): Canonica
         case 'completion':
         case 'completed':
             return 'completed';
+        case 'rejected':
+        case 'cancelled':
+        case 'withdrawn':
+        case 'closed':
+            return 'closed';
         case 'owner_approval':
         case 'legal_check':
             return 'application_in_review';
@@ -721,6 +734,11 @@ export const deriveLiveFastTrackCurrentStep = (
 
     if (String(options.finalStatus || '').trim() === 'completed' || normalizedStep === 'completed') {
         return 'completed';
+    }
+
+    // A closed case stays closed whatever its viewing, contract or application records say.
+    if (normalizedStep === 'closed' || CLOSED_FINAL_STATUSES.has(String(options.finalStatus || '').trim())) {
+        return 'closed';
     }
 
     const hasPendingRentFinanceTasks = PAYMENTS_ENABLED && ((linkedJourney?.payments || []).some((payment) => {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PAYMENTS_ENABLED } from './launchFlags';
 import {
+    FAST_TRACK_STEP_META,
     buildCaseDocumentsFromVerification,
     buildFastTrackDocumentItems,
     buildDocumentsFromDetails,
@@ -16,11 +17,13 @@ import {
     formatLeadStage,
     getLatestFastTrackReviewDocuments,
     getFastTrackStartAction,
+    getFastTrackStepIndex,
     getFastTrackCaseRemainingHours,
     hasFastTrackReachedCompletion,
     isFastTrackCaseOverdue,
     getLeadNeedsReupload,
     needsFastTrackCaseAttention,
+    normalizeCanonicalFastTrackStep,
     normalizeFastTrackDocumentPhase,
     normalizeWorkspaceDocuments,
     resolveLeadStage,
@@ -1018,6 +1021,55 @@ test('live fast-track step prefers backend live stages when the server has newer
         ),
         'application_in_review',
     );
+});
+
+test('a cancelled, rejected or withdrawn Fast Track case shows as closed, not property selected', () => {
+    const verified = { identityProof: 'verified', addressProof: 'verified' } as const;
+
+    for (const stage of ['rejected', 'cancelled', 'withdrawn', 'closed']) {
+        assert.equal(normalizeCanonicalFastTrackStep(stage), 'closed', stage);
+        assert.equal(
+            deriveLiveFastTrackCurrentStep('property_selected', [], verified, { liveStage: stage }),
+            'closed',
+            stage,
+        );
+    }
+
+    // Finished viewing or application records cannot reopen a closed case.
+    assert.equal(
+        deriveLiveFastTrackCurrentStep('viewing_completed', [], verified, {
+            journeyType: 'rent',
+            liveStage: 'rejected',
+            linkedJourney: {
+                viewing: { status: 'completed' },
+                application: { status: 'viewing_completed' },
+            },
+        }),
+        'closed',
+    );
+
+    // A closed final status closes the case even when no live stage came with it.
+    for (const finalStatus of ['rejected', 'cancelled']) {
+        assert.equal(
+            deriveLiveFastTrackCurrentStep('viewing_scheduled', [], verified, { finalStatus }),
+            'closed',
+            finalStatus,
+        );
+    }
+
+    // Completion still outranks closed, and an expired case is not closed.
+    assert.equal(
+        deriveLiveFastTrackCurrentStep('property_selected', [], verified, { liveStage: 'completion' }),
+        'completed',
+    );
+    assert.equal(
+        deriveLiveFastTrackCurrentStep('viewing_scheduled', [], verified, { finalStatus: 'expired' }),
+        'viewing_scheduled',
+    );
+
+    // Closed sits off the progress track and has a readable label.
+    assert.equal(getFastTrackStepIndex('rejected'), -1);
+    assert.equal(FAST_TRACK_STEP_META.closed.label, 'Closed');
 });
 
 test('India cases are not mapped to the England Right to Rent journey', () => {
