@@ -47,7 +47,7 @@ import {
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { getExplicitUserMarket } from '@/lib/geoMarket';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { useCatalogueGeoMarket } from '@/lib/useGeoMarket';
 import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
@@ -307,12 +307,12 @@ function DiscoverContent() {
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
-    const geoMarket = useUserGeoMarket(user, {
+    const geoMarket = useCatalogueGeoMarket(user, {
         countryCode: preferredSearchDefaults.market || undefined,
         locationCode: preferredSearchDefaults.market
             ? preferredSearchDefaults.location || undefined
             : locationQuery || searchParams.get('postcode'),
-    });
+    }, locationQuery || searchParams.get('postcode'));
     const requestedMarket = useMemo(
         () => readSearchUrlFilters(new URLSearchParams(searchParamSnapshot)).market,
         [searchParamSnapshot],

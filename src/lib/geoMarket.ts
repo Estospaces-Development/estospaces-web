@@ -159,6 +159,12 @@ export const getExplicitUserMarket = (user?: GeoMarketUserContext | null): GeoMa
   return normalizeGeoCountryCode(signals.countryCode);
 };
 
+/** Catalogue market pinned by a typed postcode/PIN first, then the account's declared country. */
+export const getCataloguePinnedMarket = (
+  user?: GeoMarketUserContext | null,
+  typedLocationCode?: string | null,
+): GeoMarketCode | null => getLaunchCountryFromLocationCode(typedLocationCode) || getExplicitUserMarket(user);
+
 export const getBrowserGeoMarketSignals = (): GeoMarketSignals => {
   if (typeof window === "undefined") {
     return {};

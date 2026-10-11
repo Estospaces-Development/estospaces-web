@@ -3,7 +3,7 @@
 import {
   fetchClientGeoHint,
   getBrowserGeoMarketSignals,
-  getExplicitUserMarket,
+  getCataloguePinnedMarket,
   getGeoMarketSignalsFromUser,
   resolveGeoMarket,
   resolveGeoMarketFromClientHint,
@@ -58,13 +58,23 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
 export const useUserGeoMarket = (
   user?: GeoMarketUserContext | null,
   overrides: GeoMarketSignals = {},
+): GeoMarketCode => useGeoMarket({
+  ...getGeoMarketSignalsFromUser(user),
+  // An empty override (e.g. no saved search market) must not erase the user's own signals.
+  ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
+});
+
+/**
+ * Market for the property catalogue (dashboard, Discover, Search). A postcode or PIN the
+ * person typed wins, then the account's declared country, so a saved city, a stored
+ * postcode or browser language never moves an India account into the UK catalogue.
+ * Accounts without a country fall back to the usual signals.
+ */
+export const useCatalogueGeoMarket = (
+  user: GeoMarketUserContext | null | undefined,
+  overrides: GeoMarketSignals = {},
+  typedLocationCode?: string | null,
 ): GeoMarketCode => {
-  // The account's own country decides; postcodes, saved cities and browser signals only
-  // matter for accounts that have not declared one.
-  const accountMarket = getExplicitUserMarket(user);
-  return useGeoMarket(accountMarket ? { countryCode: accountMarket } : {
-    ...getGeoMarketSignalsFromUser(user),
-    // An empty override (e.g. no saved search market) must not erase the user's signals.
-    ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
-  });
+  const pinned = getCataloguePinnedMarket(user, typedLocationCode);
+  return useUserGeoMarket(pinned ? null : user, pinned ? { countryCode: pinned } : overrides);
 };

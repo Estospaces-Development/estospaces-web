@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   normalizeGeoCountryCode,
   resolveGeoMarket,
+  getCataloguePinnedMarket,
   getExplicitUserMarket,
   getGeoMarketSignalsFromUser,
   resolveGeoMarketFromClientHint,
@@ -67,4 +68,14 @@ test('the account country outranks postcode and stored code', () => {
   assert.equal(getExplicitUserMarket({ user_metadata: { country_code: 'IN' } }), 'IN');
   assert.equal(getExplicitUserMarket({ postcode: '600020' }), null);
   assert.equal(getExplicitUserMarket(null), null);
+});
+
+test('catalogue market: typed postcode, then account country, else unpinned', () => {
+  const indiaWithUkPostcode = { country: 'India', postcode: 'PR1 2NJ' };
+  assert.equal(getCataloguePinnedMarket(indiaWithUkPostcode), 'IN');
+  assert.equal(getCataloguePinnedMarket(indiaWithUkPostcode, 'SW1A 1AA'), 'GB');
+  assert.equal(getCataloguePinnedMarket({ country: 'United Kingdom' }, '600020'), 'IN');
+  assert.equal(getCataloguePinnedMarket({ country: 'United Kingdom' }, 'London'), 'GB');
+  assert.equal(getCataloguePinnedMarket({ postcode: '600020' }), null);
+  assert.equal(getCataloguePinnedMarket(null, ''), null);
 });
