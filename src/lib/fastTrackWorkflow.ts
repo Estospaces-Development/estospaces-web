@@ -599,14 +599,19 @@ export const resolveLeadStage = (
     documents: UserDocumentLike[] = [],
 ) => {
     const normalizedStage = String(lead?.stage || '').trim();
+    // A closed status outranks a stored stage: core can leave the stage at its last live value.
+    const closedStage = lead?.status === 'closed_won'
+        ? 'completed'
+        : lead?.status === 'closed_lost' || lead?.status === 'cancelled' ? 'expired' : '';
+    if (closedStage) {
+        return closedStage;
+    }
+
     if (normalizedStage) {
         return normalizedStage;
     }
 
-    if (lead?.status === 'closed_won') {
-        return 'completed';
-    }
-    if (lead?.status === 'closed_lost' || lead?.status === 'cancelled' || (lead?.sla_status === 'breach' && !lead?.first_response_at)) {
+    if (lead?.sla_status === 'breach' && !lead?.first_response_at) {
         return 'expired';
     }
     if (lead?.documents_verified) {
