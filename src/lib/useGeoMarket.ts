@@ -5,6 +5,7 @@ import {
   getBrowserGeoMarketSignals,
   getCataloguePinnedMarket,
   getGeoMarketSignalsFromUser,
+  mergeWithBrowserSignals,
   resolveGeoMarket,
   resolveGeoMarketFromClientHint,
   type GeoMarketCode,
@@ -21,10 +22,9 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
     acceptLanguage,
     timeZone,
   }), [acceptLanguage, countryCode, countryName, locationCode, timeZone]);
-  const initialMarket = useMemo(() => resolveGeoMarket({
-    ...getBrowserGeoMarketSignals(),
-    ...stableSignals,
-  }), [stableSignals]);
+  const initialMarket = useMemo(() => resolveGeoMarket(
+    mergeWithBrowserSignals(getBrowserGeoMarketSignals(), stableSignals),
+  ), [stableSignals]);
   const [market, setMarket] = useState<GeoMarketCode>(initialMarket);
 
   useEffect(() => {
@@ -32,10 +32,7 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
 
     const syncMarket = async () => {
       const browserSignals = getBrowserGeoMarketSignals();
-      const fallbackSignals = {
-        ...browserSignals,
-        ...stableSignals,
-      };
+      const fallbackSignals = mergeWithBrowserSignals(browserSignals, stableSignals);
       const hint = await fetchClientGeoHint();
       const nextMarket = resolveGeoMarketFromClientHint(hint, fallbackSignals);
 
@@ -60,8 +57,7 @@ export const useUserGeoMarket = (
   overrides: GeoMarketSignals = {},
 ): GeoMarketCode => useGeoMarket({
   ...getGeoMarketSignalsFromUser(user),
-  // An empty override (e.g. no saved search market) must not erase the user's own signals.
-  ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
+  ...overrides,
 });
 
 /**

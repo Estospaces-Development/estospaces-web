@@ -165,6 +165,15 @@ export const getCataloguePinnedMarket = (
   typedLocationCode?: string | null,
 ): GeoMarketCode | null => getLaunchCountryFromLocationCode(typedLocationCode) || getExplicitUserMarket(user);
 
+/** Explicit signals win over the browser's, but unset ones never erase the browser's time zone or language. */
+export const mergeWithBrowserSignals = (
+  browserSignals: GeoMarketSignals,
+  signals: GeoMarketSignals,
+): GeoMarketSignals => ({
+  ...browserSignals,
+  ...Object.fromEntries(Object.entries(signals).filter(([, value]) => value != null && value !== "")),
+});
+
 export const getBrowserGeoMarketSignals = (): GeoMarketSignals => {
   if (typeof window === "undefined") {
     return {};

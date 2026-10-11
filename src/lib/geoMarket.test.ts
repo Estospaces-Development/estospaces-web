@@ -7,6 +7,7 @@ import {
   getCataloguePinnedMarket,
   getExplicitUserMarket,
   getGeoMarketSignalsFromUser,
+  mergeWithBrowserSignals,
   resolveGeoMarketFromClientHint,
 } from "@/lib/geoMarket";
 
@@ -78,4 +79,15 @@ test('catalogue market: typed postcode, then account country, else unpinned', ()
   assert.equal(getCataloguePinnedMarket({ country: 'United Kingdom' }, 'London'), 'GB');
   assert.equal(getCataloguePinnedMarket({ postcode: '600020' }), null);
   assert.equal(getCataloguePinnedMarket(null, ''), null);
+});
+
+test('unset hook signals keep the browser time zone (India device, en-GB, no country)', () => {
+  const browser = { acceptLanguage: 'en-GB', timeZone: 'Asia/Kolkata' };
+  const hookSignals = { countryCode: undefined, countryName: undefined, locationCode: undefined, acceptLanguage: undefined, timeZone: undefined };
+  const merged = mergeWithBrowserSignals(browser, hookSignals);
+  assert.equal(merged.timeZone, 'Asia/Kolkata');
+  assert.equal(resolveGeoMarket(merged), 'IN');
+  assert.equal(resolveGeoMarketFromClientHint({ acceptLanguage: 'en-GB' }, merged), 'IN');
+  assert.equal(resolveGeoMarket(mergeWithBrowserSignals(browser, { countryCode: 'GB' })), 'GB');
+  assert.equal(resolveGeoMarket(mergeWithBrowserSignals({ acceptLanguage: 'en-IN', timeZone: 'Europe/London' }, {})), 'GB');
 });
