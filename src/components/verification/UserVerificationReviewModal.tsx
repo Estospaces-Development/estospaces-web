@@ -124,6 +124,27 @@ export const buildVerificationDocumentReviewReason = (issue: string, detail: str
     return issueLabel ? issueLabel + ': ' + detail.trim() : detail.trim();
 };
 
+// UX only: the backend still enforces which status changes are allowed.
+export const getDocumentReviewActions = (status: string) => {
+    const none = { approve: false, requestReupload: false, reject: false, waitingForReplacement: false };
+    switch (status) {
+        case 'pending':
+        case 'under_review':
+            return { ...none, approve: true, requestReupload: true, reject: true };
+        case 'approved':
+            return { ...none, requestReupload: true, reject: true };
+        case 'rejected':
+            return { ...none, approve: true, requestReupload: true };
+        case 'reupload_required':
+            return { ...none, reject: true, waitingForReplacement: true };
+        default:
+            return none;
+    }
+};
+
+const DOCUMENT_ACTION_GROUP_CLASS = 'flex flex-wrap items-center gap-2';
+const DOCUMENT_REUPLOAD_BUTTON_CLASS = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900/50 dark:bg-gray-900 dark:text-amber-300';
+
 const normalizeVerificationDocumentDuplicatePart = (value?: string | null) => (
     String(value || '').trim().toLowerCase()
 );
@@ -884,7 +905,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     );
 };
 
-const DocumentReviewCard: React.FC<{
+export const DocumentReviewCard: React.FC<{
     document: UserDocument;
     onApprove: () => void;
     onRequestChanges: (reason: string) => void;
@@ -914,13 +935,8 @@ const DocumentReviewCard: React.FC<{
     })();
 
     const StatusIcon = config.icon;
-    const canEdit = (
-        document.status === 'pending'
-        || document.status === 'under_review'
-        || document.status === 'approved'
-        || document.status === 'rejected'
-        || document.status === 'reupload_required'
-    );
+    const reviewActions = getDocumentReviewActions(document.status);
+    const hasReviewActions = Object.values(reviewActions).some(Boolean);
     const isApprovedDocument = document.status === 'approved';
     const reviewReasonError = reviewMode ? getVerificationDocumentReviewReasonError(rejectReason) : null;
     const visibleReviewReasonError = rejectReason.trim() ? reviewReasonError : null;
@@ -1001,7 +1017,9 @@ const DocumentReviewCard: React.FC<{
                                 }}
                                 disabled={loading || disabled || !reviewIssue || Boolean(reviewReasonError)}
                                 aria-label={reviewMode === 'reject' ? `Confirm rejection for ${document.file_name}` : `Request re-upload for ${document.file_name}`}
-                                className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
+                                className={`px-3 py-1.5 text-white rounded-lg text-xs font-medium disabled:opacity-50 ${
+                                    reviewMode === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-700 hover:bg-amber-800'
+                                }`}
                             >
                                 {reviewMode === 'reject' ? 'Confirm Reject' : 'Request Re-upload'}
                             </button>
@@ -1021,57 +1039,73 @@ const DocumentReviewCard: React.FC<{
                 ) : (
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         {isApprovedDocument ? (
-                            <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-emerald-200 bg-white/80 px-3 py-2 dark:border-emerald-900/50 dark:bg-gray-900/40 sm:flex-row sm:items-center">
+                            <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-emerald-200 bg-white/80 px-3 py-2 dark:border-emerald-900/50 dark:bg-gray-900/40 sm:flex-row sm:items-center sm:gap-3">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                                     <CheckCircle size={14} />
                                     Approved document - correction actions
                                 </div>
-                                <div className="flex flex-wrap gap-2 sm:ml-3">
+                                <div className={DOCUMENT_ACTION_GROUP_CLASS}>
+                                    {reviewActions.requestReupload && (
+                                        <button
+                                            onClick={() => setReviewMode('reupload')}
+                                            disabled={disabled}
+                                            aria-label={`Request re-upload for approved ${document.file_name}`}
+                                            className={DOCUMENT_REUPLOAD_BUTTON_CLASS}
+                                        >
+                                            <RefreshCw size={12} /> Request Re-upload
+                                        </button>
+                                    )}
+                                    {reviewActions.reject && (
+                                        <button
+                                            onClick={() => setReviewMode('reject')}
+                                            disabled={disabled}
+                                            aria-label={`Reject approved ${document.file_name}`}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-900 dark:text-red-300"
+                                        >
+                                            <X size={12} /> Reject
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ) : hasReviewActions && (
+                            <div className={DOCUMENT_ACTION_GROUP_CLASS}>
+                                {reviewActions.approve && (
+                                    <button
+                                        onClick={onApprove}
+                                        disabled={loading || disabled}
+                                        aria-label={`Approve ${document.file_name}`}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50"
+                                    >
+                                        <Check size={12} /> Approve
+                                    </button>
+                                )}
+                                {reviewActions.requestReupload && (
                                     <button
                                         onClick={() => setReviewMode('reupload')}
                                         disabled={disabled}
-                                        aria-label={`Request re-upload for approved ${document.file_name}`}
-                                        className="px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900/50 dark:bg-gray-900 dark:text-amber-300"
+                                        aria-label={`Request re-upload for ${document.file_name}`}
+                                        className={DOCUMENT_REUPLOAD_BUTTON_CLASS}
                                     >
-                                        <RefreshCw size={12} className="inline-block mr-1" /> Request Re-upload
+                                        <RefreshCw size={12} /> Request Re-upload
                                     </button>
+                                )}
+                                {reviewActions.waitingForReplacement && (
+                                    <p className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+                                        <Clock size={14} className="shrink-0" />
+                                        Waiting for the user to upload a replacement
+                                    </p>
+                                )}
+                                {reviewActions.reject && (
                                     <button
                                         onClick={() => setReviewMode('reject')}
                                         disabled={disabled}
-                                        aria-label={`Reject approved ${document.file_name}`}
-                                        className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-900 dark:text-red-300"
+                                        aria-label={`Reject ${document.file_name}`}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
                                     >
-                                        <X size={12} className="inline-block mr-1" /> Reject
+                                        <X size={12} /> Reject
                                     </button>
-                                </div>
+                                )}
                             </div>
-                        ) : canEdit && (
-                            <>
-                                <button
-                                    onClick={onApprove}
-                                    disabled={loading || disabled}
-                                    aria-label={`Approve ${document.file_name}`}
-                                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    <Check size={12} /> Approve
-                                </button>
-                                <button
-                                    onClick={() => setReviewMode('reupload')}
-                                    disabled={disabled}
-                                    aria-label={`Request re-upload for ${document.file_name}`}
-                                    className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-medium hover:bg-red-200 flex items-center gap-1"
-                                >
-                                    <RefreshCw size={12} /> Request Re-upload
-                                </button>
-                                <button
-                                    onClick={() => setReviewMode('reject')}
-                                    disabled={disabled}
-                                    aria-label={`Reject ${document.file_name}`}
-                                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    <X size={12} /> Reject
-                                </button>
-                            </>
                         )}
                         <button
                             onClick={onView}
