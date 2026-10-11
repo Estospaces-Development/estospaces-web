@@ -67,7 +67,28 @@ const DATE_FIELD_TOUCH_SLOP_PX = 10;
  */
 export const DATE_FIELD_POPOVER_Z_INDEX_CLASS = 'z-[10000]';
 
+/**
+ * Anchors the panel to its trigger, then keeps the rendered panel inside the viewport.
+ * The trigger itself can be off-screen (the phone was rotated, or the page scrolled, with
+ * the calendar open); anchoring to it alone would leave the panel off-screen too.
+ */
 export function resolveDateFieldPopoverPlacement(
+    triggerRect: DateFieldPopoverRect,
+    panelSize: DateFieldPopoverSize,
+    viewport: DateFieldPopoverViewport,
+    align: 'left' | 'right',
+): DateFieldPopoverPlacement {
+    const anchored = placeDateFieldPopoverNearTrigger(triggerRect, panelSize, viewport, align);
+    const maxHeight = Math.min(anchored.maxHeight, Math.max(0, viewport.height - (POPOVER_VIEWPORT_PADDING * 2)));
+    const renderedHeight = Math.min(Math.max(0, panelSize.height), maxHeight);
+    const top = Math.max(
+        POPOVER_VIEWPORT_PADDING,
+        Math.min(anchored.top, viewport.height - POPOVER_VIEWPORT_PADDING - renderedHeight),
+    );
+    return { ...anchored, top, maxHeight };
+}
+
+function placeDateFieldPopoverNearTrigger(
     triggerRect: DateFieldPopoverRect,
     panelSize: DateFieldPopoverSize,
     viewport: DateFieldPopoverViewport,
@@ -451,10 +472,12 @@ export default function DateField({
 
         updatePopoverPlacement();
         window.addEventListener('resize', updatePopoverPlacement);
+        window.addEventListener('orientationchange', updatePopoverPlacement);
         window.addEventListener('scroll', updatePopoverPlacement, true);
 
         return () => {
             window.removeEventListener('resize', updatePopoverPlacement);
+            window.removeEventListener('orientationchange', updatePopoverPlacement);
             window.removeEventListener('scroll', updatePopoverPlacement, true);
         };
     }, [align, open, visibleMonth]);
