@@ -194,10 +194,8 @@ const getAgentRequestActionLabel = (requestType?: string, countryCode?: string) 
 export const getBrokerRequestCopy = (requestType?: string, countryCode?: string) => ({
   panelTitle: 'Ask us to help',
   panelSubtitle: 'We can find the nearest property agent and bring matching home choices back here.',
-  useDispatchTitle: 'Request nearest property agent',
-  useDispatchSubtitle: countryCode === 'GB'
-    ? 'We look for the nearest available broker or letting agency first.'
-    : 'We look for the nearest available property agent first.',
+  fastTrackOptInTitle: 'Use the 24-hour home journey (Fast Track)',
+  fastTrackOptInSubtitle: 'Track documents, viewing, decision and handover in one place. Untick for a standard agent request.',
   activeRequestEyebrow: 'Agent request',
   restartRequestLabel: 'Start another request',
   refreshRequestLabel: 'Refresh update',
