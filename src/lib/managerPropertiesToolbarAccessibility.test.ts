@@ -8,18 +8,29 @@ const managerPropertiesPage = readFileSync(
   'utf8',
 );
 
+const managerPropertyDetailPage = readFileSync(
+  resolve(process.cwd(), 'src/pages/manager/dashboard/properties/[id]/page.tsx'),
+  'utf8',
+);
+
 test('manager properties toolbar gives icon-only buttons accessible names', () => {
   assert.match(managerPropertiesPage, /aria-label="Search manager properties"/);
   assert.match(managerPropertiesPage, /aria-label="Clear property search"/);
   assert.match(managerPropertiesPage, /aria-label="Sort properties"/);
   assert.match(managerPropertiesPage, /aria-label=\{`Switch to \$\{mode\} view`\}/);
   assert.match(managerPropertiesPage, /aria-pressed=\{viewMode === mode\}/);
-  assert.match(managerPropertiesPage, /aria-label=\{isPropertyPubliclyShareable\(property\.status\) \? `Share \$\{property\.title\}` : `Publish \$\{property\.title\} before sharing`\}/);
+  assert.match(managerPropertiesPage, /aria-label=\{isPropertyPubliclyShareable\(property\.status\) \? `Share \$\{property\.title\}` : `\$\{property\.title\}: \$\{getShareBlockedReason\(property\.status\)\}`\}/);
   assert.match(managerPropertiesPage, /aria-label=\{`Delete \$\{property\.title\}`\}/);
   assert.match(managerPropertiesPage, /aria-label=\{`Edit \$\{property\.title\}`\}/);
   assert.match(managerPropertiesPage, /disabled=\{!isPropertyPubliclyShareable\(property\.status\)\}/);
-  assert.match(managerPropertiesPage, /Publish this property before sharing/);
+  assert.match(managerPropertiesPage, /title=\{isPropertyPubliclyShareable\(property\.status\) \? "Share public listing" : getShareBlockedReason\(property\.status\)\}/);
+  assert.doesNotMatch(managerPropertiesPage, /Publish this property before sharing/);
   assert.match(managerPropertiesPage, /group-focus-within:opacity-100/);
+});
+
+test('manager property detail share buttons give the status-aware blocked reason (#687)', () => {
+  assert.match(managerPropertyDetailPage, /getShareBlockedReason\(property\?\.status\)/);
+  assert.doesNotMatch(managerPropertyDetailPage, /Publish this property before sharing|Publish property before sharing/);
 });
 
 test('manager property delete actions use an in-app confirmation dialog', () => {

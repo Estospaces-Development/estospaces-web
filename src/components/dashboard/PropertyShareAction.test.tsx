@@ -34,8 +34,31 @@ test('unpublished manager properties explain why social sharing is unavailable',
     );
 
     assert.match(markup, /disabled=""/);
-    assert.match(markup, /aria-label="Publish Draft Home before sharing"/);
+    assert.match(markup, /aria-label="Draft Home: Publish this property before sharing"/);
     assert.match(markup, /title="Publish this property before sharing"/);
+});
+
+test('blocked share action states the real reason for rented and pending-approval listings (#687)', () => {
+    const rented = renderToStaticMarkup(
+        <PropertyShareAction propertyTitle="Let Flat" status="rented" disabled onClick={() => {}} />,
+    );
+    assert.match(rented, /title="Rented properties can(?:'|&#x27;)t be shared"/);
+    assert.doesNotMatch(rented, /Publish this property before sharing/);
+
+    const pending = renderToStaticMarkup(
+        <PropertyShareAction propertyTitle="Queued Flat" status="pending_approval" disabled onClick={() => {}} />,
+    );
+    assert.match(pending, /title="Waiting for admin approval"/);
+    assert.match(pending, /aria-label="Queued Flat: Waiting for admin approval"/);
+});
+
+test('disabled share action reads as disabled over a photo: grey fill, no shadow (#688)', () => {
+    const markup = renderToStaticMarkup(
+        <PropertyShareAction propertyTitle="Draft Home" disabled onClick={() => {}} />,
+    );
+    assert.match(markup, /disabled:bg-gray-300/);
+    assert.match(markup, /disabled:shadow-none/);
+    assert.doesNotMatch(markup, /disabled:opacity-50/);
 });
 
 test('user and manager cards share one top-card action without the old green application control', () => {
