@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 
 import { getPreferences } from '@/services/authService';
-import { resolvePreferredSearchDefaults, type PreferredSearchDefaults } from '@/lib/preferredSearchDefaults';
+import { applyAccountMarket, resolvePreferredSearchDefaults, type PreferredSearchDefaults } from '@/lib/preferredSearchDefaults';
+import type { SupportedLaunchCountryCode } from '@/lib/launchLocale';
 
 const emptyDefaults: PreferredSearchDefaults = { market: null, location: '' };
 
-export function usePreferredSearchDefaults(userId?: string | null): PreferredSearchDefaults & { ready: boolean; failed: boolean } {
+export function usePreferredSearchDefaults(
+  userId?: string | null,
+  accountMarket?: SupportedLaunchCountryCode | null,
+): PreferredSearchDefaults & { ready: boolean; failed: boolean } {
   const [state, setState] = useState<PreferredSearchDefaults & { ready: boolean; failed: boolean; userId: string | null }>(() => ({
     ...emptyDefaults,
     ready: !userId,
@@ -52,5 +56,5 @@ export function usePreferredSearchDefaults(userId?: string | null): PreferredSea
 
   return state.userId !== userId
     ? { ...emptyDefaults, ready: false, failed: false }
-    : { market: state.market, location: state.location, ready: state.ready, failed: state.failed };
+    : { ...applyAccountMarket({ market: state.market, location: state.location }, accountMarket), ready: state.ready, failed: state.failed };
 }

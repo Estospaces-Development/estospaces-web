@@ -146,6 +146,19 @@ export const getGeoMarketSignalsFromUser = (user?: GeoMarketUserContext | null):
   };
 };
 
+/**
+ * The market the account itself declares (profile country, then stored country code).
+ * It outranks postcodes, saved cities and browser signals, so an India account
+ * never lands in the UK catalogue by accident.
+ */
+export const getExplicitUserMarket = (user?: GeoMarketUserContext | null): GeoMarketCode | null => {
+  const signals = getGeoMarketSignalsFromUser(user);
+  if (String(signals.countryName || "").trim()) {
+    return normalizeGeoCountryCode(signals.countryName);
+  }
+  return normalizeGeoCountryCode(signals.countryCode);
+};
+
 export const getBrowserGeoMarketSignals = (): GeoMarketSignals => {
   if (typeof window === "undefined") {
     return {};

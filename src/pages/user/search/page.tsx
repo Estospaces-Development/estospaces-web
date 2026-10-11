@@ -54,6 +54,7 @@ import {
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
+import { getExplicitUserMarket } from '@/lib/geoMarket';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
@@ -88,7 +89,7 @@ const PropertySearch = () => {
     const routerLocation = useRouterLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated, user } = useAuth();
-    const preferredSearchDefaults = usePreferredSearchDefaults(isAuthenticated ? user?.id : null);
+    const preferredSearchDefaults = usePreferredSearchDefaults(isAuthenticated ? user?.id : null, getExplicitUserMarket(user));
     const loginPath = getLoginPath();
     const { error: showToastError } = useToast();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();

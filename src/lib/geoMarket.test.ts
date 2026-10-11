@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   normalizeGeoCountryCode,
   resolveGeoMarket,
+  getExplicitUserMarket,
   getGeoMarketSignalsFromUser,
   resolveGeoMarketFromClientHint,
 } from "@/lib/geoMarket";
@@ -58,4 +59,12 @@ test('an India device stays in India even when the browser sends British English
   assert.equal(resolveGeoMarket({ acceptLanguage: 'en-GB' }), 'GB');
   assert.equal(resolveGeoMarket({ countryName: 'United Kingdom', timeZone: 'Asia/Kolkata' }), 'GB');
   assert.equal(resolveGeoMarket({ countryCode: 'GB', timeZone: 'Asia/Kolkata' }), 'GB');
+});
+
+test('the account country outranks postcode and stored code', () => {
+  assert.equal(getExplicitUserMarket({ country: 'India', postcode: 'PR1 2NJ' }), 'IN');
+  assert.equal(getExplicitUserMarket({ country: 'United Kingdom', countryCode: 'IN' }), 'GB');
+  assert.equal(getExplicitUserMarket({ user_metadata: { country_code: 'IN' } }), 'IN');
+  assert.equal(getExplicitUserMarket({ postcode: '600020' }), null);
+  assert.equal(getExplicitUserMarket(null), null);
 });

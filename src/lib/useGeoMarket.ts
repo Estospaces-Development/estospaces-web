@@ -3,6 +3,7 @@
 import {
   fetchClientGeoHint,
   getBrowserGeoMarketSignals,
+  getExplicitUserMarket,
   getGeoMarketSignalsFromUser,
   resolveGeoMarket,
   resolveGeoMarketFromClientHint,
@@ -57,8 +58,13 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
 export const useUserGeoMarket = (
   user?: GeoMarketUserContext | null,
   overrides: GeoMarketSignals = {},
-): GeoMarketCode => useGeoMarket({
-  ...getGeoMarketSignalsFromUser(user),
-  // An empty override (e.g. no saved search market) must not erase the account's own country.
-  ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
-});
+): GeoMarketCode => {
+  // The account's own country decides; postcodes, saved cities and browser signals only
+  // matter for accounts that have not declared one.
+  const accountMarket = getExplicitUserMarket(user);
+  return useGeoMarket(accountMarket ? { countryCode: accountMarket } : {
+    ...getGeoMarketSignalsFromUser(user),
+    // An empty override (e.g. no saved search market) must not erase the user's signals.
+    ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
+  });
+};

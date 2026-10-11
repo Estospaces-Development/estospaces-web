@@ -46,6 +46,7 @@ import {
     isValidLaunchLocationCode,
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
+import { getExplicitUserMarket } from '@/lib/geoMarket';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
@@ -239,7 +240,7 @@ function DiscoverContent() {
     }
     const initialSearchParams = initialSearchParamsRef.current;
     const { user, getDisplayName } = useAuth();
-    const preferredSearchDefaults = usePreferredSearchDefaults(user?.id);
+    const preferredSearchDefaults = usePreferredSearchDefaults(user?.id, getExplicitUserMarket(user));
     const toast = useToast();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const { activeTab, setActiveTab } = usePropertyFilter();
