@@ -25,6 +25,23 @@ test('nearby-agent postcode search preserves a readable UK separator while typin
   assert.match(source, /if \(manualPostcode \|\| isSearchOpen\) \{/);
 });
 
+// web-app#678: the collapsed "Find nearest agent by PIN code" trigger was a borderless grey-on-grey
+// strip that looked disabled. It is now a bordered secondary button with a 44px tap target.
+test('"Find nearest agent by" trigger is a bordered secondary button, not a disabled-looking strip', () => {
+  // @ts-ignore - source assertion only
+  const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, 'NearbyAgenciesList.tsx'), 'utf8');
+  const labelAt = source.lastIndexOf('Find nearest agent by'); // the trigger label; an earlier match is the form heading
+  assert.notEqual(labelAt, -1);
+  const button = source.slice(source.lastIndexOf('<button', labelAt), labelAt);
+
+  assert.match(button, /\bborder border-gray-300\b/);
+  assert.match(button, /\bbg-white\b/);
+  assert.match(button, /\btext-gray-800\b/);
+  assert.match(button, /\bmin-h-11\b/);
+  assert.match(button, /\$\{nearbyAgentFocusClass\}/);
+  assert.doesNotMatch(button, /\btext-gray-600\b/);
+});
+
 // Broker name is plain text: the messages page ignores `recipient`, so a link was a dead end.
 
 test('[SCENARIO 1 - happy] nearby broker name renders as plain text with no dead-end link', () => {
