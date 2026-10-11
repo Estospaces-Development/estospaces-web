@@ -59,5 +59,6 @@ export const useUserGeoMarket = (
   overrides: GeoMarketSignals = {},
 ): GeoMarketCode => useGeoMarket({
   ...getGeoMarketSignalsFromUser(user),
-  ...overrides,
+  // An empty override (e.g. no saved search market) must not erase the account's own country.
+  ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
 });
