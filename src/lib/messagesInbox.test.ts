@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
 
 import { ApiRequestError } from '@/lib/apiUtils';
@@ -8,6 +10,7 @@ import {
     createConversationRefreshFailedIssue,
     getConversationPropertyNavigationMessage,
     isUnavailableConversationThreadError,
+    loadConversationsWithOneRetry,
     resolveConversationQuerySelection,
     resolveHasLoadedConversations,
 } from '@/lib/messagesInbox';
@@ -144,4 +147,57 @@ test('unavailable conversation thread detection classifies inaccessible conversa
 
     assert.equal(isUnavailableConversationThreadError(inaccessibleError), true);
     assert.equal(isUnavailableConversationThreadError(validationError), false);
+});
+
+// QA E2E 10 Oct: the first /conversations call after idle showed "Messages could not load", then recovered.
+const coldStartFailure = () => new ApiRequestError('Request timed out', 'The service is temporarily unreachable.', undefined);
+const sequence = (...outcomes: Array<Error | string>) => {
+    let calls = 0;
+    return {
+        load: async () => {
+            const outcome = outcomes[Math.min(calls, outcomes.length - 1)];
+            calls += 1;
+            if (outcome instanceof Error) throw outcome;
+            return outcome;
+        },
+        calls: () => calls,
+    };
+};
+
+test('a cold-start failure on the first inbox load is retried once and the retry result is used', async () => {
+    for (const failure of [coldStartFailure(), new ApiRequestError('API error: 503', 'Unavailable', 503)]) {
+        const source = sequence(failure, 'loaded');
+        assert.equal(await loadConversationsWithOneRetry(source.load, { delayMs: 0 }), 'loaded');
+        assert.equal(source.calls(), 2);
+    }
+});
+
+test('a second failure is thrown so the inbox still shows its error', async () => {
+    const source = sequence(coldStartFailure(), new ApiRequestError('API error: 502', 'Bad gateway', 502));
+    await assert.rejects(loadConversationsWithOneRetry(source.load, { delayMs: 0 }), /API error: 502/);
+    assert.equal(source.calls(), 2, 'exactly one retry');
+});
+
+test('a success is not retried, and a client error a retry cannot fix is thrown at once', async () => {
+    const ok = sequence('loaded');
+    assert.equal(await loadConversationsWithOneRetry(ok.load, { delayMs: 0 }), 'loaded');
+    assert.equal(ok.calls(), 1);
+
+    for (const status of [401, 403, 404]) {
+        const rejected = sequence(new ApiRequestError(`API error: ${status}`, 'No', status));
+        await assert.rejects(loadConversationsWithOneRetry(rejected.load, { delayMs: 0 }));
+        assert.equal(rejected.calls(), 1, `${status} is not retried`);
+    }
+});
+
+test('no retry is made once the load is superseded while waiting', async () => {
+    const source = sequence(coldStartFailure(), 'loaded');
+    await assert.rejects(loadConversationsWithOneRetry(source.load, { delayMs: 0, isCurrent: () => false }));
+    assert.equal(source.calls(), 1);
+});
+
+test('only the foreground inbox load retries; silent polls keep their single attempt', () => {
+    const context = readFileSync(resolve(process.cwd(), 'src/contexts/MessagesContext.tsx'), 'utf8');
+    assert.match(context, /const backendConversations = silent\s*\? await messagesService\.getConversations\(\)\s*: await loadConversationsWithOneRetry\(/);
+    assert.match(context, /setConversationsLoadFailed\(true\)/);
 });
