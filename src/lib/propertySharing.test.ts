@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildPropertyShareTargets,
   getPublicPropertySharePath,
+  getShareBlockedReason,
   isPropertyPubliclyShareable,
 } from "./propertySharing";
 
@@ -18,9 +19,18 @@ test("only public property states can be shared socially", () => {
   ["published", "available", "active", "online", "coming_soon"].forEach(
     (status) => assert.equal(isPropertyPubliclyShareable(status), true),
   );
-  ["draft", "pending", "pending_approval", "rejected", "suspended"].forEach(
+  ["draft", "pending", "pending_approval", "rejected", "suspended", "rented", "let", "sold"].forEach(
     (status) => assert.equal(isPropertyPubliclyShareable(status), false),
   );
+});
+
+test("the blocked-share reason names the real status, not always 'publish' (#687)", () => {
+  assert.equal(getShareBlockedReason("pending_approval"), "Waiting for admin approval");
+  assert.equal(getShareBlockedReason(" Rented "), "Rented properties can't be shared");
+  assert.equal(getShareBlockedReason("let"), "Rented properties can't be shared");
+  assert.equal(getShareBlockedReason("sold"), "Sold properties can't be shared");
+  assert.equal(getShareBlockedReason("draft"), "Publish this property before sharing");
+  assert.equal(getShareBlockedReason(undefined), "Publish this property before sharing");
 });
 
 test("social targets encode the public URL and listing copy", () => {

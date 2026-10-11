@@ -20,6 +20,21 @@ export function isPropertyPubliclyShareable(status?: string | null): boolean {
   return PUBLIC_PROPERTY_STATUSES.has(String(status || "").trim().toLowerCase());
 }
 
+/** Why sharing is blocked for a non-public status, for the disabled share control's tooltip. */
+export function getShareBlockedReason(status?: string | null): string {
+  switch (String(status || "").trim().toLowerCase()) {
+    case "pending_approval":
+      return "Waiting for admin approval";
+    case "rented":
+    case "let":
+      return "Rented properties can't be shared";
+    case "sold":
+      return "Sold properties can't be shared";
+    default:
+      return "Publish this property before sharing";
+  }
+}
+
 export function getPublicPropertySharePath(propertyId: string): string {
   return `/user/properties/${encodeURIComponent(propertyId.trim())}`;
 }

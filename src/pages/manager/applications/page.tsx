@@ -18,6 +18,7 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildCsvContent } from '@/lib/csvExport';
 import { resolveFocusedApplication } from '@/lib/workspaceLinks';
+import { formatApplicationStatusError } from '@/lib/managerApplicationWorkspace';
 import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
@@ -237,7 +238,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             }
             toast.success(`Application status updated to ${status.replace(/_/g, ' ')}`);
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to update status');
+            toast.error(formatApplicationStatusError(err instanceof Error ? err.message : null));
         }
     };
 

@@ -25,6 +25,23 @@ test('nearby-agent postcode search preserves a readable UK separator while typin
   assert.match(source, /if \(manualPostcode \|\| isSearchOpen\) \{/);
 });
 
+// web-app#678: the collapsed "Find nearest agent by PIN code" trigger was a borderless grey-on-grey
+// strip that looked disabled. It is now a bordered secondary button with a 44px tap target.
+test('"Find nearest agent by" trigger is a bordered secondary button, not a disabled-looking strip', () => {
+  // @ts-ignore - source assertion only
+  const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, 'NearbyAgenciesList.tsx'), 'utf8');
+  const labelAt = source.lastIndexOf('Find nearest agent by'); // the trigger label; an earlier match is the form heading
+  assert.notEqual(labelAt, -1);
+  const button = source.slice(source.lastIndexOf('<button', labelAt), labelAt);
+
+  assert.match(button, /\bborder border-gray-300\b/);
+  assert.match(button, /\bbg-white\b/);
+  assert.match(button, /\btext-gray-800\b/);
+  assert.match(button, /\bmin-h-11\b/);
+  assert.match(button, /\$\{nearbyAgentFocusClass\}/);
+  assert.doesNotMatch(button, /\btext-gray-600\b/);
+});
+
 // Broker name is plain text: the messages page ignores `recipient`, so a link was a dead end.
 
 test('[SCENARIO 1 - happy] nearby broker name renders as plain text with no dead-end link', () => {
@@ -162,6 +179,35 @@ test('nearby broker cards hide the bare Estospaces placeholder before appending 
 
   assert.doesNotMatch(markup, /Estospaces - 321123/);
   assert.match(markup, /Independent agent - 321123/);
+});
+
+// web-app#677: core always sends rating 0 / review_count 0 for an agent with no reviews.
+test('nearby broker card with no reviews says "No ratings yet" instead of a star and 0.0 (0)', () => {
+  for (const noReviews of [{ rating: 0, review_count: 0 }, { rating: undefined, review_count: undefined }]) {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <NearbyBrokerCard broker={{ id: 'no-reviews', name: 'New Agent', service_areas: [], fast_track_eligible: false, ...noReviews }} index={0} />
+      </MemoryRouter>,
+    );
+
+    assert.match(markup, /No ratings yet/);
+    assert.doesNotMatch(markup, /lucide-star/);
+    assert.doesNotMatch(markup, /0\.0/);
+    assert.doesNotMatch(markup, /\(0\)/);
+  }
+});
+
+test('nearby broker card with reviews still shows the star, rating and review count', () => {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter>
+      <NearbyBrokerCard broker={{ id: 'reviewed', name: 'Rated Agent', service_areas: [], rating: 4.5, review_count: 12, fast_track_eligible: false }} index={0} />
+    </MemoryRouter>,
+  );
+
+  assert.match(markup, /lucide-star/);
+  assert.match(markup, /4\.5/);
+  assert.match(markup, /\(12\)/);
+  assert.doesNotMatch(markup, /No ratings yet/);
 });
 
 test('[SCENARIO 4 - edge] very long names and unicode characters do not overflow or break the link', () => {

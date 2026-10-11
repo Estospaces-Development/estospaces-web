@@ -1408,7 +1408,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                 {dispatchWorkspaceHeader.subtitle}
                             </p>
                         </div>
-                        <div className={`w-fit max-w-full rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:shrink-0 sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
+                        <div data-testid="broker-request-countdown" className={`w-fit max-w-full rounded-full border px-2.5 py-1.5 shadow-sm sm:min-w-[168px] sm:shrink-0 sm:rounded-2xl sm:px-4 sm:py-3 ${countdownTone.pill}`}>
                             <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] sm:gap-2 sm:text-[11px] sm:font-semibold sm:tracking-[0.18em]">
                                 <span className="relative flex h-2.5 w-2.5">
                                     {requestIsActive && (
@@ -1418,12 +1418,15 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                 </span>
                                 {countdownTone.eyebrow}
                             </div>
-                            <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
-                                <Timer size={14} className={requestIsActive ? 'motion-safe:animate-pulse' : ''} />
-                                <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
-                                    {requestIsMatched ? 'LOCKED' : requestIsClosed ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
-                                </span>
-                            </div>
+                            {/* A closed request already says "Closed" in the eyebrow above; no second timer line. */}
+                            {(requestIsMatched || !requestIsClosed) && (
+                                <div className={`${requestIsMatched ? 'hidden sm:flex' : 'mt-1 flex sm:mt-2'} items-center gap-2`}>
+                                    <Timer size={14} className={requestIsActive ? 'motion-safe:animate-pulse' : ''} />
+                                    <span className="font-mono text-base font-semibold tracking-[0.14em] sm:text-lg sm:font-bold sm:tracking-[0.18em]">
+                                        {requestIsMatched ? 'LOCKED' : formatCountdown(activeRequestSeconds)}
+                                    </span>
+                                </div>
+                            )}
                             <p className="mt-1 hidden text-[11px] font-medium text-gray-600 dark:text-gray-300 sm:block">
                                 {countdownTone.caption}
                             </p>
