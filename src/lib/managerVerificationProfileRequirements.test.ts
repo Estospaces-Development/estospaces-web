@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getMissingManagerVerificationProfileFields } from './managerVerificationProfileRequirements';
+import { getMissingManagerVerificationProfileFields, isIndiaComplianceUser } from './managerVerificationProfileRequirements';
 
 const completeBrokerProfile = {
     profileType: 'broker' as const,
@@ -46,4 +46,33 @@ test('requires client-money evidence only when the profile declares client money
         getMissingManagerVerificationProfileFields(completeBrokerProfile),
         [],
     );
+});
+
+test('India market does not require UK redress fields and labels the licence as RERA', () => {
+    const blank = { ...completeBrokerProfile, licenseNumber: '', redressSchemeName: '', redressMembershipNumber: '' };
+    const missing = getMissingManagerVerificationProfileFields({ ...blank, market: 'IN' });
+    assert.deepEqual(missing, [{ field: 'licenseNumber', label: 'RERA registration number' }]);
+    assert.deepEqual(
+        getMissingManagerVerificationProfileFields({ ...blank, market: 'IN', profileType: 'company' }),
+        [{ field: 'licenseNumber', label: 'Company registration number' }],
+    );
+});
+
+test('GB and unknown markets keep the UK redress requirements and broker licence label', () => {
+    const blank = { ...completeBrokerProfile, licenseNumber: '', redressSchemeName: '', redressMembershipNumber: '' };
+    const expected = [
+        { field: 'licenseNumber', label: 'Broker license number' },
+        { field: 'redressSchemeName', label: 'Redress scheme' },
+        { field: 'redressMembershipNumber', label: 'Redress membership number' },
+    ];
+    assert.deepEqual(getMissingManagerVerificationProfileFields({ ...blank, market: 'GB' }), expected);
+    assert.deepEqual(getMissingManagerVerificationProfileFields(blank), expected);
+});
+
+test('isIndiaComplianceUser follows stored country first, then stored country code', () => {
+    assert.equal(isIndiaComplianceUser({ country: 'United Kingdom', user_metadata: { country_code: 'IN' } }), false);
+    assert.equal(isIndiaComplianceUser({ country: ' india ' }), true);
+    assert.equal(isIndiaComplianceUser({ country: '', user_metadata: { country_code: 'IN' } }), true);
+    assert.equal(isIndiaComplianceUser({}), false);
+    assert.equal(isIndiaComplianceUser(null), false);
 });
