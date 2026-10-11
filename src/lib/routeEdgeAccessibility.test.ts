@@ -30,7 +30,7 @@ test('manager property detail does not count passive views and keeps mobile icon
 
   assert.doesNotMatch(managerPropertyDetail, /incrementViews\(id\);/);
   assert.doesNotMatch(managerPropertyDetail, /analytics:\s*\{\s*\.\.\.property\.analytics,/);
-  assert.match(managerPropertyDetail, /aria-label=\{canSharePublicly \? "Share property" : "Publish property before sharing"\}/);
+  assert.match(managerPropertyDetail, /aria-label=\{canSharePublicly \? "Share property" : shareBlockedReason\}/);
   assert.match(managerPropertyDetail, /aria-label="Duplicate property"/);
   assert.match(managerPropertyDetail, /aria-label="Edit property"/);
   assert.match(managerPropertyDetail, /aria-label="Delete property"/);

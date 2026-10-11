@@ -32,7 +32,11 @@ test('login submit keeps the auth shell stable behind the global branded loader'
   assert.match(loginPage, /import BrandLoadingScreen from ['"]@\/components\/ui\/BrandLoadingScreen['"]/);
   assert.match(loginPage, /aria-busy=\{loading\}/);
   assert.match(loginPage, /<ActionSpinner size="sm" aria-hidden \/>/);
-  assert.match(loginPage, /\{loading \? <BrandLoadingScreen label="Signing you in\.\.\." \/> : null\}/);
+  // #684: the full-screen loader is for the redirect after a successful sign-in only. It used to follow
+  // `loading`, so a wrong password flashed it for the whole round trip before the error appeared.
+  assert.match(loginPage, /\{redirecting \? <BrandLoadingScreen label="Signing you in\.\.\." \/> : null\}/);
+  assert.doesNotMatch(loginPage, /\{loading \? <BrandLoadingScreen/);
+  assert.match(loginPage, /setRedirecting\(true\);\s*await continueWithRole\(role\);/);
   assert.match(loginPage, /if \(authLoading\) \{\s*return <BrandLoadingScreen label="Checking your session\.\.\." \/>;/);
   assert.doesNotMatch(loginPage, /<BrandLoader/);
 });

@@ -1126,7 +1126,19 @@ const ApplicationTimelineWidget = () => {
                     <>
                         {currentPageItems.map((item) => (
                             <div key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                                <div className="cursor-pointer px-2.5 py-3.5 sm:px-6 sm:py-5" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-expanded={expandedId === item.id}
+                                    className="cursor-pointer px-2.5 py-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 sm:px-6 sm:py-5"
+                                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            setExpandedId(expandedId === item.id ? null : item.id);
+                                        }
+                                    }}
+                                >
                                     <div className="relative grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2.5 sm:flex sm:gap-5">
                                         <div className="relative flex-shrink-0">
                                             {item.property.image_urls[0] && !failedImages[item.id] ? (
@@ -1177,6 +1189,9 @@ const ApplicationTimelineWidget = () => {
                                                     <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                                         <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500" style={{ width: `${item.progress}%` }} />
                                                     </div>
+                                                    {item.nextAction ? (
+                                                        <p className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-300 sm:text-sm">{`Next: ${item.nextAction}`}</p>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </div>

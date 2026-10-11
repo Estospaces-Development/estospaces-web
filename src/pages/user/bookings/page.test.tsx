@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   BOOKING_STATUS_GROUPS,
@@ -11,6 +13,7 @@ import {
   normalizeBookingSpecialRequests,
   validateBookingCancelReason,
   buildBookingDetailRows,
+  getBookingCheckOutMin,
   validateBookingReservationForm,
 } from "./page";
 
@@ -141,4 +144,22 @@ test("booking detail rows expose the selected booking record", () => {
   ]);
   assert.equal(rows.find((row) => row.label === "Booking ID")?.value, "booking-123456");
   assert.equal(rows.find((row) => row.label === "Total")?.value, "GBP1,260");
+});
+
+// The server refuses past check-in dates, so the pickers must not offer them (QA E2E 10 Oct).
+test("check-out can only be picked after the check-in day (and never before tomorrow)", () => {
+  assert.equal(getBookingCheckOutMin("", "2026-10-11"), "2026-10-12");
+  assert.equal(getBookingCheckOutMin("not-a-date", "2026-10-11"), "2026-10-12");
+  assert.equal(getBookingCheckOutMin("2026-10-20", "2026-10-11"), "2026-10-21");
+  assert.equal(getBookingCheckOutMin("2026-10-01", "2026-10-11"), "2026-10-12", "a past check-in does not lower the minimum");
+  assert.equal(getBookingCheckOutMin("2026-10-31", "2026-10-11"), "2026-11-01");
+  assert.equal(getBookingCheckOutMin("2026-12-31", "2026-10-11"), "2027-01-01");
+});
+
+test("the reservation date pickers disable past days and keep check-out after check-in", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/pages/user/bookings/page.tsx"), "utf8");
+  const picker = (label: string) => source.split("<DateField").find((block) => block.includes(`ariaLabel="${label}"`)) ?? "";
+
+  assert.match(picker("Booking check-in date"), /min=\{getLocalTodayInputValue\(\)\}/);
+  assert.match(picker("Booking check-out date"), /min=\{getBookingCheckOutMin\(reservationForm\.check_in_date\)\}/);
 });

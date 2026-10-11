@@ -12,6 +12,7 @@ import Modal from '@/components/ui/Modal';
 import DateField from '@/components/ui/DateField';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { getApplicationPropertyOptions } from '@/lib/applicationPropertyOptions';
+import { getLocalTodayInputValue } from '@/lib/localScheduledAt';
 import { getPropertyById } from '@/services/propertyService';
 
 export const MAX_BOOKING_SPECIAL_REQUESTS_LENGTH = 1000;
@@ -77,6 +78,14 @@ export function validateBookingCancelReason(value: string) {
         return 'Keep the cancellation reason to 500 characters or fewer.';
     }
     return null;
+}
+
+// Check-out must fall after check-in (validateBookingReservationForm refuses the same day), and neither
+// can be in the past (the server refuses that too), so the picker starts the day after the later of the two.
+export function getBookingCheckOutMin(checkIn: string, today: string = getLocalTodayInputValue()) {
+    const from = parseBookingDate(checkIn) && checkIn.trim() > today ? checkIn.trim() : today;
+    const [year, month, day] = from.split('-').map(Number);
+    return getLocalTodayInputValue(new Date(year, month - 1, day + 1));
 }
 
 export function validateBookingReservationForm(form: BookingReservationForm): BookingReservationValidationErrors {
@@ -555,6 +564,7 @@ export default function BookingsPage() {
                                 value={reservationForm.check_in_date}
                                 onChange={(value) => updateReservationField('check_in_date', value)}
                                 ariaLabel="Booking check-in date"
+                                min={getLocalTodayInputValue()}
                                 ariaDescribedBy={reservationErrors.check_in_date ? 'booking-check-in-error' : undefined}
                                 disabled={savingReservation}
                                 buttonClassName="bg-gray-50 dark:bg-gray-900"
@@ -571,6 +581,7 @@ export default function BookingsPage() {
                                 value={reservationForm.check_out_date}
                                 onChange={(value) => updateReservationField('check_out_date', value)}
                                 ariaLabel="Booking check-out date"
+                                min={getBookingCheckOutMin(reservationForm.check_in_date)}
                                 ariaDescribedBy={reservationErrors.check_out_date ? 'booking-check-out-error' : undefined}
                                 disabled={savingReservation}
                                 buttonClassName="bg-gray-50 dark:bg-gray-900"

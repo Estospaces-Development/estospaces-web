@@ -239,3 +239,65 @@ test('My Homes counts saved, applied-for and enquired homes, but not closed ones
         }
     }
 });
+
+// web-app#680: the next step was computed for every card but never rendered, and the row was a click-only div.
+test('journey card shows the next step and the whole row opens from the keyboard (#680)', async () => {
+    const require = createRequire(import.meta.url);
+    const compiled = ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
+            esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    const componentModule = { exports: {} as { default: React.ComponentType } };
+    const load = (id: string): unknown => {
+        if (id === '../../services/applicationsService') return { getApplications: async () => ({ data: [
+            { id: 'app-offer', property_id: 'p-offer', property_title: 'Offer Home', property_address: 'London', listing_type: 'sale', status: 'submitted', created_at: '2026-09-01T10:00:00Z' },
+        ], error: null }) };
+        if (id === '../../services/leadsService') return { getUserBrokerRequests: async () => ({ data: [], error: null }), getUserLeads: async () => ({ data: [], error: null }) };
+        if (id === '../../services/salesService') return { getSaleProgressions: async () => ({ data: [], error: null }) };
+        if (id === '../../services/bookingsService') return { getViewings: async () => [], getContracts: async () => [] };
+        if (id === '../../services/userPropertiesService') return { getUserProperties: async () => ({ data: [], error: null }) };
+        if (id === '@/services/fastTrackService') return { getFastTrackCases: async () => ({ data: [], error: null }) };
+        if (id === '../../services/propertyService') return { getPropertyContextsByIds: async () => ({ data: [], error: null }), getSavedProperties: async () => ({ data: [], error: null }) };
+        return require(id.startsWith('@/') ? resolve(process.cwd(), 'src', id.slice(2)) : id);
+    };
+    new Function('require', 'module', 'exports', compiled)(load, componentModule, componentModule.exports);
+    const window = new Window();
+    const globals = { window, document: window.document, navigator: window.navigator,
+        HTMLElement: window.HTMLElement, Node: window.Node, IS_REACT_ACT_ENVIRONMENT: true };
+    const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+    for (const [key, value] of Object.entries(globals)) {
+        Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const container = window.document.createElement('div');
+    window.document.body.append(container);
+    const root = createRoot(container as unknown as HTMLElement);
+    try {
+        await act(async () => root.render(<MemoryRouter><componentModule.exports.default /></MemoryRouter>));
+        assert.match(container.textContent || '', /Offer sent/);
+        assert.match(container.textContent || '', /Next: Wait for an update/);
+
+        const row = container.querySelector('[role="button"][aria-expanded]') as unknown as HTMLElement | null;
+        assert.ok(row, 'The card row is a real button for keyboard and assistive tech');
+        assert.equal(row.getAttribute('tabindex'), '0');
+        assert.ok((row.textContent || '').includes('Offer Home'), 'The whole card, not just the chevron, is the button');
+        assert.equal(row.querySelector('button, a, input, select, textarea, [role="button"]'), null, 'No interactive element is nested inside the row');
+        assert.equal(row.getAttribute('aria-expanded'), 'false');
+        assert.ok(!(container.textContent || '').includes('Complete Journey Progress'));
+
+        const press = (key: string) => row.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }) as unknown as Event);
+        await act(async () => { press('Enter'); });
+        assert.equal(row.getAttribute('aria-expanded'), 'true');
+        assert.ok((container.textContent || '').includes('Complete Journey Progress'), 'Enter opens the journey');
+        await act(async () => { press(' '); });
+        assert.equal(row.getAttribute('aria-expanded'), 'false', 'Space closes it again');
+        await act(async () => { press('a'); });
+        assert.equal(row.getAttribute('aria-expanded'), 'false', 'Other keys do nothing');
+    } finally {
+        await act(async () => root.unmount());
+        await window.happyDOM.abort();
+        for (const [key, descriptor] of descriptors) {
+            if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+            else Reflect.deleteProperty(globalThis, key);
+        }
+    }
+});

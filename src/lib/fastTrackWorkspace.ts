@@ -929,7 +929,11 @@ export const describeFastTrackWorkspaceStatus = (
         case 'handover':
             return role === 'user'
                 ? fastTrackCase.journeyMode === 'sale'
-                    ? 'Completion and key handover happen after the legal memorandum, conveyancing, and exchange steps are ready.'
+                    ? canUserConfirmFastTrackHandover(fastTrackCase)
+                        ? isFastTrackCaseComplete(fastTrackCase)
+                            ? 'The sale is complete. Confirm the key handover here to close your journey.'
+                            : 'The sale is ready for key handover. Confirm the handover here to close your journey.'
+                        : 'Completion and key handover happen after the legal memorandum, conveyancing, and exchange steps are ready.'
                     : 'Confirm the final handover here to close your journey.'
                 : fastTrackCase.journeyMode === 'sale'
                     ? 'Only finish handover after offer acceptance, memorandum, solicitor conveyancing, exchange, and completion are ready.'
