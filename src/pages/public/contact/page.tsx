@@ -4,7 +4,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
 import { contactService } from '@/services/contactService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -91,6 +91,31 @@ export default function ContactPage() {
                                     <a href="mailto:hello@estospaces.com" className="text-orange-500 hover:underline text-sm">
                                         hello@estospaces.com
                                     </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                    <Phone className="text-green-500" size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Call or WhatsApp</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Calls and WhatsApp messages</p>
+                                    <div className="flex flex-col gap-1">
+                                        <a href="tel:+447467105410" className="text-orange-500 hover:underline text-sm">
+                                            +44 7467 105410
+                                        </a>
+                                        <a
+                                            href="https://wa.me/447467105410"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-orange-500 hover:underline text-sm"
+                                        >
+                                            Message us on WhatsApp
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
