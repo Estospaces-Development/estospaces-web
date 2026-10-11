@@ -1715,6 +1715,8 @@ input[type="checkbox"] {
   accent-color: #FF6B35;
   width: 20px;
   height: 20px;
+  /* A checkbox beside a long wrapped label must not be squeezed (#703, #704). */
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s ease;
 }

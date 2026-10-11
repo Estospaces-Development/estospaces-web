@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Megaphone } from 'lucide-react';
 
@@ -105,10 +105,10 @@ function OfferChecklist({ promotion, windowLabel, ticked, busy, onToggle, onActi
     const complete = isOfferChecklistComplete(items, ticked);
     const headingId = `offer-check-${promotion.id}`;
     const reasonId = `${headingId}-reason`;
-    return <fieldset aria-labelledby={headingId} className="mt-3 grid min-w-72 gap-2 rounded-xl border border-orange-300 p-3 text-xs dark:border-orange-800">
+    return <fieldset aria-labelledby={headingId} className="grid gap-2 rounded-xl border border-orange-300 p-3 text-xs dark:border-orange-800">
         <legend id={headingId} className="px-1 text-sm font-bold">Confirm the Razorpay offer before activating</legend>
         <p className="text-gray-700 dark:text-gray-300">{OFFER_CHECKLIST_EXPLANATION}</p>
-        {items.map((item) => <label key={item.id} className="flex items-start gap-2"><input type="checkbox" checked={ticked.includes(item.id)} onChange={(event) => onToggle(item.id, event.target.checked)} className="mt-0.5 h-4 w-4 accent-orange-600" /><span>{item.label}</span></label>)}
+        {items.map((item) => <label key={item.id} className="flex min-h-11 items-start gap-3 py-2"><input type="checkbox" checked={ticked.includes(item.id)} onChange={(event) => onToggle(item.id, event.target.checked)} className="size-6! shrink-0 accent-orange-600" /><span className="pt-1">{item.label}</span></label>)}
         <button type="button" disabled={!complete || busy !== null} aria-describedby={complete ? undefined : reasonId} onClick={onActivate} className={buttonPrimary}>{busy === `activate:${promotion.id}:${promotion.version}` ? 'Saving…' : 'Activate'}</button>
         {complete ? null : <p id={reasonId} className="text-gray-600 dark:text-gray-300">Tick every setting above to enable Activate.</p>}
     </fieldset>;
@@ -291,7 +291,7 @@ export default function AdminPromotionsSection() {
                     : promotionList.length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">No promotions yet.</p>
                         : <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm">
                             <thead className="text-xs uppercase text-gray-500 dark:text-gray-400"><tr><th scope="col" className="py-2 pr-4">Name</th><th scope="col" className="py-2 pr-4">Kind</th><th scope="col" className="py-2 pr-4">Plan</th><th scope="col" className="py-2 pr-4">Benefit</th><th scope="col" className="py-2 pr-4">Window</th><th scope="col" className="py-2 pr-4">Used/cap</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2">Actions</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{promotionList.map((promotion) => <tr key={promotion.id} className="align-top">
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{promotionList.map((promotion) => <Fragment key={promotion.id}><tr className={offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'border-b-0 align-top' : 'align-top'}>
                                 <td className="py-3 pr-4"><p className="font-bold">{promotion.name}</p>{promotion.code ? <code className="text-xs">{promotion.code}</code> : null}{promotion.auto_apply_on_signup ? <p className="text-xs text-emerald-700 dark:text-emerald-300">Auto-applies on signup</p> : null}</td>
                                 <td className="py-3 pr-4">{formatPromotionKind(promotion.kind)}</td>
                                 <td className="py-3 pr-4">{formatPromotionPlan(promotion)}</td>
@@ -306,7 +306,6 @@ export default function AdminPromotionsSection() {
                                     {canEditPromotion(promotion) ? <button type="button" aria-expanded={editing?.id === promotion.id} disabled={busy !== null} onClick={() => setEditing(editing?.id === promotion.id ? null : { id: promotion.id, values: promotionEditValues(promotion), errors: {} })} className={buttonSecondary}>{editing?.id === promotion.id ? 'Close edit' : 'Edit'}</button> : null}
                                     <button type="button" aria-pressed={selectedID === promotion.id} onClick={() => { setSelectedID(selectedID === promotion.id ? null : promotion.id); setRedemptionOffset(0); }} className={buttonSecondary}>{selectedID === promotion.id ? 'Hide redemptions' : 'Redemptions'}</button>
                                 </div>
-                                {offerCheck?.key === `${promotion.id}:${promotion.version}` ? <OfferChecklist promotion={promotion} windowLabel={formatWindow(promotion)} ticked={offerCheck.ticked} busy={busy} onToggle={(id, checked) => setOfferCheck({ key: offerCheck.key, ticked: checked ? [...offerCheck.ticked, id] : offerCheck.ticked.filter((item) => item !== id) })} onActivate={async () => { if (await changeStatus(promotion, 'activate')) setOfferCheck(null); }} /> : null}
                                 {editing?.id === promotion.id ? <div className="mt-3 grid min-w-72 gap-2 rounded-xl border p-3 dark:border-gray-800">
                                     <label className="text-xs font-semibold">Name<input value={editing.values.name} maxLength={128} onChange={(event) => setEditing({ ...editing, values: { ...editing.values, name: event.target.value }, errors: {} })} className={inputClass} /><FieldError id={`edit-${promotion.id}-name`} message={editing.errors.name} /></label>
                                     <label className="text-xs font-semibold">Description<input value={editing.values.description} maxLength={1000} onChange={(event) => setEditing({ ...editing, values: { ...editing.values, description: event.target.value }, errors: {} })} className={inputClass} /><FieldError id={`edit-${promotion.id}-description`} message={editing.errors.description} /></label>
@@ -315,7 +314,9 @@ export default function AdminPromotionsSection() {
                                     <FieldError id={`edit-${promotion.id}-form`} message={editing.errors.form} />
                                     <button type="button" disabled={busy !== null} onClick={() => void saveEdit(promotion)} className={buttonPrimary}>{busy?.startsWith(`patch:${promotion.id}:`) ? 'Saving…' : 'Save changes'}</button>
                                 </div> : null}</td>
-                            </tr>)}</tbody>
+                            </tr>
+                            {offerCheck?.key === `${promotion.id}:${promotion.version}` ? <tr><td colSpan={8} className="pb-3"><OfferChecklist promotion={promotion} windowLabel={formatWindow(promotion)} ticked={offerCheck.ticked} busy={busy} onToggle={(id, checked) => setOfferCheck({ key: offerCheck.key, ticked: checked ? [...offerCheck.ticked, id] : offerCheck.ticked.filter((item) => item !== id) })} onActivate={async () => { if (await changeStatus(promotion, 'activate')) setOfferCheck(null); }} /></td></tr> : null}
+                            </Fragment>)}</tbody>
                         </table></div>}
         </section>
 
