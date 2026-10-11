@@ -490,8 +490,15 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         rejectReason?: string,
     ) => {
         setActiveDocumentId(documentId);
-        const { error: reviewError } = await reviewUserDocument(scope, documentId, status, rejectReason);
+        const { error: reviewError, conflict } = await reviewUserDocument(scope, documentId, status, rejectReason);
         setActiveDocumentId(null);
+
+        if (conflict && reviewError) {
+            // Someone else reviewed this document first: reload so the card shows its real status, and say why.
+            await fetchDetails();
+            toast.error(reviewError);
+            return;
+        }
 
         if (reviewError) {
             setError(reviewError);

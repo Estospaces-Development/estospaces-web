@@ -3,7 +3,7 @@
  * Handles broker verification data via the core-service backend.
  */
 
-import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '@/lib/apiUtils';
 import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
@@ -853,7 +853,7 @@ export const requestDocumentReupload = async (
     _actorId: string,
     documentId: string,
     reason: string,
-): Promise<{ error: string | null }> => {
+): Promise<{ error: string | null; conflict?: boolean }> => {
     try {
         await apiFetch(`${CORE_URL()}/api/v1/documents/${documentId}/review`, {
             method: 'PUT',
@@ -866,7 +866,8 @@ export const requestDocumentReupload = async (
 
         return { error: null };
     } catch (error: any) {
-        return { error: getErrorMessage(error) };
+        // 409: a re-upload was already requested, so the caller's copy is stale.
+        return { error: getErrorMessage(error), conflict: getErrorStatus(error) === 409 };
     }
 };
 
