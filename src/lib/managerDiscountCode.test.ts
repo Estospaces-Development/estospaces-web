@@ -6,6 +6,7 @@ import {
     CHECKOUT_FAILED_TRY_AGAIN_MESSAGE,
     DEFAULT_RECURRING_CONSENT_TEXT,
     DISCOUNT_CODE_RATE_LIMITED_MESSAGE,
+    DISCOUNT_CODE_UNAVAILABLE_MESSAGE,
     assertCheckoutPromotionPair,
     classifyDiscountError,
     describeDiscountPrice,
@@ -215,4 +216,8 @@ test('a failed checkout from the provider is a plain "try again", other 503s kee
 test('the shared preview and coded-checkout rate limit reads the same everywhere', () => {
     assert.equal(classifyDiscountError({ status: 429, code: 'rate_limited' }), 'rate_limited');
     assert.match(DISCOUNT_CODE_RATE_LIMITED_MESSAGE, /Too many code attempts/);
+});
+
+test('the refusal copy covers an expired code without revealing why it was refused (MB-0750)', () => {
+    assert.equal(DISCOUNT_CODE_UNAVAILABLE_MESSAGE, "This code isn't valid or has expired.");
 });

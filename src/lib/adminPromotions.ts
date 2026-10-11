@@ -450,6 +450,18 @@ const ACTIONS_BY_STATUS: Record<AdminPromotionStatus, AdminPromotionAction[]> = 
 
 export const getPromotionActions = (status: AdminPromotionStatus): AdminPromotionAction[] => ACTIONS_BY_STATUS[status] ?? [];
 
+/**
+ * The stored status stays `active` after the end date passes (until an admin
+ * archives it), so the table derives "ended" from `valid_until` for display.
+ */
+export const getPromotionDisplayStatus = (
+    promotion: Pick<AdminPromotion, 'status' | 'valid_until'>,
+    now: Date = new Date(),
+): AdminPromotionStatus | 'ended' => {
+    const endsAt = promotion.valid_until ? new Date(promotion.valid_until).getTime() : Number.NaN;
+    return promotion.status === 'active' && endsAt <= now.getTime() ? 'ended' : promotion.status;
+};
+
 export const canEditPromotion = (promotion: Pick<AdminPromotion, 'status'>): boolean => promotion.status !== 'archived';
 
 /** The single active auto-apply trial (payment enforces at most one per mode). */

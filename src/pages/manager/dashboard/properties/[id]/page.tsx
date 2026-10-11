@@ -13,11 +13,11 @@ import { useProperties } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
 import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
-import { getListingDeleteWarning } from '@/lib/propertyStatusBadge';
+import { getListingDeleteWarning, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
@@ -205,23 +205,7 @@ export default function PropertyDetailPage() {
         }
     };
 
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            online: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-            active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-            published: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-            offline: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
-            draft: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-            under_offer: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-            sold: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-            let: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-        };
-        return colors[status] || colors.online;
-    };
-
-    const formatStatus = (status: string) => {
-        return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    };
+    const statusBadge = getManagerPropertyStatusBadge(property.status);
 
     // Get images from the property
     const images = property.media?.images?.map(img => img.url) ||
@@ -452,8 +436,12 @@ export default function PropertyDetailPage() {
                                     </h1>
                                     <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <MapPin className="w-5 h-5 text-orange-600" />
-                                        {property.location?.addressLine1 || property.address}, {property.location?.city || property.city}, {property.location?.state || property.state}
-                                        {property.location?.country && `, ${property.location.country}`}
+                                        {formatLaunchPropertyLocation([
+                                            property.location?.addressLine1 || property.address,
+                                            property.location?.city || property.city,
+                                            property.location?.state || property.state,
+                                            property.location?.country,
+                                        ])}
                                     </p>
                                 </div>
                                 <div className="text-right">
@@ -606,8 +594,9 @@ export default function PropertyDetailPage() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-gray-600 dark:text-gray-400">Current Status</span>
-                                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(property.status)}`}>
-                                        {formatStatus(property.status)}
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${statusBadge.badgeClassName}`}>
+                                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
+                                        {statusBadge.label}
                                     </span>
                                 </div>
 
