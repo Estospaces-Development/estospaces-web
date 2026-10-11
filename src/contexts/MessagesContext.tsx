@@ -19,6 +19,7 @@ import { getMessageSendFailureText } from '@/lib/messageComposerLimit';
 import {
     createUnavailableConversationThreadIssue,
     isUnavailableConversationThreadError,
+    loadConversationsWithOneRetry,
     resolveHasLoadedConversations,
     type ConversationThreadIssue,
 } from '@/lib/messagesInbox';
@@ -492,7 +493,12 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         }
 
         try {
-            const backendConversations = await messagesService.getConversations();
+            // Only the foreground load retries a cold-start failure; silent polls keep a single attempt.
+            const backendConversations = silent
+                ? await messagesService.getConversations()
+                : await loadConversationsWithOneRetry(() => messagesService.getConversations(), {
+                    isCurrent: () => conversationLoadGenerationRef.current === loadGeneration && activeUserIdRef.current === requestUserId,
+                });
             if (
                 conversationLoadGenerationRef.current !== loadGeneration
                 || activeUserIdRef.current !== requestUserId

@@ -73,7 +73,7 @@ test("property detail location summary uses country and PIN corrected city", () 
     country: "IN",
   } as any);
 
-  assert.equal(location, "Chennai, IN");
+  assert.equal(location, "Chennai, India");
   assert.doesNotMatch(location, /Edinburgh/i);
   assert.doesNotMatch(propertyDetailSource, /formatLaunchPropertyLocation\(\[property\.city, property\.country\]\)/);
 });

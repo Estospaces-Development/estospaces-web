@@ -13,10 +13,11 @@ import { useProperties } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import { getPropertyMapState } from '@/lib/propertyMaps';
-import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getPropertyVideos } from '@/lib/propertyImages';
 import { flattenPropertyAmenities } from '@/lib/propertyAmenities';
-import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { getListingDeleteWarning, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { getEntitlementLimit, loadManagerPlanEntitlement, resolvePlanLimitNotice } from '@/lib/planLimit';
 import { useToast } from '@/contexts/ToastContext';
@@ -90,6 +91,8 @@ export default function PropertyDetailPage() {
     const detail = id ? detailQuery.data : { kind: 'not_found' as const };
     const property = detail?.kind === 'found' ? detail.property : undefined;
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
+    const shareBlockedReason = getShareBlockedReason(property?.status);
+    const deleteWarning = getListingDeleteWarning(property?.status);
     const amenities = flattenPropertyAmenities(property?.amenities);
 
     if (!property) {
@@ -202,23 +205,7 @@ export default function PropertyDetailPage() {
         }
     };
 
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            online: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-            active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-            published: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-            offline: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
-            draft: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-            under_offer: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-            sold: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-            let: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-        };
-        return colors[status] || colors.online;
-    };
-
-    const formatStatus = (status: string) => {
-        return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    };
+    const statusBadge = getManagerPropertyStatusBadge(property.status);
 
     // Get images from the property
     const images = property.media?.images?.map(img => img.url) ||
@@ -246,10 +233,10 @@ export default function PropertyDetailPage() {
                     {/* Share */}
                     <button
                         type="button"
-                        aria-label={canSharePublicly ? "Share property" : "Publish property before sharing"}
+                        aria-label={canSharePublicly ? "Share property" : shareBlockedReason}
                         onClick={() => setShowShareModal(true)}
                         disabled={!canSharePublicly}
-                        title={canSharePublicly ? "Share public listing" : "Publish this property before sharing"}
+                        title={canSharePublicly ? "Share public listing" : shareBlockedReason}
                         className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
                     >
                         <Share2 className="w-5 h-5" />
@@ -449,8 +436,12 @@ export default function PropertyDetailPage() {
                                     </h1>
                                     <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <MapPin className="w-5 h-5 text-orange-600" />
-                                        {property.location?.addressLine1 || property.address}, {property.location?.city || property.city}, {property.location?.state || property.state}
-                                        {property.location?.country && `, ${property.location.country}`}
+                                        {formatLaunchPropertyLocation([
+                                            property.location?.addressLine1 || property.address,
+                                            property.location?.city || property.city,
+                                            property.location?.state || property.state,
+                                            property.location?.country,
+                                        ])}
                                     </p>
                                 </div>
                                 <div className="text-right">
@@ -573,10 +564,10 @@ export default function PropertyDetailPage() {
                                 </button>
 
                                 <button
-                                    aria-label={canSharePublicly ? "Share property" : "Publish property before sharing"}
+                                    aria-label={canSharePublicly ? "Share property" : shareBlockedReason}
                                     onClick={() => setShowShareModal(true)}
                                     disabled={!canSharePublicly}
-                                    title={canSharePublicly ? "Share public listing" : "Publish this property before sharing"}
+                                    title={canSharePublicly ? "Share public listing" : shareBlockedReason}
                                     className="w-full py-3 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
                                 >
                                     <Share2 className="w-5 h-5" />
@@ -603,8 +594,9 @@ export default function PropertyDetailPage() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-gray-600 dark:text-gray-400">Current Status</span>
-                                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(property.status)}`}>
-                                        {formatStatus(property.status)}
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${statusBadge.badgeClassName}`}>
+                                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
+                                        {statusBadge.label}
                                     </span>
                                 </div>
 
@@ -828,9 +820,14 @@ export default function PropertyDetailPage() {
                         className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6"
                     >
                         <h3 id="delete-property-title" className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Property?</h3>
-                        <p id="delete-property-description" className="text-gray-600 dark:text-gray-400 mb-6">
-                            Are you sure you want to delete this property? This action cannot be undone.
-                        </p>
+                        <div id="delete-property-description" className="mb-6 space-y-3 text-gray-600 dark:text-gray-400">
+                            <p>Are you sure you want to delete this property? This action cannot be undone.</p>
+                            {deleteWarning && (
+                                <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                                    {deleteWarning}
+                                </p>
+                            )}
+                        </div>
                         <div className="flex gap-3">
                             <button
                                 type="button"

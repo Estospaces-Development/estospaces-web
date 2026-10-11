@@ -99,6 +99,11 @@ export function normalizeLaunchCurrencyText(value: string): string {
   return value.replace(/\u00c2?\u00a3/g, "\u00a3");
 }
 
+const COUNTRY_CODE_DISPLAY_NAMES: Record<string, string> = {
+  [LAUNCH_COUNTRY_CODE]: LAUNCH_COUNTRY_NAME,
+  [UK_COUNTRY_CODE]: UK_COUNTRY_NAME,
+};
+
 export function formatLaunchPropertyLocation(
   value: string | Array<string | null | undefined> | null | undefined,
 ): string {
@@ -115,6 +120,7 @@ export function formatLaunchPropertyLocation(
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
+    .map((part) => COUNTRY_CODE_DISPLAY_NAMES[part.toUpperCase()] ?? part)
     .filter((part) => {
       const key = part.toLocaleLowerCase();
       if (seenParts.has(key)) {

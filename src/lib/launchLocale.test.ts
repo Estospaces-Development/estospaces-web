@@ -78,3 +78,12 @@ test('launch locale selects India or UK from location code and country', () => {
     'Please enter a valid UK postcode',
   );
 });
+
+test('property location skips empty parts and spells out the IN and GB country codes (#697)', () => {
+  assert.equal(formatLaunchPropertyLocation(['12 Anna Salai', 'Chennai', '', 'IN']), '12 Anna Salai, Chennai, India');
+  assert.equal(formatLaunchPropertyLocation('12 Anna Salai, Chennai, , IN'), '12 Anna Salai, Chennai, India');
+  assert.equal(formatLaunchPropertyLocation(['Flat 2', 'Leeds', undefined, 'gb']), 'Flat 2, Leeds, United Kingdom');
+  assert.equal(formatLaunchPropertyLocation(['Chennai', 'India', 'IN']), 'Chennai, India');
+  assert.equal(formatLaunchPropertyLocation(['Chennai', null, ' ', 'Tamil Nadu']), 'Chennai, Tamil Nadu');
+  assert.equal(formatLaunchPropertyLocation(['', null, undefined]), 'India');
+});

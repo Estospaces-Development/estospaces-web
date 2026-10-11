@@ -11,7 +11,9 @@ const PRICE_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 const MAX_PERCENT_OFF = 90;
 const MAX_DISCOUNT_CYCLES = 24;
 
-export const DISCOUNT_CODE_UNAVAILABLE_MESSAGE = "This code can't be used on this plan.";
+// One neutral message for every refusal (unknown, expired, wrong plan, used up): payment
+// returns a single error so codes cannot be probed, and the copy must not claim a reason.
+export const DISCOUNT_CODE_UNAVAILABLE_MESSAGE = "This code isn't valid or has expired.";
 export const DISCOUNT_CODE_RATE_LIMITED_MESSAGE = 'Too many code attempts. Please wait a few minutes and try again.';
 export const DISCOUNT_PRICE_CHANGED_MESSAGE = 'The discount for this code has changed. Check the new price and confirm the payment consent again. Nothing was charged.';
 

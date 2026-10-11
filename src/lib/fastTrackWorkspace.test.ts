@@ -529,6 +529,46 @@ test('user handover stays actionable after manager completion until receipt is c
     assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'manager'), 'Case finished');
 });
 
+// QA E2E 10 Oct: a completed sale kept saying handover "happens after the legal steps" while the buyer
+// was being asked to confirm it.
+test('a sale at handover tells the buyer to confirm it once handover is ready or completed', () => {
+    const saleCase = (handover: Partial<FastTrackCase['handover']>, overrides: Partial<FastTrackCase> = {}) => buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        journeyType: 'buy',
+        stage: 'handover',
+        handover: { status: 'pending', ...handover },
+        ...overrides,
+    });
+
+    const completed = saleCase(
+        { status: 'completed', completedAt: '2026-05-05T12:00:00Z', confirmedByUser: false },
+        { workspaceFinalStatus: 'completed', finalStatus: 'completed' },
+    );
+    assert.equal(canUserConfirmFastTrackHandover(completed), true);
+    assert.equal(
+        describeFastTrackWorkspaceStatus(completed, 'user'),
+        'The sale is complete. Confirm the key handover here to close your journey.',
+    );
+
+    const ready = saleCase({ status: 'ready', confirmedByUser: false });
+    assert.equal(canUserConfirmFastTrackHandover(ready), true);
+    assert.equal(
+        describeFastTrackWorkspaceStatus(ready, 'user'),
+        'The sale is ready for key handover. Confirm the handover here to close your journey.',
+    );
+
+    // Not there yet: the legal steps copy still applies.
+    const notReady = saleCase({ status: 'pending' });
+    assert.equal(canUserConfirmFastTrackHandover(notReady), false);
+    assert.match(describeFastTrackWorkspaceStatus(notReady, 'user'), /^Completion and key handover happen after the legal memorandum/);
+
+    // Already confirmed: the complete copy wins; the manager copy is unchanged.
+    const confirmed = saleCase({ status: 'completed', confirmedByUser: true }, { workspaceFinalStatus: 'completed', finalStatus: 'completed' });
+    assert.equal(describeFastTrackWorkspaceStatus(confirmed, 'user'), 'Every step is complete. You can keep this page for records and updates.');
+    assert.match(describeFastTrackWorkspaceStatus(notReady, 'manager'), /^Only finish handover after offer acceptance/);
+});
+
 test('fast-track document preview opens a modal only from explicit preview actions', () => {
     assert.match(
         fastTrackWorkspaceComponent,

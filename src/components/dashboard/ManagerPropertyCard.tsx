@@ -101,6 +101,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                 <div className="absolute right-3 top-3 z-10">
                     <PropertyShareAction
                         propertyTitle={title}
+                        status={property.status}
                         disabled={!canSharePublicly}
                         expanded={showShareModal}
                         onClick={(event) => {

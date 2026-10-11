@@ -24,12 +24,12 @@ import {
     managerPropertyStatusFiltersEqual,
     normalizeManagerPropertyStatusFilters,
 } from '@/lib/managerPropertyDashboard';
-import { formatPropertyFloorCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyFloorCaption, getListingDeleteWarning, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
-import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
 import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
 import type { ManagerListingAction } from '@/services/propertyService';
@@ -365,6 +365,8 @@ function PropertiesContent() {
     const openDeleteDialog = (property: Property) => {
         setPendingDeleteProperty(property);
     };
+
+    const deleteWarning = getListingDeleteWarning(pendingDeleteProperty?.status);
 
     const closeDeleteDialog = () => {
         if (loading) {
@@ -801,7 +803,7 @@ function PropertiesContent() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `Publish ${property.title} before sharing`}
+                                                    aria-label={isPropertyPubliclyShareable(property.status) ? `Share ${property.title}` : `${property.title}: ${getShareBlockedReason(property.status)}`}
                                                     disabled={!isPropertyPubliclyShareable(property.status)}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -809,7 +811,7 @@ function PropertiesContent() {
                                                         setShowShareModal(true);
                                                     }}
                                                     className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-45"
-                                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : "Publish this property before sharing"}
+                                                    title={isPropertyPubliclyShareable(property.status) ? "Share public listing" : getShareBlockedReason(property.status)}
                                                 >
                                                     <Share2 className="w-4 h-4" />
                                                 </button>
@@ -899,6 +901,11 @@ function PropertiesContent() {
                         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
                             Delete {pendingDeleteProperty.title}? This action cannot be undone.
                         </p>
+                        {deleteWarning && (
+                            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                                {deleteWarning}
+                            </p>
+                        )}
                         <div className="mt-6 flex justify-end gap-3">
                             <button
                                 type="button"
