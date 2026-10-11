@@ -299,17 +299,16 @@ export default function ManagerLeadsPage() {
         return () => window.clearInterval(timer);
     }, []);
 
-    const fetchLeads = useCallback(async (
-        selectedStatus = statusFilter,
-        options: { silent?: boolean } = {},
-    ) => {
+    // Leads are fetched unfiltered so the summary cards always show overall totals (#694);
+    // the status filter is applied on the page.
+    const fetchLeads = useCallback(async (options: { silent?: boolean } = {}) => {
         if (!options.silent) {
             setLoading(true);
             setError(null);
         }
         try {
             const [result, brokerRequestOffersResult, fastTrackCasesResult] = await Promise.all([
-                getBrokerLeads(selectedStatus === 'all' ? undefined : selectedStatus),
+                getBrokerLeads(),
                 getBrokerRequestOffers({ limit: 100, sort: 'created_at_desc', suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
@@ -319,7 +318,6 @@ export default function ManagerLeadsPage() {
             setLeads(mergeBrokerRequestOffersIntoManagerLeads(
                 result.data || [],
                 brokerRequestOffersResult.data || [],
-                selectedStatus,
             ));
             setFastTrackCases(fastTrackCasesResult.data || []);
             return true;
@@ -334,11 +332,11 @@ export default function ManagerLeadsPage() {
                 setLoading(false);
             }
         }
-    }, [statusFilter]);
+    }, []);
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true);
-        const refreshed = await fetchLeads(statusFilter, { silent: true });
+        const refreshed = await fetchLeads({ silent: true });
         setIsRefreshing(false);
         if (refreshed) {
             toast.success('Lead response desk refreshed.');
@@ -348,8 +346,8 @@ export default function ManagerLeadsPage() {
     };
 
     useEffect(() => {
-        void fetchLeads(statusFilter);
-    }, [fetchLeads, statusFilter]);
+        void fetchLeads();
+    }, [fetchLeads]);
 
     useWorkflowWorkspaceRefresh({
         tags: [
@@ -361,13 +359,16 @@ export default function ManagerLeadsPage() {
             WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
         ],
         refresh: async () => {
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         },
     });
 
-    const visibleSourceLeads = useMemo(() => (
+    const allVisibleLeads = useMemo(() => (
         filterVisibleManagerLeads(leads)
     ), [leads]);
+    const visibleSourceLeads = useMemo(() => (
+        statusFilter === 'all' ? allVisibleLeads : allVisibleLeads.filter((lead) => lead.status === statusFilter)
+    ), [allVisibleLeads, statusFilter]);
 
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -408,7 +409,7 @@ export default function ManagerLeadsPage() {
         setSearchQuery(searchParamQuery);
     }, [searchParamQuery]);
 
-    const summary = useMemo(() => summarizeManagerLeads(visibleSourceLeads, now), [now, visibleSourceLeads]);
+    const summary = useMemo(() => summarizeManagerLeads(allVisibleLeads, now), [allVisibleLeads, now]);
     const fastTrackCaseByLeadId = useMemo(() => {
         const mapping = new Map<string, FastTrackCase>();
 
@@ -515,13 +516,13 @@ export default function ManagerLeadsPage() {
                 },
             });
             toast.success('Document request sent to the user and the chat thread is live.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to request documents right now.');
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, publishWorkspaceSync, sendLeadMessage, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, sendLeadMessage, toast]);
 
     const handleRespondAndOpenMessages = useCallback(async (lead: Lead) => {
         if (!lead.user_id) {
@@ -560,7 +561,7 @@ export default function ManagerLeadsPage() {
                     propertyId: lead.property_id,
                 },
             });
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
             toast.success('Lead responded to. Opening the conversation thread.');
             navigate(`/manager/messages?conversation=${conversation.id}`);
         } catch (actionError: any) {
@@ -568,7 +569,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, navigate, publishWorkspaceSync, sendLeadMessage, statusFilter, toast]);
+    }, [fetchLeads, navigate, publishWorkspaceSync, sendLeadMessage, toast]);
 
     const openScheduleViewing = useCallback((lead: Lead) => {
         setScheduleLead(lead);
@@ -632,12 +633,12 @@ export default function ManagerLeadsPage() {
                 propertyInterested: result.data!.propertyInterested || result.data!.property_name,
             }, ...previous]);
             toast.success('Manual lead created and added to the response desk.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         } catch (createError: any) {
             toast.error(createError?.message || 'Unable to create the manual lead.');
             throw createError;
         }
-    }, [fetchLeads, statusFilter, toast]);
+    }, [fetchLeads, toast]);
 
     const handleScheduleViewing = useCallback(async () => {
         const assignedManagerId = scheduleLead?.broker_id || scheduleLead?.matched_broker_id;
@@ -688,13 +689,13 @@ export default function ManagerLeadsPage() {
                 },
             });
             toast.success('Viewing created successfully. The appointment and linked application are now in sync.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
         } catch (scheduleError: any) {
             toast.error(scheduleError?.message || 'Unable to schedule the viewing right now.');
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, publishWorkspaceSync, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, toast]);
 
     const handleLifecycleUpdate = useCallback(async (lead: Lead, nextOutcome: 'completed' | 'rejected') => {
         const closingAsWon = nextOutcome === 'completed';
@@ -732,7 +733,7 @@ export default function ManagerLeadsPage() {
                 },
             });
             toast.success(closingAsWon ? 'Lead marked won and lifecycle synced.' : 'Lead marked lost and lifecycle synced.');
-            await fetchLeads(statusFilter, { silent: true });
+            await fetchLeads({ silent: true });
             window.requestAnimationFrame(() => {
                 document.getElementById(`lead-lifecycle-status-${lead.id}`)?.focus();
             });
@@ -741,7 +742,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, publishWorkspaceSync, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, toast]);
 
     const handleExportCsv = useCallback(() => {
         if (visibleLeads.length === 0) {
