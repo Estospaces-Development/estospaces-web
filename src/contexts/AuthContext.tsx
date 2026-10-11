@@ -44,7 +44,7 @@ interface AuthContextType {
         email: string,
         password: string,
         role: string,
-        termsAcceptance: { acceptedAt: string; version: string; country?: string },
+        termsAcceptance: RegistrationTermsAcceptance,
     ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean; launchOffer?: LaunchOffer | null }>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
@@ -142,6 +142,36 @@ export const normalizeRegistrationNames = ({ firstName, lastName }: Registration
     first_name: String(firstName || '').trim().replace(/\s+/g, ' '),
     last_name: String(lastName || '').trim().replace(/\s+/g, ' '),
 });
+
+export interface RegistrationTermsAcceptance {
+    acceptedAt: string;
+    version: string;
+    country?: string;
+}
+
+// Country is optional for every role: it is sent only when one was chosen, so
+// a seeker who picks "Prefer not to say" signs up exactly as before.
+export const buildRegisterPayload = (
+    names: RegistrationNames,
+    email: string,
+    password: string,
+    role: string,
+    termsAcceptance: RegistrationTermsAcceptance,
+): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {
+        ...normalizeRegistrationNames(names),
+        email,
+        password,
+        role,
+        accepted_terms: true,
+        accepted_terms_version: termsAcceptance.version,
+        accepted_terms_at: termsAcceptance.acceptedAt,
+    };
+    if (termsAcceptance.country) {
+        payload.country = termsAcceptance.country;
+    }
+    return payload;
+};
 
 export const resolveVerificationEmailSent = (payload: unknown): boolean => {
     if (!payload || typeof payload !== 'object') {
@@ -602,7 +632,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
         email: string,
         password: string,
         role: string,
-        termsAcceptance: { acceptedAt: string; version: string; country?: string },
+        termsAcceptance: RegistrationTermsAcceptance,
     ) => {
         setError(null);
         try {
@@ -613,20 +643,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
                 return { success: false, error: message };
             }
 
-            const payload: Record<string, any> = {
-                first_name,
-                last_name,
-                email,
-                password,
-                role,
-                accepted_terms: true,
-                accepted_terms_version: termsAcceptance.version,
-                accepted_terms_at: termsAcceptance.acceptedAt,
-            };
-
-            if (role === 'manager' && termsAcceptance.country) {
-                payload.country = termsAcceptance.country;
-            }
+            const payload = buildRegisterPayload(names, email, password, role, termsAcceptance);
 
             const data = await apiFetch<any>(
                 `${CORE_SERVICE_URL()}/api/v1/auth/register`,

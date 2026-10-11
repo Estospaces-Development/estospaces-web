@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 import {
   normalizeGeoCountryCode,
   resolveGeoMarket,
+  getCatalogueGeoSignals,
   getCataloguePinnedMarket,
   getExplicitUserMarket,
   getGeoMarketSignalsFromUser,
+  getUserGeoSignals,
   mergeWithBrowserSignals,
   resolveGeoMarketFromClientHint,
 } from "@/lib/geoMarket";
@@ -90,4 +92,32 @@ test('unset hook signals keep the browser time zone (India device, en-GB, no cou
   assert.equal(resolveGeoMarketFromClientHint({ acceptLanguage: 'en-GB' }, merged), 'IN');
   assert.equal(resolveGeoMarket(mergeWithBrowserSignals(browser, { countryCode: 'GB' })), 'GB');
   assert.equal(resolveGeoMarket(mergeWithBrowserSignals({ acceptLanguage: 'en-IN', timeZone: 'Europe/London' }, {})), 'GB');
+});
+
+test("an unset override never erases the account's saved postcode", () => {
+  const user = { postcode: 'SW1A 1AA' };
+  for (const unset of [null, undefined, '']) {
+    assert.equal(getUserGeoSignals(user, { locationCode: unset }).locationCode, 'SW1A 1AA');
+  }
+  assert.equal(getUserGeoSignals(user, { locationCode: '600001' }).locationCode, '600001');
+  assert.equal(getUserGeoSignals({ user_metadata: { postcode: 'SW1A 1AA' } }, { locationCode: undefined }).locationCode, 'SW1A 1AA');
+});
+
+test('catalogue signals: typed postcode, account country, saved city/country preference, then saved postcode', () => {
+  const browser = { acceptLanguage: 'en-IN', timeZone: 'Asia/Kolkata' };
+  const marketOf = (signals: ReturnType<typeof getCatalogueGeoSignals>) => resolveGeoMarket(mergeWithBrowserSignals(browser, signals));
+
+  // saved UK postcode, no country, India time zone: the postcode wins over the time zone
+  assert.equal(marketOf(getCatalogueGeoSignals({ postcode: 'SW1A 1AA' }, { locationCode: null }, null)), 'GB');
+  // India account country wins over a saved UK postcode
+  assert.equal(marketOf(getCatalogueGeoSignals({ country: 'India', postcode: 'SW1A 1AA' }, { locationCode: null }, null)), 'IN');
+  // a typed postcode wins over the account country
+  assert.equal(marketOf(getCatalogueGeoSignals({ country: 'India', postcode: '600001' }, { locationCode: 'SW1A 1AA' }, 'SW1A 1AA')), 'GB');
+  // a saved city/country preference outranks the saved postcode, and the postcode is not sent alongside it
+  const withPreference = getCatalogueGeoSignals({ postcode: 'SW1A 1AA' }, { countryCode: 'IN', locationCode: undefined }, null);
+  assert.equal(withPreference.countryCode, 'IN');
+  assert.equal(withPreference.locationCode, null);
+  assert.equal(marketOf(withPreference), 'IN');
+  // nothing saved: the time zone decides
+  assert.equal(marketOf(getCatalogueGeoSignals({}, {}, null)), 'IN');
 });

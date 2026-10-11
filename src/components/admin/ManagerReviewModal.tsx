@@ -364,7 +364,13 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 documentId,
                 reuploadReason
             );
-            if (result.error) {
+            if (result.conflict) {
+                // A re-upload was already requested: reload so the document shows its real status, and say why.
+                setShowReuploadForm(null);
+                setReuploadReason('');
+                await fetchDetails();
+                setError(result.error);
+            } else if (result.error) {
                 setError(result.error);
             } else {
                 await fetchDetails();

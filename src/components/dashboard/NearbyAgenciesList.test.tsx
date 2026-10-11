@@ -340,3 +340,33 @@ test('the matched agent card says it is handling the request', () => {
   assert.match(markup, /Handling your request/);
   assert.doesNotMatch(markup, />Available</);
 });
+
+// web-app#679: without a computed distance the card promised "10-minute availability", but 10 minutes is the
+// request window, not a per-agent guarantee. Owner decision (11 Oct): say "Available now".
+test('nearby broker card says "Available now" when no distance is known, and keeps the km line otherwise', () => {
+  const baseBroker = {
+    id: 'broker-679',
+    name: 'Priya Realty',
+    company_name: 'Priya Estates Pvt Ltd',
+    postcode: '400001',
+    service_areas: ['400001'],
+    rating: 4.2,
+    review_count: 3,
+    fast_track_eligible: true,
+  };
+  const render = (distance_miles?: number) =>
+    renderToStaticMarkup(
+      <MemoryRouter>
+        <NearbyBrokerCard broker={{ ...baseBroker, distance_miles }} index={0} />
+      </MemoryRouter>,
+    );
+
+  const withoutDistance = render(undefined);
+  assert.match(withoutDistance, /Available now/);
+  assert.doesNotMatch(withoutDistance, /10-minute/);
+  assert.doesNotMatch(withoutDistance, /km away/);
+
+  const withDistance = render(1);
+  assert.match(withDistance, /1\.6 km away/);
+  assert.doesNotMatch(withDistance, /Available now/);
+});

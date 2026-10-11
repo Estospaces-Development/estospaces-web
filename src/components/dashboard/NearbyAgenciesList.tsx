@@ -37,7 +37,7 @@ const formatBrokerArea = (value?: string | null) => {
 };
 const formatBrokerDistance = (distanceMiles?: number) => {
     if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) {
-        return '10-minute availability';
+        return 'Available now';
     }
 
     return `${(distanceMiles * 1.609344).toFixed(1)} km away`;

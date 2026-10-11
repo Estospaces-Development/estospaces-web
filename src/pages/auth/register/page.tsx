@@ -25,10 +25,45 @@ type RegisterDraft = {
     country: string;
 };
 
-const MANAGER_COUNTRIES = ['India', 'United Kingdom'] as const;
+const REGISTER_COUNTRIES = ['India', 'United Kingdom'] as const;
 
 function normalizeRegisterCountry(value: string): string {
-    return (MANAGER_COUNTRIES as readonly string[]).includes(value) ? value : '';
+    return (REGISTER_COUNTRIES as readonly string[]).includes(value) ? value : '';
+}
+
+// Required for managers; optional for seekers, who can leave "Prefer not to say".
+export function RegisterCountryField({ role, value, error, onChange, onBlur }: {
+    role: string;
+    value: string;
+    error: string;
+    onChange: (country: string) => void;
+    onBlur: () => void;
+}) {
+    const isManager = role === 'manager';
+    return (
+        <div className="mt-1">
+            <label htmlFor="register-country" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                {isManager ? 'Country' : 'Country (optional)'}
+            </label>
+            <select
+                id="register-country"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onBlur={onBlur}
+                className={`w-full min-w-0 truncate px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
+            >
+                <option value="">{isManager ? 'Select country' : 'Prefer not to say'}</option>
+                {REGISTER_COUNTRIES.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                ))}
+            </select>
+            {error && (
+                <p id="register-country-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
 }
 
 const commonMistypedEmailTlds = new Set([
@@ -532,7 +567,7 @@ export default function RegisterPage() {
             const result = await register({ firstName, lastName }, normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
-                country: role === 'manager' ? country : undefined,
+                country: country || undefined,
             });
 
             if (!result.success) {
@@ -736,28 +771,13 @@ export default function RegisterPage() {
                                 <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">Managing properties</span>
                             </button>
                         </div>
-                        {role === 'manager' && (
-                            <div className="mt-1">
-                                <label htmlFor="register-country" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Country</label>
-                                <select
-                                    id="register-country"
-                                    value={country}
-                                    onChange={(e) => { setCountry(e.target.value); setCountryError(''); }}
-                                    onBlur={() => setCountryError(role === 'manager' && !country ? 'Please select your country' : '')}
-                                    className={`w-full min-w-0 truncate px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${countryError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
-                                >
-                                    <option value="">Select country</option>
-                                    {MANAGER_COUNTRIES.map((item) => (
-                                        <option key={item} value={item}>{item}</option>
-                                    ))}
-                                </select>
-                                {countryError && (
-                                    <p id="register-country-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
-                                        {countryError}
-                                    </p>
-                                )}
-                            </div>
-                        )}
+                        <RegisterCountryField
+                            role={role}
+                            value={country}
+                            error={countryError}
+                            onChange={(next) => { setCountry(next); setCountryError(''); }}
+                            onBlur={() => setCountryError(role === 'manager' && !country ? 'Please select your country' : '')}
+                        />
                     </div>
 
                     <div className="mb-4 grid gap-4 sm:grid-cols-2">
