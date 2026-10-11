@@ -17,6 +17,7 @@ import { normalizeManagerBranchNameInput } from '@/lib/managerProfileInput';
 import { getReverificationTriggerFields } from '@/lib/managerProfileReverification';
 import {
     getMissingManagerVerificationProfileFields,
+    isIndiaComplianceUser,
     type ManagerVerificationProfileField,
 } from '@/lib/managerVerificationProfileRequirements';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
@@ -27,7 +28,6 @@ import {
     formatLaunchPropertyText,
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
-    LAUNCH_COUNTRY_CODE,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -127,7 +127,7 @@ export default function ManagerProfilePage() {
         taxId: '',
     });
     const geoMarket = useUserGeoMarket(user, { locationCode: formData.postcode || user?.postcode });
-    const isIndiaMarket = geoMarket === LAUNCH_COUNTRY_CODE;
+    const isIndiaMarket = isIndiaComplianceUser(user);
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
@@ -362,7 +362,7 @@ export default function ManagerProfilePage() {
         }
         const missingVerificationProfileFields = getMissingManagerVerificationProfileFields({
             profileType: managerProfile?.profile_type,
-            market: geoMarket,
+            market: isIndiaComplianceUser(user) ? 'IN' : undefined,
             companyName: formData.companyName,
             businessPhone: formData.businessPhone,
             companyAddress: formData.companyAddress,
@@ -522,7 +522,7 @@ export default function ManagerProfilePage() {
     const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
     const missingVerificationProfileFields = getMissingManagerVerificationProfileFields({
         profileType: managerProfile?.profile_type,
-        market: geoMarket,
+        market: isIndiaComplianceUser(user) ? 'IN' : undefined,
         companyName: formData.companyName,
         businessPhone: formData.businessPhone,
         companyAddress: formData.companyAddress,

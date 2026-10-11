@@ -7,8 +7,7 @@ import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Cl
 import { useEffect, useMemo, useState } from 'react';
 import type { ManagerDocument, ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
-import { getMissingManagerVerificationProfileFields } from '@/lib/managerVerificationProfileRequirements';
+import { getMissingManagerVerificationProfileFields, isIndiaComplianceUser } from '@/lib/managerVerificationProfileRequirements';
 import { getDocumentAccessUrl, openDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     getMissingVerificationBundleFileKeys,
@@ -30,7 +29,6 @@ interface ManagerDocumentPreview {
 
 export default function VerificationPage() {
     const { user } = useAuth();
-    const geoMarket = useUserGeoMarket(user);
     const navigate = useNavigate();
     const { 
         managerProfile, 
@@ -118,7 +116,7 @@ export default function VerificationPage() {
 
         return getMissingManagerVerificationProfileFields({
             profileType: managerProfile.profile_type,
-            market: geoMarket,
+            market: isIndiaComplianceUser(user) ? 'IN' : undefined,
             companyName: managerProfile.company_name || '',
             businessPhone: managerProfile.business_phone || '',
             companyAddress: managerProfile.company_address || '',
@@ -132,7 +130,7 @@ export default function VerificationPage() {
             cmpCertificateUrl: managerProfile.cmp_certificate_url || '',
             hasClientMoney: managerProfile.has_client_money,
         }).map(({ label }) => label.toLowerCase());
-    }, [managerProfile, geoMarket]);
+    }, [managerProfile, user]);
     const profileNeedsCompletion = missingProfileFields.length > 0;
     const effectiveVerificationStatus = profileNeedsCompletion && verificationStatus === 'approved'
         ? 'verification_required'

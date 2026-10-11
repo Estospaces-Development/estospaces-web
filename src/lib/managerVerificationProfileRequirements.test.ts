@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getMissingManagerVerificationProfileFields } from './managerVerificationProfileRequirements';
+import { getMissingManagerVerificationProfileFields, isIndiaComplianceUser } from './managerVerificationProfileRequirements';
 
 const completeBrokerProfile = {
     profileType: 'broker' as const,
@@ -67,4 +67,12 @@ test('GB and unknown markets keep the UK redress requirements and broker licence
     ];
     assert.deepEqual(getMissingManagerVerificationProfileFields({ ...blank, market: 'GB' }), expected);
     assert.deepEqual(getMissingManagerVerificationProfileFields(blank), expected);
+});
+
+test('isIndiaComplianceUser follows stored country first, then stored country code', () => {
+    assert.equal(isIndiaComplianceUser({ country: 'United Kingdom', user_metadata: { country_code: 'IN' } }), false);
+    assert.equal(isIndiaComplianceUser({ country: ' india ' }), true);
+    assert.equal(isIndiaComplianceUser({ country: '', user_metadata: { country_code: 'IN' } }), true);
+    assert.equal(isIndiaComplianceUser({}), false);
+    assert.equal(isIndiaComplianceUser(null), false);
 });
