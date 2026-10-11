@@ -56,7 +56,7 @@ test('dashboard city searches carry their market through to Discover inventory f
   assert.match(dashboardSource, /inferSearchMarketFromText\([\s\S]*searchFilters\.location\.trim\(\) \|\| searchFilters\.keyword\.trim\(\)[\s\S]*serializeSearchMarketParam\(requestedMarket\)/);
   assert.match(searchBarSource, /const submittedMarket = inferSearchMarketFromText\(nextFilters\.location \|\| trimmedKeyword\);/);
   assert.match(discoverSource, /const searchMarket = resolvePropertySearchMarket\([\s\S]*market: preferredSearchDefaults\.market \|\| requestedMarket,[\s\S]*query: searchQuery,[\s\S]*fallback: geoMarket,/);
-  assert.match(discoverSource, /usePreferredSearchDefaults\(user\?\.id\)/);
+  assert.match(discoverSource, /usePreferredSearchDefaults\(user\?\.id, getExplicitUserMarket\(user\)\)/);
   assert.match(discoverSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)/);
   assert.match(discoverSource, /searchAll\(searchQuery, \{\s*country: searchMarket,/);
   assert.match(discoverSource, /filterPropertiesForMarket\(result\.data, searchMarket\)/);

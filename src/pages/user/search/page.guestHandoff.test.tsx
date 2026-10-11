@@ -84,7 +84,7 @@ const mountSearch = async ({
                 isPropertySaved: () => false,
             }),
         },
-        '@/lib/useGeoMarket': { useUserGeoMarket: () => 'IN' },
+        '@/lib/useGeoMarket': { useUserGeoMarket: () => 'IN', useCatalogueGeoMarket: () => 'IN' },
         '@/lib/usePreferredSearchDefaults': { usePreferredSearchDefaults: () => ({ ready: true, failed: false }) },
     };
     const module = { exports: {} as { default: React.ComponentType } };

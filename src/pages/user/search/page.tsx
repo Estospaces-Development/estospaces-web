@@ -54,7 +54,8 @@ import {
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { getExplicitUserMarket } from '@/lib/geoMarket';
+import { useCatalogueGeoMarket, useUserGeoMarket } from '@/lib/useGeoMarket';
 import { usePreferredSearchDefaults } from '@/lib/usePreferredSearchDefaults';
 import { filterPropertiesForMarket } from '@/lib/propertyMarket';
 import { USER_SEARCH_PATH } from '@/lib/userSearchRoute';
@@ -88,7 +89,7 @@ const PropertySearch = () => {
     const routerLocation = useRouterLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated, user } = useAuth();
-    const preferredSearchDefaults = usePreferredSearchDefaults(isAuthenticated ? user?.id : null);
+    const preferredSearchDefaults = usePreferredSearchDefaults(isAuthenticated ? user?.id : null, getExplicitUserMarket(user));
     const loginPath = getLoginPath();
     const { error: showToastError } = useToast();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
@@ -134,12 +135,12 @@ const PropertySearch = () => {
         [filterOptions?.property_types],
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
-    const userGeoMarket = useUserGeoMarket(user, {
+    const userGeoMarket = useCatalogueGeoMarket(user, {
         countryCode: preferredSearchDefaults.market || undefined,
         locationCode: preferredSearchDefaults.market
             ? preferredSearchDefaults.location || undefined
             : location || user?.postcode,
-    });
+    }, location);
     const fallbackGeoMarket = useUserGeoMarket(undefined, {
         countryCode: market || undefined,
         locationCode: location,

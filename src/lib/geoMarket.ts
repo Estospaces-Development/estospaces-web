@@ -146,6 +146,34 @@ export const getGeoMarketSignalsFromUser = (user?: GeoMarketUserContext | null):
   };
 };
 
+/**
+ * The market the account itself declares (profile country, then stored country code).
+ * It outranks postcodes, saved cities and browser signals, so an India account
+ * never lands in the UK catalogue by accident.
+ */
+export const getExplicitUserMarket = (user?: GeoMarketUserContext | null): GeoMarketCode | null => {
+  const signals = getGeoMarketSignalsFromUser(user);
+  if (String(signals.countryName || "").trim()) {
+    return normalizeGeoCountryCode(signals.countryName);
+  }
+  return normalizeGeoCountryCode(signals.countryCode);
+};
+
+/** Catalogue market pinned by a typed postcode/PIN first, then the account's declared country. */
+export const getCataloguePinnedMarket = (
+  user?: GeoMarketUserContext | null,
+  typedLocationCode?: string | null,
+): GeoMarketCode | null => getLaunchCountryFromLocationCode(typedLocationCode) || getExplicitUserMarket(user);
+
+/** Explicit signals win over the browser's, but unset ones never erase the browser's time zone or language. */
+export const mergeWithBrowserSignals = (
+  browserSignals: GeoMarketSignals,
+  signals: GeoMarketSignals,
+): GeoMarketSignals => ({
+  ...browserSignals,
+  ...Object.fromEntries(Object.entries(signals).filter(([, value]) => value != null && value !== "")),
+});
+
 export const getBrowserGeoMarketSignals = (): GeoMarketSignals => {
   if (typeof window === "undefined") {
     return {};

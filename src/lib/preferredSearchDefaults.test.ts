@@ -7,7 +7,7 @@ import {
   getLaunchLocationCodePlaceholder,
   isValidLaunchLocationCodeForCountry,
 } from './launchLocale';
-import { getMarketCurrencyCode, resolveLocationFormMarket, resolvePreferredSearchDefaults } from './preferredSearchDefaults';
+import { applyAccountMarket, getMarketCurrencyCode, resolveLocationFormMarket, resolvePreferredSearchDefaults } from './preferredSearchDefaults';
 
 test('country-level search preference selects a market without treating the country as a city', () => {
   assert.deepEqual(resolvePreferredSearchDefaults('India'), { market: 'IN', location: '' });
@@ -54,4 +54,14 @@ test('Indian location keeps the 6-digit PIN code rules and INR budget', () => {
   assert.equal(getLaunchLocationCodeErrorMessage(market, undefined, '6000'), 'Please enter a valid 6-digit Indian PIN code');
   assert.equal(isValidLaunchLocationCodeForCountry('600001', market), true);
   assert.equal(getMarketCurrencyCode(market), 'INR');
+});
+
+test('a saved city cannot switch an account out of its own market', () => {
+  const manchester = resolvePreferredSearchDefaults('Manchester');
+  assert.deepEqual(applyAccountMarket(manchester, 'IN'), { market: null, location: '' });
+  assert.deepEqual(applyAccountMarket(manchester, 'GB'), manchester);
+  assert.deepEqual(applyAccountMarket(manchester, null), manchester);
+  const chennai = resolvePreferredSearchDefaults('Chennai');
+  assert.deepEqual(applyAccountMarket(chennai, 'IN'), chennai);
+  assert.deepEqual(applyAccountMarket(chennai, 'GB'), { market: null, location: '' });
 });

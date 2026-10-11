@@ -3,7 +3,9 @@
 import {
   fetchClientGeoHint,
   getBrowserGeoMarketSignals,
+  getCataloguePinnedMarket,
   getGeoMarketSignalsFromUser,
+  mergeWithBrowserSignals,
   resolveGeoMarket,
   resolveGeoMarketFromClientHint,
   type GeoMarketCode,
@@ -20,10 +22,9 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
     acceptLanguage,
     timeZone,
   }), [acceptLanguage, countryCode, countryName, locationCode, timeZone]);
-  const initialMarket = useMemo(() => resolveGeoMarket({
-    ...getBrowserGeoMarketSignals(),
-    ...stableSignals,
-  }), [stableSignals]);
+  const initialMarket = useMemo(() => resolveGeoMarket(
+    mergeWithBrowserSignals(getBrowserGeoMarketSignals(), stableSignals),
+  ), [stableSignals]);
   const [market, setMarket] = useState<GeoMarketCode>(initialMarket);
 
   useEffect(() => {
@@ -31,10 +32,7 @@ export const useGeoMarket = (signals: GeoMarketSignals = {}): GeoMarketCode => {
 
     const syncMarket = async () => {
       const browserSignals = getBrowserGeoMarketSignals();
-      const fallbackSignals = {
-        ...browserSignals,
-        ...stableSignals,
-      };
+      const fallbackSignals = mergeWithBrowserSignals(browserSignals, stableSignals);
       const hint = await fetchClientGeoHint();
       const nextMarket = resolveGeoMarketFromClientHint(hint, fallbackSignals);
 
@@ -59,6 +57,20 @@ export const useUserGeoMarket = (
   overrides: GeoMarketSignals = {},
 ): GeoMarketCode => useGeoMarket({
   ...getGeoMarketSignalsFromUser(user),
-  // An empty override (e.g. no saved search market) must not erase the account's own country.
-  ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value != null && value !== "")),
+  ...overrides,
 });
+
+/**
+ * Market for the property catalogue (dashboard, Discover, Search). A postcode or PIN the
+ * person typed wins, then the account's declared country, so a saved city, a stored
+ * postcode or browser language never moves an India account into the UK catalogue.
+ * Accounts without a country fall back to the usual signals.
+ */
+export const useCatalogueGeoMarket = (
+  user: GeoMarketUserContext | null | undefined,
+  overrides: GeoMarketSignals = {},
+  typedLocationCode?: string | null,
+): GeoMarketCode => {
+  const pinned = getCataloguePinnedMarket(user, typedLocationCode);
+  return useUserGeoMarket(pinned ? null : user, pinned ? { countryCode: pinned } : overrides);
+};
