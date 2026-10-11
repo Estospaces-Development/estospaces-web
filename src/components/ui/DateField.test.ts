@@ -177,3 +177,74 @@ test('verifier F1: every month renders the same 42-cell grid, including 5-row an
     assert.equal(iso(buildDateFieldCalendarDays(day('2027-01-01'))[0]), '2026-12-27');
     assert.equal(iso(buildDateFieldCalendarDays(day('2027-01-01'))[41]), '2027-02-06');
 });
+
+test('QA-MB-0995: rotating to landscape with the calendar open keeps it on screen when the trigger is left below the viewport', () => {
+    // Portrait 390x844: the trigger sat at y=700. After rotating to 844x390 the page keeps its
+    // scroll offset, so the trigger is now far below the new 390px-high viewport.
+    const viewport = { width: 844, height: 390 };
+    const placement = resolveDateFieldPopoverPlacement(
+        { top: 700, right: 374, bottom: 752, left: 16 },
+        { width: 320, height: 300 },
+        viewport,
+        'left',
+    );
+
+    assert.ok(placement.top >= 16, `top ${placement.top} inside viewport`);
+    assert.ok(placement.top + Math.min(300, placement.maxHeight) <= viewport.height - 16);
+    assert.ok(placement.maxHeight <= viewport.height - 32);
+});
+
+test('QA-MB-0995: a taller-than-viewport calendar is capped to the viewport and scrolls inside it after rotation', () => {
+    const viewport = { width: 844, height: 390 };
+    const placement = resolveDateFieldPopoverPlacement(
+        { top: 700, right: 374, bottom: 752, left: 16 },
+        { width: 320, height: 430 },
+        viewport,
+        'left',
+    );
+
+    assert.equal(placement.top, 16);
+    assert.equal(placement.maxHeight, 358);
+});
+
+test('QA-MB-0995: a trigger scrolled above the viewport does not push the calendar off the top', () => {
+    const viewport = { width: 390, height: 844 };
+    const placement = resolveDateFieldPopoverPlacement(
+        { top: -500, right: 374, bottom: -448, left: 16 },
+        { width: 320, height: 460 },
+        viewport,
+        'left',
+    );
+
+    assert.ok(placement.top >= 16, `top ${placement.top} inside viewport`);
+    assert.ok(placement.top + Math.min(460, placement.maxHeight) <= viewport.height - 16);
+});
+
+test('QA-MB-0995: wherever the trigger ends up, the rendered panel stays inside both portrait and landscape viewports', () => {
+    for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 908, height: 694 }]) {
+        for (const panelHeight of [300, 430, 460]) {
+            for (let triggerTop = -900; triggerTop <= 1400; triggerTop += 50) {
+                for (const align of ['left', 'right'] as const) {
+                    const placement = resolveDateFieldPopoverPlacement(
+                        { top: triggerTop, right: 374, bottom: triggerTop + 52, left: 16 },
+                        { width: 320, height: panelHeight },
+                        viewport,
+                        align,
+                    );
+                    const label = `${viewport.width}x${viewport.height} panel ${panelHeight} trigger ${triggerTop} ${align}`;
+                    const rendered = Math.min(panelHeight, placement.maxHeight);
+                    assert.ok(placement.top >= 16, `top inside viewport: ${label}`);
+                    assert.ok(placement.top + rendered <= viewport.height - 16, `bottom inside viewport: ${label}`);
+                    assert.ok(placement.left >= 16 && placement.left + placement.width <= viewport.width - 16, `horizontal: ${label}`);
+                    assert.ok(placement.maxHeight > 0, `usable height: ${label}`);
+                }
+            }
+        }
+    }
+});
+
+test('QA-MB-0995: the open calendar re-measures on orientation change as well as resize', () => {
+    const source = readFileSync(new URL('./DateField.tsx', import.meta.url), 'utf8');
+    assert.match(source, /window\.addEventListener\('orientationchange', updatePopoverPlacement\);/);
+    assert.match(source, /window\.removeEventListener\('orientationchange', updatePopoverPlacement\);/);
+});

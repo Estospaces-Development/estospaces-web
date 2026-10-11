@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+    canRequestCaseFileDocuments,
     countFastTrackReplacementRequests,
     getCaseFileDocumentReviewState,
     getFastTrackApprovedDocumentRecordIds,
@@ -158,4 +159,31 @@ test('upload checklist badge counts uploaded documents flagged for replacement (
         getUploadChecklistBadgeCopy({ itemCount: 0, actionNeeded: 0, inFlight: 0, fastTrackReplacementCount: 0 }),
         'No open requests yet',
     );
+});
+
+// MB-0438 (web half): the "Request a document" form stayed open on completed and cancelled cases.
+test('a closed case takes no new document requests, and only managers raise them', () => {
+    assert.equal(canRequestCaseFileDocuments({ role: 'manager', caseClosed: false }), true);
+    assert.equal(canRequestCaseFileDocuments({ role: 'manager', caseClosed: true }), false);
+    assert.equal(canRequestCaseFileDocuments({ role: 'user', caseClosed: false }), false);
+    assert.equal(canRequestCaseFileDocuments({ role: 'user', caseClosed: true }), false);
+    assert.equal(canRequestCaseFileDocuments({ role: 'manager', caseClosed: isFastTrackCaseClosed({ workspaceFinalStatus: 'cancelled' }) }), false);
+    assert.equal(canRequestCaseFileDocuments({ role: 'manager', caseClosed: isFastTrackCaseClosed(completedCase) }), false);
+});
+
+test('the case file hides the request form, guards submission and closes the waiting copy on a closed case', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/case-file/CaseFileWorkspace.tsx'), 'utf8');
+    const handlerStart = source.indexOf('const handleCreateRequest');
+    const handler = source.slice(handlerStart, source.indexOf('};', handlerStart));
+
+    assert.ok(source.includes('const canRequestDocuments = canRequestCaseFileDocuments({ role, caseClosed: fastTrackCaseClosed });'));
+    assert.ok(source.includes('{canRequestDocuments ? ('));
+    const formHeading = source.indexOf('Request a document');
+    const beforeForm = source.slice(Math.max(0, formHeading - 400), formHeading);
+    assert.ok(beforeForm.includes('canRequestDocuments'));
+    assert.ok(!beforeForm.includes('role === "manager"'));
+    assert.match(handler, /if \(!caseFile \|\| !canRequestDocuments\) \{\s*return;/);
+    assert.ok(source.includes('<ActorWaitingCard caseFile={caseFile} caseClosed={fastTrackCaseClosed} />'));
+    assert.ok(source.includes('getCaseFileWaitingCopy(summary, caseFile.requests, caseClosed)'));
+    assert.ok(source.includes('getCaseFileWaitingCopy(summary, caseFile?.requests || [], fastTrackCaseClosed)'));
 });

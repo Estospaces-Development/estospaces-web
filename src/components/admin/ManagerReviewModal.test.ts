@@ -123,3 +123,16 @@ test('manager review modal requires meaningful rejection reupload and revocation
     assert.match(source, /disabled=\{Boolean\(rejectReasonError\) \|\| actionLoading === 'reject'\}/);
     assert.match(source, /disabled=\{Boolean\(reuploadReasonError\) \|\| actionLoading\}/);
 });
+
+test('a 409 on a re-upload request reloads the manager documents and shows the server message (#698)', () => {
+    const start = source.indexOf('const handleRequestReupload');
+    const handler = source.slice(start, source.indexOf('// Render', start));
+    const conflictBlock = handler.match(/if \(result\.conflict\) \{([\s\S]*?)\} else if \(result\.error\)/)?.[1];
+
+    assert.ok(conflictBlock, 'the handler has a conflict branch');
+    assert.match(conflictBlock, /setShowReuploadForm\(null\)/);
+    assert.match(conflictBlock, /setReuploadReason\(''\)/);
+    // fetchDetails clears the error banner, so the server message is set after the reload.
+    assert.ok(conflictBlock.indexOf('await fetchDetails()') > -1);
+    assert.ok(conflictBlock.indexOf('setError(result.error)') > conflictBlock.indexOf('await fetchDetails()'));
+});

@@ -2,6 +2,7 @@
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import ProfileReverificationWarning from '@/components/manager/ProfileReverificationWarning';
+import ManagerCountryField from '@/components/manager/ManagerCountryField';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Building, Globe, Save, CheckCircle, Upload, Hash, Trash2, AlertCircle } from 'lucide-react';
@@ -15,6 +16,7 @@ import { resolveMediaUrl } from '@/lib/mediaUrls';
 import { buildManagerProfileSyncPayload } from '@/lib/managerProfileSync';
 import { normalizeManagerBranchNameInput } from '@/lib/managerProfileInput';
 import { getReverificationTriggerFields } from '@/lib/managerProfileReverification';
+import { isManagerCountryRefusal, resolveManagerProfileCountry } from '@/lib/managerProfileCountry';
 import {
     getMissingManagerVerificationProfileFields,
     isIndiaComplianceUser,
@@ -109,6 +111,7 @@ export default function ManagerProfilePage() {
         phone: '',
         address: '',
         postcode: '',
+        country: '',
         companyName: '',
         branchName: '',
         serviceAreas: '',
@@ -147,6 +150,7 @@ export default function ManagerProfilePage() {
         const loadedPostcode = formatLaunchLocationCode(user.postcode ?? '');
         const loadedBio = managerProfile?.company_description ?? user?.user_metadata?.bio ?? '';
         const loadedWebsite = user.user_metadata?.website ?? '';
+        const loadedCountry = resolveManagerProfileCountry(user);
         personalBaselineRef.current = {
             firstName,
             lastName,
@@ -155,6 +159,7 @@ export default function ManagerProfilePage() {
             postcode: loadedPostcode,
             website: loadedWebsite,
             bio: loadedBio,
+            country: loadedCountry,
         };
 
         setFormData(prev => ({
@@ -165,6 +170,7 @@ export default function ManagerProfilePage() {
             phone: user ? (user.phone ?? '') : prev.phone,
             address: user ? loadedAddress : prev.address,
             postcode: user ? loadedPostcode : prev.postcode,
+            country: loadedCountry,
             bio: loadedBio,
             website: user ? loadedWebsite : prev.website,
             // Broker / manager fields
@@ -196,7 +202,7 @@ export default function ManagerProfilePage() {
         setConfirmingAvatarRemoval(false);
     }, [user, managerProfile, isManagerProfileLoading]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         isEditingProfileRef.current = true;
         const nextValue = (() => {
             if (e.target.name === 'postcode') {
@@ -435,6 +441,7 @@ export default function ManagerProfilePage() {
                 phone: formData.phone,
                 address: formData.address,
                 postcode: formData.postcode,
+                country: formData.country,
             };
             const changedMetadata: Record<string, string> = {};
             if (formData.bio !== (personalBaseline.bio ?? '')) {
@@ -472,6 +479,13 @@ export default function ManagerProfilePage() {
             const { data, error } = await userService.updateProfile(payload);
             
             if (error) {
+                if (payload.country !== undefined && isManagerCountryRefusal(error)) {
+                    // Core refused the change (for example verification was approved in
+                    // another session). Show its message, restore the saved country, and
+                    // re-read the profile so the field locks if it should.
+                    setFormData(prev => ({ ...prev, country: personalBaseline.country ?? '' }));
+                    void refetchManagerData();
+                }
                 throw new Error(error);
             }
 
@@ -795,6 +809,12 @@ export default function ManagerProfilePage() {
                                             className={iconInputClass} />
                                     </div>
                                 </div>
+                                <ManagerCountryField
+                                    value={formData.country}
+                                    locked={isVerified}
+                                    disabled={isManagerProfileLoading}
+                                    onChange={handleChange}
+                                />
                                 <div>
                                     <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{locationCodeLabel}</label>
                                     <div className="relative">

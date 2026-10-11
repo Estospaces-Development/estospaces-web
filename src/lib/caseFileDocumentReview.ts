@@ -41,6 +41,15 @@ export const isFastTrackCaseClosed = (fastTrackCase: FastTrackCaseLike): boolean
     return (Boolean(workspaceStatus) && workspaceStatus !== 'active') || CLOSED_FINAL_STATUSES.has(text(fastTrackCase.finalStatus));
 };
 
+// Only managers raise document requests, and a closed case takes no new ones.
+export const canRequestCaseFileDocuments = ({
+    role,
+    caseClosed,
+}: {
+    role: string;
+    caseClosed: boolean;
+}): boolean => role === 'manager' && !caseClosed;
+
 export const getCaseFileDocumentReviewState = ({
     linkStatus,
     documentId,

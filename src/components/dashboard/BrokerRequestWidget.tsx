@@ -2023,12 +2023,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                         type="checkbox"
                         checked={fastTrackEnabled}
                         onChange={(event) => setFastTrackEnabled(event.target.checked)}
-                        aria-label={brokerCopy.useDispatchTitle}
+                        aria-label={brokerCopy.fastTrackOptInTitle}
                         className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
                     <span>
-                        <span className="block font-semibold text-gray-900 dark:text-white">{brokerCopy.useDispatchTitle}</span>
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">{brokerCopy.useDispatchSubtitle}</span>
+                        <span className="block font-semibold text-gray-900 dark:text-white">{brokerCopy.fastTrackOptInTitle}</span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">{brokerCopy.fastTrackOptInSubtitle}</span>
                     </span>
                 </label>
 

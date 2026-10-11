@@ -19,7 +19,7 @@ test('dashboard command-center surfaces keep discovery counters readable and fil
 test('user dashboard broker request opt-in checkbox exposes an accessible name', () => {
   const brokerRequestWidget = readSource('src/components/dashboard/BrokerRequestWidget.tsx');
 
-  assert.match(brokerRequestWidget, /aria-label=\{brokerCopy\.useDispatchTitle\}/);
+  assert.match(brokerRequestWidget, /aria-label=\{brokerCopy\.fastTrackOptInTitle\}/);
 });
 
 

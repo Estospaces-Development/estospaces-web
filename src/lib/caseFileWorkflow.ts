@@ -1,6 +1,7 @@
 import type { CaseFileSummary } from "./caseFileDocuments";
 
 type CaseFileLaneState =
+  | "case_closed"
   | "waiting_for_documents"
   | "waiting_for_manager_review"
   | "waiting_for_updated_document"
@@ -21,7 +22,12 @@ export const getCaseFileLaneState = (
     "openRequestCount" | "pendingReviewCount" | "reuploadCount"
   >,
   requests: CaseFileRequestStatusLike[] = [],
+  caseClosed = false,
 ): CaseFileLaneState => {
+  if (caseClosed) {
+    return "case_closed";
+  }
+
   const requestStatuses = requests.map((request) =>
     normalizedStatus(request.status),
   );
@@ -61,8 +67,15 @@ export const getCaseFileWaitingCopy = (
     "openRequestCount" | "pendingReviewCount" | "reuploadCount"
   >,
   requests: CaseFileRequestStatusLike[] = [],
+  caseClosed = false,
 ) => {
-  switch (getCaseFileLaneState(summary, requests)) {
+  switch (getCaseFileLaneState(summary, requests, caseClosed)) {
+    case "case_closed":
+      return {
+        waitingOn: "Case closed",
+        explanation:
+          "This case is closed, so there are no further documents or steps to wait on.",
+      };
     case "waiting_for_updated_document":
       return {
         waitingOn: "Waiting for updated document",

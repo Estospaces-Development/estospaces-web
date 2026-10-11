@@ -156,26 +156,45 @@ export const uploadMediaFile = async (
 
 /**
  * Uploads several files, at most `concurrency` at a time, so a batch of large photos does not
- * flood the media service's per-client rate limit. Results keep the order of `files`.
+ * flood the media service's per-client rate limit. Every file is attempted and `results` keeps the
+ * order of `files`, so one failure does not discard the files that did upload (QA MB-0937).
  */
-export const uploadMediaFiles = async (
+export const uploadMediaFilesSettled = async (
     files: File[],
     entityType: string,
     entityId: string,
     concurrency = 2,
-): Promise<MediaFile[]> => {
-    const results: MediaFile[] = new Array(files.length);
+): Promise<PromiseSettledResult<MediaFile>[]> => {
+    const results: PromiseSettledResult<MediaFile>[] = new Array(files.length);
     let next = 0;
     const worker = async () => {
         while (next < files.length) {
             const index = next;
             next += 1;
-            results[index] = await uploadMediaFile(files[index], entityType, entityId, files[index].name);
+            results[index] = await uploadMediaFile(files[index], entityType, entityId, files[index].name).then(
+                (value): PromiseFulfilledResult<MediaFile> => ({ status: 'fulfilled', value }),
+                (reason): PromiseRejectedResult => ({ status: 'rejected', reason }),
+            );
         }
     };
     await Promise.all(Array.from({ length: Math.min(Math.max(concurrency, 1), files.length) }, worker));
     return results;
 };
+
+/** Like `uploadMediaFilesSettled`, but rejects with the first failure once every upload has settled. */
+export const uploadMediaFiles = async (
+    files: File[],
+    entityType: string,
+    entityId: string,
+    concurrency = 2,
+): Promise<MediaFile[]> => (
+    (await uploadMediaFilesSettled(files, entityType, entityId, concurrency)).map((result) => {
+        if (result.status === 'rejected') {
+            throw result.reason;
+        }
+        return result.value;
+    })
+);
 
 export const reassignMediaEntity = async (
     fromEntityType: string,

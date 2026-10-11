@@ -13,7 +13,7 @@ import {
 import { useLocation } from "react-router-dom";
 import * as propertyService from "../services/propertyService";
 import { getUserProperties } from "@/services/userPropertiesService";
-import { uploadMediaFiles } from "@/services/mediaService";
+import { uploadMediaFilesSettled } from "@/services/mediaService";
 import { getErrorMessage } from "@/lib/apiUtils";
 import { isAuthRoutePath } from "@/lib/authUtils";
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from "@/contexts/WorkspaceSyncContext";
@@ -590,8 +590,9 @@ interface PropertyContextType {
   getProperty: (id: string) => Property | undefined;
   /** Authoritative single-property read, independent of list pagination. */
   fetchPropertyById: (id: string) => Promise<PropertyByIdResult>;
-  uploadImages: (entityId: string, files: File[]) => Promise<string[]>;
-  uploadVideos: (entityId: string, files: File[]) => Promise<string[]>;
+  /** One result per file, in order, so a failed file does not hide the URLs of the others. */
+  uploadImages: (entityId: string, files: File[]) => Promise<PromiseSettledResult<string>[]>;
+  uploadVideos: (entityId: string, files: File[]) => Promise<PromiseSettledResult<string>[]>;
 
   selectProperty: (id: string) => void;
   deselectProperty: (id: string) => void;
@@ -1135,9 +1136,13 @@ export const PropertyProvider = ({
   const uploadPropertyMedia = async (
     entityId: string,
     files: File[],
-  ): Promise<string[]> => {
-    const uploads = await uploadMediaFiles(files, "property", entityId);
-    return uploads.map((mediaFile) => mediaFile.file_url);
+  ): Promise<PromiseSettledResult<string>[]> => {
+    const uploads = await uploadMediaFilesSettled(files, "property", entityId);
+    return uploads.map((upload) => (
+      upload.status === "fulfilled"
+        ? { status: "fulfilled", value: upload.value.file_url }
+        : upload
+    ));
   };
 
   return (

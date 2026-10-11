@@ -165,13 +165,48 @@ export const getCataloguePinnedMarket = (
   typedLocationCode?: string | null,
 ): GeoMarketCode | null => getLaunchCountryFromLocationCode(typedLocationCode) || getExplicitUserMarket(user);
 
+const withoutUnsetSignals = (signals: GeoMarketSignals): GeoMarketSignals => (
+  Object.fromEntries(Object.entries(signals).filter(([, value]) => value != null && value !== ""))
+);
+
+/** Account signals with the caller's overrides on top; an unset override never erases the account's own signal (its saved postcode). */
+export const getUserGeoSignals = (
+  user?: GeoMarketUserContext | null,
+  overrides: GeoMarketSignals = {},
+): GeoMarketSignals => ({
+  ...getGeoMarketSignalsFromUser(user),
+  ...withoutUnsetSignals(overrides),
+});
+
+/**
+ * Signals for the property catalogue (dashboard, Discover, Search): typed postcode/PIN, then the
+ * account country, then a saved city or country preference (`overrides.countryCode`), then the saved
+ * postcode, then the browser's time zone and language (added by the hook).
+ */
+export const getCatalogueGeoSignals = (
+  user: GeoMarketUserContext | null | undefined,
+  overrides: GeoMarketSignals = {},
+  typedLocationCode?: string | null,
+): GeoMarketSignals => {
+  const pinned = getCataloguePinnedMarket(user, typedLocationCode);
+  if (pinned) {
+    return { countryCode: pinned };
+  }
+
+  return {
+    ...getGeoMarketSignalsFromUser(user),
+    ...(overrides.countryCode ? { locationCode: null } : {}),
+    ...withoutUnsetSignals(overrides),
+  };
+};
+
 /** Explicit signals win over the browser's, but unset ones never erase the browser's time zone or language. */
 export const mergeWithBrowserSignals = (
   browserSignals: GeoMarketSignals,
   signals: GeoMarketSignals,
 ): GeoMarketSignals => ({
   ...browserSignals,
-  ...Object.fromEntries(Object.entries(signals).filter(([, value]) => value != null && value !== "")),
+  ...withoutUnsetSignals(signals),
 });
 
 export const getBrowserGeoMarketSignals = (): GeoMarketSignals => {

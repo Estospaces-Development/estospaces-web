@@ -116,7 +116,9 @@ import {
 } from "@/lib/managerPropertyVideoPreview";
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { createManagerPropertyCreateSession } from "@/lib/managerPropertyCreateSession";
-import { mergeUploadedUrlsInOrder, moveItem } from "@/lib/mediaOrder";
+import { moveItem } from "@/lib/mediaOrder";
+import { uploadPendingFiles } from "@/lib/mediaUploadRetry";
+import { findDuplicateListingImage } from "@/lib/propertyImageDuplicates";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import {
   applyAddressSectionChange,
@@ -645,6 +647,10 @@ export default function AddPropertyPage() {
   } = useManagerVerification();
   const { user } = useAuth();
   const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
+  // Files that already uploaded keep their URL, so a Save that fails part-way (one
+  // file rejected, or the property save itself) re-sends only what is still missing.
+  const uploadedImageUrlsRef = useRef(new WeakMap<File, string>());
+  const uploadedVideoUrlsRef = useRef(new WeakMap<File, string>());
   const [createSession] = useState(() => createManagerPropertyCreateSession());
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -1722,10 +1728,20 @@ export default function AddPropertyPage() {
         .filter((image): image is File => image instanceof File)
         .map(getLocalFileFingerprint),
     );
+    // Images already saved on the listing are URL strings, so the check above
+    // cannot see them; the media library knows each upload's original name and size.
+    const savedImageRecords = mediaFiles.map((media) => ({
+      name: media.original_name,
+      size: media.file_size,
+      url: media.file_url,
+    }));
 
     files.forEach((file) => void (async () => {
       const fingerprint = getLocalFileFingerprint(file);
-      if (seenImageFingerprints.has(fingerprint)) {
+      if (
+        seenImageFingerprints.has(fingerprint) ||
+        findDuplicateListingImage(file, savedImageRecords, formData.images)
+      ) {
         showToast(`${file.name} is already in the gallery.`, "info");
         return;
       }
@@ -1881,46 +1897,14 @@ export default function AddPropertyPage() {
     setIsDirty(true);
   };
 
-  const processImages = async (files: (File | string)[]): Promise<string[]> => {
-    const newFiles = files.filter((file): file is File => typeof file !== "string");
+  const processImages = (files: (File | string)[]): Promise<string[]> => {
     const mediaEntityId = idValue || draftMediaEntityIdRef.current;
-
-    let uploadedUrls: string[] = [];
-    if (newFiles.length > 0) {
-      try {
-        uploadedUrls = await uploadImages(mediaEntityId, newFiles);
-        if (uploadedUrls.length !== newFiles.length) {
-          throw new Error(
-            "Image upload did not complete for every selected file.",
-          );
-        }
-      } catch (err) {
-        throw err;
-      }
-    }
-
-    return mergeUploadedUrlsInOrder(files, uploadedUrls);
+    return uploadPendingFiles(files, uploadedImageUrlsRef.current, (pending) => uploadImages(mediaEntityId, pending), "image");
   };
 
-  const processVideos = async (files: (File | string)[]): Promise<string[]> => {
-    const newFiles = files.filter((file): file is File => typeof file !== "string");
+  const processVideos = (files: (File | string)[]): Promise<string[]> => {
     const mediaEntityId = idValue || draftMediaEntityIdRef.current;
-
-    let uploadedUrls: string[] = [];
-    if (newFiles.length > 0) {
-      try {
-        uploadedUrls = await uploadVideos(mediaEntityId, newFiles);
-        if (uploadedUrls.length !== newFiles.length) {
-          throw new Error(
-            "Video upload did not complete for every selected file.",
-          );
-        }
-      } catch (err: any) {
-        throw err;
-      }
-    }
-
-    return mergeUploadedUrlsInOrder(files, uploadedUrls);
+    return uploadPendingFiles(files, uploadedVideoUrlsRef.current, (pending) => uploadVideos(mediaEntityId, pending), "video");
   };
 
   const buildPropertyData = async (): Promise<Partial<Property>> => {

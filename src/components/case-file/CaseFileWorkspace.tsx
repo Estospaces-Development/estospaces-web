@@ -81,6 +81,7 @@ import {
 } from "@/lib/liveCaseWorkspace";
 import { getCaseFileSupportCopy } from "@/lib/userJourneyCopy";
 import {
+  canRequestCaseFileDocuments,
   countFastTrackReplacementRequests,
   formatFastTrackReplacementNotice,
   getCaseFileDocumentReviewState,
@@ -592,12 +593,12 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
   ];
 };
 
-const ActorWaitingCard = ({ caseFile }: { caseFile: CaseFile }) => {
+const ActorWaitingCard = ({ caseFile, caseClosed }: { caseFile: CaseFile; caseClosed: boolean }) => {
   const summary = summarizeCaseFileDocuments(
     caseFile.documents,
     caseFile.requests,
   );
-  const waitingState = getCaseFileWaitingCopy(summary, caseFile.requests);
+  const waitingState = getCaseFileWaitingCopy(summary, caseFile.requests, caseClosed);
 
   return (
     <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
@@ -735,6 +736,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     [fastTrackWorkspaceCase],
   );
   const fastTrackCaseClosed = isFastTrackCaseClosed(fastTrackWorkspaceCase || liveFastTrackCase);
+  const canRequestDocuments = canRequestCaseFileDocuments({ role, caseClosed: fastTrackCaseClosed });
   const fastTrackReplacementCount = countFastTrackReplacementRequests(fastTrackWorkspaceCase);
   const linkedJourney = useMemo(
     () =>
@@ -1008,8 +1010,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     [caseFile?.requests],
   );
   const waitingState = useMemo(
-    () => getCaseFileWaitingCopy(summary, caseFile?.requests || []),
-    [caseFile?.requests, summary],
+    () => getCaseFileWaitingCopy(summary, caseFile?.requests || [], fastTrackCaseClosed),
+    [caseFile?.requests, fastTrackCaseClosed, summary],
   );
   const showSection = useCallback(
     (tab: CaseFileTab) => stackedLayout || activeTab === tab,
@@ -1126,7 +1128,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   };
 
   const handleCreateRequest = async () => {
-    if (!caseFile) {
+    if (!caseFile || !canRequestDocuments) {
       return;
     }
     const validationErrors =
@@ -1888,7 +1890,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 {normalizedWorkflowSummary}
               </p>
             </div>
-            <ActorWaitingCard caseFile={caseFile} />
+            <ActorWaitingCard caseFile={caseFile} caseClosed={fastTrackCaseClosed} />
             <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
                 {role === "user" ? "Open document requests" : "Open requests"}
@@ -2580,7 +2582,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             )}
           </div>
 
-          {role === "manager" ? (
+          {canRequestDocuments ? (
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
               <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                 <Plus className="h-5 w-5 text-orange-500" />
@@ -2757,6 +2759,11 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 Add request
               </button>
             </div>
+          ) : null}
+          {role === "manager" && fastTrackCaseClosed ? (
+            <p className="rounded-3xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-gray-300">
+              This case is closed, so new document requests can no longer be added.
+            </p>
           ) : null}
 
           {openRequests.length > 0 ? (
