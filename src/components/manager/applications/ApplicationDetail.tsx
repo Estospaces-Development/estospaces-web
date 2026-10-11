@@ -320,6 +320,19 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const purchaseDisplayStage = resolveSaleJourneyDisplayStage(application);
   const isPurchaseApplication = application?.listingType !== "rent";
   const isRentApplication = application?.listingType === "rent";
+  // Booking refuses any change to a withdrawn or rejected application, so its workflow is read-only.
+  const applicationClosed =
+    application?.status === APPLICATION_STATUS.WITHDRAWN ||
+    application?.status === APPLICATION_STATUS.REJECTED;
+  const closedWorkflowNote = applicationClosed ? (
+    <p
+      role="status"
+      data-application-closed-note="true"
+      className="mb-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300"
+    >
+      This application is closed, so its workflow is read-only.
+    </p>
+  ) : null;
   const supportsManagedPurchaseWorkflow = Boolean(
     application && shouldShowManagerManagedPurchaseWorkspace(application),
   );
@@ -2161,6 +2174,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             liveStage={application.liveStage}
             source={application.source}
             linkedViewingStatus={displayApplication.fastTrackCase?.viewing?.status}
+            statusReason={application.journeyStatusReason}
           />
         </div>
         {displayApplication.fastTrackCase && (
@@ -2392,6 +2406,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                 )}
 
                 {supportsManagedPurchaseWorkflow && !isSaleProgression && (
+                  <fieldset disabled={applicationClosed} className="m-0 min-w-0 border-0 p-0 lg:col-span-2">
+                  {closedWorkflowNote}
                   <div
                     ref={purchaseWorkspaceSectionRef}
                     className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
@@ -2942,10 +2958,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       </div>
                     )}
                   </div>
+                  </fieldset>
                 )}
 
                 {/* Next Steps & Approved Message */}
                 {isRentApplication && (
+                  <fieldset disabled={applicationClosed} className="m-0 min-w-0 border-0 p-0 lg:col-span-2">
+                  {closedWorkflowNote}
                   <div
                     ref={rentWorkspaceSectionRef}
                     className="lg:col-span-2 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 dark:border-orange-800/50 dark:from-orange-900/10 dark:to-gray-900"
@@ -3328,6 +3347,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       </div>
                     )}
                   </div>
+                  </fieldset>
                 )}
 
                 {isPurchaseApplication &&

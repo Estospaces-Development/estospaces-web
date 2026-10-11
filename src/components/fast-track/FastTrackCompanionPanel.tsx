@@ -816,6 +816,18 @@ export default function FastTrackCompanionPanel({
   };
 
   const renderStageActions = () => {
+    // Booking refuses workflow actions on a cancelled or expired case (errFastTrackCaseClosed). Handover keeps its
+    // controls: a completed case still allows confirming the handover and retrying its sync.
+    if (fastTrackCase.workspaceFinalStatus !== "active" && fastTrackCase.stage !== "handover") {
+      return (
+        <div
+          data-fast-track-companion-closed="true"
+          className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300"
+        >
+          This Fast Track case is closed, so its actions are read-only.
+        </div>
+      );
+    }
     switch (fastTrackCase.stage) {
       case "viewing":
         return renderViewingActions();
