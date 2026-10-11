@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import { resolveWorkspaceSection } from "./liveCaseWorkspace";
 import {
+  formatApplicationStatusError,
+  getHeaderApproveBlockedReason,
   shouldShowManagerDecisionControls,
   shouldShowManagerManagedPurchaseWorkspace,
   shouldShowManagerWithdrawControl,
@@ -67,4 +69,30 @@ test("manager application detail exposes guided purchase checks for submitted sa
     }),
     false,
   );
+});
+
+test("backend approval refusals read as friendly sentences (E2E-f)", () => {
+  assert.equal(
+    formatApplicationStatusError("cannot approve the tenancy application until referencing and jurisdiction-specific checks are complete"),
+    "This tenancy application can't be approved yet. Complete the referencing and compliance checks first.",
+  );
+  assert.equal(
+    formatApplicationStatusError("cannot approve the sale application until buyer qualification and AML checks are complete"),
+    "This sale application can't be approved yet. Complete the buyer qualification and AML checks first.",
+  );
+  assert.equal(formatApplicationStatusError("rejection reason is required"), "Rejection reason is required.");
+  assert.equal(formatApplicationStatusError("  Already done.  "), "Already done.");
+  assert.equal(formatApplicationStatusError("Is it ready?"), "Is it ready?");
+  assert.equal(formatApplicationStatusError(""), "Failed to update the application status.");
+  assert.equal(formatApplicationStatusError(undefined), "Failed to update the application status.");
+});
+
+test("the header Approve waits for the rent checks, like the rent workflow Approve (E2E-f)", () => {
+  assert.equal(
+    getHeaderApproveBlockedReason({ isRentApplication: true, rentApprovalReady: false }),
+    "Complete the referencing and compliance checks before approving.",
+  );
+  assert.equal(getHeaderApproveBlockedReason({ isRentApplication: true, rentApprovalReady: true }), null);
+  // Sale applications have no client-side equivalent: the server decides.
+  assert.equal(getHeaderApproveBlockedReason({ isRentApplication: false, rentApprovalReady: false }), null);
 });

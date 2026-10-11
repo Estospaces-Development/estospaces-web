@@ -109,6 +109,7 @@ import {
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import CaseFileWorkspace from "@/components/case-file/CaseFileWorkspace";
 import {
+  getHeaderApproveBlockedReason,
   resolveManagerApplicationOverviewFocus,
   resolveManagerApplicationTab,
   shouldShowManagerDecisionControls,
@@ -1015,6 +1016,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     referencingCheck?.status === "completed" &&
     (rightToRentCheck?.status === "completed" ||
       rightToRentCheck?.status === "not_required");
+  const headerApproveBlockedReason = getHeaderApproveBlockedReason({
+    isRentApplication,
+    rentApprovalReady,
+  });
 
   const renderGuidedProgressRail = (
     steps: Array<{
@@ -2012,7 +2017,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     type="button"
                     aria-label="Approve application"
                     onClick={() => void handleManagerDecision("approved")}
-                    disabled={managerDecisionAction !== null}
+                    disabled={managerDecisionAction !== null || headerApproveBlockedReason !== null}
+                    title={headerApproveBlockedReason ?? undefined}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {managerDecisionAction === "approved" ? (

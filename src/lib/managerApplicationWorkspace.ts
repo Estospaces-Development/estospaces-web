@@ -91,3 +91,46 @@ export const shouldShowManagerManagedPurchaseWorkspace = (
     displayStage === "buyer_qualification" ||
     displayStage === "offer";
 };
+
+/**
+ * The header Approve mirrors the rent workflow's own Approve button: a
+ * tenancy cannot be approved until referencing and the jurisdiction checks are
+ * complete. Sale applications have no client-side equivalent, so the server
+ * decides and this returns null.
+ */
+export const getHeaderApproveBlockedReason = ({
+  isRentApplication,
+  rentApprovalReady,
+}: {
+  isRentApplication: boolean;
+  rentApprovalReady: boolean;
+}): string | null => (
+  isRentApplication && !rentApprovalReady
+    ? "Complete the referencing and compliance checks before approving."
+    : null
+);
+
+const KNOWN_STATUS_ERRORS: Array<[RegExp, string]> = [
+  [
+    /^cannot approve the sale application until buyer qualification and aml checks are complete/i,
+    "This sale application can't be approved yet. Complete the buyer qualification and AML checks first.",
+  ],
+  [
+    /^cannot approve the tenancy application until referencing and jurisdiction-specific checks are complete/i,
+    "This tenancy application can't be approved yet. Complete the referencing and compliance checks first.",
+  ],
+];
+
+/** Backend status refusals arrive as raw lowercase text; show them as sentences. */
+export const formatApplicationStatusError = (message?: string | null): string => {
+  const text = String(message ?? "").trim();
+  if (!text) {
+    return "Failed to update the application status.";
+  }
+  const known = KNOWN_STATUS_ERRORS.find(([pattern]) => pattern.test(text));
+  if (known) {
+    return known[1];
+  }
+  const sentence = text.charAt(0).toUpperCase() + text.slice(1);
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+};
