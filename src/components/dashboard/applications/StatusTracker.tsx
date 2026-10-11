@@ -29,9 +29,11 @@ interface StatusTrackerProps {
     status: string;
     listingType?: string;
     linkedViewingStatus?: string | null;
+    // Booking's journey_status_reason: who closed a withdrawn application (booking#111).
+    statusReason?: string;
 }
 
-const StatusTracker = ({ status, listingType = 'sale', linkedViewingStatus }: StatusTrackerProps) => {
+const StatusTracker = ({ status, listingType = 'sale', linkedViewingStatus, statusReason }: StatusTrackerProps) => {
     const isSaleJourney = listingType !== 'rent';
 
     const getStages = (): Stage[] => {
@@ -187,7 +189,7 @@ const StatusTracker = ({ status, listingType = 'sale', linkedViewingStatus }: St
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Application Withdrawn</h3>
-                        <p className="text-gray-500 dark:text-gray-400">You have withdrawn this application</p>
+                        <p className="text-gray-500 dark:text-gray-400">{statusReason || 'You have withdrawn this application'}</p>
                     </div>
                 </div>
             </div>
