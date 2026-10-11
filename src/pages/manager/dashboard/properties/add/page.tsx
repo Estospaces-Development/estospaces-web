@@ -117,6 +117,7 @@ import {
 import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { createManagerPropertyCreateSession } from "@/lib/managerPropertyCreateSession";
 import { mergeUploadedUrlsInOrder, moveItem } from "@/lib/mediaOrder";
+import { findDuplicateListingImage } from "@/lib/propertyImageDuplicates";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import {
   applyAddressSectionChange,
@@ -1722,10 +1723,20 @@ export default function AddPropertyPage() {
         .filter((image): image is File => image instanceof File)
         .map(getLocalFileFingerprint),
     );
+    // Images already saved on the listing are URL strings, so the check above
+    // cannot see them; the media library knows each upload's original name and size.
+    const savedImageRecords = mediaFiles.map((media) => ({
+      name: media.original_name,
+      size: media.file_size,
+      url: media.file_url,
+    }));
 
     files.forEach((file) => void (async () => {
       const fingerprint = getLocalFileFingerprint(file);
-      if (seenImageFingerprints.has(fingerprint)) {
+      if (
+        seenImageFingerprints.has(fingerprint) ||
+        findDuplicateListingImage(file, savedImageRecords, formData.images)
+      ) {
         showToast(`${file.name} is already in the gallery.`, "info");
         return;
       }
