@@ -60,3 +60,19 @@ export const evaluatePendingPaymentPoll = (account: PollAccount, startedAt: numb
     }
     return now - startedAt < PENDING_PAYMENT_POLL_WINDOW_MS ? 'continue' : 'timeout';
 };
+
+/** "12 Nov 2026": day first, as India and the UK read dates (a locale default printed 11/12/2026). */
+export const formatPaidThroughDate = (value: string): string => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? value
+        : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+/** Why the plan buttons are off while a subscription exists: plan changes are not supported yet (payment service
+ * answers plan_change_not_available), so say so instead of showing a disabled button with no reason. */
+export const SUBSCRIPTION_PLAN_CHANGE_UNAVAILABLE_REASON = 'You already have a subscription. Changing plans is not available yet; your current plan stays active until its paid period ends.';
+
+/** The "no second checkout" note only makes sense while the subscription is still open. */
+export const describeSubscriptionStatusLine = (statusLabel: string, terminal: boolean): string =>
+    terminal ? `Status: ${statusLabel}.` : `Status: ${statusLabel}. No second checkout will be created while this subscription is unresolved.`;
