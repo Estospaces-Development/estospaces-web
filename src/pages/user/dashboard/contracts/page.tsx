@@ -65,6 +65,7 @@ import {
 } from "@/lib/fastTrackCaseContext";
 import {
   buildUserPropertyPortfolio,
+  getPortfolioFooterStatusLabel,
   summarizeUserPropertyPortfolio,
 } from "@/lib/userPropertyPortfolio";
 import { paginateItems } from "@/lib/pagination";
@@ -87,7 +88,8 @@ const formatContractCurrency = (contract: Contract | null | undefined, amount?: 
     currencyCode: (contract as any)?.property_currency || (contract as any)?.currency,
   })
 );
-
+
+
 // Contract and timeline dates are calendar days; reading them in the viewer's zone shifted them a day
 // earlier west of UTC (MB-0999).
 // Month names avoid dd/mm vs mm/dd misreading (01/11 read as 11 January in the US).
@@ -672,15 +674,19 @@ export default function ContractsPage() {
                             </div>
                           </div>
 
-                          <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
-                            {item.statusSummary}
-                          </p>
+                          {item.statusSummary && (
+                            <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                              {item.statusSummary}
+                            </p>
+                          )}
 
                           <div className="mt-4 flex min-w-0 flex-col items-start gap-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
-                            <span className="text-xs font-black uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-                              {item.statusLabel}
-                            </span>
-                            <span className="max-w-full text-left text-sm font-bold text-orange-600 dark:text-orange-300">
+                            {getPortfolioFooterStatusLabel(item) && (
+                              <span className="text-xs font-black uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
+                                {getPortfolioFooterStatusLabel(item)}
+                              </span>
+                            )}
+                            <span className="max-w-full text-left text-sm font-bold text-orange-600 dark:text-orange-300 min-[380px]:ml-auto">
                               {item.actionLabel}
                             </span>
                           </div>
@@ -877,12 +883,12 @@ export default function ContractsPage() {
                           )}
                         </div>
 
-                        <div className="mt-6 flex items-center gap-3">
+                        <div className="mt-6 flex flex-wrap items-center gap-3">
                           {needsSignature && (
                             <button
                               onClick={() => handleSign(contract.id)}
                               disabled={signingId === contract.id}
-                              className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                              className="min-h-11 basis-40 flex-1 whitespace-nowrap px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
                             >
                               {signingId === contract.id ? (
                                 <>
@@ -899,7 +905,7 @@ export default function ContractsPage() {
                           <button
                             onClick={() => openContractDetail(contract)}
                             aria-label={`Open contract ${contract.id}`}
-                            className={`${needsSignature ? "" : "flex-1"} py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2`}
+                            className={`min-h-11 basis-40 flex-1 whitespace-nowrap px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2`}
                           >
                             <Eye size={14} /> View Document
                           </button>
@@ -916,7 +922,7 @@ export default function ContractsPage() {
                                 statusLabel: getStatusLabel(contract.status || ""),
                               });
                             }}
-                            className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Download size={18} />
                           </button>
@@ -975,11 +981,11 @@ export default function ContractsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="user-contract-detail-title"
-            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-8 shadow-2xl dark:bg-gray-800"
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl dark:bg-gray-800 sm:p-8"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
                   Linked contract
                 </p>
@@ -996,7 +1002,7 @@ export default function ContractsPage() {
               <button
                 onClick={closeContractDetail}
                 aria-label="Close contract detail"
-                className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-900"
               >
                 <X size={18} />
               </button>

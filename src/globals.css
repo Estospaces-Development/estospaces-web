@@ -905,7 +905,7 @@
     overflow-x: auto;
   }
 
-  .role-workspace-content table:not(.docs-data-table) {
+  .role-workspace-content table:not(.docs-data-table):not([data-own-scroll]) {
     display: block;
     width: 100%;
     max-width: 100%;

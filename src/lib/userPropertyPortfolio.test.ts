@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildUserPropertyPortfolio,
+  getPortfolioFooterStatusLabel,
   summarizeUserPropertyPortfolio,
 } from "@/lib/userPropertyPortfolio";
 import type { Application } from "@/services/applicationsService";
@@ -128,4 +129,15 @@ test("buildUserPropertyPortfolio falls back to completed sale applications when 
   assert.equal(portfolio.length, 1);
   assert.equal(portfolio[0].ownershipLabel, "Bought");
   assert.equal(portfolio[0].propertyTitle, "Harbour Villa");
+});
+
+test("active rented card says each status once: no repeated RENTED footer and no redundant active sentence (#712)", () => {
+  const portfolio = buildUserPropertyPortfolio({ contracts, applications, saleProgressions });
+  const rented = portfolio.find((item) => item.ownershipLabel === "Rented")!;
+
+  assert.equal(rented.portfolioStatus, "Active");
+  assert.equal(rented.statusSummary, "");
+  assert.equal(getPortfolioFooterStatusLabel(rented), "");
+  assert.equal(getPortfolioFooterStatusLabel({ ownershipLabel: "Rented", statusLabel: "Rent in progress" }), "Rent in progress");
+  assert.equal(getPortfolioFooterStatusLabel({ ownershipLabel: "Bought", statusLabel: "Purchase completed" }), "Purchase completed");
 });

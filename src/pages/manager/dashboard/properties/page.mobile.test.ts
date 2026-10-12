@@ -32,3 +32,11 @@ test('inventory status filter offers every real listing state and no phantom one
         assert.doesNotMatch(block, new RegExp(`value: '${phantom}'`));
     }
 });
+
+test('swipe hint shows only on overflow, and the table opts out of the global table-as-scroller rule (#721)', () => {
+    assert.match(source, /\{tableOverflows && \(\s*<p[^>]*>\s*Swipe sideways to see status and actions\./);
+    assert.doesNotMatch(source, /sm:hidden">\s*Swipe sideways/);
+    assert.match(source, /<table data-own-scroll /);
+    const css = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
+    assert.match(css, /table:not\(\.docs-data-table\):not\(\[data-own-scroll\]\)/);
+});
