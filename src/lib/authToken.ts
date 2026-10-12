@@ -22,6 +22,11 @@ function readStorageValue(storage: Storage | undefined, key: string) {
 export function readStoredAuthToken() {
     const ownToken = readStorageValue(globalThis.sessionStorage, SESSION_TOKEN_KEY);
     if (ownToken) {
+        // A sign-in made before the browser remembered sign-ins: remember it now, unless another tab's sign-in
+        // already is, so it too survives a restart.
+        if (!readStorageValue(globalThis.localStorage, REMEMBERED_TOKEN_KEY)) {
+            rememberToken(ownToken);
+        }
         return ownToken;
     }
     const remembered = readStorageValue(globalThis.localStorage, REMEMBERED_TOKEN_KEY);
