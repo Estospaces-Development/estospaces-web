@@ -53,6 +53,20 @@ test('#725 a failed delete rejects so the context can restore the row', async ()
     }
 });
 
+// Already deleted (another tab): the server's 404 is what the user asked for, so no error and no restore.
+test('#725 a delete that finds the notification already gone succeeds', async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({ success: false, error: 'Notification not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+    })) as typeof fetch;
+    try {
+        await deleteNotification('0b8f6d5e-1111-4222-8333-444455556666');
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+});
+
 test('#725 restoreNotification re-inserts newest-first and never duplicates', () => {
     const newest = makeNotification('a', '2026-09-03T10:00:00Z');
     const middle = makeNotification('b', '2026-09-02T10:00:00Z');

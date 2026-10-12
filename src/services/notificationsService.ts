@@ -3,7 +3,7 @@
  * Fetches and creates notifications via the notification-service backend
  */
 
-import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getErrorStatus, getServiceUrl } from '@/lib/apiUtils';
 import { getNotificationNavigationPath as resolveNotificationNavigationPath } from '@/lib/notificationNavigation';
 import { isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
 import { formatNotificationDateTime } from '@/lib/notificationTime';
@@ -356,13 +356,20 @@ export async function deleteNotification(notificationId: string): Promise<void> 
     if (notificationId.startsWith('local-')) {
         return;
     }
-    await apiFetch<any>(
-        `${NOTIFICATION_URL()}/api/v1/notifications/${encodeURIComponent(notificationId)}`,
-        {
-            method: 'DELETE',
-            suppressErrorToast: true,
-        },
-    );
+    try {
+        await apiFetch<any>(
+            `${NOTIFICATION_URL()}/api/v1/notifications/${encodeURIComponent(notificationId)}`,
+            {
+                method: 'DELETE',
+                suppressErrorToast: true,
+            },
+        );
+    } catch (error) {
+        // 404: it is already gone (deleted in another tab), which is what the user asked for.
+        if (getErrorStatus(error) !== 404) {
+            throw error;
+        }
+    }
 }
 
 /** Put a notification whose delete failed back in its newest-first position. */
