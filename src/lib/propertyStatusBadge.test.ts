@@ -5,6 +5,8 @@ import {
     formatPropertyFloorCaption,
     formatPropertyInventoryCaption,
     getListingDeleteWarning,
+    getManagerPropertyStatusBadge,
+    getPropertyStatusFilterChipClasses,
     type PropertyFloorCaptionInput,
 } from './propertyStatusBadge';
 
@@ -85,4 +87,16 @@ test('delete warning stays out of the way for listings with no tenancy or sale s
     for (const status of ['draft', 'published', 'available', 'pending_approval', 'rejected', 'suspended', '', undefined]) {
         assert.equal(getListingDeleteWarning(status), null);
     }
+});
+
+test('every status filter chip is coloured and Suspended matches its rose table badge (#723)', () => {
+    const hue = (className: string) => className.match(/(?:bg|text)-([a-z]+)-\d/)?.[1];
+    for (const status of ['available', 'pending', 'sold', 'rented', 'rejected', 'suspended', 'draft']) {
+        const chip = getPropertyStatusFilterChipClasses(status);
+        assert.doesNotMatch(`${chip.color} ${chip.bgColor}`, /gray/, status);
+    }
+    const suspended = getPropertyStatusFilterChipClasses('suspended');
+    assert.equal(hue(suspended.bgColor), 'rose');
+    assert.equal(hue(suspended.color), 'rose');
+    assert.equal(hue(getManagerPropertyStatusBadge('suspended').dotClassName), 'rose');
 });
