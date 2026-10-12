@@ -96,7 +96,7 @@ test('manager review modal treats approved profile documents as approved for sta
     assert.match(source, /profileStatus === 'approved'/);
     assert.match(source, /return 'approved'/);
     assert.match(source, /const effectiveDocuments = documents\.map/);
-    assert.match(source, /getManagerApprovalBlocker\(profile, effectiveDocuments\)/);
+    assert.match(source, /getManagerApprovalBlocker\(profile, effectiveDocuments, \{ indiaCompliance: userInfo\?\.indiaCompliance \}\)/);
     assert.match(source, /effectiveDocuments\.map/);
 });
 
@@ -135,4 +135,9 @@ test('a 409 on a re-upload request reloads the manager documents and shows the s
     // fetchDetails clears the error banner, so the server message is set after the reload.
     assert.ok(conflictBlock.indexOf('await fetchDetails()') > -1);
     assert.ok(conflictBlock.indexOf('setError(result.error)') > conflictBlock.indexOf('await fetchDetails()'));
+});
+
+test('manager review modal passes the India rule to both approval checks', () => {
+    assert.match(source, /\{ indiaCompliance: details\?\.userInfo\?\.indiaCompliance \}/);
+    assert.match(source, /\{ indiaCompliance: userInfo\?\.indiaCompliance \}/);
 });

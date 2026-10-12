@@ -91,6 +91,21 @@ test('manager approval blocker allows a complete broker profile with required do
   assert.equal(blocker, null);
 });
 
+// The redress scheme is UK-only; an India manager's form never asks for it, so it must not block their approval
+// (an India manager was blocked on dev, 12 Oct 2026). Without core's India flag the UK rule stays.
+test('manager approval blocker skips the UK redress fields only for an India manager', () => {
+  const profile = buildProfile({ redress_scheme_name: '', redress_membership_number: '' });
+  const documents = [buildDocument('government_id'), buildDocument('broker_license')];
+
+  assert.equal(getManagerApprovalBlocker(profile, documents, { indiaCompliance: true }), null);
+  assert.match(getManagerApprovalBlocker(profile, documents, { indiaCompliance: false }) || '', /redress scheme name, redress membership number/);
+  assert.match(getManagerApprovalBlocker(profile, documents) || '', /redress scheme name, redress membership number/);
+  assert.match(
+    getManagerApprovalBlocker(buildProfile({ redress_scheme_name: '', complaints_contact: '' }), documents, { indiaCompliance: true }) || '',
+    /^Complete complaints contact before approving this manager\.$/,
+  );
+});
+
 test('manager service areas normalize json, csv, and duplicate entries', () => {
   assert.deepEqual(
     normalizeManagerServiceAreas('["600001", "600", "600001", " sw1a 1aa "]'),

@@ -125,7 +125,8 @@ export interface ManagerVerificationDetails {
     profile: ManagerProfile | null;
     documents: ManagerDocument[];
     auditLog: AuditLogEntry[];
-    userInfo: { email?: string; full_name?: string; website?: string } | null;
+    /** indiaCompliance: core's India rule for this manager (no UK redress scheme); false when core does not say. */
+    userInfo: { email?: string; full_name?: string; website?: string; indiaCompliance?: boolean } | null;
 }
 
 const PLACEHOLDER_MANAGER_COMPANY_NAMES = new Set([
@@ -183,6 +184,7 @@ const getLatestManagerDocumentsByType = (documents: ManagerDocument[]): Map<Mana
 export const getManagerApprovalBlocker = (
     profile: ManagerProfile | null,
     documents: ManagerDocument[],
+    options: { indiaCompliance?: boolean } = {},
 ): string | null => {
     if (!profile) {
         return 'Load the manager profile before approving this manager.';
@@ -212,11 +214,15 @@ export const getManagerApprovalBlocker = (
     if (!hasText(profile.complaints_contact)) {
         missingFields.push('complaints contact');
     }
-    if (!hasText(profile.redress_scheme_name)) {
-        missingFields.push('redress scheme name');
-    }
-    if (!hasText(profile.redress_membership_number)) {
-        missingFields.push('redress membership number');
+    // The redress scheme is UK-only: an India manager's form never asks for it (as core's
+    // missingAgencyProfileFields), so it must not block approving them.
+    if (!options.indiaCompliance) {
+        if (!hasText(profile.redress_scheme_name)) {
+            missingFields.push('redress scheme name');
+        }
+        if (!hasText(profile.redress_membership_number)) {
+            missingFields.push('redress membership number');
+        }
     }
     if (profile.has_client_money && !hasText(profile.cmp_provider)) {
         missingFields.push('client money protection provider');
@@ -758,6 +764,7 @@ export const getManagerVerificationDetails = async (userId: string): Promise<{ d
                 email: data.user_info.email,
                 full_name: mapUserFullName(data.user_info),
                 website: mapUserWebsite(data.user_info),
+                indiaCompliance: data.user_info.india_compliance === true,
             }
             : null;
 

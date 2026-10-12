@@ -58,7 +58,7 @@ interface ReviewDetails {
     profile: ManagerProfile | null;
     documents: ManagerDocument[];
     auditLog: AuditLogEntry[];
-    userInfo: { email?: string; full_name?: string } | null;
+    userInfo: { email?: string; full_name?: string; indiaCompliance?: boolean } | null;
 }
 
 export const MANAGER_REVIEW_CLOSE_LABEL = 'Close manager verification review panel';
@@ -248,6 +248,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(
             details?.profile || null,
             details?.documents || [],
+            { indiaCompliance: details?.userInfo?.indiaCompliance },
         );
         if (approvalBlocker) {
             setError(approvalBlocker);
@@ -425,7 +426,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         ...document,
         verification_status: getEffectiveManagerDocumentStatus(document.verification_status, profile.verification_status),
     }));
-    const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, effectiveDocuments);
+    const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, effectiveDocuments, { indiaCompliance: userInfo?.indiaCompliance });
     const isApproved = profile.verification_status === 'approved' && approvalBlocker === null;
     const isRejected = profile.verification_status === 'rejected';
     const isClosed = isApproved || isRejected;
