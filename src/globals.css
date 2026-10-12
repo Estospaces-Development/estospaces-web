@@ -905,7 +905,7 @@
     overflow-x: auto;
   }
 
-  .role-workspace-content table:not(.docs-data-table) {
+  .role-workspace-content table:not(.docs-data-table):not([data-own-scroll]) {
     display: block;
     width: 100%;
     max-width: 100%;
@@ -1833,5 +1833,24 @@ select:focus {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* =========================================
+   Manager lead map popup (#714, #716)
+   ========================================= */
+
+.leaflet-popup.lead-map-popup .leaflet-popup-content {
+  margin: 0.75rem;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .leaflet-popup.lead-map-popup a.leaflet-popup-close-button {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    line-height: 44px;
+    text-align: center;
+    padding: 0;
   }
 }

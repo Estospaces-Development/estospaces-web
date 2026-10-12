@@ -1024,6 +1024,7 @@ const DashboardClient = () => {
                         locationContextCode={brokerRequestLocationContext || activeBrokerRequest?.location_postcode || undefined}
                         countryContextName={activeJourney?.propertyCountry}
                         fallbackCountryName={LAUNCH_COUNTRY_NAME}
+                        catalogueMarket={geoMarket}
                         className="w-full text-left"
                       />
 

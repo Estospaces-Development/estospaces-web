@@ -171,7 +171,7 @@ test('custom manager overlays stay usable on phone viewports', () => {
 
     assert.match(contracts, /items-end justify-center/);
     assert.match(contracts, /max-h-\[calc\(100dvh-/);
-    assert.match(contracts, /min-h-11 items-center justify-center/);
+    assert.match(contracts, /h-11 w-11 shrink-0 items-center justify-center/);
     // Property detail messages use the app toast, which sits above the
     // workspace header instead of a page-level banner hidden under it.
     assert.doesNotMatch(propertyDetail, /fixed inset-x-4 top-4/);

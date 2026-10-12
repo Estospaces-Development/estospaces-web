@@ -41,7 +41,7 @@ interface NotificationsContextType {
     markAsRead: (notificationId: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
     createNotification: (type: string, title: string, message: string, data?: Record<string, any>) => Promise<Notification | null>;
-    deleteNotification: (notificationId: string) => void;
+    deleteNotification: (notificationId: string) => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
@@ -121,6 +121,8 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     const hasHydratedRef = useRef(false);
     const previousUnreadIDsRef = useRef<Set<string>>(new Set());
     const shownToastDedupeKeysRef = useRef<Set<string>>(new Set());
+    // Ids the user deleted: a poll that was already in flight must not bring them back (#725).
+    const deletedNotificationIDsRef = useRef<Set<string>>(new Set());
 
     const loadNotifications = useCallback(async (silent: boolean) => {
         if (!user) {
@@ -128,6 +130,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             setUnreadCount(0);
             previousUnreadIDsRef.current = new Set();
             shownToastDedupeKeysRef.current = new Set();
+            deletedNotificationIDsRef.current = new Set();
             hasHydratedRef.current = false;
             return;
         }
@@ -138,7 +141,8 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
         try {
             const result = await notificationsService.getNotifications(false, user?.role);
-            const nextNotifications = result.notifications || [];
+            const nextNotifications = (result.notifications || [])
+                .filter((notification) => !deletedNotificationIDsRef.current.has(notification.id));
             const nextUnreadIDs = new Set(
                 nextNotifications
                     .filter((notification) => !notification.is_read)
@@ -278,14 +282,28 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         }
     }, [user?.id]);
 
-    const deleteNotification = useCallback((notificationId: string) => {
+    const deleteNotification = useCallback(async (notificationId: string) => {
         const notification = notifications.find((entry) => entry.id === notificationId);
+        deletedNotificationIDsRef.current.add(notificationId);
         setNotifications((previous) => previous.filter((entry) => entry.id !== notificationId));
         previousUnreadIDsRef.current.delete(notificationId);
         if (notification && !notification.is_read) {
             setUnreadCount((previous) => Math.max(0, previous - 1));
         }
-    }, [notifications]);
+        try {
+            await notificationsService.deleteNotification(notificationId);
+        } catch {
+            // The server still has it: bring it back and say so instead of letting a poll do it silently.
+            deletedNotificationIDsRef.current.delete(notificationId);
+            if (notification) {
+                setNotifications((previous) => notificationsService.restoreNotification(previous, notification));
+                if (!notification.is_read) {
+                    setUnreadCount((previous) => previous + 1);
+                }
+            }
+            toast.error("Couldn't delete the notification. Try again.");
+        }
+    }, [notifications, toast]);
 
     useEffect(() => {
         if (user?.id) {

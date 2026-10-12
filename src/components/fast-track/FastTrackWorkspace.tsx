@@ -58,6 +58,7 @@ import {
     getFastTrackFinalDecisionGuard,
     getFastTrackManagerAgreementStatus,
     formatFastTrackDocumentRequestInputValue,
+    mergeFastTrackDeadlineParts,
     isFastTrackDocumentDraftDirty,
     isFastTrackHistoricalStageForCase,
     isFastTrackCaseCompleteForRole,
@@ -722,19 +723,24 @@ export const FastTrackDocumentRequestControls = ({
             placeholder="Why is this document needed?"
             className="w-full resize-y rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:border-orange-900/50 dark:bg-gray-950 dark:text-gray-200"
         />
-        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200">
-            Deadline
-            <span className="mt-1.5 flex items-center gap-2 rounded-2xl border border-orange-200 bg-white px-3 dark:border-orange-900/50 dark:bg-gray-950">
-                <CalendarDays size={15} aria-hidden="true" className="shrink-0 text-orange-700 dark:text-orange-300" />
-                <input
-                    type="datetime-local"
-                    value={dueAt}
-                    onChange={(event) => onDueAtChange(event.target.value)}
-                    aria-label={`Deadline for ${item.label} document request`}
-                    className="h-11 min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none dark:text-gray-200"
+        <div className="space-y-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200">
+            <p>Deadline</p>
+            <div data-fast-track-document-request-deadline="true" className="grid gap-2 min-[420px]:grid-cols-2">
+                <DateField
+                    value={dueAt.slice(0, 10)}
+                    onChange={(date) => onDueAtChange(mergeFastTrackDeadlineParts(dueAt, { date }, getLocalTodayInputValue()))}
+                    min={getLocalTodayInputValue()}
+                    size="sm"
+                    ariaLabel={`Deadline date for ${item.label} document request`}
                 />
-            </span>
-        </label>
+                <TimeField
+                    value={dueAt.slice(11, 16)}
+                    onChange={(time) => onDueAtChange(mergeFastTrackDeadlineParts(dueAt, { time }, getLocalTodayInputValue()))}
+                    size="sm"
+                    ariaLabel={`Deadline time for ${item.label} document request`}
+                />
+            </div>
+        </div>
         <ActionButton
             onClick={onRequest}
             busy={busy}

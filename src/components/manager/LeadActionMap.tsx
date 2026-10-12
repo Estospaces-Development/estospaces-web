@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
+import { getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation, type LeadMapActionId } from '@/lib/leadMapView';
 import { canScheduleManagerLeadViewing, formatManagerLeadAddress, pickDefaultManagerLead } from '@/lib/managerLeadList';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -25,12 +26,29 @@ interface LeadActionMapProps {
     requestedLeadId?: string | null;
 }
 
-const createLeadMarkerIcon = (selected: boolean) => L.divIcon({
-    className: 'lead-action-marker',
-    html: `<div style="
+// Compact popup that pans into view and opens above its marker instead of covering it (#714).
+const LEAD_POPUP_OPTIONS: L.PopupOptions = {
+    className: 'lead-map-popup',
+    maxWidth: 260,
+    minWidth: 220,
+    maxHeight: 240,
+    autoPan: true,
+    autoPanPaddingTopLeft: [16, 72],
+    autoPanPaddingBottomRight: [16, 16],
+};
+
+const createLeadMarkerIcon = (selected: boolean, count = 1) => {
+    const size = selected ? 42 : 36;
+    const badge = count > 1
+        ? `<span style="position:absolute;top:-8px;right:-8px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#ffffff;color:#0f172a;border:2px solid #0f172a;font-size:12px;font-weight:700;line-height:16px;text-align:center;">${count}</span>`
+        : '';
+    return L.divIcon({
+        className: 'lead-action-marker',
+        html: `<div style="
+        position:relative;
         background:${selected ? '#f97316' : '#0f172a'};
-        width:${selected ? 42 : 36}px;
-        height:${selected ? 42 : 36}px;
+        width:${size}px;
+        height:${size}px;
         border-radius:999px;
         border:3px solid white;
         box-shadow:0 14px 28px rgba(15,23,42,0.28);
@@ -40,11 +58,12 @@ const createLeadMarkerIcon = (selected: boolean) => L.divIcon({
         color:white;
         font-weight:700;
         font-size:16px;
-    ">&#9679;</div>`,
-    iconSize: [selected ? 42 : 36, selected ? 42 : 36],
-    iconAnchor: [selected ? 21 : 18, selected ? 42 : 36],
-    popupAnchor: [0, selected ? -32 : -28],
-});
+    ">&#9679;${badge}</div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size],
+        popupAnchor: [0, -(size + 6)],
+    });
+};
 
 const formatCountdown = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -141,14 +160,43 @@ export default function LeadActionMap({
             .sort()
             .join('|')
     ), [leadsWithCoordinates]);
-    const uniqueLocationCount = useMemo(() => new Set(
-        leadsWithCoordinates.map((lead) => getLeadMapCoordinates(lead)?.join(':')),
-    ).size, [leadsWithCoordinates]);
+    const leadGroups = useMemo(() => groupLeadsByLocation(leadsWithCoordinates), [leadsWithCoordinates]);
+    const uniqueLocationCount = leadGroups.length;
     const canRequestDocumentsForLead = (lead: Lead) => (
         canRequestDocuments ? canRequestDocuments(lead) : Boolean(lead.user_id)
     );
-    const canScheduleSelectedLead = selectedLead ? canScheduleManagerLeadViewing(selectedLead) : false;
-    const canRequestSelectedLead = selectedLead ? canRequestDocumentsForLead(selectedLead) : false;
+    const runLeadAction = (id: LeadMapActionId, lead: Lead) => {
+        if (id === 'messages') onOpenMessages(lead);
+        else if (id === 'documents') onRequestDocuments(lead);
+        else if (id === 'viewing') onScheduleViewing(lead);
+        else navigate(`/manager/dashboard/properties/${lead.property_id}`);
+    };
+    // One action list drives both the marker popup and the Selected lead panel (#720).
+    const renderLeadActions = (lead: Lead, variant: 'popup' | 'panel') => getLeadMapActions({
+        canRequestDocuments: canRequestDocumentsForLead(lead),
+        canSchedule: canScheduleManagerLeadViewing(lead),
+        hasProperty: Boolean(lead.property_id),
+    }).map((action) => {
+        const primary = action.id === 'messages';
+        const busy = actingLeadID === lead.id && (action.id === 'documents' || action.id === 'viewing');
+        const label = busy && action.id === 'documents' ? 'Sending request...' : action.label;
+        const className = variant === 'popup'
+            ? `rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${primary ? 'bg-orange-500 text-white hover:bg-orange-600' : 'border border-stone-200 text-gray-900 hover:border-orange-300 hover:bg-orange-50'}`
+            : `flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${primary ? 'bg-orange-500 text-white hover:bg-orange-600' : 'border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900'}`;
+        return (
+            <button
+                key={action.id}
+                type="button"
+                onClick={() => runLeadAction(action.id, lead)}
+                disabled={busy}
+                className={className}
+            >
+                {variant === 'panel' && action.id === 'messages' ? <MessageSquare className="h-4 w-4" /> : null}
+                {variant === 'panel' && action.id === 'documents' ? <FileUp className="h-4 w-4" /> : null}
+                {label}
+            </button>
+        );
+    });
 
     if (leads.length === 0) {
         return null;
@@ -157,21 +205,21 @@ export default function LeadActionMap({
     const initialMapCenter = leadsWithCoordinates[0] ? getLeadMapCoordinates(leadsWithCoordinates[0]) : null;
 
     return (
-        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+        <div className="scroll-mt-[calc(var(--workspace-header-height,4rem)+0.75rem)] overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
+            <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Interactive lead map</h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         Live property markers stay connected to the same lead stage, client timer, and next action.
                     </p>
                 </div>
-                <div className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
+                <div className="w-fit shrink-0 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
                     User countdown stays live here
                 </div>
             </div>
 
             <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="relative h-[460px] bg-slate-100 dark:bg-slate-950">
+                <div className="relative isolate h-[460px] bg-slate-100 dark:bg-slate-950">
                     {!initialMapCenter ? (
                         <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                             <p className="text-base font-semibold text-gray-900 dark:text-white">No verified lead locations</p>
@@ -200,71 +248,57 @@ export default function LeadActionMap({
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 noWrap
                             />
-                            {leadsWithCoordinates.map((lead) => {
-                                const coordinates = getLeadMapCoordinates(lead);
-                                if (!coordinates) {
-                                    return null;
-                                }
-                                const stage = resolveLeadStage(lead);
-                                const isSelected = selectedLead?.id === lead.id;
-                                const canRequestDocs = canRequestDocumentsForLead(lead);
-                                const canScheduleViewing = canScheduleManagerLeadViewing(lead);
+                            {leadGroups.map((group) => {
+                                const activeLead = group.leads.find((lead) => lead.id === selectedLead?.id) || group.leads[0];
+                                const stage = resolveLeadStage(activeLead);
+                                const isSelected = selectedLead?.id === activeLead.id;
 
                                 return (
                                     <Marker
-                                        key={lead.id}
-                                        position={coordinates}
-                                        icon={createLeadMarkerIcon(isSelected)}
-                                        title={`${lead.lead_number || lead.id} ${lead.property?.title || lead.property_name || 'property enquiry'} ${formatLeadStage(stage)}`}
-                                        alt={`${lead.lead_number || lead.id} map marker`}
+                                        key={group.key}
+                                        position={group.coordinates}
+                                        icon={createLeadMarkerIcon(isSelected, group.leads.length)}
+                                        title={group.leads.length > 1
+                                            ? `${group.leads.length} leads at this location`
+                                            : `${activeLead.lead_number || activeLead.id} ${activeLead.property?.title || activeLead.property_name || 'property enquiry'} ${formatLeadStage(stage)}`}
+                                        alt={`${group.leads.length > 1 ? `${group.leads.length} leads` : activeLead.lead_number || activeLead.id} map marker`}
                                         keyboard
-                                        eventHandlers={{ click: () => setSelectedLeadID(lead.id) }}
+                                        eventHandlers={{ click: () => setSelectedLeadID(activeLead.id) }}
                                     >
-                                        <Popup>
-                                            <div className="min-w-[240px] p-1">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                        <Popup options={LEAD_POPUP_OPTIONS}>
+                                            <div className="w-[220px] max-w-full">
+                                                {group.leads.length > 1 ? (
+                                                    <div role="group" aria-label={`${group.leads.length} leads at this location`} className="mb-2 flex flex-wrap gap-1 pr-11">
+                                                        {group.leads.map((lead, leadIndex) => (
+                                                            <button
+                                                                key={lead.id}
+                                                                type="button"
+                                                                aria-pressed={lead.id === activeLead.id}
+                                                                onClick={() => setSelectedLeadID(lead.id)}
+                                                                className={`rounded-full border px-2 py-1 text-xs font-semibold ${lead.id === activeLead.id ? 'border-orange-600 bg-orange-600 text-white' : 'border-stone-300 bg-white text-slate-700'}`}
+                                                            >
+                                                                {getLeadMapSwitcherLabels(group.leads)[leadIndex]}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
+                                                <p className={`text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 ${group.leads.length > 1 ? '' : 'pr-11'}`}>
                                                     {formatLeadStage(stage)}
                                                 </p>
-                                                <h4 className="mt-2 text-sm font-semibold text-slate-900">
-                                                    {lead.property?.title || lead.property_name || 'Property enquiry'}
+                                                <h4 className="mt-1 text-sm font-semibold text-slate-900">
+                                                    {activeLead.property?.title || activeLead.property_name || 'Property enquiry'}
                                                 </h4>
-                                                <p className="mt-1 text-xs text-slate-500">
-                                                    {formatManagerLeadAddress(lead.property)}
+                                                <p className="mt-1 text-xs text-slate-600">
+                                                    {formatManagerLeadAddress(activeLead.property)}
                                                 </p>
-                                                <p className="mt-2 text-xs font-medium text-slate-700">
-                                                    {lead.name || lead.email || 'Client enquiry'}
+                                                <p className="mt-1 text-xs font-medium text-slate-800">
+                                                    {activeLead.name || activeLead.email || 'Client enquiry'}
                                                 </p>
-                                                <p className="mt-1 text-xs text-slate-500">
-                                                    Response timer: {formatCountdown(getLeadRemainingSeconds(lead, now))}
+                                                <p className="mt-1 text-xs text-slate-600">
+                                                    Response timer: {formatCountdown(getLeadRemainingSeconds(activeLead, now))}
                                                 </p>
-                                                <div className="mt-3 grid gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => onOpenMessages(lead)}
-                                                        className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
-                                                    >
-                                                        Open messages
-                                                    </button>
-                                                    {canRequestDocs ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => onRequestDocuments(lead)}
-                                                            disabled={actingLeadID === lead.id}
-                                                            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            {actingLeadID === lead.id ? 'Sending request...' : 'Request documents'}
-                                                        </button>
-                                                    ) : null}
-                                                    {canScheduleViewing ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => onScheduleViewing(lead)}
-                                                            disabled={actingLeadID === lead.id}
-                                                            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            Schedule viewing
-                                                        </button>
-                                                    ) : null}
+                                                <div className="mt-2 grid gap-2">
+                                                    {renderLeadActions(activeLead, 'popup')}
                                                 </div>
                                             </div>
                                         </Popup>
@@ -279,7 +313,7 @@ export default function LeadActionMap({
                     )}
 
                     {initialMapCenter ? (
-                        <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                        <div className="absolute left-14 top-3 z-[1000] max-w-[calc(100%-4.5rem)] rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
                             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 {leadsWithCoordinates.length} lead{leadsWithCoordinates.length === 1 ? '' : 's'} on the map
                             </p>
@@ -331,44 +365,7 @@ export default function LeadActionMap({
                         </div>
 
                         <div className="mt-5 space-y-3">
-                            <button
-                                type="button"
-                                onClick={() => onOpenMessages(selectedLead)}
-                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
-                            >
-                                <MessageSquare className="h-4 w-4" />
-                                Open messages
-                            </button>
-                            {canRequestSelectedLead ? (
-                                <button
-                                    type="button"
-                                    onClick={() => onRequestDocuments(selectedLead)}
-                                    disabled={actingLeadID === selectedLead.id}
-                                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                                >
-                                    <FileUp className="h-4 w-4" />
-                                    {actingLeadID === selectedLead.id ? 'Sending request...' : 'Request documents'}
-                                </button>
-                            ) : null}
-                            {canScheduleSelectedLead ? (
-                                <button
-                                    type="button"
-                                    onClick={() => onScheduleViewing(selectedLead)}
-                                    disabled={actingLeadID === selectedLead.id}
-                                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                                >
-                                    Schedule viewing
-                                </button>
-                            ) : null}
-                            {selectedLead.property_id ? (
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(`/manager/dashboard/properties/${selectedLead.property_id}`)}
-                                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                                >
-                                    Open property
-                                </button>
-                            ) : null}
+                            {renderLeadActions(selectedLead, 'panel')}
                         </div>
                     </aside>
                 ) : null}

@@ -24,11 +24,12 @@ import {
     managerPropertyStatusFiltersEqual,
     normalizeManagerPropertyStatusFilters,
 } from '@/lib/managerPropertyDashboard';
-import { formatPropertyFloorCaption, getListingDeleteWarning, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyFloorCaption, getListingDeleteWarning, getManagerPropertyStatusBadge, getPropertyStatusFilterChipClasses } from '@/lib/propertyStatusBadge';
 import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { useHorizontalOverflow } from '@/lib/useHorizontalOverflow';
 import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
 import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
@@ -101,14 +102,14 @@ const propertyTypeOptions: { value: PropertyType; label: string }[] = [
 
 // Status options: core's real listing states (online/active are aliases of Available) (MB-0199).
 const statusOptions: { value: PropertyStatus | string; label: string; color: string; bgColor: string }[] = [
-    { value: 'available', label: 'Available', color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30' },
-    { value: 'pending', label: 'Pending', color: 'text-yellow-700 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
-    { value: 'sold', label: 'Sold', color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
-    { value: 'rented', label: 'Rented', color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
-    { value: 'rejected', label: 'Rejected', color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30' },
-    { value: 'suspended', label: 'Suspended', color: 'text-gray-700 dark:text-gray-300', bgColor: 'bg-gray-100 dark:bg-gray-900/30' },
-    { value: 'draft', label: 'Draft', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
-];
+    ['available', 'Available'],
+    ['pending', 'Pending'],
+    ['sold', 'Sold'],
+    ['rented', 'Rented'],
+    ['rejected', 'Rejected'],
+    ['suspended', 'Suspended'],
+    ['draft', 'Draft'],
+].map(([value, label]) => ({ value, label, ...getPropertyStatusFilterChipClasses(value) }));
 
 // Sort options
 const sortOptions: { field: SortField; order: SortOrder; label: string }[] = [
@@ -160,6 +161,8 @@ function PropertiesContent() {
 
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const tableScrollRef = useRef<HTMLDivElement>(null);
+    const tableOverflows = useHorizontalOverflow(tableScrollRef, `${viewMode}:${properties.length}:${loading}`);
     const [activeTab, _setActiveTab] = useState<TabType>('all');
     const [showFilters, setShowFilters] = useState(false);
     const [_showExportMenu, setShowExportMenu] = useState(false);
@@ -744,15 +747,18 @@ function PropertiesContent() {
                 </div>
             ) : (
                 <div className="space-y-2">
-                    <p className="px-1 text-xs font-medium text-gray-500 dark:text-gray-400 sm:hidden">
-                        Swipe sideways to see status and actions.
-                    </p>
+                    {tableOverflows && (
+                        <p className="px-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Swipe sideways to see status and actions.
+                        </p>
+                    )}
                     <div
+                        ref={tableScrollRef}
                         className="max-w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm [overscroll-behavior-inline:contain] [scrollbar-gutter:stable] touch-pan-x dark:border-gray-800 dark:bg-gray-900"
                         tabIndex={0}
                         aria-label="Scrollable property listings table"
                     >
-                        <table className="min-w-[760px] w-full text-left">
+                        <table data-own-scroll className="min-w-[760px] w-full text-left">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Property</th>

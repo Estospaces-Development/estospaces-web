@@ -3,7 +3,7 @@
  * Fetches and creates notifications via the notification-service backend
  */
 
-import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getErrorStatus, getServiceUrl } from '@/lib/apiUtils';
 import { getNotificationNavigationPath as resolveNotificationNavigationPath } from '@/lib/notificationNavigation';
 import { isInternalApplicationTitle } from '@/lib/applicationDisplayTitle';
 import { formatNotificationDateTime } from '@/lib/notificationTime';
@@ -345,11 +345,40 @@ export async function markAllRead(): Promise<void> {
 }
 
 /**
- * Dismiss a notification in the UI.
- * The current notification-service only supports read-state mutation, not hard delete.
+ * Delete a notification for the current user.
+ * DELETE /api/v1/notifications/:id
+ *
+ * This used to call markRead (and the context only dropped the row locally), so the next
+ * 5s poll returned the notification again (#725). Locally created `local-*` rows were never
+ * stored server-side, so there is nothing to delete for them.
  */
 export async function deleteNotification(notificationId: string): Promise<void> {
-    await markRead(notificationId);
+    if (notificationId.startsWith('local-')) {
+        return;
+    }
+    try {
+        await apiFetch<any>(
+            `${NOTIFICATION_URL()}/api/v1/notifications/${encodeURIComponent(notificationId)}`,
+            {
+                method: 'DELETE',
+                suppressErrorToast: true,
+            },
+        );
+    } catch (error) {
+        // 404: it is already gone (deleted in another tab), which is what the user asked for.
+        if (getErrorStatus(error) !== 404) {
+            throw error;
+        }
+    }
+}
+
+/** Put a notification whose delete failed back in its newest-first position. */
+export function restoreNotification(list: Notification[], notification: Notification): Notification[] {
+    if (list.some((entry) => entry.id === notification.id)) {
+        return list;
+    }
+    const restored = [...list, notification];
+    return restored.sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
 }
 
 /**

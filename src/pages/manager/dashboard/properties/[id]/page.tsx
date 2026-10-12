@@ -431,7 +431,7 @@ export default function PropertyDetailPage() {
                             {/* Title & Price */}
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
                                 <div>
-                                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                                    <h1 title={property.title} className="line-clamp-2 break-words text-balance text-xl font-bold text-gray-800 dark:text-white mb-2 md:line-clamp-none md:text-3xl">
                                         {property.title}
                                     </h1>
                                     <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">

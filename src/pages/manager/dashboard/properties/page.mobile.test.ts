@@ -26,9 +26,17 @@ test('property search refetches show an inline spinner and a load failure is not
 test('inventory status filter offers every real listing state and no phantom ones (MB-0199)', () => {
     const block = source.slice(source.indexOf('const statusOptions'), source.indexOf('// Sort options'));
     for (const status of ['available', 'pending', 'sold', 'rented', 'rejected', 'suspended', 'draft']) {
-        assert.match(block, new RegExp(`value: '${status}'`));
+        assert.match(block, new RegExp(`(value: |\\[)'${status}'`));
     }
     for (const phantom of ['under_contract', 'off_market', 'online', 'active']) {
-        assert.doesNotMatch(block, new RegExp(`value: '${phantom}'`));
+        assert.doesNotMatch(block, new RegExp(`(value: |\\[)'${phantom}'`));
     }
+});
+
+test('swipe hint shows only on overflow, and the table opts out of the global table-as-scroller rule (#721)', () => {
+    assert.match(source, /\{tableOverflows && \(\s*<p[^>]*>\s*Swipe sideways to see status and actions\./);
+    assert.doesNotMatch(source, /sm:hidden">\s*Swipe sideways/);
+    assert.match(source, /<table data-own-scroll /);
+    const css = readFileSync(resolve(process.cwd(), 'src/globals.css'), 'utf8');
+    assert.match(css, /table:not\(\.docs-data-table\):not\(\[data-own-scroll\]\)/);
 });

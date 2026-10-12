@@ -9,6 +9,7 @@ import {
     getLaunchLocationCodeLabel,
     getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
+    type SupportedLaunchCountryCode,
 } from '@/lib/launchLocale';
 import {
     getSearchQueryValidationMessage,
@@ -44,6 +45,8 @@ interface SearchBarProps {
     locationContextCode?: string | null;
     countryContextName?: string | null;
     fallbackCountryName?: string | null;
+    /** Market the page already resolved for the catalogue (account country, saved city, ...). */
+    catalogueMarket?: SupportedLaunchCountryCode | null;
 }
 
 const defaultFilters: SearchFilters = {
@@ -62,6 +65,31 @@ export const shouldHydrateSearchBarFromUrl = (
     variant: SearchBarProps['variant'],
     initialFilters?: Partial<SearchFilters>,
 ) => variant !== 'compact' && (!initialFilters || Object.keys(initialFilters).length === 0);
+
+/**
+ * Market whose currency/ranges the filters show (#708). A typed city or postcode wins; then the
+ * market the page resolved for the catalogue (account country > saved Preferred City > browser),
+ * so the filters never disagree with the results shown; then the legacy context signals.
+ */
+export const resolveSearchBarMarket = ({
+    typedLocation,
+    catalogueMarket,
+    locationContext,
+    countryNameContext,
+    fallbackMarket,
+}: {
+    typedLocation?: string | null;
+    catalogueMarket?: SupportedLaunchCountryCode | null;
+    locationContext?: string | null;
+    countryNameContext?: string | null;
+    fallbackMarket: SupportedLaunchCountryCode;
+}): SupportedLaunchCountryCode => (
+    inferSearchMarketFromText(typedLocation)
+    || catalogueMarket
+    || getSupportedLaunchCountry(undefined, undefined, locationContext)
+    || getSupportedLaunchCountry(undefined, countryNameContext)
+    || fallbackMarket
+);
 
 export const shouldClearSearchBarAfterNavigation = (variant: SearchBarProps['variant']) => (
     variant === 'compact'
@@ -95,7 +123,7 @@ const buildSearchPriceRanges = (countryCode: string) => {
 
 const priceRanges = buildSearchPriceRanges('IN');
 
-const suggestionMenuClassName = "absolute z-50 mt-1 max-h-48 w-full min-w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-auto rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800";
+const suggestionMenuClassName = "absolute z-50 mt-1 max-h-48 w-full min-w-0 max-w-full overflow-auto rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800";
 const suggestionOptionClassName = "flex w-full min-w-0 items-center justify-between gap-3 px-4 py-2 text-left text-gray-900 transition-colors hover:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700";
 const suggestionLabelClassName = "flex min-w-0 flex-1 items-center gap-2";
 const suggestionTextClassName = "truncate";
@@ -112,6 +140,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     locationContextCode,
     countryContextName,
     fallbackCountryName,
+    catalogueMarket,
 }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -129,10 +158,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const locationContext = filters.location || locationContextCode || user?.postcode;
     const userCountrySignal = user?.countryCode || user?.country_code || user?.country;
     const countryNameContext = countryContextName || (!locationContext && !userCountrySignal ? fallbackCountryName : undefined);
-    const searchMarket = inferSearchMarketFromText(filters.location)
-        || getSupportedLaunchCountry(undefined, undefined, locationContext)
-        || getSupportedLaunchCountry(undefined, countryNameContext)
-        || geoMarket;
+    const searchMarket = resolveSearchBarMarket({
+        typedLocation: filters.location,
+        catalogueMarket,
+        locationContext,
+        countryNameContext,
+        fallbackMarket: geoMarket,
+    });
     const locationCodeLabel = getLaunchLocationCodeLabel(searchMarket, undefined, locationContext);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const sentenceLocationCodeLabel = locationCodeLabel === 'PIN code' ? locationCodeLabel : lowerLocationCodeLabel;

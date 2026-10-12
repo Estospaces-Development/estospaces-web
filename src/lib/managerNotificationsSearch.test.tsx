@@ -33,7 +33,7 @@ test('manager notification search resets the visible page', async () => {
         markAsRead: async () => undefined,
         markAllAsRead: async () => undefined,
         createNotification: async () => null,
-        deleteNotification: () => undefined,
+        deleteNotification: async () => undefined,
     };
 
     const host = browserWindow.document.createElement('div') as unknown as HTMLElement;

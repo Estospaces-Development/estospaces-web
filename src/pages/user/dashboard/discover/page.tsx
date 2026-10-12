@@ -884,11 +884,11 @@ function DiscoverContent() {
                                                     setShowSuggestions(false);
                                                 }}
                                             >
-                                                <div className="flex items-center gap-2">
-                                                    {suggestion.type === 'property' ? <Home className="w-4 h-4 text-orange-500" /> : <MapPin className="w-4 h-4 text-gray-400" />}
-                                                    <span>{suggestion.text}</span>
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    {suggestion.type === 'property' ? <Home className="w-4 h-4 shrink-0 text-orange-500" /> : <MapPin className="w-4 h-4 shrink-0 text-gray-400" />}
+                                                    <span className="truncate">{suggestion.text}</span>
                                                 </div>
-                                                <span className="text-[10px] uppercase font-bold text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{suggestion.type}</span>
+                                                <span className="shrink-0 text-[10px] uppercase font-bold text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{suggestion.type}</span>
                                             </button>
                                         ))}
                                     </div>

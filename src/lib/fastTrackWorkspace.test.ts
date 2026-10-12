@@ -11,6 +11,7 @@ import {
     buildFastTrackDocumentDraftStorageKey,
     buildFastTrackDocumentRequestFieldKey,
     buildFastTrackDocumentRequestPayload,
+    mergeFastTrackDeadlineParts,
     buildFastTrackSelectionSearchParams,
     buildFastTrackDocumentSearchParams,
     buildFastTrackStageSearchParams,
@@ -1324,4 +1325,12 @@ test('#695 managers are not told to review files before any are uploaded', () =>
     const uploaded = buildCase({ stage: 'documents' });
     uploaded.documents.items = [{ id: 'identity', label: 'Identity', status: 'uploaded' }];
     assert.equal(describeFastTrackWorkspaceFocus(uploaded, 'manager'), 'Review the uploaded files');
+});
+
+test('mergeFastTrackDeadlineParts keeps date and time in sync for the deadline pickers', () => {
+    assert.equal(mergeFastTrackDeadlineParts('', { date: '2026-08-22' }, '2026-08-01'), '2026-08-22T17:00');
+    assert.equal(mergeFastTrackDeadlineParts('2026-08-22T17:00', { time: '09:30' }, '2026-08-01'), '2026-08-22T09:30');
+    assert.equal(mergeFastTrackDeadlineParts('', { time: '09:30' }, '2026-08-01'), '2026-08-01T09:30');
+    assert.equal(mergeFastTrackDeadlineParts('2026-08-22T17:00', { date: '' }, '2026-08-01'), '');
+    assert.equal(mergeFastTrackDeadlineParts('2026-08-22T17:00', { time: '' }, '2026-08-01'), '');
 });
