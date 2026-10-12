@@ -95,11 +95,15 @@ export function setAuthToken(token: string | null | undefined) {
     }
 }
 
-export function clearAuthToken() {
+/** keepRemembered: drop only this tab's copy (the server could not be reached), so the next load retries the
+ * browser's remembered sign-in instead of signing the user out for good. */
+export function clearAuthToken({ keepRemembered = false }: { keepRemembered?: boolean } = {}) {
     const previousToken = authToken;
     authToken = null;
     authTokenVersion += 1;
     clearBrowserTokenStorage();
     persistSessionToken(null);
-    forgetRememberedToken(previousToken);
+    if (!keepRemembered) {
+        forgetRememberedToken(previousToken);
+    }
 }

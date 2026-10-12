@@ -97,3 +97,26 @@ test('a tab keeps its own token and sign-out forgets only its own remembered sig
         local.restore();
     }
 });
+
+// Signing out by clearing the token (setAuthToken(null)) forgets the remembered sign-in, while a tab that only lost
+// contact with the server keeps it, so the next load signs back in.
+test('setAuthToken(null) forgets the remembered sign-in; an unconfirmed tab keeps it', () => {
+    const session = mockStorage('sessionStorage');
+    const local = mockStorage('localStorage');
+    try {
+        setAuthToken('user-token');
+        setAuthToken(null);
+        assert.equal(local.map.has('esto_remembered_token'), false);
+
+        setAuthToken('user-token');
+        clearAuthToken({ keepRemembered: true });
+        assert.equal(getAuthToken(), null);
+        assert.equal(session.map.has('esto_session_token'), false);
+        assert.equal(local.map.get('esto_remembered_token'), 'user-token');
+        assert.equal(readStoredAuthToken(), 'user-token');
+    } finally {
+        clearAuthToken();
+        session.restore();
+        local.restore();
+    }
+});
