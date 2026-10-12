@@ -39,3 +39,18 @@ export const getLeadMapActions = ({ canRequestDocuments, canSchedule, hasPropert
     ...(canSchedule ? [{ id: 'viewing' as const, label: 'Schedule viewing' }] : []),
     ...(hasProperty ? [{ id: 'property' as const, label: 'Open property' }] : []),
 ];
+
+/** Switcher labels for leads sharing a marker: the client, plus the property whenever two leads share a client name
+ * (one client asking about two homes showed "Maya Demo" twice, #713 dev check). */
+export const getLeadMapSwitcherLabels = (leads: Lead[]): string[] => {
+    const clientOf = (lead: Lead) => lead.name || lead.email || lead.lead_number || 'Client enquiry';
+    const counts = new Map<string, number>();
+    for (const lead of leads) {
+        counts.set(clientOf(lead), (counts.get(clientOf(lead)) ?? 0) + 1);
+    }
+    return leads.map((lead) => {
+        const client = clientOf(lead);
+        const property = lead.property?.title || lead.property_name;
+        return (counts.get(client) ?? 0) > 1 && property ? `${client} · ${property}` : client;
+    });
+};

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { Lead } from '@/services/leadsService';
-import { getLeadMapActions, groupLeadsByLocation } from './leadMapView';
+import { getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation } from './leadMapView';
 
 const lead = (id: string, latitude?: number, longitude?: number): Lead => ({
     id,
@@ -53,4 +53,13 @@ test('#720 popup and panel share one action list, including Open property', () =
 
     const minimal = getLeadMapActions({ canRequestDocuments: false, canSchedule: false, hasProperty: false });
     assert.deepEqual(minimal.map((action) => action.id), ['messages']);
+});
+
+test('switcher labels add the property when two leads share a client', () => {
+    const leads = [
+        { id: 'a', name: 'Maya Demo', property: { title: 'Garden Court' } },
+        { id: 'b', name: 'Maya Demo', property_name: 'Harbour View' },
+        { id: 'c', name: 'Ravi', property: { title: 'Lake Road' } },
+    ] as unknown as Lead[];
+    assert.deepEqual(getLeadMapSwitcherLabels(leads), ['Maya Demo · Garden Court', 'Maya Demo · Harbour View', 'Ravi']);
 });
