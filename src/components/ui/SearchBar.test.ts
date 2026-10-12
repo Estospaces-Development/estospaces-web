@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildPropertyTypeOptions } from '../../lib/propertyTypeOptions';
-import { shouldClearSearchBarAfterNavigation, shouldHydrateSearchBarFromUrl } from './SearchBar';
+import { resolveSearchBarMarket, shouldClearSearchBarAfterNavigation, shouldHydrateSearchBarFromUrl } from './SearchBar';
+import { formatLaunchCurrencyForCountry } from '../../lib/launchLocale';
 
 const source = readFileSync(resolve(process.cwd(), 'src/components/ui/SearchBar.tsx'), 'utf8');
 const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/search/page.tsx'), 'utf8');
@@ -98,7 +99,7 @@ test('user dashboard search passes active request location context into shared s
     assert.match(source, /fallbackCountryName\?: string \| null;/);
     assert.match(source, /const locationContext = filters\.location \|\| locationContextCode \|\| user\?\.postcode/);
     assert.match(source, /const countryNameContext = countryContextName \|\| \(!locationContext && !userCountrySignal \? fallbackCountryName : undefined\)/);
-    assert.match(source, /const searchMarket = inferSearchMarketFromText\(filters\.location\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, undefined, locationContext\)[\s\S]*\|\| getSupportedLaunchCountry\(undefined, countryNameContext\)[\s\S]*\|\| geoMarket/);
+    assert.match(source, /const searchMarket = resolveSearchBarMarket\(\{[\s\S]*typedLocation: filters\.location,[\s\S]*catalogueMarket,[\s\S]*locationContext,[\s\S]*countryNameContext,[\s\S]*fallbackMarket: geoMarket,/);
     assert.match(source, /const locationCodeLabel = getLaunchLocationCodeLabel\(searchMarket, undefined, locationContext\)/);
     assert.match(source, /const sentenceLocationCodeLabel = locationCodeLabel === 'PIN code' \? locationCodeLabel : lowerLocationCodeLabel/);
     assert.match(source, /formatLaunchCurrencyForCountry\(amount, \{ countryCode: searchMarket \}\)/);
@@ -167,4 +168,21 @@ test('user dashboard search URL preserves quick filters and pagination', () => {
 test('user dashboard keeps unrelated return context and rejects a mismatched stale cache', () => {
     assert.match(userDashboardSource, /const params = new URLSearchParams\(currentSearchParams\);/);
     assert.match(userDashboardSource, /hasExplicitDashboardSearch[\s\S]*!searchParamsMatch\(searchParams, new URLSearchParams\(cachedSearch\)\)[\s\S]*clearPropertySearchReturnState\(window\.sessionStorage, USER_DASHBOARD_PATH\);[\s\S]*cachedDashboardSearchRef\.current = null;/);
+});
+
+test('#708 dashboard search filters follow the catalogue market (UK Preferred City -> GBP)', () => {
+    // India fallback country name used to pin the filters to INR even with London saved.
+    assert.equal(resolveSearchBarMarket({ catalogueMarket: 'GB', countryNameContext: 'India', fallbackMarket: 'IN' }), 'GB');
+    assert.equal(resolveSearchBarMarket({ catalogueMarket: 'GB', locationContext: '600001', fallbackMarket: 'IN' }), 'GB');
+    // A typed city or postcode still wins over the saved preference.
+    assert.equal(resolveSearchBarMarket({ typedLocation: 'Chennai', catalogueMarket: 'GB', fallbackMarket: 'GB' }), 'IN');
+    assert.equal(resolveSearchBarMarket({ typedLocation: 'SW1A 1AA', catalogueMarket: 'IN', fallbackMarket: 'IN' }), 'GB');
+    // No catalogue market: previous behaviour is unchanged.
+    assert.equal(resolveSearchBarMarket({ countryNameContext: 'India', fallbackMarket: 'GB' }), 'IN');
+    assert.equal(resolveSearchBarMarket({ fallbackMarket: 'GB' }), 'GB');
+
+    const gb = formatLaunchCurrencyForCountry(2500000, { countryCode: 'GB' });
+    assert.match(gb, /^£2,500,000$/);
+    assert.match(formatLaunchCurrencyForCountry(2500000, { countryCode: 'IN' }), /₹25,00,000/);
+    assert.match(userDashboardSource, /catalogueMarket=\{geoMarket\}/);
 });

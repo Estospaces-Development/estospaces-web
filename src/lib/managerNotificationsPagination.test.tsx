@@ -51,7 +51,7 @@ const renderPage = (notifications: Notification[]) => {
         markAsRead: async () => undefined,
         markAllAsRead: async () => undefined,
         createNotification: async () => null,
-        deleteNotification: () => undefined,
+        deleteNotification: async () => undefined,
     };
 
     act(() => root.render(

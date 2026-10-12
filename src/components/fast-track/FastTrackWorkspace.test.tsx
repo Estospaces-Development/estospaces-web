@@ -210,7 +210,11 @@ test("manager Fast Track document request collects a reason and deadline", () =>
 
   assert.match(markup, /Request identity document/);
   assert.match(markup, /aria-label="Reason for Identity document request"/);
-  assert.match(markup, /type="datetime-local"/);
+  // #707: native datetime-local is not tappable on phones; use the shared button-based pickers.
+  assert.doesNotMatch(markup, /datetime-local|type="date"/);
+  assert.match(markup, /aria-label="Deadline date for Identity document request"/);
+  assert.match(markup, /aria-label="Deadline time for Identity document request"/);
+  assert.match(markup, /22 Aug 2026/);
   assert.match(markup, /aria-label="Request Identity document"/);
 });
 
