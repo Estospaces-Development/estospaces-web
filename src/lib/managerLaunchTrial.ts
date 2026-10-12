@@ -49,7 +49,7 @@ export const TRIAL_LAST_DAY_DAYS = 1;
 export type TrialDateFormatter = (date: Date) => string;
 
 export const formatTrialDate: TrialDateFormatter = (date) =>
-    new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+    new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 
 const parseDate = (value: string | null | undefined): Date | null => {
     if (!value) return null;
