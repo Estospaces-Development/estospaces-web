@@ -4,8 +4,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
     PENDING_PAYMENT_POLL_INTERVAL_MS,
     evaluatePendingPaymentPoll,
+    describeSubscriptionStatusLine,
+    formatPaidThroughDate,
     formatSubscriptionStatus,
     isVerificationPendingError,
+    SUBSCRIPTION_PLAN_CHANGE_UNAVAILABLE_REASON,
 } from '@/lib/managerSubscriptionStatus';
 import ManagerBillingHistory from '@/components/manager/ManagerBillingHistory';
 import ManagerTrialBanner from '@/components/manager/ManagerTrialBanner';
@@ -535,10 +538,10 @@ export default function ManagerSubscriptionPage() {
                     onRedeem={(code) => void redeemTrialCode(code)}
                 /> : null}
                 {!loading && billingProfile.kind === 'loaded' ? <p role="status" className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">Billing country for paid plans: <strong>{billingProfile.profile.market === 'IN' ? 'India' : 'United Kingdom'}</strong> ({billingProfile.profile.verification_status.replaceAll('_', ' ')}). This is separate from manager identity verification.</p> : null}
-                {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${new Date(summary.paid_period.billing_end).toLocaleString()}.` : ''}</div> : null}
+                {summary?.new_paid_actions_available ? <div role="status" className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-200"><CheckCircle2 className="h-5 w-5" /> Your subscription payment is verified.{summary.paid_period?.billing_end ? ` Paid through ${formatPaidThroughDate(summary.paid_period.billing_end)}.` : ''}</div> : null}
                 {activeCheckout ? <section aria-label="Current subscription" className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
                     <h2 className="font-bold">Current subscription</h2>
-                    <p role="status" className="mt-2">Status: {formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status)}. No second checkout will be created while this subscription is unresolved.</p>
+                    <p role="status" className="mt-2">{describeSubscriptionStatusLine(formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status), terminal)}</p>
                     {pendingPaymentSince !== null ? <p role="status" className="mt-2">Waiting for your bank to confirm the first charge. This page updates automatically.</p> : null}
                     {acceptedCheckout ? <div className="mt-3"><p><strong>{getManagerPlanDisplayName(acceptedCheckout.terms.code)} — {acceptedCheckout.price ? describeDiscountPrice(acceptedCheckout.price) : `${formatPlanPrice(acceptedCheckout.terms)} / month`}</strong></p>{acceptedCheckout.price ? <p className="mt-1 text-xs font-semibold">Discount code {acceptedCheckout.price.promotion_code} was accepted with this checkout.</p> : null}{trialCheckoutNote && summary && canResumeSubscription(summary) ? <p role="note" className="mt-1 text-xs">{trialCheckoutNote}</p> : null}{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text) ? <p className="mt-1 text-xs font-semibold">{describeStoredTermsPlanName(acceptedCheckout.terms.code, acceptedCheckout.terms.terms_text)}</p> : null}<p className="mt-1">{acceptedCheckout.terms.terms_text}</p><p className="mt-1 text-xs">These are the terms accepted for this checkout, even if current offers have changed.</p></div> : null}
                     {summary?.cancellation ? <p role="status" className="mt-3">Cancellation: {summary.cancellation.status === 'confirmed' ? 'confirmed. Renewal has stopped.' : 'not yet confirmed. Check payment status or retry cancellation.'}</p> : null}
@@ -571,7 +574,7 @@ export default function ManagerSubscriptionPage() {
                         key={'id' in plan ? plan.id : plan.code}
                         plan={plan}
                         checkoutDisabled={busy || discountChecking !== null || Boolean(error) || Boolean(offersError) || Boolean(summary?.new_checkouts_paused) || Boolean(activeCheckout) || !recurringConsent || checkoutBlockedByVerification}
-                        checkoutDisabledReason={checkoutBlockedByVerification ? SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON : undefined}
+                        checkoutDisabledReason={checkoutBlockedByVerification ? SUBSCRIPTION_CHECKOUT_VERIFICATION_REASON : activeCheckout ? SUBSCRIPTION_PLAN_CHANGE_UNAVAILABLE_REASON : undefined}
                         busy={'id' in plan && busyPlan === plan.id}
                         onStart={(offer) => void start(offer)}
                         discountField={'id' in plan && !activeCheckout && !summary?.new_checkouts_paused ? <ManagerDiscountCodeField

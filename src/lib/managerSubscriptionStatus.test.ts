@@ -6,7 +6,10 @@ import test from 'node:test';
 import { ApiRequestError } from './apiUtils';
 import {
     PENDING_PAYMENT_POLL_WINDOW_MS,
+    SUBSCRIPTION_PLAN_CHANGE_UNAVAILABLE_REASON,
+    describeSubscriptionStatusLine,
     evaluatePendingPaymentPoll,
+    formatPaidThroughDate,
     formatSubscriptionStatus,
     isVerificationPendingError,
 } from './managerSubscriptionStatus';
@@ -47,7 +50,18 @@ test('the subscription page starts the poll on a pending verify and never overla
     assert.ok(page.includes('const { account, pending } = await verifyOrPoll(() => openSubscriptionCheckout('));
     assert.ok(page.includes('await verifyOrPoll(async () => {'));
     assert.ok(page.includes('if (inFlight || actionLock.current) return;'));
-    assert.ok(page.includes('Status: {formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status)}'));
+    assert.ok(page.includes('describeSubscriptionStatusLine(formatSubscriptionStatus(summary?.subscription?.status ?? activeCheckout.status), terminal)'));
     const service = readFileSync(resolve(process.cwd(), 'src/services/managerSubscriptionService.ts'), 'utf8');
     assert.match(service, /\/verify`, \{[\s\S]*?suppressErrorToast: true,/);
+});
+
+test('paid-through date reads day first for India and UK managers', () => {
+    assert.equal(formatPaidThroughDate('2026-11-12T06:00:00Z'), '12 Nov 2026');
+    assert.equal(formatPaidThroughDate('not a date'), 'not a date');
+});
+
+test('status line drops the second-checkout note once the subscription is closed', () => {
+    assert.equal(describeSubscriptionStatusLine('Active', false), 'Status: Active. No second checkout will be created while this subscription is unresolved.');
+    assert.equal(describeSubscriptionStatusLine('Cancelled', true), 'Status: Cancelled.');
+    assert.match(SUBSCRIPTION_PLAN_CHANGE_UNAVAILABLE_REASON, /Changing plans is not available yet/);
 });
