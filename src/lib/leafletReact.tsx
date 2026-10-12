@@ -254,16 +254,17 @@ export function CircleMarker({
     return marker ? <LayerContext.Provider value={marker}>{children}</LayerContext.Provider> : null;
 }
 
-export function Popup({ children }: { children: ReactNode }) {
+export function Popup({ children, options }: { children: ReactNode; options?: L.PopupOptions }) {
     const layer = useContext(LayerContext);
     const [container] = useState<HTMLDivElement | null>(() =>
         typeof document === 'undefined' ? null : document.createElement('div'),
     );
+    const initialOptions = useRef(options);
 
     useEffect(() => {
         if (!layer || !container || !('bindPopup' in layer)) return;
         const popupLayer = layer as LeafletMarker | L.CircleMarker;
-        popupLayer.bindPopup(container);
+        popupLayer.bindPopup(container, initialOptions.current);
         return () => {
             popupLayer.unbindPopup();
         };
