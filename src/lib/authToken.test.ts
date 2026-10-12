@@ -120,3 +120,23 @@ test('setAuthToken(null) forgets the remembered sign-in; an unconfirmed tab keep
         local.restore();
     }
 });
+
+// Sessions signed in before this release are remembered on their next load, without overwriting another tab's
+// remembered sign-in.
+test('an existing tab sign-in becomes the remembered one only when none is remembered', () => {
+    const session = mockStorage('sessionStorage');
+    const local = mockStorage('localStorage');
+    try {
+        session.map.set('esto_session_token', 'old-session');
+        assert.equal(readStoredAuthToken(), 'old-session');
+        assert.equal(local.map.get('esto_remembered_token'), 'old-session');
+
+        local.map.set('esto_remembered_token', 'admin-token');
+        assert.equal(readStoredAuthToken(), 'old-session');
+        assert.equal(local.map.get('esto_remembered_token'), 'admin-token');
+    } finally {
+        clearAuthToken();
+        session.restore();
+        local.restore();
+    }
+});
