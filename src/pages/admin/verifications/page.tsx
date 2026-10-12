@@ -17,6 +17,7 @@ import Toggle from '@/components/ui/Toggle';
 import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
 import {  useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { getManagerVerificationTone } from '@/lib/adminVerificationStatus';
 import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'all' | 'pending' | 'review' | 'approved' | 'rejected';
@@ -361,19 +362,12 @@ function VerificationsContent() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-3 mb-1">
                         <h2 className="min-w-0 text-lg font-black text-gray-900 dark:text-white tracking-tight break-words [overflow-wrap:anywhere]">{displayName}</h2>
-                        <div className={`w-2 h-2 rounded-full ${isPending(manager.verification_status) ? 'bg-amber-500' :
-                          isReview(manager.verification_status) ? 'bg-blue-500' : 
-                          isApproved(manager.verification_status) ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
+                        <div className={`w-2 h-2 rounded-full ${getManagerVerificationTone(manager.verification_status).dotClassName}`}></div>
                       </div>
                       <div className="flex min-w-0 flex-wrap items-center gap-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{manager.profile_type}</span>
                         <span className="min-w-0 text-xs text-gray-500 font-bold break-all">- {manager.authorized_representative_email || 'No Email'}</span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                          isPending(manager.verification_status) ? 'bg-amber-100 text-amber-600' :
-                          isReview(manager.verification_status) ? 'bg-blue-100 text-blue-600' :
-                          isApproved(manager.verification_status) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
-                        }`}>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${getManagerVerificationTone(manager.verification_status).badgeClassName}`}>
                           {manager.verification_status.replace('_', ' ')}
                         </span>
                       </div>

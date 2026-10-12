@@ -5,6 +5,7 @@ import { Megaphone } from 'lucide-react';
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import {
+    ARCHIVED_PROMOTION_HELP,
     OFFER_CHECKLIST_EXPLANATION,
     RAZORPAY_OFFER_STEPS,
     REDEMPTIONS_PAGE_SIZE,
@@ -17,12 +18,14 @@ import {
     createIdempotencyKeys,
     describeBackfillResult,
     emptyPromotionForm,
+    filterPromotionsByArchive,
     findLaunchCampaign,
     formatPromotionBenefit,
     formatPromotionKind,
     formatPromotionMarkets,
     formatPromotionPlan,
     formatPromotionUsage,
+    formatPromotionWindow,
     getAdminTrialGrantState,
     getOfferChecklist,
     getPromotionActions,
@@ -128,6 +131,7 @@ export default function AdminPromotionsSection() {
     const [editing, setEditing] = useState<{ id: string; values: PromotionEditValues; errors: EditErrors } | null>(null);
     const [selectedID, setSelectedID] = useState<string | null>(null);
     const [redemptionOffset, setRedemptionOffset] = useState(0);
+    const [showArchived, setShowArchived] = useState(false);
     const [lookupInput, setLookupInput] = useState('');
     const [lookupManagerID, setLookupManagerID] = useState('');
     const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
@@ -144,6 +148,8 @@ export default function AdminPromotionsSection() {
 
     const promotions = useQuery({ queryKey: promotionQueryKeys.list(), queryFn: getAdminPromotions });
     const promotionList = useMemo(() => promotions.data ?? [], [promotions.data]);
+    const archivedCount = promotionList.filter((promotion) => promotion.status === 'archived').length;
+    const visiblePromotions = useMemo(() => filterPromotionsByArchive(promotionList, showArchived), [promotionList, showArchived]);
     const selected = promotionList.find((promotion) => promotion.id === selectedID) ?? null;
     const redemptions = useQuery({
         queryKey: promotionQueryKeys.redemptions(selectedID ?? '', redemptionOffset),
@@ -288,17 +294,22 @@ export default function AdminPromotionsSection() {
         <section aria-labelledby="promotions-heading" className="mb-6 rounded-2xl border bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
             <h2 id="promotions-heading" className="text-lg font-black text-gray-900 dark:text-white">Promotions</h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Trials and percent discounts. Commercial terms are fixed; only the name, description, end date and cap can be edited.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                <label className="inline-flex min-h-11 items-center gap-2 font-semibold"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} className="size-5 accent-orange-600" /> Show archived ({archivedCount})</label>
+            </div>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">{ARCHIVED_PROMOTION_HELP}</p>
+            <p className="mt-2 text-xs text-gray-600 sm:hidden dark:text-gray-300">Scroll the table sideways to see every column.</p>
             {promotions.isLoading ? <p className="mt-4 inline-flex items-center gap-2 text-sm"><ActionSpinner size="sm" aria-hidden /> Loading promotions…</p>
                 : promotions.isError ? <p role="alert" className="mt-4 text-sm text-red-800 dark:text-red-200">Unable to load promotions. Use Refresh to retry.</p>
-                    : promotionList.length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">No promotions yet.</p>
+                    : visiblePromotions.length === 0 ? <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">{promotionList.length === 0 ? 'No promotions yet.' : 'No promotions to show. Tick “Show archived” to see archived ones.'}</p>
                         : <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm">
                             <thead className="text-xs uppercase text-gray-500 dark:text-gray-400"><tr><th scope="col" className="py-2 pr-4">Name</th><th scope="col" className="py-2 pr-4">Kind</th><th scope="col" className="py-2 pr-4">Plan</th><th scope="col" className="py-2 pr-4">Benefit</th><th scope="col" className="py-2 pr-4">Window</th><th scope="col" className="py-2 pr-4">Used/cap</th><th scope="col" className="py-2 pr-4">Status</th><th scope="col" className="py-2">Actions</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{promotionList.map((promotion) => { const displayStatus = getPromotionDisplayStatus(promotion, now); return <Fragment key={promotion.id}><tr className={offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'border-b-0 align-top' : 'align-top'}>
-                                <td className="py-3 pr-4"><p className="font-bold">{promotion.name}</p>{promotion.code ? <code className="text-xs">{promotion.code}</code> : null}{promotion.auto_apply_on_signup ? <p className="text-xs text-emerald-700 dark:text-emerald-300">Auto-applies on signup</p> : null}</td>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{visiblePromotions.map((promotion) => { const displayStatus = getPromotionDisplayStatus(promotion, now); return <Fragment key={promotion.id}><tr className={offerCheck?.key === `${promotion.id}:${promotion.version}` ? 'border-b-0 align-top' : 'align-top'}>
+                                <td className="min-w-48 max-w-64 py-3 pr-4"><p className="truncate font-bold" title={promotion.name}>{promotion.name}</p>{promotion.code ? <p className="whitespace-nowrap text-xs text-gray-600 dark:text-gray-300">Code <code className="font-mono font-semibold">{promotion.code}</code></p> : null}{promotion.auto_apply_on_signup ? <p className="text-xs text-emerald-700 dark:text-emerald-300">Auto-applies on signup</p> : null}</td>
                                 <td className="py-3 pr-4">{formatPromotionKind(promotion.kind)}</td>
                                 <td className="py-3 pr-4">{formatPromotionPlan(promotion)}</td>
                                 <td className="py-3 pr-4">{formatPromotionBenefit(promotion)}</td>
-                                <td className="py-3 pr-4 text-xs">{formatWindow(promotion)}<br />{formatPromotionMarkets(promotion)}</td>
+                                <td className="whitespace-nowrap py-3 pr-4 text-xs" title={formatWindow(promotion)}>{formatPromotionWindow(promotion)}<br /><span className="text-gray-600 dark:text-gray-300">Market: {formatPromotionMarkets(promotion)}</span></td>
                                 <td className="py-3 pr-4">{formatPromotionUsage(promotion)}</td>
                                 <td className="py-3 pr-4"><span className={`rounded-full px-2 py-1 text-xs font-bold capitalize ${statusClasses[displayStatus]}`}>{displayStatus}</span></td>
                                 <td className="py-3"><div className="flex flex-wrap gap-2">

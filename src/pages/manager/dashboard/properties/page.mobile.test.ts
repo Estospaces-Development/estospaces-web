@@ -26,10 +26,10 @@ test('property search refetches show an inline spinner and a load failure is not
 test('inventory status filter offers every real listing state and no phantom ones (MB-0199)', () => {
     const block = source.slice(source.indexOf('const statusOptions'), source.indexOf('// Sort options'));
     for (const status of ['available', 'pending', 'sold', 'rented', 'rejected', 'suspended', 'draft']) {
-        assert.match(block, new RegExp(`value: '${status}'`));
+        assert.match(block, new RegExp(`(value: |\\[)'${status}'`));
     }
     for (const phantom of ['under_contract', 'off_market', 'online', 'active']) {
-        assert.doesNotMatch(block, new RegExp(`value: '${phantom}'`));
+        assert.doesNotMatch(block, new RegExp(`(value: |\\[)'${phantom}'`));
     }
 });
 

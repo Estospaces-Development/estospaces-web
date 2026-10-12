@@ -438,8 +438,40 @@ export const formatPromotionPlan = (promotion: Pick<AdminPromotion, 'plan_code'>
 export const formatPromotionKind = (kind: AdminPromotion['kind']): string =>
     kind === 'trial_grant' ? 'Trial' : 'Percent discount';
 
+const MARKET_NAMES: Record<string, string> = { IN: 'India', GB: 'United Kingdom' };
+
 export const formatPromotionMarkets = (promotion: Pick<AdminPromotion, 'kind' | 'eligible_markets'>): string =>
-    promotion.kind === 'trial_grant' ? 'All markets' : (promotion.eligible_markets ?? []).join(', ') || '—';
+    promotion.kind === 'trial_grant' ? 'All markets' : (promotion.eligible_markets ?? []).map((market) => MARKET_NAMES[market] ?? market).join(', ') || '—';
+
+/**
+ * Compact promotion window for the table: "12 Oct – 12 Nov 2026" (the year is
+ * repeated only when it differs), or "7 Oct 2026, 17:26 – 20:27" inside one day.
+ * Times on multi-day windows are left to the cell's title. `timeZone` exists
+ * for tests; the app renders in the admin's own time zone.
+ */
+export const formatPromotionWindow = (
+    promotion: Pick<AdminPromotion, 'valid_from' | 'valid_until'>,
+    timeZone?: string,
+): string => {
+    const part = (value: string, options: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat('en-GB', { ...options, timeZone }).format(new Date(value));
+    const day = (value: string, withYear: boolean) => part(value, withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
+    const time = (value: string) => part(value, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const { valid_from: from, valid_until: until } = promotion;
+    if (!from && !until) return 'Always, no end date';
+    if (!until) return `From ${day(from as string, true)}, no end date`;
+    if (!from) return `Until ${day(until, true)}`;
+    if (day(from, true) === day(until, true)) return `${day(from, true)}, ${time(from)} – ${time(until)}`;
+    const sameYear = part(from, { year: 'numeric' }) === part(until, { year: 'numeric' });
+    return `${day(from, !sameYear)} – ${day(until, true)}`;
+};
+
+/** Archived promotions are hidden from the table unless the admin asks for them. */
+export const filterPromotionsByArchive = <T extends Pick<AdminPromotion, 'status'>>(promotions: readonly T[], showArchived: boolean): T[] =>
+    promotions.filter((promotion) => showArchived || promotion.status !== 'archived');
+
+/** What Archived means, taken from payment-service: one-way, new use stops, existing grants and redemptions stay. */
+export const ARCHIVED_PROMOTION_HELP = 'Archived promotions are closed for good: they cannot be edited, activated or restored, and managers can no longer use them. Trials and discounts already granted continue, and their redemptions stay on record.';
 
 const ACTIONS_BY_STATUS: Record<AdminPromotionStatus, AdminPromotionAction[]> = {
     draft: ['activate', 'archive'],
