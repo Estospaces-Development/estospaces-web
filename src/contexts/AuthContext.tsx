@@ -367,8 +367,8 @@ const persistUser = (nextUser: User | null) => {
     writeSessionUserBinding(nextUser);
 };
 
-const clearStoredAuth = () => {
-    clearAuthToken();
+const clearStoredAuth = (options?: { keepRemembered?: boolean }) => {
+    clearAuthToken(options);
     if (typeof window === 'undefined') {
         return;
     }
@@ -376,6 +376,8 @@ const clearStoredAuth = () => {
     clearStoredUserSlots();
     clearSessionUserBinding();
 };
+
+const SIGN_IN_UNCONFIRMED_MESSAGE = "We couldn't confirm your sign-in. Check your connection and reload the page.";
 
 const resolveSignedOutError = () => {
     return isCurrentAuthRoute() ? null : 'Your session has expired. Please log in again.';
@@ -401,8 +403,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAuthenticated = !!user?.isAuthenticated;
 
-    const applySignedOutState = useCallback((nextError?: string | null) => {
-        clearStoredAuth();
+    const applySignedOutState = useCallback((nextError?: string | null, options?: { keepRemembered?: boolean }) => {
+        clearStoredAuth(options);
         resetAuthExpiryState();
         setUser(null);
         setLoading(false);
@@ -447,7 +449,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(cachedUser);
                 setError(null);
             } else {
-                applySignedOutState();
+                // Not a 401: the server could not confirm the sign-in (offline, timeout, 5xx). Keep the browser's
+                // remembered sign-in so the next load restores it instead of signing the user out for good.
+                applySignedOutState(SIGN_IN_UNCONFIRMED_MESSAGE, { keepRemembered: true });
             }
         } finally {
             setLoading(false);
