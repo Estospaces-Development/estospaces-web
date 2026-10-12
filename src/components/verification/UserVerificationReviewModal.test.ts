@@ -277,7 +277,8 @@ test('user verification review surfaces are cleanly scoped and avoid mojibake', 
 });
 
 test('verification approved status pills use contrast-safe text colors', () => {
-    const adminVerificationPage = readFileSync(path.resolve(testDir, '../../pages/admin/verifications/page.tsx'), 'utf8');
+    // The admin verification list takes its badge colours from adminVerificationStatus (web-app#726).
+    const adminVerificationPage = readFileSync(path.resolve(testDir, '../../lib/adminVerificationStatus.ts'), 'utf8');
     const userVerificationService = readFileSync(path.resolve(testDir, '../../services/userVerificationService.ts'), 'utf8');
 
     assert.doesNotMatch(source, /bg-emerald-100', text: 'text-emerald-700'/);
