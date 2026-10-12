@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   getManagerApprovalBlocker,
+  getManagerVerificationDetails,
   isPlaceholderManagerCompanyName,
   mapManagerProfile,
   normalizeManagerServiceAreas,
@@ -178,4 +179,31 @@ test('manager profile mapping reads core booking_read_only and treats a revoked 
   assert.equal(mapManagerProfile({ ...base, verification_status: 'rejected' }).verification_status, 'rejected');
   assert.equal(mapManagerProfile({ ...base, verification_status: 'revoked' }).verification_status, 'rejected');
   assert.equal(mapManagerProfile({ ...base, verification_status: 'documents_submitted' }).verification_status, 'submitted');
+});
+
+// The admin review reads core's India flag from user_info (core#125); only an explicit true counts, so a missing
+// or odd value keeps the UK redress rule.
+test('manager verification details read the India flag from core user_info', async () => {
+  const originalFetch = globalThis.fetch;
+  const respond = (userInfo: Record<string, unknown>) => {
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      success: true,
+      data: { profile: null, documents: [], audit_log: [], user_info: { email: 'm@example.com', ...userInfo } },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+  };
+  try {
+    for (const [userInfo, want] of [
+      [{ india_compliance: true }, true],
+      [{ india_compliance: false }, false],
+      [{ india_compliance: 'true' }, false],
+      [{}, false],
+    ] as const) {
+      respond(userInfo);
+      const { data, error } = await getManagerVerificationDetails('manager-1');
+      assert.equal(error, null);
+      assert.equal(data?.userInfo?.indiaCompliance, want, JSON.stringify(userInfo));
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
