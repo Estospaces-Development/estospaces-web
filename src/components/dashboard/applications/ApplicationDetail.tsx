@@ -415,6 +415,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                         status={application.status}
                         listingType={application.listingType}
                         linkedViewingStatus={application.fastTrackCase?.viewing?.status}
+                        statusReason={application.journeyStatusReason}
                     />
                 </div>
 

@@ -22,6 +22,8 @@ interface StatusTrackerProps {
     liveStage?: string;
     source?: string;
     linkedViewingStatus?: string | null;
+    // Booking's journey_status_reason: who closed a withdrawn application (booking#111).
+    statusReason?: string;
 }
 
 interface Stage {
@@ -32,7 +34,7 @@ interface Stage {
     statuses: string[];
 }
 
-const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source, linkedViewingStatus }) => {
+const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source, linkedViewingStatus, statusReason }) => {
     const isSaleJourney = listingType !== 'rent';
     const saleDisplayStage = isSaleJourney
         ? resolveSaleJourneyDisplayStage({ source, status, liveStage })
@@ -271,7 +273,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                             Application Withdrawn
                         </h3>
                         <p className="text-gray-500 dark:text-gray-400">
-                            You have withdrawn this application
+                            {statusReason || 'The applicant withdrew this application'}
                         </p>
                     </div>
                 </div>
