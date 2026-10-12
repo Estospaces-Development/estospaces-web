@@ -79,8 +79,23 @@ test('manager review modal exposes every manager professional field to admins', 
         ],
     );
     assert.match(source, /Professional Details/);
-    assert.match(source, /getManagerProfessionalDetails\(profile\)\.map/);
+    assert.match(source, /getManagerProfessionalDetails\(profile, \{ indiaCompliance: userInfo\?\.indiaCompliance \}\)\.map/);
     assert.match(source, /rel="noopener noreferrer"/);
+});
+
+test('manager review modal hides UK-only redress rows for India managers only', () => {
+    const profile = { id: 'm', profile_type: 'broker', verification_status: 'pending' } as any;
+    const labels = (opts?: { indiaCompliance?: boolean }) =>
+        getManagerProfessionalDetails(profile, opts).map(({ label }) => label);
+    for (const opts of [undefined, {}, { indiaCompliance: false }]) {
+        assert.ok(labels(opts).includes('Redress Scheme'));
+        assert.ok(labels(opts).includes('Redress Membership Number'));
+    }
+    const india = labels({ indiaCompliance: true });
+    assert.ok(!india.includes('Redress Scheme'));
+    assert.ok(!india.includes('Redress Membership Number'));
+    assert.equal(india.length, labels().length - 2);
+    assert.match(source, /indiaCompliance \? 'RERA Registration Number' : 'License Number'/);
 });
 
 test('manager review modal treats rejected profiles as closed review states', () => {

@@ -92,6 +92,7 @@ const getSafeProfileUrl = (value?: string): string | undefined => {
 
 export const getManagerProfessionalDetails = (
     profile: ManagerProfile,
+    { indiaCompliance }: { indiaCompliance?: boolean } = {},
 ): ManagerProfessionalDetail[] => {
     const certificateUrl = getSafeProfileUrl(profile.cmp_certificate_url);
     const websiteUrl = getSafeProfileUrl(profile.website);
@@ -108,6 +109,12 @@ export const getManagerProfessionalDetails = (
                 ? 'Invalid certificate link'
                 : undefined;
 
+    // India managers are never asked the UK-only redress fields.
+    const ukOnlyRows: ManagerProfessionalDetail[] = indiaCompliance ? [] : [
+        { icon: Shield, label: 'Redress Scheme', value: profile.redress_scheme_name },
+        { icon: Hash, label: 'Redress Membership Number', value: profile.redress_membership_number },
+    ];
+
     return [
         { icon: Building2, label: 'Company Name', value: profile.company_name },
         { icon: Briefcase, label: 'Branch Name', value: profile.branch_name },
@@ -122,8 +129,7 @@ export const getManagerProfessionalDetails = (
         { icon: MapPin, label: 'Company Address', value: profile.company_address },
         { icon: MapPin, label: 'Registered Office Address', value: profile.registered_office_address },
         { icon: Mail, label: 'Complaints Contact', value: profile.complaints_contact },
-        { icon: Shield, label: 'Redress Scheme', value: profile.redress_scheme_name },
-        { icon: Hash, label: 'Redress Membership Number', value: profile.redress_membership_number },
+        ...ukOnlyRows,
         { icon: FileText, label: 'Company Description', value: profile.company_description },
         { icon: MapPin, label: 'Service Areas', value: formatProfileList(profile.service_areas) },
         { icon: Hash, label: 'Dispatch PIN Codes', value: formatProfileList(profile.dispatch_pincodes) },
@@ -545,7 +551,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     <div className="grid gap-4 sm:grid-cols-2">
                         {isBroker ? (
                             <>
-                                <InfoItem icon={Hash} label="License Number" value={profile.license_number} />
+                                <InfoItem icon={Hash} label={userInfo?.indiaCompliance ? 'RERA Registration Number' : 'License Number'} value={profile.license_number} />
                                 <InfoItem icon={Calendar} label="License Expiry" value={profile.license_expiry_date} />
                                 <InfoItem icon={Shield} label="Association ID" value={profile.association_membership_id} />
                             </>
@@ -575,7 +581,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         Professional Details
                     </h3>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        {getManagerProfessionalDetails(profile).map((detail) => (
+                        {getManagerProfessionalDetails(profile, { indiaCompliance: userInfo?.indiaCompliance }).map((detail) => (
                             <InfoItem
                                 key={detail.label}
                                 icon={detail.icon}
