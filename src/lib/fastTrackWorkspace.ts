@@ -531,6 +531,20 @@ export const buildFastTrackDocumentRequestPayload = (
     };
 };
 
+// Document-request deadline is held as `yyyy-MM-ddTHH:mm` (local). It is edited with the
+// DateField/TimeField pair (native datetime-local is not reliably tappable on phones, #707),
+// so merge one changed part back into that string. Clearing the date clears the deadline.
+export const mergeFastTrackDeadlineParts = (
+    current: string,
+    change: { date: string } | { time: string },
+    today: string,
+    defaultTime = '17:00',
+) => {
+    const date = 'date' in change ? change.date : current.slice(0, 10) || today;
+    const time = 'time' in change ? change.time : current.slice(11, 16) || defaultTime;
+    return date && time ? `${date}T${time}` : '';
+};
+
 export const formatFastTrackDocumentRequestInputValue = (value?: string) => {
     const timestamp = Date.parse(String(value || ''));
     if (!Number.isFinite(timestamp)) {
