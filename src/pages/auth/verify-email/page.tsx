@@ -49,7 +49,9 @@ export default function VerifyEmailPage() {
                 if (errMsg.includes('already')) {
                     setStatus('success');
                     setMessage('Your email has already been verified. You can sign in.');
-                } else if (errMsg.includes('expired')) {
+                } else if (errMsg.includes('has expired')) {
+                    // Core says "verification token has expired" only for a real expiry; an unknown token is
+                    // "invalid or expired verification token" and gets the generic message below.
                     setStatus('error');
                     setMessage('This verification link has expired. Enter your email below to get a new one.');
                 } else {
