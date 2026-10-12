@@ -59,3 +59,13 @@ test('manager contract detail modal respects the manager shell chrome', () => {
     assert.match(source, /style=\{managerContractDetailOverlayStyle\}/);
     assert.doesNotMatch(source, /fixed inset-0 bg-black\/60 backdrop-blur-sm flex items-center justify-center z-\[9999\] p-4/);
 });
+
+test('manager contract detail modal has a single close control: the header X (#722)', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/manager/contracts/page.tsx'), 'utf8');
+    const modal = source.slice(source.indexOf('id="manager-contract-detail-title"'), source.indexOf('{createContractTarget && ('));
+
+    assert.match(modal, /aria-label="Close contract detail"[\s\S]*?<X size=\{20\} aria-hidden="true" \/>/);
+    assert.equal((modal.match(/onClick=\{closeContractDetail\}/g) || []).length, 1);
+    assert.doesNotMatch(modal, />\s*Close\s*</);
+    assert.match(modal, /\{\(canWithdrawViewContract \|\| canConfirmViewContract\) && \(/);
+});

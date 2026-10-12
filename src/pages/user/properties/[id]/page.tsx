@@ -2594,7 +2594,7 @@ const UserPropertyDetail = () => {
                             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
                                 <div className="min-w-0">
                                     <p className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400 sm:block">Property gallery</p>
-                                    <h1 className="break-words text-[1.35rem] font-semibold leading-[1.12] tracking-tight text-gray-900 sm:mt-3 sm:text-3xl md:text-[2.45rem] dark:text-white">
+                                    <h1 title={property.title} className="line-clamp-2 break-words text-balance text-[clamp(1.15rem,5.2vw,1.35rem)] font-semibold leading-[1.12] tracking-tight text-gray-900 sm:mt-3 sm:line-clamp-none sm:text-3xl md:text-[2.45rem] dark:text-white">
                                         {property.title}
                                     </h1>
                                     <div className="mt-2.5 flex items-start gap-1.5 text-[13px] leading-5 text-gray-500 dark:text-gray-400 sm:mt-3 sm:gap-2 sm:text-sm">

@@ -95,7 +95,7 @@ const buildSearchPriceRanges = (countryCode: string) => {
 
 const priceRanges = buildSearchPriceRanges('IN');
 
-const suggestionMenuClassName = "absolute z-50 mt-1 max-h-48 w-full min-w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-auto rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800";
+const suggestionMenuClassName = "absolute z-50 mt-1 max-h-48 w-full min-w-0 max-w-full overflow-auto rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800";
 const suggestionOptionClassName = "flex w-full min-w-0 items-center justify-between gap-3 px-4 py-2 text-left text-gray-900 transition-colors hover:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700";
 const suggestionLabelClassName = "flex min-w-0 flex-1 items-center gap-2";
 const suggestionTextClassName = "truncate";

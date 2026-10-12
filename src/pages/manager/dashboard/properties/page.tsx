@@ -29,6 +29,7 @@ import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { shouldShowManagerPropertyInitialLoader } from '@/lib/managerPropertyInitialLoad';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { useHorizontalOverflow } from '@/lib/useHorizontalOverflow';
 import { getShareBlockedReason, isPropertyPubliclyShareable } from '@/lib/propertySharing';
 import ManagerListingActionButtons from '@/components/manager/ManagerListingActionButtons';
 import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
@@ -160,6 +161,8 @@ function PropertiesContent() {
 
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const tableScrollRef = useRef<HTMLDivElement>(null);
+    const tableOverflows = useHorizontalOverflow(tableScrollRef, `${viewMode}:${properties.length}:${loading}`);
     const [activeTab, _setActiveTab] = useState<TabType>('all');
     const [showFilters, setShowFilters] = useState(false);
     const [_showExportMenu, setShowExportMenu] = useState(false);
@@ -744,15 +747,18 @@ function PropertiesContent() {
                 </div>
             ) : (
                 <div className="space-y-2">
-                    <p className="px-1 text-xs font-medium text-gray-500 dark:text-gray-400 sm:hidden">
-                        Swipe sideways to see status and actions.
-                    </p>
+                    {tableOverflows && (
+                        <p className="px-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Swipe sideways to see status and actions.
+                        </p>
+                    )}
                     <div
+                        ref={tableScrollRef}
                         className="max-w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm [overscroll-behavior-inline:contain] [scrollbar-gutter:stable] touch-pan-x dark:border-gray-800 dark:bg-gray-900"
                         tabIndex={0}
                         aria-label="Scrollable property listings table"
                     >
-                        <table className="min-w-[760px] w-full text-left">
+                        <table data-own-scroll className="min-w-[760px] w-full text-left">
                         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Property</th>

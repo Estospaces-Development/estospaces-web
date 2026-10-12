@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck } from 'lucide-react';
+import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck, X } from 'lucide-react';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -94,6 +94,11 @@ export default function ManagerContractsPage() {
     const { success, error: toastError, info } = useToast();
     // A manager whose verification was rejected or revoked can open every contract but not change any.
     const managerViewOnly = useManagerViewOnly();
+    const canWithdrawViewContract = Boolean(viewContract)
+        && !managerViewOnly
+        && !(viewContract?.user_signed_at && viewContract?.manager_signed_at)
+        && ['draft', 'pending_user', 'pending_manager', 'pending_user_signature', 'pending_manager_signature'].includes(String(viewContract?.status || ''));
+    const canConfirmViewContract = Boolean(viewContract) && !managerViewOnly && isPendingManagerSignature(viewContract?.status);
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
     const removedCaseNoticeRef = React.useRef<string | null>(null);
@@ -798,9 +803,9 @@ export default function ManagerContractsPage() {
                                 type="button"
                                 onClick={closeContractDetail}
                                 aria-label="Close contract detail"
-                                className="inline-flex min-h-11 items-center justify-center rounded-full px-3 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
-                                Close
+                                <X size={20} aria-hidden="true" />
                             </button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
@@ -958,16 +963,10 @@ export default function ManagerContractsPage() {
                             </div>
                         </div>
 
-                        {/* Footer with manager confirmation button if needed */}
+                        {/* The header X is the single close control; the footer only exists when it carries an action. */}
+                        {(canWithdrawViewContract || canConfirmViewContract) && (
                         <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
-                            <button
-                                onClick={closeContractDetail}
-                                className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                Close
-                            </button>
-                            {!managerViewOnly && !(viewContract.user_signed_at && viewContract.manager_signed_at)
-                                && ['draft', 'pending_user', 'pending_manager', 'pending_user_signature', 'pending_manager_signature'].includes(String(viewContract.status || '')) && (
+                            {canWithdrawViewContract && (
                                 <button
                                     type="button"
                                     onClick={() => void handleWithdraw(viewContract)}
@@ -977,7 +976,7 @@ export default function ManagerContractsPage() {
                                     Withdraw
                                 </button>
                             )}
-                            {!managerViewOnly && isPendingManagerSignature(viewContract.status) && (
+                            {canConfirmViewContract && (
                                 <button
                                     onClick={() => handleCountersign(viewContract.id)}
                                     disabled={signingId === viewContract.id}
@@ -991,6 +990,7 @@ export default function ManagerContractsPage() {
                                 </button>
                             )}
                         </div>
+                        )}
                     </div>
                 </div>,
             )}

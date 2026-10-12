@@ -79,7 +79,8 @@ test('Discover clears previous-market options and invalidates stale property req
 test('location suggestions keep long dashboard results contained', () => {
     assert.match(source, /setLocationSuggestions\(selectLocationSuggestions\(suggestions\)\)/);
     assert.doesNotMatch(source, /suggestion\.type === 'property'/);
-    assert.match(source, /const suggestionMenuClassName = .*min-w-\[min\(22rem,calc\(100vw-2rem\)\)\]/);
+    assert.match(source, /const suggestionMenuClassName = .*\bw-full min-w-0 max-w-full\b/);
+    assert.doesNotMatch(source, /const suggestionMenuClassName = .*100vw/);
     assert.match(source, /const suggestionOptionClassName = .*min-w-0/);
     assert.match(source, /const suggestionLabelClassName = .*min-w-0 flex-1/);
     assert.match(source, /const suggestionTextClassName = "truncate"/);

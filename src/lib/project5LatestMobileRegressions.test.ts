@@ -135,7 +135,7 @@ test("manager property controls remain usable on narrow screens", () => {
   assert.match(source, /left-0 z-50 mt-2 w-56 max-w-\[calc\(100vw-2rem\)\]/);
   assert.match(source, /sm:left-auto sm:right-0/);
   assert.match(source, /overflow-x-auto/);
-  assert.match(source, /<table className="min-w-\[760px\] w-full text-left">/);
+  assert.match(source, /<table data-own-scroll className="min-w-\[760px\] w-full text-left">/);
 });
 
 test("manager notification timestamps stack below titles on mobile", () => {

@@ -29,6 +29,14 @@ export interface UserPropertyPortfolioItem {
   sortDate: string;
 }
 
+/** Footer status text, or "" when it only repeats the ownership badge (e.g. "Rented" under a RENTED badge). */
+export const getPortfolioFooterStatusLabel = (
+  item: Pick<UserPropertyPortfolioItem, "statusLabel" | "ownershipLabel">,
+): string =>
+  item.statusLabel.trim().toLowerCase() === item.ownershipLabel.toLowerCase()
+    ? ""
+    : item.statusLabel;
+
 export interface UserPropertyPortfolioSummary {
   total: number;
   bought: number;
@@ -298,7 +306,7 @@ export const buildUserPropertyPortfolio = ({
       normalizedStatus === "active" ? "Rented" : "Rent in progress";
     const statusSummary =
       normalizedStatus === "active"
-        ? "Your tenancy is active and this home is available from your portfolio."
+        ? "" // The Rented + Active badges and the move-in date already say this.
         : normalizedStatus === "pending_user_signature"
           ? "Your signature is still required before this tenancy can move forward."
           : normalizedStatus === "pending_manager_signature"
