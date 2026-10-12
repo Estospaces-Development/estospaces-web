@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
-import { getLeadMapActions, groupLeadsByLocation, type LeadMapActionId } from '@/lib/leadMapView';
+import { getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation, type LeadMapActionId } from '@/lib/leadMapView';
 import { canScheduleManagerLeadViewing, formatManagerLeadAddress, pickDefaultManagerLead } from '@/lib/managerLeadList';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -269,7 +269,7 @@ export default function LeadActionMap({
                                             <div className="w-[220px] max-w-full">
                                                 {group.leads.length > 1 ? (
                                                     <div role="group" aria-label={`${group.leads.length} leads at this location`} className="mb-2 flex flex-wrap gap-1 pr-11">
-                                                        {group.leads.map((lead) => (
+                                                        {group.leads.map((lead, leadIndex) => (
                                                             <button
                                                                 key={lead.id}
                                                                 type="button"
@@ -277,7 +277,7 @@ export default function LeadActionMap({
                                                                 onClick={() => setSelectedLeadID(lead.id)}
                                                                 className={`rounded-full border px-2 py-1 text-xs font-semibold ${lead.id === activeLead.id ? 'border-orange-600 bg-orange-600 text-white' : 'border-stone-300 bg-white text-slate-700'}`}
                                                             >
-                                                                {lead.name || lead.email || lead.lead_number || 'Client enquiry'}
+                                                                {getLeadMapSwitcherLabels(group.leads)[leadIndex]}
                                                             </button>
                                                         ))}
                                                     </div>
