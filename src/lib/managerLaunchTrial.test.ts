@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    formatTrialDate,
     DAY_MS,
     TRIAL_NO_CHARGE_NOTE,
     canRedeemTrialCode,
@@ -170,4 +171,8 @@ test('the trial-code field is offered only on Free access with no trial, paid ac
 test('a redeemed code confirms the customer-facing plan and end date with no card', () => {
     assert.equal(getTrialCodeRedeemedMessage({ plan_code: 'pro', plan_name: 'Growth', ends_at: endsAt }, formatDate), 'Growth plan active until 2026-11-27. No card needed.');
     assert.equal(getTrialCodeRedeemedMessage({ plan_code: '', plan_name: 'Growth', ends_at: 'soon' }, formatDate), 'Growth plan active. No card needed.');
+});
+
+test('trial dates read day month year in every browser locale', () => {
+    assert.equal(formatTrialDate(new Date('2026-12-08T12:00:00Z')), '8 December 2026');
 });
