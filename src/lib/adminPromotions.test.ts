@@ -14,6 +14,9 @@ import {
     formatPromotionBenefit,
     formatPromotionMarkets,
     formatPromotionUsage,
+    formatPromotionWindow,
+    filterPromotionsByArchive,
+    ARCHIVED_PROMOTION_HELP,
     getAdminTrialGrantState,
     getOfferChecklist,
     getPromotionActions,
@@ -189,7 +192,7 @@ test('list presentation: benefit, usage, markets, actions and launch campaign', 
     assert.equal(formatPromotionUsage(promotion()), '3/unlimited');
     assert.equal(formatPromotionUsage(promotion({ max_redemptions: 100 })), '3/100');
     assert.equal(formatPromotionMarkets(promotion()), 'All markets');
-    assert.equal(formatPromotionMarkets(promotion({ kind: 'percent_discount', eligible_markets: ['GB', 'IN'] })), 'GB, IN');
+    assert.equal(formatPromotionMarkets(promotion({ kind: 'percent_discount', eligible_markets: ['GB', 'IN'] })), 'United Kingdom, India');
     assert.deepEqual(getPromotionActions('draft'), ['activate', 'archive']);
     assert.deepEqual(getPromotionActions('active'), ['pause', 'archive']);
     assert.deepEqual(getPromotionActions('paused'), ['activate', 'archive']);
@@ -328,4 +331,25 @@ test('an active promotion past its end date reads as ended, other states are unt
     assert.equal(getPromotionDisplayStatus(promotion({ status: 'paused', valid_until: '2026-10-01T00:00:00Z' }), now), 'paused');
     assert.equal(getPromotionDisplayStatus(promotion({ status: 'archived', valid_until: '2026-10-01T00:00:00Z' }), now), 'archived');
     assert.equal(getPromotionDisplayStatus(promotion({ valid_until: 'not-a-date' }), now), 'active');
+});
+
+test('promotion window is compact, keeps the year once, and collapses a same-day window (#729)', () => {
+    const w = (valid_from?: string, valid_until?: string) => formatPromotionWindow({ valid_from, valid_until }, 'UTC');
+    assert.equal(w('2026-10-12T09:00:00Z', '2026-11-12T18:30:00Z'), '12 Oct – 12 Nov 2026');
+    assert.equal(w('2026-12-20T00:00:00Z', '2027-01-05T00:00:00Z'), '20 Dec 2026 – 5 Jan 2027');
+    assert.equal(w('2026-10-07T17:26:00Z', '2026-10-07T20:27:00Z'), '7 Oct 2026, 17:26 – 20:27');
+    assert.equal(w('2026-10-12T00:00:00Z'), 'From 12 Oct 2026, no end date');
+    assert.equal(w(undefined, '2026-11-12T00:00:00Z'), 'Until 12 Nov 2026');
+});
+
+test('markets are spelled out instead of IN/GB codes (#729)', () => {
+    assert.equal(formatPromotionMarkets(promotion({ kind: 'percent_discount', eligible_markets: ['IN'] })), 'India');
+});
+
+test('archived promotions are hidden unless requested, and the help says it is permanent (#730)', () => {
+    const list = [promotion({ id: 'a' }), promotion({ id: 'b', status: 'archived' })];
+    assert.deepEqual(filterPromotionsByArchive(list, false).map((item) => item.id), ['a']);
+    assert.deepEqual(filterPromotionsByArchive(list, true).map((item) => item.id), ['a', 'b']);
+    assert.deepEqual(getPromotionActions('archived'), []);
+    assert.match(ARCHIVED_PROMOTION_HELP, /cannot be edited, activated or restored/);
 });

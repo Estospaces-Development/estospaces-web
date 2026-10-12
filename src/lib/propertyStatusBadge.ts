@@ -210,3 +210,18 @@ export const getManagerPropertyStatusBadge = (status?: string) => {
             };
     }
 };
+
+const FILTER_CHIP_CLASSES: Record<string, { color: string; bgColor: string }> = {
+    available: { color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+    pending: { color: 'text-yellow-700 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+    sold: { color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+    rented: { color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
+    rejected: { color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30' },
+    // Suspended uses the same rose hue as its table badge (getManagerPropertyStatusBadge).
+    suspended: { color: 'text-rose-700 dark:text-rose-400', bgColor: 'bg-rose-100 dark:bg-rose-900/30' },
+    draft: { color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
+};
+
+/** Selected-state colours for the property status filter chips; the single source for every chip. */
+export const getPropertyStatusFilterChipClasses = (status: string) =>
+    FILTER_CHIP_CLASSES[status] ?? { color: 'text-gray-700 dark:text-gray-300', bgColor: 'bg-gray-100 dark:bg-gray-900/30' };
