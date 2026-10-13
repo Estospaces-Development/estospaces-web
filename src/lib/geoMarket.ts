@@ -159,12 +159,6 @@ export const getExplicitUserMarket = (user?: GeoMarketUserContext | null): GeoMa
   return normalizeGeoCountryCode(signals.countryCode);
 };
 
-/** Catalogue market pinned by a typed postcode/PIN first, then the account's declared country. */
-export const getCataloguePinnedMarket = (
-  user?: GeoMarketUserContext | null,
-  typedLocationCode?: string | null,
-): GeoMarketCode | null => getLaunchCountryFromLocationCode(typedLocationCode) || getExplicitUserMarket(user);
-
 const withoutUnsetSignals = (signals: GeoMarketSignals): GeoMarketSignals => (
   Object.fromEntries(Object.entries(signals).filter(([, value]) => value != null && value !== ""))
 );
@@ -180,15 +174,17 @@ export const getUserGeoSignals = (
 
 /**
  * Signals for the property catalogue (dashboard, Discover, Search): typed postcode/PIN, then the
- * account country, then a saved city or country preference (`overrides.countryCode`), then the saved
- * postcode, then the browser's time zone and language (added by the hook).
+ * saved city or country preference (`overrides.countryCode`, the user's explicit choice), then the
+ * account country, then the saved postcode, then the browser's time zone and language (added by the hook).
  */
 export const getCatalogueGeoSignals = (
   user: GeoMarketUserContext | null | undefined,
   overrides: GeoMarketSignals = {},
   typedLocationCode?: string | null,
 ): GeoMarketSignals => {
-  const pinned = getCataloguePinnedMarket(user, typedLocationCode);
+  const pinned = getLaunchCountryFromLocationCode(typedLocationCode)
+    || normalizeGeoCountryCode(overrides.countryCode)
+    || getExplicitUserMarket(user);
   if (pinned) {
     return { countryCode: pinned };
   }

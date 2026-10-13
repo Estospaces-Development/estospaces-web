@@ -7,7 +7,7 @@ import {
   getLaunchLocationCodePlaceholder,
   isValidLaunchLocationCodeForCountry,
 } from './launchLocale';
-import { applyAccountMarket, getMarketCurrencyCode, resolveLocationFormMarket, resolvePreferredSearchDefaults } from './preferredSearchDefaults';
+import { getMarketCurrencyCode, resolveLocationFormMarket, resolvePreferredSearchDefaults } from './preferredSearchDefaults';
 
 test('country-level search preference selects a market without treating the country as a city', () => {
   assert.deepEqual(resolvePreferredSearchDefaults('India'), { market: 'IN', location: '' });
@@ -56,12 +56,7 @@ test('Indian location keeps the 6-digit PIN code rules and INR budget', () => {
   assert.equal(getMarketCurrencyCode(market), 'INR');
 });
 
-test('a saved city cannot switch an account out of its own market', () => {
-  const manchester = resolvePreferredSearchDefaults('Manchester');
-  assert.deepEqual(applyAccountMarket(manchester, 'IN'), { market: null, location: '' });
-  assert.deepEqual(applyAccountMarket(manchester, 'GB'), manchester);
-  assert.deepEqual(applyAccountMarket(manchester, null), manchester);
-  const chennai = resolvePreferredSearchDefaults('Chennai');
-  assert.deepEqual(applyAccountMarket(chennai, 'IN'), chennai);
-  assert.deepEqual(applyAccountMarket(chennai, 'GB'), { market: null, location: '' });
+test('a saved London city selects the UK market and keeps London as the city filter (web-app#732)', () => {
+  assert.deepEqual(resolvePreferredSearchDefaults('London'), { market: 'GB', location: 'London' });
+  assert.deepEqual(resolvePreferredSearchDefaults('London, UK'), { market: 'GB', location: 'London' });
 });

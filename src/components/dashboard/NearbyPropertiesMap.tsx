@@ -207,6 +207,16 @@ function MapAutoFit({
     return null;
 }
 
+// Pins merge by on-screen distance, so the grouping needs the live zoom (web-app#737).
+function MapZoomWatcher({ onZoom }: { onZoom: (zoom: number) => void }) {
+    const map = useMap();
+    useEffect(() => {
+        onZoom(map.getZoom());
+    }, [map, onZoom]);
+    useMapEvent('zoomend', () => onZoom(map.getZoom()));
+    return null;
+}
+
 function TileErrorWatcher({ onTileError, onTileLoad }: { onTileError: () => void; onTileLoad: () => void }) {
     const map = useMap();
     useEffect(() => {
@@ -306,7 +316,8 @@ const NearbyPropertiesMap = ({
     const propertiesWithCoords = useMemo(() => (
         sortedProperties.filter(hasVerifiedPropertyMapCoordinates)
     ), [sortedProperties]);
-    const markerGroups = useMemo(() => groupNearbyMapMarkers(propertiesWithCoords), [propertiesWithCoords]);
+    const [mapZoom, setMapZoom] = useState<number | undefined>(undefined);
+    const markerGroups = useMemo(() => groupNearbyMapMarkers(propertiesWithCoords, mapZoom), [propertiesWithCoords, mapZoom]);
     const compactMapStatus = getCompactNearbyMapStatus({
         pinnedCount: propertiesWithCoords.length,
         unlocatedCount: properties.filter((property) => !hasVerifiedPropertyMapCoordinates(property)).length,
@@ -505,6 +516,7 @@ const NearbyPropertiesMap = ({
             >
                 <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} fallbackView={fallbackView} />
                 <MapZoomControl position={compact ? 'bottomright' : 'topright'} />
+                <MapZoomWatcher onZoom={setMapZoom} />
                 <TileErrorWatcher onTileError={handleTileError} onTileLoad={handleTileLoad} />
                 {mapStyle === 'standard' ? (
                     <TileLayer
@@ -552,7 +564,7 @@ const NearbyPropertiesMap = ({
                                 <Popup>
                                     <div className="w-[220px] max-w-full" data-nearby-map-shared-pin>
                                         <h4 className="text-sm font-semibold text-slate-900">
-                                            {group.properties.length} homes at this location
+                                            {group.properties.length} homes in this area
                                         </h4>
                                         <ul className="mt-1.5 max-h-36 divide-y divide-stone-100 overflow-y-auto">
                                             {group.properties.map((property) => (

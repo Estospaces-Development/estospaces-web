@@ -5,7 +5,6 @@ import {
   normalizeGeoCountryCode,
   resolveGeoMarket,
   getCatalogueGeoSignals,
-  getCataloguePinnedMarket,
   getExplicitUserMarket,
   getGeoMarketSignalsFromUser,
   getUserGeoSignals,
@@ -73,16 +72,6 @@ test('the account country outranks postcode and stored code', () => {
   assert.equal(getExplicitUserMarket(null), null);
 });
 
-test('catalogue market: typed postcode, then account country, else unpinned', () => {
-  const indiaWithUkPostcode = { country: 'India', postcode: 'PR1 2NJ' };
-  assert.equal(getCataloguePinnedMarket(indiaWithUkPostcode), 'IN');
-  assert.equal(getCataloguePinnedMarket(indiaWithUkPostcode, 'SW1A 1AA'), 'GB');
-  assert.equal(getCataloguePinnedMarket({ country: 'United Kingdom' }, '600020'), 'IN');
-  assert.equal(getCataloguePinnedMarket({ country: 'United Kingdom' }, 'London'), 'GB');
-  assert.equal(getCataloguePinnedMarket({ postcode: '600020' }), null);
-  assert.equal(getCataloguePinnedMarket(null, ''), null);
-});
-
 test('unset hook signals keep the browser time zone (India device, en-GB, no country)', () => {
   const browser = { acceptLanguage: 'en-GB', timeZone: 'Asia/Kolkata' };
   const hookSignals = { countryCode: undefined, countryName: undefined, locationCode: undefined, acceptLanguage: undefined, timeZone: undefined };
@@ -103,7 +92,7 @@ test("an unset override never erases the account's saved postcode", () => {
   assert.equal(getUserGeoSignals({ user_metadata: { postcode: 'SW1A 1AA' } }, { locationCode: undefined }).locationCode, 'SW1A 1AA');
 });
 
-test('catalogue signals: typed postcode, account country, saved city/country preference, then saved postcode', () => {
+test('catalogue signals: typed postcode, saved city/country preference, account country, then saved postcode', () => {
   const browser = { acceptLanguage: 'en-IN', timeZone: 'Asia/Kolkata' };
   const marketOf = (signals: ReturnType<typeof getCatalogueGeoSignals>) => resolveGeoMarket(mergeWithBrowserSignals(browser, signals));
 
@@ -113,11 +102,15 @@ test('catalogue signals: typed postcode, account country, saved city/country pre
   assert.equal(marketOf(getCatalogueGeoSignals({ country: 'India', postcode: 'SW1A 1AA' }, { locationCode: null }, null)), 'IN');
   // a typed postcode wins over the account country
   assert.equal(marketOf(getCatalogueGeoSignals({ country: 'India', postcode: '600001' }, { locationCode: 'SW1A 1AA' }, 'SW1A 1AA')), 'GB');
-  // a saved city/country preference outranks the saved postcode, and the postcode is not sent alongside it
+  // a saved city/country preference outranks the account country and the saved postcode (web-app#732), and the postcode is not sent alongside it
   const withPreference = getCatalogueGeoSignals({ postcode: 'SW1A 1AA' }, { countryCode: 'IN', locationCode: undefined }, null);
   assert.equal(withPreference.countryCode, 'IN');
-  assert.equal(withPreference.locationCode, null);
+  assert.equal(withPreference.locationCode, undefined);
   assert.equal(marketOf(withPreference), 'IN');
+  // London saved on an India account: the saved city decides, a typed PIN still wins over it
+  const londonOnIndiaAccount = { country: 'India', postcode: '600020' };
+  assert.equal(marketOf(getCatalogueGeoSignals(londonOnIndiaAccount, { countryCode: 'GB', locationCode: 'London' }, null)), 'GB');
+  assert.equal(marketOf(getCatalogueGeoSignals(londonOnIndiaAccount, { countryCode: 'GB', locationCode: 'London' }, '600001')), 'IN');
   // nothing saved: the time zone decides
   assert.equal(marketOf(getCatalogueGeoSignals({}, {}, null)), 'IN');
 });
