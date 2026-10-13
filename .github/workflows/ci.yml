@@ -52,6 +52,8 @@ jobs:
         run: npm run test:admin-notifications:browser
       - name: Verify admin lead count refresh and pagination
         run: npm run test:admin-lead-counts:browser
+      - name: Verify tickets 732-744 mobile fixes
+        run: npm run test:tickets-732-744:browser
       - name: Build hardened Docker image
         run: |
           docker build \
