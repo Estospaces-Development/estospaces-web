@@ -132,7 +132,7 @@ test('support and admin registry controls reflow into full-width mobile actions'
   assert.match(supportCenter, /min-w-0 max-w-full space-y-6/);
   assert.match(supportCenter, /flex min-w-0 flex-col gap-3/);
   assert.match(adminProperties, /flex w-full min-w-0 flex-col gap-3/);
-  assert.match(adminProperties, /min-h-11 w-full items-center justify-center/);
+  assert.doesNotMatch(adminProperties, /Add Property/);
   assert.match(adminUsers, /data-mobile-table="cards"/);
   assert.match(adminUsers, /hidden max-w-full overflow-x-auto[^\n]+md:block/);
   assert.match(adminUsers, /flex w-full min-w-0 flex-col items-stretch gap-3/);
