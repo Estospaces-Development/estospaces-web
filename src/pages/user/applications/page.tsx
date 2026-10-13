@@ -309,7 +309,7 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                                 <MapPin size={14} className="text-orange-500" />
                                 {application.propertyAddress}
                             </p>
-                            {application.propertyPrice && (
+                            {application.propertyPrice !== undefined && application.propertyPrice > 0 && (
                                 <p className="mt-2 text-xl font-black text-gray-900 dark:text-white">
                                     {formatApplicationPrice(application.propertyPrice)}
                                     <span className="text-sm font-normal text-gray-500">{application.listingType === 'rent' ? '/mo' : ''}</span>

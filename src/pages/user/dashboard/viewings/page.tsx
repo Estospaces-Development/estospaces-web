@@ -621,7 +621,7 @@ export default function ViewingsPage() {
                                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-orange-500 transition-colors line-clamp-1">
                                                     {viewing.propertyTitle}
                                                 </h3>
-                                                {viewing.propertyPrice && (
+                                                {Number(viewing.propertyPrice) > 0 && (
                                                     <span className="text-lg font-bold text-gray-900 dark:text-white">
                                                         {formatViewingPrice(viewing)}
                                                         <span className="text-sm text-gray-500 font-normal">{viewing.listingType === 'rent' ? '/mo' : ''}</span>
@@ -695,19 +695,19 @@ export default function ViewingsPage() {
                                                         {viewing.workflow_lock_reason || 'This appointment is locked because the linked workflow has already progressed.'}
                                                     </div>
                                                 )}
-                                                <div className="flex gap-3 w-full sm:w-auto">
+                                                <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3 w-full sm:min-w-[20rem]">
                                                 {missingListingIds.has(String(viewing.property_id || '').trim()) ? (
                                                     <button
                                                         type="button"
                                                         disabled
-                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg cursor-not-allowed"
+                                                        className="min-h-11 min-w-0 px-4 py-2 text-sm text-center whitespace-normal break-words font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg cursor-not-allowed"
                                                     >
                                                         Listing no longer available
                                                     </button>
                                                 ) : (
                                                 <button
                                                     onClick={() => navigate(`/user/properties/${viewing.property_id}`)}
-                                                    className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                                                    className="min-h-11 min-w-0 px-4 py-2 text-sm text-center whitespace-normal break-words font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
                                                 >
                                                     View Listing
                                                 </button>
@@ -717,7 +717,7 @@ export default function ViewingsPage() {
                                                         type="button"
                                                         onClick={() => void handleAcceptReschedule(viewing.id)}
                                                         disabled={acceptingViewingID === viewing.id}
-                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-60"
+                                                        className="min-h-11 min-w-0 px-4 py-2 text-sm text-center whitespace-normal break-words font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-60"
                                                     >
                                                         {acceptingViewingID === viewing.id ? 'Accepting…' : 'Accept new time'}
                                                     </button>
@@ -725,7 +725,7 @@ export default function ViewingsPage() {
                                                 {(viewing.status === 'pending' || viewing.status === 'confirmed' || viewing.status === 'rescheduled') && !viewing.workflow_locked && (
                                                     <button
                                                         onClick={() => openCancelModal(viewing.id)}
-                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
+                                                        className="min-h-11 min-w-0 px-4 py-2 text-sm text-center whitespace-normal break-words font-bold text-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
                                                     >
                                                         Cancel Appointment
                                                     </button>
