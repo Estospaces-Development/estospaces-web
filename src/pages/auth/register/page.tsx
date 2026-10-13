@@ -238,15 +238,15 @@ function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps) {
                 </div>
                 <div className="max-h-[60vh] overflow-y-auto px-6 py-6 bg-gray-50/80 dark:bg-gray-950/60">
                     <div className="rounded-[1.5rem] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 md:p-8 space-y-4 text-sm text-gray-600 dark:text-gray-400">
-                        <p>Last updated: July 2026</p>
+                        <p>Last updated: 13 October 2026</p>
                         <h4 className="font-bold text-gray-900 dark:text-white">Information We Collect</h4>
-                        <p>We collect information you provide directly to us, such as your name, email address, phone number, and property preferences when you register or use our services.</p>
+                        <p>We collect information you provide directly to us, such as your name, email address, phone number, property preferences and any verification documents you upload. Card and bank details are entered on Razorpay’s checkout and are not stored by Estospaces.</p>
                         <h4 className="font-bold text-gray-900 dark:text-white">How We Use Your Information</h4>
                         <p>We use your information to provide and improve our property platform, connect you with property managers and agents, and communicate important updates about your inquiries.</p>
                         <h4 className="font-bold text-gray-900 dark:text-white">Data Sharing</h4>
                         <p>We share your information with property managers and agents only when you make a property inquiry or use our Fast Track service. We never sell your personal data to third parties.</p>
                         <h4 className="font-bold text-gray-900 dark:text-white">Your Rights</h4>
-                        <p>You can access, update, or delete your personal information at any time through your account settings. For any privacy concerns, contact us at privacy@estospaces.com.</p>
+                        <p>You can view and update your details in your profile. To delete your account or exercise any other privacy right, contact us at privacy@estospaces.com. The full Privacy Policy is at /privacy.</p>
                     </div>
                 </div>
                 <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">

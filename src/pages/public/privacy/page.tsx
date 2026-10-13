@@ -31,86 +31,81 @@ export default function PrivacyPolicyPage() {
                         <Shield className="text-orange-500" size={32} />
                     </div>
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-                    <p className="text-gray-500">Last updated: January 2026</p>
+                    <p className="text-gray-500">Last updated: 13 October 2026</p>
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12 space-y-8">
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Who We Are</h2>
                         <p className="text-gray-600 leading-relaxed">
-                            Welcome to Estospaces. We respect your privacy and are committed to protecting your personal data.
-                            This privacy policy will inform you about how we look after your personal data when you visit our
-                            website and tell you about your privacy rights and how the law protects you.
+                            Estospaces helps people find homes and helps property managers and agents work with them, in India and the UK. For users and managers in India, the data controller is Estospaces Solutions Private Limited. For users and managers in the United Kingdom, it is Estospaces Solutions Limited. This policy explains what personal data we use, why, who we share it with and your rights.
                         </p>
                     </section>
 
                     <section>
                         <h2 className="text-xl font-semibold text-gray-900 mb-4">2. Data We Collect</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
-                            We may collect, use, store and transfer different kinds of personal data about you including:
+                            Depending on how you use Estospaces, we collect:
                         </p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4">
-                            <li><strong>Identity Data:</strong> First name, last name, username or similar identifier</li>
-                            <li><strong>Contact Data:</strong> Email address, telephone numbers, billing and delivery addresses</li>
-                            <li><strong>Financial Data:</strong> Bank account and payment card details (processed securely)</li>
-                            <li><strong>Transaction Data:</strong> Details about payments and property transactions</li>
-                            <li><strong>Technical Data:</strong> IP address, browser type, time zone, location data</li>
-                            <li><strong>Profile Data:</strong> Username, password, preferences, feedback and survey responses</li>
-                            <li><strong>Usage Data:</strong> Information about how you use our website and services</li>
+                            <li><strong>Account and identity data:</strong> name, email address, phone number, country and role</li>
+                            <li><strong>Verification documents:</strong> identity, address, licence or company documents you upload, and our review decisions</li>
+                            <li><strong>Property and case data:</strong> listings, enquiries, viewings, applications, Fast Track cases, contracts and messages</li>
+                            <li><strong>Payment data:</strong> plan, amount, currency, status and the payment reference from Razorpay. Card and bank details are entered on Razorpay’s secure checkout and are not stored by Estospaces</li>
+                            <li><strong>Technical data:</strong> IP address, browser type, time zone and security logs</li>
+                            <li><strong>Usage data:</strong> only with your permission, through optional analytics and chat (see section 6)</li>
                         </ul>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">3. How We Use Your Data</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">3. How and Why We Use It</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
-                            We will only use your personal data when the law allows us to. Most commonly, we will use your personal data:
+                            We use your data only where the law allows:
                         </p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4">
-                            <li>To register you as a new customer and manage your account</li>
-                            <li>To process and deliver property listings and services</li>
-                            <li>To manage payments and fees</li>
-                            <li>To connect you with property agents and landlords</li>
-                            <li>To send you relevant marketing communications (with your consent)</li>
-                            <li>To improve our website, products/services, and customer relationships</li>
+                            <li>To create and run your account and provide the service you ask for (performing our contract with you)</li>
+                            <li>To verify identities and documents, prevent fraud and keep the platform safe (legitimate interests and legal obligations)</li>
+                            <li>To take payments and keep financial records (contract and legal obligations)</li>
+                            <li>To connect you with the managers, agents or seekers you choose to deal with</li>
+                            <li>To send service messages; marketing only with your consent, which you can withdraw at any time</li>
                         </ul>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">4. Data Security</h2>
-                        <p className="text-gray-600 leading-relaxed">
-                            We have put in place appropriate security measures to prevent your personal data from being
-                            accidentally lost, used or accessed in an unauthorised way. We use industry-standard encryption
-                            and security protocols to protect your information. Access to your personal data is limited to
-                            employees and third parties who have a business need to know.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">5. Your Legal Rights</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">4. Who We Share It With</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
-                            Under data protection laws, you have rights including:
+                            We never sell your personal data. We share it only with:
                         </p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4">
-                            <li><strong>Right to access:</strong> Request copies of your personal data</li>
-                            <li><strong>Right to rectification:</strong> Request correction of inaccurate data</li>
-                            <li><strong>Right to erasure:</strong> Request deletion of your personal data</li>
-                            <li><strong>Right to restrict processing:</strong> Request limitation of data processing</li>
-                            <li><strong>Right to data portability:</strong> Request transfer of your data</li>
-                            <li><strong>Right to object:</strong> Object to processing of your personal data</li>
+                            <li>The other party you choose to deal with on Estospaces (for example the manager of a home you enquire about)</li>
+                            <li>Service providers who process data for us: Google Cloud (hosting), Razorpay (payments), Brevo (email), Zoho SalesIQ (optional analytics and chat, only with your consent) and postcodes.io (UK postcode lookup)</li>
+                            <li>Authorities, where the law requires it</li>
                         </ul>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Third-Party Links</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">5. Where It Is Stored and For How Long</h2>
                         <p className="text-gray-600 leading-relaxed">
-                            Our website may include links to third-party websites, plug-ins and applications. Clicking on
-                            those links may allow third parties to collect or share data about you. We do not control these
-                            third-party websites and are not responsible for their privacy statements.
+                            Your data is stored on Google Cloud in London, United Kingdom, for users in both India and the UK. Where data moves between countries we rely on the safeguards the law requires. We keep your data while your account is open and then only as long as needed for the purposes above or as the law requires (for example, payment and tax records).
                         </p>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Contact Us</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Cookies and Optional Tools</h2>
+                        <p className="text-gray-600 leading-relaxed">
+                            Essential storage keeps you signed in and the site working. Optional analytics and live chat run only if you choose “Allow” in our consent banner; you can choose “Reject optional tools”. See the Cookie Policy for details.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Your Rights</h2>
+                        <p className="text-gray-600 leading-relaxed">
+                            You can ask to access, correct or delete your data, to restrict or object to its use, and to receive a copy of it. To delete your account, email privacy@estospaces.com. In India you can also nominate someone to exercise your rights, and raise a grievance with us at privacy@estospaces.com. In the UK you can complain to the Information Commissioner’s Office (ico.org.uk). Estospaces is not intended for anyone under 18.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">8. Contact Us</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
                             If you have any questions about this privacy policy or our privacy practices, please contact us:
                         </p>
