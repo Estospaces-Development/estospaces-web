@@ -118,7 +118,7 @@ export function buildAdminUsersCsv(users: User[]) {
         user.email,
         user.role,
         user.is_active ? 'Active' : 'Deactivated',
-        new Date(user.created_at).toLocaleDateString(),
+        new Date(user.created_at).toLocaleDateString('en-GB'),
     ]);
 
     return buildCsvContent([headers, ...rows]);
@@ -947,7 +947,7 @@ function UserManagementContent() {
                                     </div>
                                     <div>
                                         <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">Joined</dt>
-                                        <dd className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-200">{new Date(user.created_at).toLocaleDateString()}</dd>
+                                        <dd className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-200">{new Date(user.created_at).toLocaleDateString('en-GB')}</dd>
                                     </div>
                                 </dl>
                                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -1032,7 +1032,7 @@ function UserManagementContent() {
                                             </td>
                                             <td className="px-10 py-6 text-center">
                                                 <div className="flex flex-col items-center">
-                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined: {new Date(user.created_at).toLocaleDateString()}</span>
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined: {new Date(user.created_at).toLocaleDateString('en-GB')}</span>
                                                 </div>
                                             </td>
                                             <td className="px-10 py-6 text-right">

@@ -235,7 +235,7 @@ export default function AdminReviewsPage() {
                             </p>
                             <div className="flex shrink-0 flex-col gap-1 text-xs text-gray-400">
                                 <span>Property: <span className="font-mono">{review.property_id.slice(0, 8)}...</span></span>
-                                <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                                <span>{new Date(review.created_at).toLocaleDateString('en-GB')}</span>
                                 <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
                                     review.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'
                                 }`}>
@@ -303,7 +303,7 @@ export default function AdminReviewsPage() {
                                             <p>User: <span className="font-semibold text-gray-900 dark:text-white">{review.user_name || review.user_id}</span></p>
                                             <p>Journey: <span className="font-mono text-xs">{review.fast_track_case_id}</span></p>
                                             <p>Property: <span className="font-semibold text-gray-900 dark:text-white">{review.property_title || 'Unknown property'}</span></p>
-                                            <p>Submitted: <span className="font-semibold text-gray-900 dark:text-white">{new Date(review.created_at).toLocaleDateString()}</span></p>
+                                            <p>Submitted: <span className="font-semibold text-gray-900 dark:text-white">{new Date(review.created_at).toLocaleDateString('en-GB')}</span></p>
                                         </div>
                                         <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                             {review.comment?.trim() || 'No comment was provided.'}

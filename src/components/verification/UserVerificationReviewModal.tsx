@@ -768,7 +768,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{formatVerificationLeadStatus(lead.status)}</p>
-                                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</p>
+                                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(lead.created_at).toLocaleDateString('en-GB')}</p>
                                     </div>
                                 </div>
                             ))}
@@ -823,7 +823,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                     Conversation {formatVerificationConversationReference(conversation)}
                                                 </p>
-                                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(conversation.updated_at).toLocaleDateString()}</p>
+                                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(conversation.updated_at).toLocaleDateString('en-GB')}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -964,7 +964,7 @@ export const DocumentReviewCard: React.FC<{
                     <div className="min-w-0 [overflow-wrap:anywhere]">
                         <p className="font-medium text-gray-900 dark:text-white">{document.file_name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {document.document_category} - {new Date(document.created_at).toLocaleDateString()}
+                            {document.document_category} - {new Date(document.created_at).toLocaleDateString('en-GB')}
                         </p>
                         {document.reject_reason && (
                             <p className="text-xs text-red-600 mt-1 bg-red-50 px-2 py-1 rounded">

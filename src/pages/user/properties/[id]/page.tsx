@@ -2928,7 +2928,7 @@ const UserPropertyDetail = () => {
                                         </p>
                                         <div className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
                                             <span>Approved review</span>
-                                            <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString()}</time>
+                                            <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString('en-GB')}</time>
                                         </div>
                                     </article>
                                 ))}
