@@ -287,7 +287,7 @@ function AdminLeadContext({ lead }: { lead: Lead }) {
     );
 }
 
-const ADMIN_USER_ROLE_TABS =['all', 'admin', 'manager', 'user'] as const;
+const ADMIN_USER_ROLE_TABS = ['all', 'admin', 'manager', 'user'] as const;
 
 function UserManagementContent() {
     const navigate = useNavigate();
