@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { isCurrentAuthRoute } from '@/lib/authUtils';
 import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
-import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/authToken';
+import { clearAuthToken, getAuthToken, releaseTabAuthToken, setAuthToken } from '@/lib/authToken';
 import { setProductAnalyticsIdentity, trackProductEvent } from '@/lib/productAnalytics';
 import { clearPendingGuestAction } from '@/lib/pendingGuestAction';
 import { parseLaunchOffer, type LaunchOffer } from '@/lib/managerLaunchTrial';
@@ -47,6 +47,7 @@ interface AuthContextType {
         termsAcceptance: RegistrationTermsAcceptance,
     ) => Promise<{ success: boolean; error?: string; verificationEmailSent?: boolean; launchOffer?: LaunchOffer | null }>;
     signOut: () => Promise<void>;
+    switchAccount: () => void;
     refreshUser: () => Promise<void>;
     mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
     getRole: () => string;
@@ -720,6 +721,13 @@ const sanitizeRegistrationError = (err: unknown): string => {
         applySignedOutState(null);
     }, [applySignedOutState]);
 
+    // Leaves other tabs signed in: nothing is revoked, only this tab forgets its sign-in.
+    const switchAccount = useCallback(() => {
+        clearPendingGuestAction(typeof window !== 'undefined' ? window.sessionStorage : null);
+        releaseTabAuthToken();
+        applySignedOutState(null, { keepRemembered: true });
+    }, [applySignedOutState]);
+
     const getRole = useCallback(() => {
         return user?.role || 'user';
     }, [user]);
@@ -738,6 +746,7 @@ const sanitizeRegistrationError = (err: unknown): string => {
             login,
             register,
             signOut,
+            switchAccount,
             refreshUser,
             mergeCurrentUserProfile,
             getRole,

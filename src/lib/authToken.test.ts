@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { clearAuthToken, getAuthToken, getAuthTokenVersion, readStoredAuthToken, setAuthToken } from './authToken';
+import { clearAuthToken, getAuthToken, getAuthTokenVersion, readStoredAuthToken, releaseTabAuthToken, setAuthToken } from './authToken';
 
 test('auth token persists for the current browser session and clears on sign out', () => {
     const originalSessionStorage = globalThis.sessionStorage;
@@ -134,6 +134,32 @@ test('an existing tab sign-in becomes the remembered one only when none is remem
         local.map.set('esto_remembered_token', 'admin-token');
         assert.equal(readStoredAuthToken(), 'old-session');
         assert.equal(local.map.get('esto_remembered_token'), 'admin-token');
+    } finally {
+        clearAuthToken();
+        session.restore();
+        local.restore();
+    }
+});
+
+// Owner, 13 Oct 2026: switching account in one tab must not sign the other tabs out.
+test('switch account releases only this tab and keeps the shared sign-in for other tabs', () => {
+    const session = mockStorage('sessionStorage');
+    const local = mockStorage('localStorage');
+    try {
+        setAuthToken('admin-token');
+        assert.equal(local.map.get('esto_remembered_token'), 'admin-token');
+
+        releaseTabAuthToken();
+        assert.equal(getAuthToken(), null);
+        assert.equal(session.map.has('esto_session_token'), false);
+        assert.equal(local.map.get('esto_remembered_token'), 'admin-token', 'other tabs keep the sign-in');
+        assert.equal(readStoredAuthToken(), null, 'a reload while switching shows the sign-in form');
+
+        setAuthToken('user-token');
+        assert.equal(session.map.has('esto_switching_account'), false);
+        assert.equal(local.map.get('esto_remembered_token'), 'user-token');
+        session.map.clear();
+        assert.equal(readStoredAuthToken(), 'user-token', 'a new tab adopts the latest sign-in again');
     } finally {
         clearAuthToken();
         session.restore();

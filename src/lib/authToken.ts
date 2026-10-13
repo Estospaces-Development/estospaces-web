@@ -6,6 +6,8 @@ const SESSION_TOKEN_KEY = 'esto_session_token';
  * sessionStorage copy, so an admin tab and a user tab stay separate; a tab only adopts this one when it has none.
  */
 const REMEMBERED_TOKEN_KEY = 'esto_remembered_token';
+/** Set while this tab switches account, so it shows the sign-in form instead of adopting the remembered sign-in. */
+const SWITCHING_ACCOUNT_KEY = 'esto_switching_account';
 
 let authToken: string | null = readStoredAuthToken();
 let authTokenVersion = 0;
@@ -28,6 +30,9 @@ export function readStoredAuthToken() {
             rememberToken(ownToken);
         }
         return ownToken;
+    }
+    if (readStorageValue(globalThis.sessionStorage, SWITCHING_ACCOUNT_KEY)) {
+        return null;
     }
     const remembered = readStorageValue(globalThis.localStorage, REMEMBERED_TOKEN_KEY);
     if (remembered) {
@@ -95,9 +100,35 @@ export function setAuthToken(token: string | null | undefined) {
     persistSessionToken(authToken);
     if (authToken) {
         rememberToken(authToken);
+        setSwitchingAccount(false);
     } else {
         forgetRememberedToken(previousToken);
     }
+}
+
+function setSwitchingAccount(switching: boolean) {
+    try {
+        if (switching) {
+            globalThis.sessionStorage?.setItem(SWITCHING_ACCOUNT_KEY, '1');
+        } else {
+            globalThis.sessionStorage?.removeItem(SWITCHING_ACCOUNT_KEY);
+        }
+    } catch {
+        // Without it a reload of the sign-in page adopts the remembered sign-in again.
+    }
+}
+
+/**
+ * Switch account: this tab lets go of its sign-in without revoking it, so every other tab that uses the same
+ * sign-in stays signed in (sign-out revokes the token for all of them). The tab then shows the sign-in form, even
+ * after a reload, until it signs in.
+ */
+export function releaseTabAuthToken() {
+    authToken = null;
+    authTokenVersion += 1;
+    clearBrowserTokenStorage();
+    persistSessionToken(null);
+    setSwitchingAccount(true);
 }
 
 /** keepRemembered: drop only this tab's copy (the server could not be reached), so the next load retries the
