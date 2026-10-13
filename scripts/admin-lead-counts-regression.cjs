@@ -176,6 +176,7 @@ test('admin lead refresh updates the global card and filtered queue without stal
     await card.getByText('11', { exact: true }).waitFor();
     failAnalytics = false;
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('button[aria-expanded="false"]').filter({ hasText: /lead reassignment/i }).click();
     await queue.getByText(`Showing 1-${active} of ${active} leads`, { exact: true }).waitFor();
     await card.getByText(String(active), { exact: true }).waitFor();
     await queue.getByRole('combobox', { name: 'Filter reassignment leads' }).selectOption('all');
