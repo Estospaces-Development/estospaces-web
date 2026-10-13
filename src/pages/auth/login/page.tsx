@@ -17,7 +17,7 @@ const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-vi
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, loading: authLoading, getRole, login, signOut, user: authUser, hasRoleConflict, getExistingRole } = useAuth();
+  const { isAuthenticated, loading: authLoading, getRole, login, signOut, switchAccount, user: authUser, hasRoleConflict, getExistingRole } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -159,14 +159,26 @@ export default function LoginPage() {
                     Continue to Dashboard
                 </button>
                 <button 
-                    onClick={async () => {
-                        await signOut();
+                    onClick={() => {
+                        switchAccount();
                         navigate(`${getLoginPath()}?switch=true`);
                     }}
                     className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
-                    Sign out and switch account
+                    Switch account
                 </button>
+                <button
+                    onClick={async () => {
+                        await signOut();
+                        navigate(getLoginPath());
+                    }}
+                    className="w-full py-2 text-sm font-medium text-gray-600 underline-offset-2 hover:underline dark:text-gray-300"
+                >
+                    Sign out
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Switch account keeps {authUser?.email || 'this account'} signed in on this browser, in other and new tabs. Sign out signs it out everywhere.
+                </p>
               </div>
           </div>
       ) : (

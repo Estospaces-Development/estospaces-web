@@ -377,7 +377,7 @@ export function TermsAcceptanceModal({
 
 export default function RegisterPage() {
     const navigate = useNavigate();
-    const { isAuthenticated, loading: authLoading, getRole, register, signOut, user: authUser } = useAuth();
+    const { isAuthenticated, loading: authLoading, getRole, register, signOut, switchAccount, user: authUser } = useAuth();
     const resendCooldownTimerRef = useRef<number | null>(null);
     const registerDraftSaveReadyRef = useRef(false);
 
@@ -614,14 +614,17 @@ export default function RegisterPage() {
                     </button>
                     <button
                         type="button"
-                        onClick={async () => {
-                            await signOut();
+                        onClick={() => {
+                            switchAccount();
                             navigate(`${registerPath}?switch=true`);
                         }}
                         className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                     >
-                        Sign out and create another account
+                        Create another account
                     </button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {authUser?.email || 'This account'} stays signed in on this browser, in other and new tabs.
+                    </p>
                 </div>
             </div>
         );
