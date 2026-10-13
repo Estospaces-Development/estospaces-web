@@ -130,3 +130,10 @@ test('phones show one live response status and Go live toggle, not a second disp
     assert.match(source, /className="mb-6 hidden flex-col[^"]* sm:flex[^"]*" data-manager-live-dispatch-panel/);
     assert.match(source, /<div className="hidden items-center gap-2 sm:flex">\s*<div className="p-2 bg-red-100/);
 });
+
+test('a lead "Share homes" link opens the queue panel so the shortlist is visible on phones (#738)', () => {
+    const source = readFileSync(new URL('./BrokerResponseWidget.tsx', import.meta.url), 'utf8');
+    const effect = source.slice(source.indexOf('openedShortlistRequestId.current = shortlistRequestId'));
+    // The matched workspaces live inside the panel that is display:none on phones until expanded.
+    assert.match(effect.slice(0, 400), /setMobileQueueOpen\(true\)/);
+});

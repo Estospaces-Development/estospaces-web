@@ -407,6 +407,8 @@ const BrokerResponseWidget: React.FC = () => {
             return;
         }
         openedShortlistRequestId.current = shortlistRequestId;
+        // The matched workspaces sit inside the queue panel, which is collapsed on phones.
+        setMobileQueueOpen(true);
         setMatchedWorkspaceSearch('');
         setMatchedWorkspacePage(Math.floor(targetIndex / MATCHED_WORKSPACE_PAGE_SIZE) + 1);
         setFocusedWorkspaceRequestId(shortlistRequestId);

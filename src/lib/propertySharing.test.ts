@@ -6,6 +6,7 @@ import {
   getPublicPropertySharePath,
   getShareBlockedReason,
   isPropertyPubliclyShareable,
+  sharePublicPropertyLink,
 } from "./propertySharing";
 
 test("manager shares resolve to the public signed-out property route", () => {
@@ -29,7 +30,8 @@ test("the blocked-share reason names the real status, not always 'publish' (#687
   assert.equal(getShareBlockedReason(" Rented "), "Rented properties can't be shared");
   assert.equal(getShareBlockedReason("let"), "Rented properties can't be shared");
   assert.equal(getShareBlockedReason("sold"), "Sold properties can't be shared");
-  assert.equal(getShareBlockedReason("draft"), "Publish this property before sharing");
+  assert.equal(getShareBlockedReason("draft"), "Draft properties can't be shared");
+  assert.equal(getShareBlockedReason("rejected"), "Publish this property before sharing");
   assert.equal(getShareBlockedReason(undefined), "Publish this property before sharing");
 });
 
@@ -77,4 +79,25 @@ test("social targets encode the public URL and listing copy", () => {
     email.searchParams.get("body"),
     `View this property on Estospaces:\n\nChennai Beach Home - ₹1,20,00,000\n${url}`,
   );
+});
+
+test("share link uses the native sheet, else copies the public link (#739)", async () => {
+  const property = { id: "home 1", title: "Home" };
+  const shared: unknown[] = [];
+  const copied: string[] = [];
+  const clipboard = { writeText: async (text: string) => void copied.push(text) } as Clipboard;
+
+  const native = { share: async (data: unknown) => void shared.push(data), clipboard } as unknown as Navigator;
+  assert.equal(await sharePublicPropertyLink(property, native, "https://app.test"), "shared");
+  assert.deepEqual(shared, [{ title: "Home", text: "Home", url: "https://app.test/user/properties/home%201" }]);
+
+  const abort = { share: async () => { throw Object.assign(new Error("x"), { name: "AbortError" }); }, clipboard } as unknown as Navigator;
+  assert.equal(await sharePublicPropertyLink(property, abort, "https://app.test"), "cancelled");
+  assert.deepEqual(copied, []);
+
+  const noShare = { clipboard } as unknown as Navigator;
+  assert.equal(await sharePublicPropertyLink(property, noShare, "https://app.test"), "copied");
+  assert.deepEqual(copied, ["https://app.test/user/properties/home%201"]);
+
+  assert.equal(await sharePublicPropertyLink(property, {} as Navigator, "https://app.test"), "unavailable");
 });
