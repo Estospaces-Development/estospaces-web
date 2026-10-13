@@ -15,7 +15,7 @@ const sections = [
         title: '2. Provision of Services',
         content: [
             'Estospaces connects property seekers with landlords, property managers, and agents in India and the UK.',
-            'For users and managers in India, Estospaces is provided by Estospaces Solutions Private Limited. For users and managers in the United Kingdom, it is provided by Estospaces Solutions Limited. References to "Estospaces", "we" or "us" mean the company for your country.',
+            'For users and managers in India, Estospaces is provided by Estospaces Solutions Private Limited (CIN U68100TN2025PTC179899), registered office 28/50B Therku Veethi, Lakhma Samuthram, Narasingapuram, Attur, Salem 636108, Tamil Nadu, India. For users and managers in the United Kingdom, it is provided by Estospaces Solutions Limited. References to "Estospaces", "we" or "us" mean the company for your country.',
             'Unless explicitly stated, Estospaces does not own, manage, or inspect listed properties and is not a party to rental or purchase agreements between users.',
         ],
     },
