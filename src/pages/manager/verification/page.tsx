@@ -471,6 +471,7 @@ export default function VerificationPage() {
 
                         const doc = getDocumentByType(step.id);
                         const hasDocument = !!doc;
+                        const replacingStartsReview = effectiveIsVerified && hasDocument && isUploadEnabled;
                         const isRejected = step.status === 'rejected' || step.status === 'reupload_required';
                         const isImage = isPreviewableImageDocument(doc?.mime_type, doc?.document_url);
                         const previewUrl = doc ? previewUrls[doc.id] : undefined;
@@ -613,6 +614,12 @@ export default function VerificationPage() {
                                     </button>
                                 )}
                             </div>
+
+                            {replacingStartsReview && (
+                                <p className="mt-4 text-[10px] text-sky-800 dark:text-sky-200 font-bold bg-sky-50 dark:bg-sky-900/20 p-2 rounded-lg">
+                                    Replacing this file sends your profile back to admin review until it is approved again.
+                                </p>
+                            )}
 
                             {showReplacementHint && (
                                 <p className="mt-4 text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">

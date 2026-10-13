@@ -25,3 +25,8 @@ test('manager verification lets uploaded documents be replaced from every review
     assert.match(source, /aria-label=\{`Upload \$\{step\.title\}`\}/);
     assert.match(source, /void handleDocumentUpload\(step\.id, file\)/);
 });
+
+test('approved managers are told that replacing a file sends the profile back to review', () => {
+    assert.match(source, /const replacingStartsReview = effectiveIsVerified && hasDocument && isUploadEnabled;/);
+    assert.match(source, /Replacing this file sends your profile back to admin review until it is approved again\./);
+});
