@@ -617,7 +617,7 @@ export default function VerificationPage() {
 
                             {replacingStartsReview && (
                                 <p className="mt-4 text-[10px] text-sky-800 dark:text-sky-200 font-bold bg-sky-50 dark:bg-sky-900/20 p-2 rounded-lg">
-                                    Replacing this file sends your profile back to admin review until it is approved again.
+                                    Replacing this file sends your profile back to admin review. Until it is approved again you can't publish or edit live listings, receive new routed leads or start Fast Track cases.
                                 </p>
                             )}
 

@@ -28,5 +28,5 @@ test('manager verification lets uploaded documents be replaced from every review
 
 test('approved managers are told that replacing a file sends the profile back to review', () => {
     assert.match(source, /const replacingStartsReview = effectiveIsVerified && hasDocument && isUploadEnabled;/);
-    assert.match(source, /Replacing this file sends your profile back to admin review until it is approved again\./);
+    assert.match(source, /Replacing this file sends your profile back to admin review\. Until it is approved again you can't publish or edit live listings, receive new routed leads or start Fast Track cases\./);
 });
