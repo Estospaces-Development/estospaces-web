@@ -38,7 +38,7 @@ export default function PrivacyPolicyPage() {
                     <section>
                         <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Who We Are</h2>
                         <p className="text-gray-600 leading-relaxed">
-                            Estospaces helps people find homes and helps property managers and agents work with them, in India and the UK. For users and managers in India, the data controller is Estospaces Solutions Private Limited. For users and managers in the United Kingdom, it is Estospaces Solutions Limited. This policy explains what personal data we use, why, who we share it with and your rights.
+                            Estospaces helps people find homes and helps property managers and agents work with them, in India and the UK. For users and managers in India, the data controller is Estospaces Solutions Private Limited (CIN U68100TN2025PTC179899), registered office 28/50B Therku Veethi, Lakhma Samuthram, Narasingapuram, Attur, Salem 636108, Tamil Nadu, India. For users and managers in the United Kingdom, it is Estospaces Solutions Limited. This policy explains what personal data we use, why, who we share it with and your rights.
                         </p>
                     </section>
 
