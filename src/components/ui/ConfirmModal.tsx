@@ -3,6 +3,7 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -82,7 +83,8 @@ const ConfirmModal = ({
 
     if (!isOpen) return null;
 
-    return (
+    // Rendered on document.body so no page layer (or the fixed mobile navigation) can sit above it.
+    const modal = (
         <>
             {/* Backdrop */}
             <div
@@ -142,6 +144,7 @@ const ConfirmModal = ({
             </div>
         </>
     );
+    return typeof document === 'undefined' ? modal : createPortal(modal, document.body);
 };
 
 export default ConfirmModal;

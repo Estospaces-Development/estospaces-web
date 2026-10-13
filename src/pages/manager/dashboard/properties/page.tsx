@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     useProperties,
@@ -891,9 +892,9 @@ function PropertiesContent() {
                     }
                 }}
             />
-            {pendingDeleteProperty && (
+            {pendingDeleteProperty && typeof document !== 'undefined' && createPortal(
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
                     onClick={closeDeleteDialog}
                 >
                     <div
@@ -933,7 +934,8 @@ function PropertiesContent() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
             {pendingListingAction && (
                 <ManagerListingStatusModal
