@@ -57,7 +57,7 @@ const MessageWindow = ({ broker, messages, onSendMessage }: MessageWindowProps) 
         if (minutes < 60) return `${minutes}m ago`;
         if (hours < 24) return `${hours}h ago`;
         if (days < 7) return `${days}d ago`;
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('en-GB');
     };
 
     if (!broker) {
@@ -111,7 +111,7 @@ const MessageWindow = ({ broker, messages, onSendMessage }: MessageWindowProps) 
                             {showTimestamp && (
                                 <div className="text-center mb-4">
                                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                        {new Date(message.timestamp).toLocaleDateString()}
+                                        {new Date(message.timestamp).toLocaleDateString('en-GB')}
                                     </span>
                                 </div>
                             )}

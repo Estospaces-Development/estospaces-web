@@ -281,7 +281,7 @@ export default function ReviewsPage() {
                                                 {renderStars(review.rating)}
                                                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest ml-2 flex items-center gap-1">
                                                     <Calendar size={12} />
-                                                    {new Date(review.created_at).toLocaleDateString()}
+                                                    {new Date(review.created_at).toLocaleDateString('en-GB')}
                                                 </span>
                                             </div>
                                         </div>

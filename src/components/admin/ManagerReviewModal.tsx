@@ -565,7 +565,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         <InfoItem
                             icon={Calendar}
                             label="Submitted"
-                            value={profile.submitted_at ? new Date(profile.submitted_at).toLocaleDateString('en-US', {
+                            value={profile.submitted_at ? new Date(profile.submitted_at).toLocaleDateString('en-GB', {
                                 month: 'short', day: 'numeric', year: 'numeric'
                             }) : undefined}
                         />
@@ -663,7 +663,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium text-gray-900">{formatActionType(entry.action_type)}</p>
                                                 <p className="text-xs text-gray-500">
-                                                    {new Date(entry.created_at).toLocaleString()}
+                                                    {new Date(entry.created_at).toLocaleString('en-GB')}
                                                     {entry.actor_id ? ` - Admin #${entry.actor_id.slice(0, 8)}` : ''}
                                                     {entry.actor_role ? ` (${entry.actor_role})` : ''}
                                                 </p>
@@ -1021,7 +1021,7 @@ const DocumentCard: React.FC<{
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                                 {document.document_name || 'Document uploaded'}
-                                {document.expiry_date && ` - Expires: ${new Date(document.expiry_date).toLocaleDateString()}`}
+                                {document.expiry_date && ` - Expires: ${new Date(document.expiry_date).toLocaleDateString('en-GB')}`}
                             </p>
                             {document.document_number && (
                                 <p className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mt-1 inline-block">

@@ -35,7 +35,7 @@ export function formatSupportTimestamp(...values: Array<string | undefined | nul
 
         const date = new Date(normalizedValue);
         if (!Number.isNaN(date.getTime()) && date.getUTCFullYear() >= MIN_VALID_SUPPORT_YEAR) {
-            return date.toLocaleString();
+            return date.toLocaleString('en-GB');
         }
     }
 

@@ -135,8 +135,8 @@ export function buildBookingDetailRows(booking: Booking) {
         { label: 'Status', value: booking.status },
         { label: 'Property ID', value: booking.property_id },
         { label: 'Manager ID', value: booking.manager_id },
-        { label: 'Check-in', value: new Date(booking.check_in_date).toLocaleDateString() },
-        { label: 'Check-out', value: new Date(booking.check_out_date).toLocaleDateString() },
+        { label: 'Check-in', value: new Date(booking.check_in_date).toLocaleDateString('en-GB') },
+        { label: 'Check-out', value: new Date(booking.check_out_date).toLocaleDateString('en-GB') },
         { label: 'Guests', value: String(booking.guest_count) },
         { label: 'Total', value: formatReservationTotal(booking) },
     ];
@@ -428,11 +428,11 @@ export default function BookingsPage() {
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 pt-8 border-t dark:border-gray-700">
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Check-in</p>
-                                                    <p className="font-bold text-gray-900 dark:text-white">{new Date(booking.check_in_date).toLocaleDateString()}</p>
+                                                    <p className="font-bold text-gray-900 dark:text-white">{new Date(booking.check_in_date).toLocaleDateString('en-GB')}</p>
                                                 </div>
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Check-out</p>
-                                                    <p className="font-bold text-gray-900 dark:text-white">{new Date(booking.check_out_date).toLocaleDateString()}</p>
+                                                    <p className="font-bold text-gray-900 dark:text-white">{new Date(booking.check_out_date).toLocaleDateString('en-GB')}</p>
                                                 </div>
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</p>

@@ -133,7 +133,7 @@ const ClientsPage = () => {
                             role="user"
                             verified={Boolean(l.documents_verified)}
                             status={mapLeadStatusToClientStatus(l.status)}
-                            joinedDate={new Date(l.created_at).toLocaleDateString()}
+                            joinedDate={new Date(l.created_at).toLocaleDateString('en-GB')}
                         />
                     ))}
                 </div>

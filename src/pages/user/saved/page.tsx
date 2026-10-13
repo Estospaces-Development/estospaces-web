@@ -535,7 +535,7 @@ function SavedSearchesTab() {
                         </div>
                         <div className="mt-3 text-xs text-gray-400 flex items-center gap-1.5">
                             <History size={12} />
-                            Saved on {new Date(search.created_at).toLocaleDateString()}
+                            Saved on {new Date(search.created_at).toLocaleDateString('en-GB')}
                         </div>
                     </div>
 
