@@ -154,8 +154,8 @@ test('manager properties: draft share explained, link copied, delete dialog fits
       for (const name of ['Cancel', 'Delete property']) {
         assert.ok(inView(await rect(dialog.getByRole('button', { name, exact: true }))), `${viewport.height}: "${name}" must be fully visible`);
       }
-      // dispatchEvent, not a pointer click: at 283x642 this deliberately oversized dialog sits under the fixed bottom navigation (z-30).
-      await dialog.getByRole('button', { name: 'Cancel', exact: true }).dispatchEvent('click');
+      // A real tap: the dialog is portalled above the fixed mobile navigation, so its buttons must be clickable (#743).
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
       await dialog.waitFor({ state: 'hidden' });
       await delay(200);
       assert.deepEqual(writes.slice(writesBefore).filter(write => write.method === 'DELETE' || /delete/i.test(write.pathname)), [], 'Cancel must not send a delete request');
