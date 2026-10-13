@@ -99,3 +99,23 @@ test('"Delete anyway?" takes focus after the first delete dialog closes', () => 
         dom.restore();
     }
 });
+
+test('confirm modal fits short screens: scrolls inside, keeps its footer and clears the system bars (#743)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync(new URL('./ConfirmModal.tsx', import.meta.url), 'utf8');
+    assert.match(source, /max-h-full[^"]*flex-col[^"]*overflow-hidden/);
+    assert.match(source, /min-h-0 flex-1 overflow-y-auto/);
+    assert.match(source, /flex shrink-0 items-center justify-end/);
+    assert.match(source, /pb-\[max\(1rem,env\(safe-area-inset-bottom\)\)\]/);
+    assert.match(source, /pt-\[max\(1rem,env\(safe-area-inset-top\)\)\]/);
+});
+
+test('manager property delete dialog scrolls its message and keeps Cancel / Delete visible (#743)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync(new URL('../../pages/manager/dashboard/properties/page.tsx', import.meta.url), 'utf8');
+    const dialog = source.slice(source.indexOf('aria-label="Delete property confirmation"'));
+    assert.match(dialog, /flex max-h-full w-full max-w-md flex-col/);
+    assert.match(dialog, /min-h-0 flex-1 overflow-y-auto/);
+    assert.match(dialog, /mt-6 flex shrink-0 justify-end/);
+    assert.match(source, /pb-\[max\(1rem,env\(safe-area-inset-bottom\)\)\]/);
+});

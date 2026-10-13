@@ -59,10 +59,9 @@ export const useUserGeoMarket = (
 
 /**
  * Market for the property catalogue (dashboard, Discover, Search). A postcode or PIN the
- * person typed wins, then the account's declared country, so a saved city, a stored
- * postcode or browser language never moves an India account into the UK catalogue.
- * Accounts without a country fall back to a saved city or country preference, then their
- * saved postcode, then the browser's time zone and language (see `getCatalogueGeoSignals`).
+ * person typed wins, then their saved city or country preference (so London saved on an India
+ * account shows UK homes), then the account's declared country, saved postcode, and finally the
+ * browser's time zone and language (see `getCatalogueGeoSignals`).
  */
 export const useCatalogueGeoMarket = (
   user: GeoMarketUserContext | null | undefined,

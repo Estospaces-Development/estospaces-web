@@ -422,11 +422,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     {/* Rating & Date */}
                     {(property.rating || property.createdAt) && (
                         <div className="flex items-center gap-2 mb-3">
-                            {property.rating && (
+                            {Number(property.rating) > 0 && (
                                 <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                                     <Star size={14} className="text-yellow-500 fill-yellow-500" />
                                     <span className="text-xs font-bold text-yellow-700 dark:text-yellow-400">{property.rating}</span>
-                                    {property.reviews_count && (
+                                    {Number(property.reviews_count) > 0 && (
                                         <span className="text-[10px] text-yellow-600/60 dark:text-yellow-400/60">({property.reviews_count})</span>
                                     )}
                                 </div>

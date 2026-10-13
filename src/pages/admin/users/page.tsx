@@ -3,9 +3,9 @@
 import ActionSpinner from '@/components/ui/ActionSpinner';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    UserPlus, Users,
+    UserPlus, Users, ChevronDown,
     Filter, Search, Eye, Download, Shield, TrendingUp, UserCheck, Power, RefreshCw
 } from 'lucide-react';
 
@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { buildCsvContent } from '@/lib/csvExport';
+import { formatRelativeTime } from '@/lib/utils/date';
 import PaginationBar from '@/components/ui/PaginationBar';
 import Avatar from '@/components/ui/Avatar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -197,6 +198,37 @@ export function buildAdminLeadReassignLabel(lead: Lead, brokerName: string, busy
     return `${action} ${getAdminLeadDisplayNumber(lead)} to ${brokerName}`;
 }
 
+export function getAdminLeadReassignmentToggleLabel(open: boolean, count?: number): string {
+    return `${open ? 'Hide' : 'Show'} lead reassignment${count === undefined ? '' : ` (${count})`}`;
+}
+
+// Only fields the admin leads API returns (core internal/leads/models.go Lead). `name`/`email` are the
+// seeker snapshot merged in by enrichLeads. The deadline is response_deadline_at, else sla_deadline.
+export function getAdminLeadContext(lead: Lead, now: number = Date.now()) {
+    const parse = (value?: string) => {
+        const time = value ? new Date(value).getTime() : Number.NaN;
+        return Number.isFinite(time) && new Date(time).getUTCFullYear() > 2000 ? time : null;
+    };
+    const created = parse(lead.created_at);
+    const deadline = parse(lead.response_deadline_at) ?? parse(lead.sla_deadline);
+    const awaitingBroker = String(lead.status || '').trim() === 'pending_broker_response';
+    let timeLeft: string | null = null;
+    if (awaitingBroker && deadline !== null) {
+        const seconds = Math.floor((deadline - now) / 1000);
+        timeLeft = seconds > 0
+            ? `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s left to respond`
+            : `Response window expired ${formatRelativeTime(new Date(deadline))}`;
+    }
+    return {
+        seeker: String(lead.name || '').trim() || null,
+        seekerEmail: String(lead.email || '').trim() || null,
+        requestedAt: created === null ? null : new Date(created).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
+        requestedAgo: created === null ? null : formatRelativeTime(new Date(created)),
+        timeLeft,
+        expired: timeLeft !== null && deadline !== null && deadline <= now,
+    };
+}
+
 export function formatAdminLeadReassignmentLoadError(error?: string | null): string {
     const detail = String(error || '').trim();
     if (!detail || detail.toLowerCase() === 'internal server error') {
@@ -231,6 +263,28 @@ export function sortAdminUsers(users: User[], sortBy: AdminUsersSortOption): Use
         default:
             return sorted.sort((left, right) => byCreated(right, left));
     }
+}
+
+function AdminLeadContext({ lead }: { lead: Lead }) {
+    const context = getAdminLeadContext(lead);
+    return (
+        <div className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-300">
+            {context.seeker && (
+                <p className="break-words"><span className="font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Seeker </span>{context.seeker}{context.seekerEmail ? ` (${context.seekerEmail})` : ''}</p>
+            )}
+            {context.requestedAt && (
+                <p><span className="font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Requested </span>{context.requestedAt} ({context.requestedAgo})</p>
+            )}
+            {context.timeLeft && (
+                <p className={`font-bold ${context.expired ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{context.timeLeft}</p>
+            )}
+            {lead.property_id && (
+                <Link to={`/admin/properties/${encodeURIComponent(lead.property_id)}`} className="inline-flex min-h-11 items-center font-black uppercase tracking-widest text-emerald-700 hover:underline dark:text-emerald-300">
+                    View property
+                </Link>
+            )}
+        </div>
+    );
 }
 
 const ADMIN_USER_ROLE_TABS = ['all', 'admin', 'manager', 'user'] as const;
@@ -270,6 +324,7 @@ function UserManagementContent() {
     const [leadSortBy, setLeadSortBy] = useState<AdminLeadSortOption>('newest');
     const [leadPage, setLeadPage] = useState(1);
     const [leadPagination, setLeadPagination] = useState<{ total?: number; page?: number; limit?: number } | null>(null);
+    const [leadReassignmentOpen, setLeadReassignmentOpen] = useState(false);
     const [leadReassignReason, setLeadReassignReason] = useState('Admin reassignment from relationship hub');
     const leadRequestId = useRef(0);
     const statsRequestId = useRef(0);
@@ -588,277 +643,11 @@ function UserManagementContent() {
                 </div>
             </div>
 
-            {/* Hero Stats */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6" data-mobile-compact-summary-grid>
-                {stats.map((stat) => (
-                    <div key={stat.label} className="group flex min-w-0 items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 dark:border-gray-700 dark:bg-gray-800 sm:gap-6 sm:rounded-[2.5rem] sm:p-8 sm:shadow-xl sm:shadow-gray-200/40 dark:sm:shadow-none">
-                        <div className={`rounded-xl bg-gray-50 p-2.5 transition-transform group-hover:scale-105 dark:bg-gray-900 sm:rounded-2xl sm:p-5 ${stat.color}`}>
-                            <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
-                        </div>
-                        <div>
-                            <p className="mb-1 text-xs font-bold leading-tight text-gray-500 dark:text-gray-300 sm:mb-2 sm:border-b sm:border-gray-100 sm:pb-1 sm:text-[10px] sm:font-black sm:uppercase sm:tracking-widest dark:sm:border-gray-700">{stat.label}</p>
-                            <p className="text-xl font-black leading-none text-gray-900 dark:text-white sm:text-2xl">{stat.value}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <p className="text-xs text-gray-500 dark:text-gray-300">Platform-wide totals. Lead results below follow their own filters.</p>
-            {statsError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{statsError}</p>}
-
             {loadError && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
                     {loadError}
                 </div>
             )}
-
-            <section className="min-w-0 bg-white dark:bg-gray-800 rounded-[2rem] shadow-xl border dark:border-gray-700 overflow-hidden">
-                <div className="px-8 py-6 border-b dark:border-gray-700 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <h2 className="text-xl font-black text-gray-900 dark:text-white">Lead Reassignment</h2>
-                        <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">Admin broker routing</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={refreshLeadOverview}
-                        disabled={adminLeadLoading || statsLoading}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white"
-                    >
-                        {adminLeadLoading || statsLoading ? <ActionSpinner size="xs" label="Refreshing leads and totals" /> : <RefreshCw size={16} />}
-                        Refresh
-                    </button>
-                </div>
-
-                <div className="grid gap-4 border-b px-8 py-5 dark:border-gray-700 md:grid-cols-2 xl:grid-cols-4">
-                    <label className="relative block">
-                        <span className="sr-only">Search reassignment leads</span>
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input
-                            type="text"
-                            aria-label="Search reassignment leads"
-                            placeholder="Search leads..."
-                            value={leadSearchQuery}
-                            onChange={(event) => handleLeadSearchChange(event.target.value)}
-                            maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
-                            className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                        />
-                    </label>
-                    <label className="relative block">
-                        <span className="sr-only">Filter reassignment leads</span>
-                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            aria-label="Filter reassignment leads"
-                            value={leadStatusFilter}
-                            onChange={(event) => handleLeadStatusFilterChange(event.target.value as AdminLeadStatusFilter)}
-                            className="w-full appearance-none rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                        >
-                            {Object.entries(adminLeadStatusLabels).map(([value, label]) => (
-                                <option key={value} value={value}>{label}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="block">
-                        <span className="sr-only">Sort reassignment leads</span>
-                        <select
-                            aria-label="Sort reassignment leads"
-                            value={leadSortBy}
-                            onChange={(event) => handleLeadSortChange(event.target.value as AdminLeadSortOption)}
-                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                        >
-                            {Object.entries(adminLeadSortLabels).map(([value, label]) => (
-                                <option key={value} value={value}>{label}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="block">
-                        <span className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-300">Reassignment reason</span>
-                        <textarea
-                            aria-label="Reassignment reason"
-                            rows={3}
-                            value={leadReassignReason}
-                            onChange={(event) => setLeadReassignReason(event.target.value.slice(0, ADMIN_LEAD_REASSIGN_REASON_MAX_LENGTH))}
-                            maxLength={ADMIN_LEAD_REASSIGN_REASON_MAX_LENGTH}
-                            className="w-full resize-y rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-normal text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                        />
-                    </label>
-                </div>
-
-                {adminLeadError && (
-                    <div className="mx-8 mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
-                        {adminLeadError}
-                    </div>
-                )}
-
-                <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="Lead reassignment cards">
-                    {adminLeadLoading ? (
-                        <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
-                    ) : adminLeads.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
-                            <p className="text-sm font-black text-gray-900 dark:text-white">No leads match your current filters</p>
-                        </div>
-                    ) : adminLeads.map((lead) => {
-                        const selectedBrokerId = leadBrokerSelections[lead.id] || '';
-                        const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
-                        const isBusy = reassigningLeadId === lead.id;
-                        const isClosed = isLeadClosedForReassignment(lead);
-                        const rowError = leadReassignErrors[lead.id];
-                        const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
-                        const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
-                        const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, selectableBrokers.length, isBusy);
-                        const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
-
-                        return (
-                            <article key={`mobile-${lead.id}`} className="min-w-0 rounded-3xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                                <div className="flex min-w-0 items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
-                                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">{lead.status || 'pending'}</p>
-                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
-                                    </div>
-                                    <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
-                                </div>
-                                <dl className="mt-4 rounded-2xl bg-white p-3 dark:bg-gray-950">
-                                    <dt className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">Current broker</dt>
-                                    <dd className="mt-1 break-words text-sm font-bold text-gray-700 dark:text-gray-200">{currentBrokerName}</dd>
-                                </dl>
-                                <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">New broker</label>
-                                <select
-                                    id={`admin-mobile-lead-reassign-${lead.id}`}
-                                    disabled={isClosed}
-                                    aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
-                                    value={selectedBrokerId}
-                                    onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
-                                    className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                                >
-                                    <option value="">Choose broker</option>
-                                    {selectableBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{brokerNameById.get(broker.user_id) || getAdminBrokerDisplayName(broker)}</option>)}
-                                </select>
-                                {rowError && <p role="alert" className="mt-2 break-words text-xs font-semibold text-red-600">{rowError}</p>}
-                                <button
-                                    type="button"
-                                    aria-label={actionLabel}
-                                    title={selectionError || undefined}
-                                    onClick={() => handleLeadReassign(lead)}
-                                    disabled={isActionDisabled}
-                                    className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
-                                >
-                                    {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
-                                    Reassign lead
-                                </button>
-                            </article>
-                        );
-                    })}
-                </div>
-
-                <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label="Scrollable lead reassignment table">
-                    <table className="w-full min-w-[760px] text-left">
-                        <thead>
-                            <tr className="border-b dark:border-gray-700">
-                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Current Broker</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">New Broker</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y dark:divide-gray-700">
-                            {adminLeadLoading ? (
-                                <tr>
-                                    <td colSpan={4} className="px-8 py-10 text-center text-sm font-bold text-gray-500">
-                                        <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
-                                    </td>
-                                </tr>
-                            ) : adminLeads.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="px-8 py-10 text-center">
-                                        <p className="text-base font-black text-gray-900 dark:text-white">No leads match your current filters</p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                adminLeads.map((lead) => {
-                                    const selectedBrokerId = leadBrokerSelections[lead.id] || '';
-                                    const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
-                                    const isBusy = reassigningLeadId === lead.id;
-                                    const isClosed = isLeadClosedForReassignment(lead);
-                                    const rowError = leadReassignErrors[lead.id];
-                                    const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
-                                    const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
-                                    const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, selectableBrokers.length, isBusy);
-                                    const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
-
-                                    return (
-                                        <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
-                                            <td className="px-8 py-5 align-top">
-                                                <p className="max-w-md break-words text-sm font-black text-gray-900 dark:text-white">
-                                                    {buildAdminLeadOptionLabel(lead)}
-                                                </p>
-                                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                                    {lead.status || 'pending'}
-                                                </p>
-                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
-                                            </td>
-                                            <td className="px-8 py-5 align-top">
-                                                <p className="max-w-xs break-words text-sm font-bold text-gray-600 dark:text-gray-300">
-                                                    {currentBrokerName}
-                                                </p>
-                                            </td>
-                                            <td className="px-8 py-5 align-top">
-                                                <label htmlFor={`admin-lead-reassign-${lead.id}`} className="sr-only">
-                                                    Choose broker for {getAdminLeadDisplayNumber(lead)}
-                                                </label>
-                                                <select
-                                                    id={`admin-lead-reassign-${lead.id}`}
-                                                    disabled={isClosed}
-                                                    aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
-                                                    value={selectedBrokerId}
-                                                    onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
-                                                    className="w-full min-w-64 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                                                >
-                                                    <option value="">Choose broker</option>
-                                                    {selectableBrokers.map((broker) => (
-                                                        <option key={broker.user_id} value={broker.user_id}>
-                                                            {brokerNameById.get(broker.user_id) || getAdminBrokerDisplayName(broker)}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                {rowError && (
-                                                    <p role="alert" className="mt-2 max-w-sm break-words text-xs font-semibold text-red-600">
-                                                        {rowError}
-                                                    </p>
-                                                )}
-                                            </td>
-                                            <td className="px-8 py-5 text-right align-top">
-                                                <button
-                                                    type="button"
-                                                    aria-label={actionLabel}
-                                                    title={selectionError || undefined}
-                                                    onClick={() => handleLeadReassign(lead)}
-                                                    disabled={isActionDisabled}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
-                                                >
-                                                    {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
-                                                    Reassign
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="border-t bg-gray-50/50 px-8 py-5 dark:border-gray-700 dark:bg-gray-900/20">
-                    <PaginationBar
-                        currentPage={safeLeadPage}
-                        totalPages={leadTotalPages}
-                        onPageChange={setLeadPage}
-                        totalItems={leadTotalItems}
-                        pageSize={ADMIN_LEAD_QUEUE_PAGE_SIZE}
-                        currentItemCount={adminLeads.length}
-                        itemLabel="leads"
-                        showWhenSinglePage
-                    />
-                </div>
-            </section>
 
             {/* Main Registry Table */}
             <div className="min-w-0 bg-white dark:bg-gray-800 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
@@ -1084,6 +873,288 @@ function UserManagementContent() {
                         itemLabel="members"
                     />
                 </div>
+            </div>
+
+            {/* Hero Stats */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6" data-mobile-compact-summary-grid>
+                {stats.map((stat) => (
+                    <div key={stat.label} className="group flex min-w-0 items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 dark:border-gray-700 dark:bg-gray-800 sm:gap-6 sm:rounded-[2.5rem] sm:p-8 sm:shadow-xl sm:shadow-gray-200/40 dark:sm:shadow-none">
+                        <div className={`rounded-xl bg-gray-50 p-2.5 transition-transform group-hover:scale-105 dark:bg-gray-900 sm:rounded-2xl sm:p-5 ${stat.color}`}>
+                            <stat.icon className="h-5 w-5 sm:h-7 sm:w-7" />
+                        </div>
+                        <div>
+                            <p className="mb-1 text-xs font-bold leading-tight text-gray-500 dark:text-gray-300 sm:mb-2 sm:border-b sm:border-gray-100 sm:pb-1 sm:text-[10px] sm:font-black sm:uppercase sm:tracking-widest dark:sm:border-gray-700">{stat.label}</p>
+                            <p className="text-xl font-black leading-none text-gray-900 dark:text-white sm:text-2xl">{stat.value}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-300">Platform-wide totals. Lead results below follow their own filters.</p>
+            {statsError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{statsError}</p>}
+
+            <div className="min-w-0 space-y-4">
+                <button
+                    type="button"
+                    aria-expanded={leadReassignmentOpen}
+                    aria-controls="admin-lead-reassignment"
+                    onClick={() => setLeadReassignmentOpen((open) => !open)}
+                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-left text-xs font-black uppercase tracking-widest text-gray-700 shadow-sm transition-all hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:text-white"
+                >
+                    {getAdminLeadReassignmentToggleLabel(leadReassignmentOpen, adminLeadLoading || adminLeadError ? undefined : leadTotalItems)}
+                    <ChevronDown size={18} className={`shrink-0 transition-transform ${leadReassignmentOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {leadReassignmentOpen && (
+                    <section id="admin-lead-reassignment" className="min-w-0 bg-white dark:bg-gray-800 rounded-[2rem] shadow-xl border dark:border-gray-700 overflow-hidden">
+                        <div className="px-8 py-6 border-b dark:border-gray-700 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <h2 className="text-xl font-black text-gray-900 dark:text-white">Lead Reassignment</h2>
+                                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">Admin broker routing</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={refreshLeadOverview}
+                                disabled={adminLeadLoading || statsLoading}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 transition-all hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:text-white"
+                            >
+                                {adminLeadLoading || statsLoading ? <ActionSpinner size="xs" label="Refreshing leads and totals" /> : <RefreshCw size={16} />}
+                                Refresh
+                            </button>
+                        </div>
+
+                        <div className="grid gap-4 border-b px-8 py-5 dark:border-gray-700 md:grid-cols-2 xl:grid-cols-4">
+                            <label className="relative block">
+                                <span className="sr-only">Search reassignment leads</span>
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                <input
+                                    type="text"
+                                    aria-label="Search reassignment leads"
+                                    placeholder="Search leads..."
+                                    value={leadSearchQuery}
+                                    onChange={(event) => handleLeadSearchChange(event.target.value)}
+                                    maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
+                                    className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                />
+                            </label>
+                            <label className="relative block">
+                                <span className="sr-only">Filter reassignment leads</span>
+                                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                <select
+                                    aria-label="Filter reassignment leads"
+                                    value={leadStatusFilter}
+                                    onChange={(event) => handleLeadStatusFilterChange(event.target.value as AdminLeadStatusFilter)}
+                                    className="w-full appearance-none rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                >
+                                    {Object.entries(adminLeadStatusLabels).map(([value, label]) => (
+                                        <option key={value} value={value}>{label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="block">
+                                <span className="sr-only">Sort reassignment leads</span>
+                                <select
+                                    aria-label="Sort reassignment leads"
+                                    value={leadSortBy}
+                                    onChange={(event) => handleLeadSortChange(event.target.value as AdminLeadSortOption)}
+                                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                >
+                                    {Object.entries(adminLeadSortLabels).map(([value, label]) => (
+                                        <option key={value} value={value}>{label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="block">
+                                <span className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-300">Reassignment reason</span>
+                                <textarea
+                                    aria-label="Reassignment reason"
+                                    rows={3}
+                                    value={leadReassignReason}
+                                    onChange={(event) => setLeadReassignReason(event.target.value.slice(0, ADMIN_LEAD_REASSIGN_REASON_MAX_LENGTH))}
+                                    maxLength={ADMIN_LEAD_REASSIGN_REASON_MAX_LENGTH}
+                                    className="w-full resize-y rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-normal text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                />
+                            </label>
+                        </div>
+
+                        {adminLeadError && (
+                            <div className="mx-8 mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                                {adminLeadError}
+                            </div>
+                        )}
+
+                        <div className="space-y-3 p-4 md:hidden" data-mobile-table="cards" aria-label="Lead reassignment cards">
+                            {adminLeadLoading ? (
+                                <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
+                            ) : adminLeads.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
+                                    <p className="text-sm font-black text-gray-900 dark:text-white">No leads match your current filters</p>
+                                </div>
+                            ) : adminLeads.map((lead) => {
+                                const selectedBrokerId = leadBrokerSelections[lead.id] || '';
+                                const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
+                                const isBusy = reassigningLeadId === lead.id;
+                                const isClosed = isLeadClosedForReassignment(lead);
+                                const rowError = leadReassignErrors[lead.id];
+                                const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
+                                const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
+                                const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, selectableBrokers.length, isBusy);
+                                const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
+
+                                return (
+                                    <article key={`mobile-${lead.id}`} className="min-w-0 rounded-3xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                        <div className="flex min-w-0 items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
+                                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">{lead.status || 'pending'}</p>
+                                                <AdminLeadContext lead={lead} />
+                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
+                                            </div>
+                                            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
+                                        </div>
+                                        <dl className="mt-4 rounded-2xl bg-white p-3 dark:bg-gray-950">
+                                            <dt className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">Current broker</dt>
+                                            <dd className="mt-1 break-words text-sm font-bold text-gray-700 dark:text-gray-200">{currentBrokerName}</dd>
+                                        </dl>
+                                        <label htmlFor={`admin-mobile-lead-reassign-${lead.id}`} className="mt-4 block text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">New broker</label>
+                                        <select
+                                            id={`admin-mobile-lead-reassign-${lead.id}`}
+                                            disabled={isClosed}
+                                            aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
+                                            value={selectedBrokerId}
+                                            onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
+                                            className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                        >
+                                            <option value="">Choose broker</option>
+                                            {selectableBrokers.map((broker) => <option key={broker.user_id} value={broker.user_id}>{brokerNameById.get(broker.user_id) || getAdminBrokerDisplayName(broker)}</option>)}
+                                        </select>
+                                        {rowError && <p role="alert" className="mt-2 break-words text-xs font-semibold text-red-600">{rowError}</p>}
+                                        <button
+                                            type="button"
+                                            aria-label={actionLabel}
+                                            title={selectionError || undefined}
+                                            onClick={() => handleLeadReassign(lead)}
+                                            disabled={isActionDisabled}
+                                            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
+                                        >
+                                            {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
+                                            Reassign lead
+                                        </button>
+                                    </article>
+                                );
+                            })}
+                        </div>
+
+                        <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label="Scrollable lead reassignment table">
+                            <table className="w-full min-w-[760px] text-left">
+                                <thead>
+                                    <tr className="border-b dark:border-gray-700">
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Current Broker</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">New Broker</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y dark:divide-gray-700">
+                                    {adminLeadLoading ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-8 py-10 text-center text-sm font-bold text-gray-500">
+                                                <BrandLoadingScreen variant="panel" label="Loading lead reassignment queue..." />
+                                            </td>
+                                        </tr>
+                                    ) : adminLeads.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-8 py-10 text-center">
+                                                <p className="text-base font-black text-gray-900 dark:text-white">No leads match your current filters</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        adminLeads.map((lead) => {
+                                            const selectedBrokerId = leadBrokerSelections[lead.id] || '';
+                                            const selectedBrokerName = brokerNameById.get(selectedBrokerId) || 'selected broker';
+                                            const isBusy = reassigningLeadId === lead.id;
+                                            const isClosed = isLeadClosedForReassignment(lead);
+                                            const rowError = leadReassignErrors[lead.id];
+                                            const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
+                                            const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
+                                            const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, selectableBrokers.length, isBusy);
+                                            const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
+
+                                            return (
+                                                <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
+                                                    <td className="px-8 py-5 align-top">
+                                                        <p className="max-w-md break-words text-sm font-black text-gray-900 dark:text-white">
+                                                            {buildAdminLeadOptionLabel(lead)}
+                                                        </p>
+                                                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                            {lead.status || 'pending'}
+                                                        </p>
+                                                        <AdminLeadContext lead={lead} />
+                                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
+                                                    </td>
+                                                    <td className="px-8 py-5 align-top">
+                                                        <p className="max-w-xs break-words text-sm font-bold text-gray-600 dark:text-gray-300">
+                                                            {currentBrokerName}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-8 py-5 align-top">
+                                                        <label htmlFor={`admin-lead-reassign-${lead.id}`} className="sr-only">
+                                                            Choose broker for {getAdminLeadDisplayNumber(lead)}
+                                                        </label>
+                                                        <select
+                                                            id={`admin-lead-reassign-${lead.id}`}
+                                                            disabled={isClosed}
+                                                            aria-label={`Choose broker for ${getAdminLeadDisplayNumber(lead)}`}
+                                                            value={selectedBrokerId}
+                                                            onChange={(event) => handleLeadBrokerSelection(lead.id, event.target.value)}
+                                                            className="w-full min-w-64 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                                        >
+                                                            <option value="">Choose broker</option>
+                                                            {selectableBrokers.map((broker) => (
+                                                                <option key={broker.user_id} value={broker.user_id}>
+                                                                    {brokerNameById.get(broker.user_id) || getAdminBrokerDisplayName(broker)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {rowError && (
+                                                            <p role="alert" className="mt-2 max-w-sm break-words text-xs font-semibold text-red-600">
+                                                                {rowError}
+                                                            </p>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-8 py-5 text-right align-top">
+                                                        <button
+                                                            type="button"
+                                                            aria-label={actionLabel}
+                                                            title={selectionError || undefined}
+                                                            onClick={() => handleLeadReassign(lead)}
+                                                            disabled={isActionDisabled}
+                                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
+                                                        >
+                                                            {isBusy ? <ActionSpinner size={16} className="" /> : <UserCheck size={16} />}
+                                                            Reassign
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="border-t bg-gray-50/50 px-8 py-5 dark:border-gray-700 dark:bg-gray-900/20">
+                            <PaginationBar
+                                currentPage={safeLeadPage}
+                                totalPages={leadTotalPages}
+                                onPageChange={setLeadPage}
+                                totalItems={leadTotalItems}
+                                pageSize={ADMIN_LEAD_QUEUE_PAGE_SIZE}
+                                currentItemCount={adminLeads.length}
+                                itemLabel="leads"
+                                showWhenSinglePage
+                            />
+                        </div>
+                    </section>
+                )}
             </div>
 
             {stateChangeUser && (

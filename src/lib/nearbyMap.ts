@@ -172,17 +172,44 @@ export interface NearbyMapMarkerGroup<T> {
 
 // Homes geocoded to the same spot (e.g. one postcode centroid) would stack
 // into a single visible pin, so they share one marker that lists them all
-// (web-app#665). ponytail: greedy distance grouping, O(n^2) is fine for the
-// map's small candidate sets; switch to pixel clustering if pins get dense.
+// (web-app#665). Pins that would paint over each other at the current zoom
+// merge too (web-app#737): the pin is ~64x48px, so two anchors closer than
+// that on screen share one marker. ponytail: greedy grouping, O(n^2) is fine
+// for the map's small candidate sets.
 export const NEARBY_MAP_SHARED_PIN_KM = 0.05;
+export const NEARBY_MAP_PIN_WIDTH_PX = 74;
+export const NEARBY_MAP_PIN_HEIGHT_PX = 54;
+
+const projectToMapPixels = (latitude: number, longitude: number, zoom: number) => {
+    const scale = 256 * 2 ** zoom;
+    const sinLat = Math.sin((Math.max(-85, Math.min(85, latitude)) * Math.PI) / 180);
+    return {
+        x: ((longitude + 180) / 360) * scale,
+        y: (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale,
+    };
+};
+
+const pinsOverlapOnScreen = (
+    left: { latitude: number; longitude: number },
+    right: { latitude: number; longitude: number },
+    zoom: number,
+): boolean => {
+    const a = projectToMapPixels(left.latitude, left.longitude, zoom);
+    const b = projectToMapPixels(right.latitude, right.longitude, zoom);
+    return Math.abs(a.x - b.x) < NEARBY_MAP_PIN_WIDTH_PX && Math.abs(a.y - b.y) < NEARBY_MAP_PIN_HEIGHT_PX;
+};
 
 export const groupNearbyMapMarkers = <T extends { id: string; latitude: number; longitude: number }>(
     properties: T[],
+    zoom?: number,
     thresholdKm = NEARBY_MAP_SHARED_PIN_KM,
 ): NearbyMapMarkerGroup<T>[] => {
     const groups: NearbyMapMarkerGroup<T>[] = [];
     properties.forEach((property) => {
-        const group = groups.find((candidate) => calculateMapDistanceKm(candidate, property) <= thresholdKm);
+        const group = groups.find((candidate) => (
+            calculateMapDistanceKm(candidate, property) <= thresholdKm
+            || (zoom !== undefined && pinsOverlapOnScreen(candidate, property, zoom))
+        ));
         if (group) {
             group.properties.push(property);
             return;

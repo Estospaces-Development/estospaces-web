@@ -893,16 +893,17 @@ function PropertiesContent() {
             />
             {pendingDeleteProperty && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
                     onClick={closeDeleteDialog}
                 >
                     <div
                         role="dialog"
                         aria-modal="true"
                         aria-label="Delete property confirmation"
-                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+                        className="flex max-h-full w-full max-w-md flex-col rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
                         onClick={(event) => event.stopPropagation()}
                     >
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Delete property</h2>
                         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
                             Delete {pendingDeleteProperty.title}? This action cannot be undone.
@@ -912,12 +913,13 @@ function PropertiesContent() {
                                 {deleteWarning}
                             </p>
                         )}
-                        <div className="mt-6 flex justify-end gap-3">
+                        </div>
+                        <div className="mt-6 flex shrink-0 justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={closeDeleteDialog}
                                 disabled={loading}
-                                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                className="min-h-11 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                             >
                                 Cancel
                             </button>
@@ -925,7 +927,7 @@ function PropertiesContent() {
                                 type="button"
                                 onClick={handleDeleteConfirm}
                                 disabled={loading}
-                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="min-h-11 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {loading ? 'Deleting...' : 'Delete property'}
                             </button>

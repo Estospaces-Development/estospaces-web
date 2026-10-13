@@ -91,16 +91,16 @@ const ConfirmModal = ({
             />
 
             {/* Modal */}
-            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 animate-scale-in">
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] animate-scale-in">
                 <div
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby={titleId}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                    className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Header */}
-                    <div className="p-6 pb-4">
+                    {/* Header: scrolls inside the dialog when the content is taller than the screen */}
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 pb-4">
                         <div className="flex items-start gap-4">
                             <div className={`p-3 rounded-full ${config.icon}`}>
                                 <AlertTriangle size={24} className={config.iconColor} />
@@ -119,20 +119,20 @@ const ConfirmModal = ({
                     </div>
 
                     {/* Actions */}
-                    <div className="px-6 pb-6 flex items-center justify-end gap-3">
+                    <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-100 px-6 pb-6 pt-4 dark:border-gray-700">
                         <button
                             ref={cancelRef}
                             type="button"
                             onClick={onClose}
                             disabled={loading}
-                            className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="min-h-11 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {cancelText}
                         </button>
                         <button
                             onClick={onConfirm}
                             disabled={loading}
-                            className={`px-4 py-2.5 text-sm font-medium text-white rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${config.button}`}
+                            className={`min-h-11 px-4 py-2.5 text-sm font-medium text-white rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${config.button}`}
                         >
                             {loading && <ActionSpinner size={16} className="" />}
                             {confirmText}
