@@ -12,7 +12,6 @@ import {
     Globe,
     Layers,
     MapPin,
-    Plus,
     Search,
     Trash2,
 } from 'lucide-react';
@@ -576,13 +575,7 @@ function PropertyManagementContent() {
                             className="w-full rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold text-gray-900 dark:text-white placeholder:text-gray-600 dark:placeholder:text-gray-300 shadow-sm outline-none transition-all focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 sm:w-64"
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => showWarningToast('Property creation stays in manager workspaces. Admin can review submissions here, but new listings need to be created from a manager account.')}
-                        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-105 active:scale-95 dark:bg-white dark:text-gray-900 sm:w-auto"
-                    >
-                        <Plus size={18} /> Add Property
-                    </button>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:max-w-56">New listings are created from manager accounts. Admins review, approve, reject or suspend them here.</p>
                 </div>
             </div>
 
