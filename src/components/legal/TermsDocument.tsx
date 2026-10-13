@@ -1,7 +1,7 @@
 import React from 'react';
 
-export const TERMS_VERSION = '2026-01';
-export const TERMS_LAST_UPDATED = 'January 2026';
+export const TERMS_VERSION = '2026-10';
+export const TERMS_LAST_UPDATED = '13 October 2026';
 
 const sections = [
     {
@@ -14,7 +14,8 @@ const sections = [
     {
         title: '2. Provision of Services',
         content: [
-            'Estospaces connects property seekers with landlords, property managers, and agents.',
+            'Estospaces connects property seekers with landlords, property managers, and agents in India and the UK.',
+            'For users and managers in India, Estospaces is provided by Estospaces Solutions Private Limited. For users and managers in the United Kingdom, it is provided by Estospaces Solutions Limited. References to "Estospaces", "we" or "us" mean the company for your country.',
             'Unless explicitly stated, Estospaces does not own, manage, or inspect listed properties and is not a party to rental or purchase agreements between users.',
         ],
     },
@@ -57,8 +58,11 @@ const sections = [
     {
         title: '7. Payments and Fees',
         content: [
-            'Some services may involve charges or fees, which will be shown before you commit to them.',
-            'You agree to pay fees incurred in connection with your account in the currency and amount displayed at the time of purchase.',
+            'Using Estospaces as a property seeker is free. Property managers can use the Free plan or a paid monthly plan (Growth or Premium). Prices, limits and the currency (₹ in India, £ in the UK) are shown before you pay, and prices include tax.',
+            'New managers may receive a free trial of a paid plan. No card is taken for the trial and you are not charged automatically when it ends.',
+            'Payments are processed by our payment provider, Razorpay. Estospaces does not store your card or bank details.',
+            'A paid plan covers the period shown at checkout. You can cancel renewal at any time from the Subscription page; your plan stays active until the end of the period you paid for.',
+            'If you think you were charged in error, contact hello@estospaces.com. We review refund requests individually and always give refunds where the law requires them.',
         ],
     },
     {
@@ -80,6 +84,31 @@ const sections = [
         content: [
             'To the maximum extent permitted by law, Estospaces is not liable for indirect, incidental, special, consequential, or punitive damages arising from your use of the platform.',
             'Nothing in these terms excludes liability that cannot legally be excluded.',
+        ],
+    },
+    {
+        title: '11. Fast Track',
+        content: [
+            'Fast Track is a time-limited workflow that helps a property seeker and a manager move from selection to handover in one case. Deadlines shown in the workflow are guides to keep the case moving.',
+            'Estospaces records the steps of the case but is not a party to any tenancy or sale agreement made through it.',
+        ],
+    },
+    {
+        title: '12. Changes to These Terms',
+        content: [
+            'We may update these terms. We will show the date of the latest version on this page and tell account holders about significant changes before they apply. Continuing to use Estospaces after a change means you accept the updated terms.',
+        ],
+    },
+    {
+        title: '13. Governing Law',
+        content: [
+            'If you use Estospaces in India, these terms are governed by the laws of India. If you use Estospaces in the United Kingdom, these terms are governed by the laws of England and Wales. This does not remove any rights you have under the consumer laws of the place where you live.',
+        ],
+    },
+    {
+        title: '14. Contact',
+        content: [
+            'Questions about these terms: legal@estospaces.com. Help with your account: hello@estospaces.com.',
         ],
     },
 ] as const;
