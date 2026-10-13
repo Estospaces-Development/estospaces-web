@@ -643,7 +643,7 @@ export default function VerificationPage() {
                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-gray-100 dark:border-gray-800">
                     <div className="flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500 font-medium">
                         <Clock className="w-4 h-4" />
-                        <span>Last updated: {new Date(lastUpdatedAt || managerProfile?.updated_at || new Date()).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        <span>Last updated: {new Date(lastUpdatedAt || managerProfile?.updated_at || new Date()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </div>
 
                     {!effectiveIsVerified && (canRequestReview || profileNeedsCompletion) ? (

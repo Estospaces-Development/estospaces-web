@@ -416,7 +416,7 @@ export default function RegisterPage() {
 
     const allRulesPassed = Object.values(rules).every(Boolean);
     const acceptedTermsLabel = termsAcceptedAt
-        ? new Date(termsAcceptedAt).toLocaleString()
+        ? new Date(termsAcceptedAt).toLocaleString('en-GB')
         : '';
 
     const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';

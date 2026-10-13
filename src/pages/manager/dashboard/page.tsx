@@ -705,7 +705,7 @@ function DashboardContent() {
                     <div className="sm:hidden">
                       <p className="text-sm font-bold text-gray-900 dark:text-white">Reservation {booking.id.slice(0, 8)}</p>
                       <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                        {new Date(booking.check_in_date).toLocaleDateString()} – {new Date(booking.check_out_date).toLocaleDateString()}
+                        {new Date(booking.check_in_date).toLocaleDateString('en-GB')} – {new Date(booking.check_out_date).toLocaleDateString('en-GB')}
                       </p>
                       <p className="text-xs leading-5 text-gray-400 dark:text-gray-500">
                         Property {booking.property_id.slice(0, 8)}
@@ -714,7 +714,7 @@ function DashboardContent() {
                     <div className="hidden sm:block">
                       <p className="text-sm font-bold text-gray-900 dark:text-white">Booking {booking.id.slice(0, 8)}</p>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Property {booking.property_id.slice(0, 8)} - {new Date(booking.check_in_date).toLocaleDateString()} to {new Date(booking.check_out_date).toLocaleDateString()}
+                        Property {booking.property_id.slice(0, 8)} - {new Date(booking.check_in_date).toLocaleDateString('en-GB')} to {new Date(booking.check_out_date).toLocaleDateString('en-GB')}
                       </p>
                     </div>
                   </div>

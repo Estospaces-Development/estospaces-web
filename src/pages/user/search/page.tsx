@@ -556,7 +556,7 @@ const PropertySearch = () => {
             return;
         }
 
-        setSearchName(`${query || location || 'Search'} ${new Date().toLocaleDateString()}`);
+        setSearchName(`${query || location || 'Search'} ${new Date().toLocaleDateString('en-GB')}`);
         setSearchNameError('');
         setIsSaveModalOpen(true);
     };

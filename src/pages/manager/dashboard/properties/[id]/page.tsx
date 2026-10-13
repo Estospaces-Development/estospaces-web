@@ -611,7 +611,7 @@ export default function PropertyDetailPage() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-gray-600 dark:text-gray-400">Listed On</span>
                                         <span className="text-gray-800 dark:text-white font-medium">
-                                            {new Date(property.createdAt).toLocaleDateString()}
+                                            {new Date(property.createdAt).toLocaleDateString('en-GB')}
                                         </span>
                                     </div>
                                 )}
@@ -620,7 +620,7 @@ export default function PropertyDetailPage() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-gray-600 dark:text-gray-400">Last Updated</span>
                                         <span className="text-gray-800 dark:text-white font-medium">
-                                            {new Date(property.updatedAt).toLocaleDateString()}
+                                            {new Date(property.updatedAt).toLocaleDateString('en-GB')}
                                         </span>
                                     </div>
                                 )}
