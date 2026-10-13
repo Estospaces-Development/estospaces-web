@@ -93,6 +93,15 @@ test("a typed postcode or PIN still wins over the account country and the saved 
   );
 });
 
+test("a saved London city beats an India account country on every surface, and a typed PIN still wins (web-app#732)", () => {
+  const user: GeoMarketUserContext = { country: "India", postcode: "600020" };
+  const london: Saved = { market: "GB", location: "London" };
+  for (const [name, surface] of Object.entries(surfaces)) {
+    assert.equal(renderMarket(INDIA_TZ, () => surface(user, london)), "GB", name);
+  }
+  assert.equal(renderMarket(INDIA_TZ, () => surfaces.discover(user, london, "600001")), "IN");
+});
+
 test("a saved city or country preference still outranks the stored postcode (order unchanged)", () => {
   assert.equal(
     renderMarket("Europe/London", () => surfaces.dashboard(UK_POSTCODE_NO_COUNTRY, { market: "IN", location: "" })),

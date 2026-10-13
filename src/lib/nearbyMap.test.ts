@@ -159,6 +159,22 @@ test('homes geocoded to the same spot share one marker instead of hiding under e
     assert.deepEqual(groups[1].properties.map((property) => property.id), ['salem-villa']);
 });
 
+test('pins that would overlap on screen merge at low zoom and separate when zoomed in (web-app#737)', () => {
+    // ~1.1 km apart: overlapping pins at zoom 12, clear of each other at zoom 17
+    const homes = [
+        { id: 'a', latitude: 51.5074, longitude: -0.1278 },
+        { id: 'b', latitude: 51.5174, longitude: -0.1278 },
+        { id: 'far', latitude: 52.4862, longitude: -1.8904 },
+    ];
+    const zoomedOut = groupNearbyMapMarkers(homes, 12);
+    assert.deepEqual(zoomedOut.map((group) => group.properties.map((property) => property.id)), [['a', 'b'], ['far']]);
+    const zoomedIn = groupNearbyMapMarkers(homes, 17);
+    assert.deepEqual(zoomedIn.map((group) => group.properties.map((property) => property.id)), [['a'], ['b'], ['far']]);
+    // at zoom 14 the same homes are ~185px apart, so they stay separate
+    const anchors = groupNearbyMapMarkers(homes, 14);
+    assert.equal(anchors.length, 3);
+});
+
 test('compact map says when no homes are pinned and how many listed homes have no location (web-app#664, #665)', () => {
     assert.equal(getCompactNearbyMapStatus({ pinnedCount: 0, unlocatedCount: 0 }), 'No homes with a map location within 100 km yet');
     assert.equal(getCompactNearbyMapStatus({ pinnedCount: 4, unlocatedCount: 0 }), '4 homes on the map');

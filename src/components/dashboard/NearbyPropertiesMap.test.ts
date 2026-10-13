@@ -63,7 +63,9 @@ test('compact map overlays stay small and label the user pin (web-app#666)', () 
   assert.match(source, /You are here/);
   assert.match(source, /sr-only sm:not-sr-only/);
   assert.match(source, /\{compactMapStatus\}/);
-  assert.match(source, /groupNearbyMapMarkers\(propertiesWithCoords\)/);
+  assert.match(source, /groupNearbyMapMarkers\(propertiesWithCoords, mapZoom\)/);
+  // web-app#737: pin grouping follows the live zoom so pins never paint over each other.
+  assert.match(source, /<MapZoomWatcher onZoom=\{setMapZoom\} \/>/);
 });
 
 test('tile-failure notice stacks above every map overlay and clears the top controls (MB-0218)', () => {

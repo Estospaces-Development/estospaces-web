@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 
 import { getPreferences } from '@/services/authService';
-import { applyAccountMarket, resolvePreferredSearchDefaults, type PreferredSearchDefaults } from '@/lib/preferredSearchDefaults';
-import type { SupportedLaunchCountryCode } from '@/lib/launchLocale';
+import { resolvePreferredSearchDefaults, type PreferredSearchDefaults } from '@/lib/preferredSearchDefaults';
 
 const emptyDefaults: PreferredSearchDefaults = { market: null, location: '' };
 
 export function usePreferredSearchDefaults(
   userId?: string | null,
-  accountMarket?: SupportedLaunchCountryCode | null,
 ): PreferredSearchDefaults & { ready: boolean; failed: boolean } {
   const [state, setState] = useState<PreferredSearchDefaults & { ready: boolean; failed: boolean; userId: string | null }>(() => ({
     ...emptyDefaults,
@@ -56,5 +54,5 @@ export function usePreferredSearchDefaults(
 
   return state.userId !== userId
     ? { ...emptyDefaults, ready: false, failed: false }
-    : { ...applyAccountMarket({ market: state.market, location: state.location }, accountMarket), ready: state.ready, failed: state.failed };
+    : { market: state.market, location: state.location, ready: state.ready, failed: state.failed };
 }

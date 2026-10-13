@@ -57,7 +57,7 @@ test("user search preferences follow the signed-in user's market instead of hard
   assert.match(dashboardSource, /countryCode: preferredSearchDefaults\.market/);
   assert.match(dashboardSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)\s*\{\s*setNearbyProperties\(\[\]\)/);
   assert.match(dashboardSource, /const activeMapProperties = showFilteredResults \? visibleFilteredProperties : visibleNearbyProperties/);
-  assert.match(discoverSource, /market: preferredSearchDefaults\.market \|\| requestedMarket/);
+  assert.match(discoverSource, /market: requestedMarket,/);
   assert.match(discoverSource, /if \(!preferredSearchDefaults\.ready \|\| preferredSearchDefaults\.failed\)\s*\{[\s\S]*setMatchingProperties\(\[\]\)/);
   assert.match(publicSearchSource, /countryCode: preferredSearchDefaults\.market/);
   assert.match(publicSearchSource, /const isInitialSearchLoading = \(loading && !hasLoadedSearch\)\s*\|\| \(isAuthenticated && !preferredSearchDefaults\.failed && !preferredSearchDefaults\.ready\)/);
