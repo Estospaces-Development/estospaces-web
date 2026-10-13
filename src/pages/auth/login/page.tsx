@@ -167,8 +167,17 @@ export default function LoginPage() {
                 >
                     Switch account
                 </button>
+                <button
+                    onClick={async () => {
+                        await signOut();
+                        navigate(getLoginPath());
+                    }}
+                    className="w-full py-2 text-sm font-medium text-gray-600 underline-offset-2 hover:underline dark:text-gray-300"
+                >
+                    Sign out
+                </button>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Other tabs stay signed in. To sign out everywhere, use Sign out in the menu.
+                    Switch account keeps {authUser?.email || 'this account'} signed in on this browser, in other and new tabs. Sign out signs it out everywhere.
                 </p>
               </div>
           </div>
