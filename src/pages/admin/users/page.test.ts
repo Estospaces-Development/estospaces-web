@@ -9,6 +9,8 @@ import {
   buildAdminLeadReassignLabel,
   buildAdminUsersCsv,
   formatAdminLeadReassignmentLoadError,
+  getAdminLeadContext,
+  getAdminLeadReassignmentToggleLabel,
   getAdminUsersGlobalSearchLabel,
   getAdminUsersGlobalSearchPlaceholder,
   getAdminUsersPageSubtitle,
@@ -225,4 +227,51 @@ test('admin lead reassignment load errors stay scoped to the reassignment queue'
   assert.match(message, /Lead reassignment data could not refresh for the current filters\./);
   assert.match(message, /Existing rows may be stale/);
   assert.doesNotMatch(message, /^Internal server error$/);
+});
+
+test('admin users page leads with the registry and keeps lead reassignment collapsed by default', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /const \[leadReassignmentOpen, setLeadReassignmentOpen\] = useState\(false\)/);
+  assert.ok(source.indexOf('Main Registry Table') < source.indexOf('id="admin-lead-reassignment"'));
+  assert.ok(source.indexOf('aria-label={getAdminUsersGlobalSearchLabel()}') < source.indexOf('Main Registry Table'));
+  assert.match(source, /\{leadReassignmentOpen && \(\s*<section id="admin-lead-reassignment"/);
+  assert.equal(getAdminLeadReassignmentToggleLabel(false, 10), 'Show lead reassignment (10)');
+  assert.equal(getAdminLeadReassignmentToggleLabel(true), 'Hide lead reassignment');
+});
+
+test('admin lead context uses only returned fields and derives the 10-minute response window', () => {
+  const now = new Date('2026-10-13T10:05:00Z').getTime();
+  const lead = {
+    id: 'lead-1',
+    status: 'pending_broker_response',
+    name: ' Asha Rao ',
+    email: 'asha@example.com',
+    created_at: '2026-10-13T10:00:00Z',
+    sla_deadline: '2026-10-13T10:10:00Z',
+  } as any;
+
+  const live = getAdminLeadContext(lead, now);
+  assert.equal(live.seeker, 'Asha Rao');
+  assert.equal(live.seekerEmail, 'asha@example.com');
+  assert.equal(live.timeLeft, '5m 00s left to respond');
+  assert.equal(live.expired, false);
+  assert.match(live.requestedAgo ?? '', /ago$/);
+
+  const late = getAdminLeadContext({ ...lead, response_deadline_at: '2026-10-13T10:02:00Z' }, now);
+  assert.match(late.timeLeft ?? '', /^Response window expired .*ago$/);
+  assert.equal(late.expired, true);
+
+  const responded = getAdminLeadContext({ ...lead, status: 'broker_responded' }, now);
+  assert.equal(responded.timeLeft, null);
+
+  const bare = getAdminLeadContext({ id: 'lead-2', status: 'pending_broker_response', created_at: '', sla_deadline: '0001-01-01T00:00:00Z' } as any, now);
+  assert.deepEqual([bare.seeker, bare.requestedAt, bare.timeLeft], [null, null, null]);
+});
+
+test('admin properties page no longer offers an Add Property action admins cannot use', async () => {
+  const source = await readFile(new URL('../properties/page.tsx', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(source, /Add Property/);
+  assert.match(source, /New listings are created from manager accounts/);
 });
