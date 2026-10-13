@@ -94,7 +94,7 @@ for (const width of [283, 325, 390, 1440]) {
             range.setEnd(messageText, match.index + match[0].length);
             return { word: match[0], lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size };
           });
-          const timestamp = Array.from(element.querySelectorAll('span')).find((node) => node.textContent.includes('8/21/2026'));
+          const timestamp = Array.from(element.querySelectorAll('span')).find((node) => node.textContent.includes('21/08/2026'));
           const titleBox = titleNode.getBoundingClientRect();
           const messageBox = messageNode.getBoundingClientRect();
           const dateBox = timestamp.getBoundingClientRect();
