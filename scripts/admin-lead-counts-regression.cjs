@@ -101,6 +101,8 @@ test('admin lead refresh updates the global card and filtered queue without stal
     const card = page.getByText('Active Leads', { exact: true }).locator('..');
     const queue = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lead Reassignment', exact: true }) });
     await card.getByText('12', { exact: true }).waitFor();
+    // Lead Reassignment is collapsed by default below the user list (#741); open it.
+    await page.locator('button[aria-expanded="false"]').filter({ hasText: /lead reassignment/i }).click();
     await queue.getByText(/Showing 1-10 of 12/).waitFor();
     active = 11;
     const beforeRefresh = analyticsRequests;
