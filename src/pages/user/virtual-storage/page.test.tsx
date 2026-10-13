@@ -156,6 +156,11 @@ test("virtual storage category labels use consistent title case", () => {
   );
 });
 
+test("virtual storage category chips show a submitted state from requiredSubmitted", () => {
+  assert.match(virtualStoragePageSource, /const isSubmitted = requiredSubmitted\[category\.slug\] === true/);
+  assert.match(virtualStoragePageSource, /\{isSubmitted && \([\s\S]*?<CheckCircle2[\s\S]*?\(submitted\)/);
+});
+
 test("virtual storage blocks overlapping category and upload mutations", () => {
   assert.match(virtualStoragePageSource, /const isVaultMutationPending = savingKey !== null/);
   assert.match(virtualStoragePageSource, /disabled=\{isVaultMutationPending\}/);

@@ -67,3 +67,12 @@ test("date-less viewings appear only under All", () => {
   assert.equal(viewingMatchesFilter({ status: "completed", date: null }, "completed"), false);
   assert.equal(viewingMatchesFilter({ status: "pending", date: "" }, "all"), true);
 });
+
+test("appointment card never renders a stray 0 price and its action row wraps", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\{viewing\.propertyPrice && \(/);
+  assert.match(source, /\{Number\(viewing\.propertyPrice\) > 0 && \(/);
+  assert.match(source, /grid-cols-\[repeat\(auto-fit,minmax\(9rem,1fr\)\)\]/);
+  assert.doesNotMatch(source, /flex-1 sm:flex-none px-4 py-2 text-sm font-bold/);
+});

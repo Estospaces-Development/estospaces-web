@@ -626,6 +626,7 @@ export function UserVirtualStoragePageContent({
                 const canRemoveCategory = category.source === "user";
                 const removalIsPending = pendingCategoryRemovalId === category.id;
                 const isRemoving = savingKey === `category-remove:${category.id}`;
+                const isSubmitted = requiredSubmitted[category.slug] === true;
 
                 return (
                   <div key={category.id} className="flex items-center gap-1">
@@ -633,13 +634,19 @@ export function UserVirtualStoragePageContent({
                       type="button"
                       aria-pressed={selectedCategoryId === category.id}
                       onClick={() => setSelectedCategoryId(category.id)}
-                      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
                         selectedCategoryId === category.id
                           ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
                           : "border-gray-200 text-gray-600 hover:border-orange-200 hover:text-orange-600 dark:border-zinc-700 dark:text-gray-300"
                       }`}
                     >
                       {categoryName}
+                      {isSubmitted && (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+                          <span className="sr-only">(submitted)</span>
+                        </>
+                      )}
                     </button>
                     {canRemoveCategory && (
                       <button

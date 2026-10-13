@@ -113,7 +113,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
                                 <span className="truncate">{property.propertyAddress}</span>
                             </div>
                         )}
-                        {property.propertyPrice && (
+                        {Number(property.propertyPrice) > 0 && (
                             <p className="text-sm font-bold text-orange-600 dark:text-orange-400 mb-2">
                                 {formatPrice(property.propertyPrice)}
                             </p>
