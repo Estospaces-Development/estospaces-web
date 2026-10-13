@@ -33,7 +33,9 @@ test('unpublished manager properties explain why social sharing is unavailable',
         />,
     );
 
-    assert.match(markup, /disabled=""/);
+    // aria-disabled (not disabled) so a tap still fires onClick and the parent can say why.
+    assert.match(markup, /aria-disabled="true"/);
+    assert.doesNotMatch(markup, /sdisabled=""/);
     assert.match(markup, /aria-label="Draft Home: Publish this property before sharing"/);
     assert.match(markup, /title="Publish this property before sharing"/);
 });
@@ -52,13 +54,20 @@ test('blocked share action states the real reason for rented and pending-approva
     assert.match(pending, /aria-label="Queued Flat: Waiting for admin approval"/);
 });
 
+test('draft listings explain that drafts cannot be shared (#739)', () => {
+    const markup = renderToStaticMarkup(
+        <PropertyShareAction propertyTitle="Draft Home" status="draft" disabled onClick={() => {}} />,
+    );
+    assert.match(markup, /title="Draft properties can(?:'|&#x27;)t be shared"/);
+});
+
 test('disabled share action reads as disabled over a photo: grey fill, no shadow (#688)', () => {
     const markup = renderToStaticMarkup(
         <PropertyShareAction propertyTitle="Draft Home" disabled onClick={() => {}} />,
     );
-    assert.match(markup, /disabled:bg-gray-300/);
-    assert.match(markup, /disabled:shadow-none/);
-    assert.doesNotMatch(markup, /disabled:opacity-50/);
+    assert.match(markup, /aria-disabled:bg-gray-300/);
+    assert.match(markup, /aria-disabled:shadow-none/);
+    assert.doesNotMatch(markup, /aria-disabled:opacity-50/);
 });
 
 test('user and manager cards share one top-card action without the old green application control', () => {

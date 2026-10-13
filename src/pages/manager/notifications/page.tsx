@@ -13,6 +13,7 @@ import {
     Shield,
     Zap,
     Search,
+    Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@/contexts/NotificationsContext';
@@ -102,12 +103,14 @@ export default function ManagerNotificationsPage() {
         loadError,
         fetchNotifications,
         markAsRead, 
-        markAllAsRead
+        markAllAsRead,
+        deleteNotification,
     } = useNotifications();
 
     const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [visibleLimit, setVisibleLimit] = useState(MANAGER_NOTIFICATION_PAGE_SIZE);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const safeNotifications = useMemo(() => {
         if (!notifications || !Array.isArray(notifications)) return [];
@@ -128,12 +131,14 @@ export default function ManagerNotificationsPage() {
                 if (existing) {
                     existing.duplicateCount += 1;
                     existing.is_read = existing.is_read && notification.is_read;
+                    existing.memberIds.push(notification.id);
                     if (!notification.is_read) existing.unreadMemberIds.push(notification.id);
                     return;
                 }
 
                 // Keep every unread member so opening the group marks all of them read (MB-0992).
-                const next = { ...notification, duplicateCount: 1, unreadMemberIds: notification.is_read ? [] : [notification.id] };
+                // memberIds lets delete remove every notification a repeated group stands for.
+                const next = { ...notification, duplicateCount: 1, memberIds: [notification.id], unreadMemberIds: notification.is_read ? [] : [notification.id] };
                 byContent.set(key, next);
                 deduped.push(next);
             });
@@ -161,6 +166,19 @@ export default function ManagerNotificationsPage() {
         () => filteredNotifications.slice(0, visibleLimit),
         [filteredNotifications, visibleLimit],
     );
+
+    const selectedGroups = useMemo(
+        () => safeNotifications.filter((n) => selectedIds.includes(n.id)),
+        [safeNotifications, selectedIds],
+    );
+    const toggleSelected = (id: string) => setSelectedIds((previous) => (
+        previous.includes(id) ? previous.filter((entry) => entry !== id) : [...previous, id]
+    ));
+    const allFilteredSelected = filteredNotifications.length > 0 && filteredNotifications.every((n) => selectedIds.includes(n.id));
+    const deleteGroups = (groups: Array<{ id: string; memberIds: string[] }>) => {
+        groups.forEach((group) => group.memberIds.forEach((id) => void deleteNotification(id)));
+        setSelectedIds((previous) => previous.filter((id) => !groups.some((group) => group.id === id)));
+    };
 
     // Format time safely to prevent "Invalid Date" crashes
     const formatSafeTime = (dateStr: any) => {
@@ -246,6 +264,29 @@ export default function ManagerNotificationsPage() {
                 </div>
             </div>
 
+            {selectedGroups.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-orange-500 p-3 text-white shadow-lg sm:p-4">
+                    <label className="flex min-h-11 items-center gap-3 font-semibold">
+                        <input
+                            type="checkbox"
+                            aria-label="Select all filtered notifications"
+                            checked={allFilteredSelected}
+                            onChange={() => setSelectedIds(allFilteredSelected ? [] : filteredNotifications.map((n) => n.id))}
+                            className="h-5 w-5 rounded border-white/30 text-orange-600 outline-none"
+                        />
+                        {selectedGroups.length} selected
+                    </label>
+                    <button
+                        type="button"
+                        onClick={() => deleteGroups(selectedGroups)}
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-medium transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                        <Trash2 size={16} />
+                        Delete
+                    </button>
+                </div>
+            )}
+
             {filteredNotifications.length === 0 ? (
                 <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 flex flex-col items-center">
                     <Inbox size={48} className="text-gray-200 dark:text-gray-700 mb-4" />
@@ -277,6 +318,18 @@ export default function ManagerNotificationsPage() {
                                 }}
                                 className={`p-4 flex gap-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${!n.is_read ? getNotificationSurfaceClass(n) : ''}`}
                             >
+                            <label
+                                className="-ml-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center self-start"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <input
+                                    type="checkbox"
+                                    aria-label={`Select notification: ${displayCopy.title}`}
+                                    checked={selectedIds.includes(n.id)}
+                                    onChange={() => toggleSelected(n.id)}
+                                    className="h-5 w-5 rounded border-gray-300 text-orange-500 outline-none dark:border-gray-600"
+                                />
+                            </label>
                             <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${getNotificationSurfaceClass(n)}`}>
                                 {getManagerNotificationIcon(n)}
                             </div>
@@ -298,6 +351,17 @@ export default function ManagerNotificationsPage() {
                                     </span>
                                 )}
                             </div>
+                            <button
+                                type="button"
+                                aria-label={`Delete notification: ${displayCopy.title}`}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    deleteGroups([n]);
+                                }}
+                                className="-mr-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center self-start rounded-xl text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-red-900/20"
+                            >
+                                <Trash2 size={18} />
+                            </button>
                             </div>
                         );
                     })}

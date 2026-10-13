@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Bed, Bath, Maximize, MapPin, Edit, Eye } from 'lucide-react';
 import { useProperties, type ListingType, type PriceInfo } from '@/contexts/PropertyContext';
 import { formatPropertyFloorCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
@@ -8,7 +8,12 @@ import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import PropertyMediaImage from './PropertyMediaImage';
 import { formatLaunchPropertyText } from '@/lib/launchLocale';
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
-import { isPropertyPubliclyShareable } from '@/lib/propertySharing';
+import ToastActionsContext from '@/contexts/ToastContext';
+import {
+    getShareBlockedReason,
+    isPropertyPubliclyShareable,
+    sharePublicPropertyLink,
+} from '@/lib/propertySharing';
 import {
     getManagerPropertyLocation,
     resolveManagerPropertySize,
@@ -67,6 +72,7 @@ interface ManagerPropertyCardProps {
 const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onEdit, onView }) => {
     const [showShareModal, setShowShareModal] = useState(false);
     const { incrementShares } = useProperties();
+    const toast = useContext(ToastActionsContext);
     const title = formatLaunchPropertyText(property.title || property.name, 'Untitled Property');
     const address = getManagerPropertyLocation(property);
     const beds = property.bedrooms || 0;
@@ -80,6 +86,26 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const inventoryCaption = formatPropertyFloorCaption(property);
     const formattedPrice = formatManagerPropertyPrice(property);
     const canSharePublicly = isPropertyPubliclyShareable(property.status);
+
+    // Native share sheet, else copy the public link; the dialog is the last resort when neither works.
+    const handleShare = async () => {
+        if (!canSharePublicly) {
+            toast?.info(getShareBlockedReason(property.status));
+            return;
+        }
+        const result = await sharePublicPropertyLink({ id: property.id, title });
+        if (result === 'unavailable') {
+            setShowShareModal(true);
+            return;
+        }
+        if (result === 'cancelled') {
+            return;
+        }
+        if (result === 'copied') {
+            toast?.success('Property link copied to clipboard.');
+        }
+        void incrementShares(property.id);
+    };
 
     return (
         <>
@@ -106,7 +132,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                         expanded={showShareModal}
                         onClick={(event) => {
                             event.stopPropagation();
-                            setShowShareModal(true);
+                            void handleShare();
                         }}
                     />
                 </div>
