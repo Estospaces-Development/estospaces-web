@@ -160,14 +160,14 @@ export default function AdminSettingsPage() {
                                 aria-describedby="admin-settings-currency-help"
                                 className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                             >
-                                <span className="font-semibold">{settings.defaultCurrency}</span>
+                                <span className="font-semibold">Follows the market</span>
                                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
                                     <LockKeyhole size={14} aria-hidden="true" />
                                     Launch default
                                 </span>
                             </output>
                             <p id="admin-settings-currency-help" className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                                Fixed to {LAUNCH_CURRENCY_CODE} for the current launch configuration.
+                                Currencies follow each market: ₹ (INR) for India and £ (GBP) for the UK. This is not editable here.
                             </p>
                         </div>
                     </div>

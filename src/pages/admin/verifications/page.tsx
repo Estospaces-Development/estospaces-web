@@ -265,7 +265,7 @@ function VerificationsContent() {
                 aria-pressed={(activeTab === 'pending' && stat.id === 'submitted') ||
                   (activeTab === 'review' && stat.id === 'under_review') ||
                   activeTab === stat.id}
-                aria-label={`${stat.label}: ${stat.count} managers`}
+                aria-label={`${stat.label}: ${stat.count} manager${stat.count === 1 ? '' : 's'}`}
                 className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
                   (activeTab === 'pending' && stat.id === 'submitted') ||
                   (activeTab === 'review' && stat.id === 'under_review') ||

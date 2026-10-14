@@ -21,7 +21,20 @@ export interface AdminAnalyticsDisplayItem {
     detail?: string;
 }
 
+// Core treats these as the same "live" state (properties/service.go defaultPublicPropertyStatuses).
 const ADMIN_LIVE_LISTING_STATUSES = new Set(['active', 'available', 'online', 'published']);
+// Core stores pending listings as pending_approval (properties/service.go propertyStatusFilterAliases).
+const ADMIN_PENDING_LISTING_STATUSES = new Set(['pending', 'pending_approval']);
+
+const normalizeListingStatus = (status?: string | null) => status?.trim().toLowerCase() || '';
+
+/** Whether an analytics row matches the Active / Published / Pending filter; live and pending are status families, not exact strings. */
+export const matchesAdminAnalyticsStatusFilter = (rowStatus: string | null | undefined, filter: string) => {
+    const row = normalizeListingStatus(rowStatus);
+    if (filter === 'active' || filter === 'published') return ADMIN_LIVE_LISTING_STATUSES.has(row);
+    if (filter === 'pending') return ADMIN_PENDING_LISTING_STATUSES.has(row);
+    return row === filter;
+};
 
 const numericValue = (value?: number | null) => Number(value ?? 0);
 
@@ -56,7 +69,7 @@ export const getAdminActiveListings = (data?: AnalyticsData | null) => {
     }
 
     const livePerformanceRows = (data?.propertyPerformance || []).filter((property) => (
-        ADMIN_LIVE_LISTING_STATUSES.has(property.status?.trim().toLowerCase() || '')
+        ADMIN_LIVE_LISTING_STATUSES.has(normalizeListingStatus(property.status))
     ));
 
     return livePerformanceRows.length;
@@ -147,7 +160,7 @@ export const buildAdminAnalyticsExportRows = (
     const direction = options.direction || 'desc';
 
     const rows = (data?.propertyPerformance || [])
-        .filter((row) => !status || status === 'all' || row.status?.trim().toLowerCase() === status)
+        .filter((row) => !status || status === 'all' || matchesAdminAnalyticsStatusFilter(row.status, status))
         .map((row) => ({
             ...row,
             property: row.property || 'Untitled path',

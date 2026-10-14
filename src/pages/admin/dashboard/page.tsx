@@ -532,9 +532,9 @@ export default function AdminDashboard() {
                                 <h2 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h2>
                                 <p className="text-gray-200 text-sm max-w-md mb-6">
                                     Platform status summary:
-                                    {` ${getAdminActiveListings(data)} `}active listings,
-                                    {` ${data?.total_brokers || 0} `}brokers, and
-                                    {` ${stats.openLeads} `}open leads.
+                                    {` ${getAdminActiveListings(data)} `}active listing{getAdminActiveListings(data) === 1 ? '' : 's'},
+                                    {` ${data?.total_brokers || 0} `}broker{(data?.total_brokers || 0) === 1 ? '' : 's'}, and
+                                    {` ${stats.openLeads} `}open lead{stats.openLeads === 1 ? '' : 's'}.
                                 </p>
                                 <span className="inline-flex text-xs font-bold text-gray-200 bg-gray-800 px-3 py-1.5 rounded-lg">
                                     Live backend metrics

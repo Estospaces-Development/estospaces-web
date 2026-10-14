@@ -634,6 +634,16 @@ export function FastTrackWorkspaceCustomizationDrawer({
   onMoveModule,
   onSetDefaultModule,
 }: FastTrackWorkspaceCustomizationDrawerProps) {
+  // Escape closes the modal drawer, like every other dialog in the app (QA-E2E-20261014 A74).
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [open, onClose]);
+
   if (!open) {
     return null;
   }
