@@ -35,6 +35,11 @@ test('app host still blocks admin routes locally', () => {
     );
 });
 
+test('app host root is left to the role-aware startup redirect', () => {
+    // A manager opening app.estospaces.com/ was sent to the User dashboard.
+    assert.equal(resolveHostedWorkspaceRedirect('app', '/'), null);
+});
+
 test('admin host preserves login routes instead of redirecting back to the protected admin shell', () => {
     assert.equal(resolveHostedWorkspaceRedirect('admin', '/login'), null);
     assert.equal(resolveHostedWorkspaceRedirect('admin', '/login/'), null);

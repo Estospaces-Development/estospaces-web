@@ -16,7 +16,7 @@ interface SubdomainRouterProps {
 /**
  * SubdomainRouter handles domain-based redirection.
  * admin.estospaces.com -> /admin/*
- * app.estospaces.com -> /user/* or /manager/*
+ * app.estospaces.com -> / is role-routed by StartupRedirect; /admin/* -> /user/dashboard
  * estospaces.com -> / (Landing)
  */
 const SubdomainRouter: React.FC<SubdomainRouterProps> = ({ children }) => {
