@@ -152,22 +152,6 @@ const normalizeFilterToken = (value?: string | null) => value?.trim().toLowerCas
 
 const normalizePropertyValue = (value?: string | null) => value?.trim().toLowerCase() || '';
 
-const INTERNAL_AUTOMATION_TEXT_PATTERNS = [
-    /\bqa\b/i,
-    /\bcodex\b/i,
-    /\bdev smoke\b/i,
-    /\bsmoke test\b/i,
-    /\be2e\b/i,
-    /\bissue\d+\b/i,
-    /\btest\b/i,
-] as const;
-
-const RAW_AUTOMATION_TIMESTAMP_PATTERNS = [
-    /\b20\d{12}\b/,
-    /\b20\d{2}-\d{2}-\d{2}t\d{2}-\d{2}-\d{2}-\d{3}z\b/i,
-    /\b1\d{12,}\b/,
-] as const;
-
 const getPropertyTimestamp = (property: AdminPropertyRegistryProperty) =>
     new Date(property.createdAt || 0).getTime();
 
@@ -246,64 +230,6 @@ const getAdminPropertyRegistryText = (property: AdminPropertyRegistryProperty) =
     property.contactName,
     property.agent_name,
 ].filter(Boolean).join(' ');
-
-const getAdminPropertyAutomationText = (property: AdminPropertyRegistryProperty) => [
-    property.id,
-    property.propertyId,
-    property.property_id,
-    property.title,
-    property.description,
-    property.contactName,
-    property.agent_name,
-].filter(Boolean).join(' ');
-
-export const isInternalAutomationProperty = (property: AdminPropertyRegistryProperty) => {
-    const automationText = getAdminPropertyAutomationText(property);
-    return INTERNAL_AUTOMATION_TEXT_PATTERNS.some((pattern) => pattern.test(automationText))
-        || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(automationText));
-};
-
-const COPY_PROPERTY_PATTERN = /\(copy\)/i;
-
-const getPropertyDedupKey = (property: AdminPropertyRegistryProperty) => {
-    const priceValue = typeof property.price === 'number'
-        ? property.price
-        : typeof property.price?.amount === 'number'
-            ? property.price.amount
-            : property.priceString || '';
-    const location = property.location?.city || property.city || property.address_line_1 || '';
-    const agent = property.contactName || property.agent_name || '';
-    return `${String(property.title || '').trim().toLowerCase()}|${priceValue}|${String(location).trim().toLowerCase()}|${String(agent).trim().toLowerCase()}`;
-};
-
-export const isDuplicateCopyProperty = (property: AdminPropertyRegistryProperty) => {
-    const searchableText = getAdminPropertyRegistryText(property);
-    if (COPY_PROPERTY_PATTERN.test(searchableText)) {
-        return true;
-    }
-    return false;
-};
-
-export const filterVisibleAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
-    properties: readonly Property[],
-) => {
-    const seenKeys = new Set<string>();
-    const nonInternal = properties.filter((property) => !isInternalAutomationProperty(property));
-
-    const result: Property[] = [];
-    for (const property of nonInternal) {
-        if (isDuplicateCopyProperty(property)) {
-            continue;
-        }
-        const dedupKey = getPropertyDedupKey(property);
-        if (seenKeys.has(dedupKey)) {
-            continue;
-        }
-        seenKeys.add(dedupKey);
-        result.push(property);
-    }
-    return result;
-};
 
 const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: string) => {
     const normalizedQuery = normalizePropertyValue(searchQuery);

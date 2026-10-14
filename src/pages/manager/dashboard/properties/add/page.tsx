@@ -1021,6 +1021,19 @@ export default function AddPropertyPage() {
     }));
   }, [formData.countryCode, isEditMode, user]);
 
+  // New listing only: start the contact block from the signed-in manager, never over typed or loaded values.
+  const contactPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (isEditMode || contactPrefilledRef.current || !user) return;
+    contactPrefilledRef.current = true;
+    setFormData((prev) => ({
+      ...prev,
+      contactName: prev.contactName || user.name || "",
+      contactEmail: prev.contactEmail || user.email || "",
+      contactPhone: prev.contactPhone || user.phone || user.user_metadata?.phone || "",
+    }));
+  }, [isEditMode, user]);
+
   // Unsaved changes warning - uses beforeunload event for browser navigation
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -2428,6 +2441,8 @@ export default function AddPropertyPage() {
   const hasPendingMediaFiles = [...formData.images, ...formData.videos].some(
     (entry) => typeof entry !== "string",
   );
+  const contactPhonePlaceholder =
+    formData.countryCode === "GB" ? "+44 7700 900000" : "+91 98765 43210";
   const currentStepTitle =
     steps.find((step) => step.number === currentStep)?.title || "Property form";
   const auditActorName =
@@ -3787,7 +3802,7 @@ export default function AddPropertyPage() {
                         ? "border-red-500"
                         : "border-gray-100 dark:border-gray-700"
                     }`}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder={contactPhonePlaceholder}
                   />
                   {renderFieldError("contactPhone")}
                 </div>
@@ -3808,7 +3823,7 @@ export default function AddPropertyPage() {
                       handleInputChange("alternatePhone", e.target.value)
                     }
                     className={getFieldClassName("alternatePhone")}
-                    placeholder="+1 (555) 000-0000 (optional)"
+                    placeholder={`${contactPhonePlaceholder} (optional)`}
                   />
                   {renderFieldError("alternatePhone")}
                 </div>

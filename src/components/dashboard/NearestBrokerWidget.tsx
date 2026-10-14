@@ -17,7 +17,7 @@ const NearestBrokerWidget = () => {
         name: 'Sarah Johnson',
         agency: 'Prime Realty Group',
         distance: '0.8 miles',
-        phone: '+1 (555) 123-4567',
+        phone: '+44 7700 900123',
     };
 
     useEffect(() => {
