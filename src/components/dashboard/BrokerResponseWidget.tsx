@@ -8,6 +8,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, ChevronDown, Info, BellRing, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
+    formatRequestAcceptedMessage,
+    formatTrackerLocationLabel,
+    formatWaitingUsersHint,
     formatWorkspaceReference,
     getManagerTrackerResponseCountdown,
     selectManagerTrackerItems,
@@ -52,7 +55,6 @@ import {
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
-    LAUNCH_COUNTRY_NAME,
 } from '@/lib/launchLocale';
 
 const formatOfferSummary = (dispatchStatus?: string, matchedBrokerName?: string | null) => {
@@ -217,10 +219,12 @@ const BrokerResponseWidget: React.FC = () => {
                     phone: lead.phone,
                     location: propertyLocation || formatLaunchPropertyText(lead.propertyInterested, 'Location not available'),
                     interestedIn: propertyTitle || 'Property enquiry',
-                    distance: formatLaunchPropertyLocation([
-                        lead.property?.city,
-                        formatLaunchLocationCode(lead.property?.postcode) || undefined,
-                    ]),
+                    distance: formatTrackerLocationLabel({
+                        city: lead.property?.city,
+                        postcode: lead.property?.postcode,
+                        countryCode: lead.property?.country_code,
+                        country: lead.property?.country,
+                    }),
                     timestamp: new Date(lead.created_at),
                     status: resolveLeadStage(lead) === 'matching'
                         ? 'pending' as const
@@ -267,7 +271,7 @@ const BrokerResponseWidget: React.FC = () => {
                 requestSummary: offer.details?.trim() || undefined,
                 location: offerArea || 'Location not available',
                 interestedIn: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
-                distance: formatLaunchLocationCode(offer.location_postcode) || offerArea || LAUNCH_COUNTRY_NAME,
+                distance: formatLaunchLocationCode(offer.location_postcode) || offerArea || formatTrackerLocationLabel({ postcode: offer.location_postcode }),
                 timestamp: new Date(offer.created_at || offer.dispatch_started_at || new Date().toISOString()),
                 status: offer.dispatch_status === 'broker_matched'
                     ? 'responded' as const
@@ -477,6 +481,8 @@ const BrokerResponseWidget: React.FC = () => {
                         leadId: selectedRequest.requestKind === 'lead' ? id : undefined,
                     },
                 });
+                setAvailabilityStatusMessage('');
+                toast.success(formatRequestAcceptedMessage(selectedRequest.brokerName));
                 await fetchRequests(true);
                 return true;
             }
@@ -643,7 +649,7 @@ const BrokerResponseWidget: React.FC = () => {
         ? availabilityBlockedReason
         : availableForFastResponse
             ? pendingCount > 0
-                ? `${pendingCount} waiting user${pendingCount === 1 ? '' : 's'} are shown below with their own countdown.`
+                ? formatWaitingUsersHint(pendingCount)
                 : 'No waiting requests. New requests will appear here with their actual response countdown.'
             : 'Go live when you want to start receiving user requests.';
     const visibleRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-request');

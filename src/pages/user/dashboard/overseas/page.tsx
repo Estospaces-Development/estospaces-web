@@ -147,7 +147,7 @@ export default function OverseasPage() {
 
                 {/* Call to Action */}
                 <div className="bg-orange-500 rounded-[3rem] p-12 text-center text-white relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                    <div className="absolute top-0 left-0 w-full h-full opacity-10 [background-image:linear-gradient(30deg,rgba(255,255,255,0.5)_12%,transparent_12.5%,transparent_87%,rgba(255,255,255,0.5)_87.5%),linear-gradient(150deg,rgba(255,255,255,0.5)_12%,transparent_12.5%,transparent_87%,rgba(255,255,255,0.5)_87.5%)] [background-size:40px_70px]" aria-hidden="true"></div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black mb-4 tracking-tight">Need help with international relocation?</h3>
                         <p className="text-orange-100 font-bold mb-10 max-w-xl mx-auto">Our specialist agents handle visas, legal paperwork, and currency exchange to make your global move seamless.</p>

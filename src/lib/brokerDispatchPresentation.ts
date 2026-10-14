@@ -3,6 +3,15 @@ import { getBrokerRequestClosure } from '@/lib/applicationTracking';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { buildManagerFastTrackRequestPath } from '@/lib/managerFastTrackRequestNavigation';
 import {
+    LAUNCH_COUNTRY_CODE,
+    LAUNCH_COUNTRY_NAME,
+    UK_COUNTRY_CODE,
+    UK_COUNTRY_NAME,
+    formatLaunchLocationCode,
+    formatLaunchPropertyLocation,
+    getSupportedLaunchCountry,
+} from '@/lib/launchLocale';
+import {
     getSelectedHomeJourneyCopy,
     selectedHomeJourneyOverridesRequestCopy,
     type SelectedHomeJourneyState,
@@ -97,6 +106,41 @@ const formatRequestArea = (request: Pick<BrokerRequestRecord, 'location' | 'loca
     return [request.location, request.location_postcode].filter(Boolean).join(' - ');
 };
 
+/**
+ * Tracker location label. Falls back to the listing's or request's own market, never to a
+ * hard-coded India, so a UK listing without a city or postcode still reads "United Kingdom".
+ */
+export const formatTrackerLocationLabel = (place: {
+    city?: string | null;
+    postcode?: string | null;
+    countryCode?: string | null;
+    country?: string | null;
+}) => {
+    const parts = [place.city, formatLaunchLocationCode(place.postcode) || undefined].filter(Boolean);
+    if (parts.length > 0) {
+        return formatLaunchPropertyLocation(parts);
+    }
+    const market = getSupportedLaunchCountry(place.countryCode, place.country, place.postcode);
+    if (market === UK_COUNTRY_CODE) return UK_COUNTRY_NAME;
+    if (market === LAUNCH_COUNTRY_CODE) return LAUNCH_COUNTRY_NAME;
+    return 'Location not available';
+};
+
+export const formatWaitingUsersHint = (count: number) => (
+    `${count} waiting ${count === 1 ? 'user is' : 'users are'} shown below with their own countdown.`
+);
+
+export const formatRequestAcceptedMessage = (clientName?: string | null) => (
+    `Request accepted. Share homes with ${clientName?.trim() || 'your client'}.`
+);
+
+export const NO_AGENT_NEXT_ACTION = 'Next step: cancel and send a new request for a nearby area, or try again later.';
+
+/** True while a live request has no eligible property agent, so "broadcasting" and progress copy would be false. */
+export const isNoAgentAvailable = (
+    request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,
+): boolean => Boolean(request) && request?.dispatch_status === 'unavailable' && getBrokerRequestClosure(request) === null;
+
 export const getDispatchWorkspaceSummary = (
     request: BrokerRequestRecord | null,
     selectedHomeJourneyState: SelectedHomeJourneyState = 'active',
@@ -177,9 +221,11 @@ export const getDispatchWorkspaceSummary = (
 
     if (request.dispatch_status === 'unavailable') {
         return {
-            title: 'Waiting for available property agents',
-            subtitle: 'No verified property agents are available right now',
-            helper: 'We keep checking nearby property agents during the response window.',
+            title: 'No property agent covers this area yet',
+            subtitle: 'No verified property agents are available for this area right now',
+            helper: NO_AGENT_NEXT_ACTION,
+            // Core's status_reason says "No eligible live managers" and its next_action "Wait for eligible managers".
+            overridesRequestCopy: true,
         };
     }
 

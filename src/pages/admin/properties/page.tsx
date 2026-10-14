@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import ForceDeletePropertyModal from '@/components/admin/ForceDeletePropertyModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import { getAdminPropertyStatusConfirmCopy, type AdminPropertyConfirmStatus } from '@/lib/adminPropertyStatusConfirm';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -60,6 +62,7 @@ function PropertyManagementContent() {
     const [rejectReason, setRejectReason] = useState('');
     const [rejectReasonError, setRejectReasonError] = useState('');
     const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(null);
+    const [pendingStatusChange, setPendingStatusChange] = useState<{ propertyId: string; status: AdminPropertyConfirmStatus; title?: string | null } | null>(null);
     const [forceDelete, setForceDelete] = useState<{ propertyId: string; refusal: string } | null>(null);
     const queryClient = useQueryClient();
     const [copyingPropertyId, setCopyingPropertyId] = useState<string | null>(null);
@@ -226,6 +229,21 @@ function PropertyManagementContent() {
         }
     };
 
+    const askStatusConfirm = (property: { title?: string | null }, propertyId: string | null, status: AdminPropertyConfirmStatus) => {
+        if (!propertyId) {
+            showErrorToast('Property ID missing. Please refresh and try again.');
+            return;
+        }
+        setPendingStatusChange({ propertyId, status, title: property.title });
+    };
+
+    const handleStatusConfirm = async () => {
+        if (!pendingStatusChange) return;
+        const { propertyId, status } = pendingStatusChange;
+        await handleStatusChange(propertyId, status);
+        setPendingStatusChange(null);
+    };
+
     const handleRejectSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const trimmedReason = rejectReason.trim();
@@ -338,7 +356,7 @@ function PropertyManagementContent() {
                         disabled={isBusy || !propertyId}
                         onClick={(event) => {
                             event.stopPropagation();
-                            handleStatusChange(propertyId, 'published');
+                            askStatusConfirm(property, propertyId, 'published');
                         }}
                         className="flex-1 rounded-xl bg-emerald-700 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -366,7 +384,7 @@ function PropertyManagementContent() {
                     disabled={isBusy || !propertyId}
                     onClick={(event) => {
                         event.stopPropagation();
-                        handleStatusChange(propertyId, 'suspended');
+                        askStatusConfirm(property, propertyId, 'suspended');
                     }}
                     className="flex-1 rounded-xl bg-amber-700 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -382,7 +400,7 @@ function PropertyManagementContent() {
                     disabled={isBusy || !propertyId}
                     onClick={(event) => {
                         event.stopPropagation();
-                        handleStatusChange(propertyId, 'published');
+                        askStatusConfirm(property, propertyId, 'published');
                     }}
                     className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -502,6 +520,13 @@ function PropertyManagementContent() {
                     </div>
                 </div>
             ) : null}
+            <ConfirmModal
+                isOpen={pendingStatusChange !== null}
+                onClose={() => setPendingStatusChange(null)}
+                onConfirm={() => void handleStatusConfirm()}
+                loading={pendingStatusChange !== null && updatingPropertyId === pendingStatusChange.propertyId}
+                {...(pendingStatusChange ? getAdminPropertyStatusConfirmCopy(pendingStatusChange.status, pendingStatusChange.title) : {})}
+            />
             <ForceDeletePropertyModal
                 refusal={forceDelete?.refusal ?? null}
                 loading={forceDelete !== null && updatingPropertyId === forceDelete.propertyId}

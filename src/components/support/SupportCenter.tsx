@@ -24,6 +24,7 @@ import {
     getSupportTicketCaseLink,
     hasActiveSupportFilters,
     hasPrefilledSupportComposerContext,
+    mergeSupportTicketSummary,
     normalizeSupportTicketCategory,
     shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
@@ -249,6 +250,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
         }
     }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setBackgroundSearchParams, user?.id]);
 
+    // The 5s list poll can see an admin's status change before the detail refresh lands.
+    useEffect(() => {
+        setSelectedTicket((current) => (
+            current ? mergeSupportTicketSummary(current, allTickets.find((ticket) => ticket.id === current.id)) : current
+        ));
+    }, [allTickets]);
+
     const fetchTickets = useCallback(async (silent = false) => {
         // Background polls yield to an in-flight request; a manual refresh
         // supersedes it (the older response is discarded below). web-app#458
@@ -331,10 +339,16 @@ export function SupportCenter({ role }: SupportCenterProps) {
             const detail = await supportService.getTicket(ticketId);
             if (!supportCenterMountedRef.current || requestVersion !== detailRequestVersionRef.current) return;
 
-            const transcript = await supportService.getTranscript(detail.conversation_id);
+            // A failed background transcript read must not keep the header status stale.
+            let transcript: Message[] | null = null;
+            try {
+                transcript = await supportService.getTranscript(detail.conversation_id);
+            } catch (transcriptError) {
+                if (!silent) throw transcriptError;
+            }
             if (supportCenterMountedRef.current && requestVersion === detailRequestVersionRef.current) {
                 setSelectedTicket(detail);
-                setMessages(transcript);
+                if (transcript) setMessages(transcript);
             }
         } catch (error: any) {
             if (!silent && supportCenterMountedRef.current) {
@@ -576,10 +590,18 @@ export function SupportCenter({ role }: SupportCenterProps) {
         }
     };
 
+    // Show the saved ticket at once (the "need an owner" banner reads allTickets) and drop any in-flight poll that
+    // started before this save, so its stale list cannot put the old assignee back.
+    const applyUpdatedTicket = (updated: SupportTicketSummary) => {
+        fetchingRef.current = null;
+        setAllTickets((current) => current.map((ticket) => (ticket.id === updated.id ? { ...ticket, ...updated } : ticket)));
+    };
+
     const patchTicket = async (patch: { status?: SupportTicketSummary['status']; priority?: SupportTicketSummary['priority']; assignee_id?: string }) => {
         if (!selectedTicket) return;
         try {
             const updated = await supportService.updateTicket(selectedTicket.id, patch);
+            applyUpdatedTicket(updated);
             setSelectedTicket(updated);
             await fetchTickets(true);
             toast.success('Ticket updated');
@@ -599,6 +621,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 assignee_id: currentAdminId,
                 status: ticket.status === 'open' ? 'in_progress' : ticket.status,
             });
+            applyUpdatedTicket(updated);
             await fetchTickets(true);
             setSelectedTicket(updated);
             setSearchParams(new URLSearchParams({ ticket: updated.id, conversation: updated.conversation_id }), { replace: true });
@@ -667,7 +690,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
             {isAdmin && unassignedTicketCount > 0 && (
                 <div className="flex flex-col gap-4 rounded-[2rem] border border-amber-200 bg-amber-50/90 p-5 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/10 lg:flex-row lg:items-center lg:justify-between" role="status" aria-live="polite">
                     <div>
-                        <p className="text-sm font-black text-amber-900 dark:text-amber-100">{unassignedTicketCount} support tickets need an owner</p>
+                        <p className="text-sm font-black text-amber-900 dark:text-amber-100">{unassignedTicketCount} support ticket{unassignedTicketCount === 1 ? '' : 's'} {unassignedTicketCount === 1 ? 'needs' : 'need'} an owner</p>
                         <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">Claim a ticket to start triage, assign responsibility, and move open requests into active support.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">

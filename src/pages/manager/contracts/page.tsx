@@ -999,6 +999,8 @@ export default function ManagerContractsPage() {
                 <CreateContractModal
                     applicationId={createContractTarget.id}
                     propertyPrice={createContractTarget.property_price || 0}
+                    propertyCountry={createContractTarget.property_country}
+                    propertyCurrency={createContractTarget.property_currency}
                     onClose={() => setCreateContractTarget(null)}
                     onSuccess={() => {
                         void fetchContracts();

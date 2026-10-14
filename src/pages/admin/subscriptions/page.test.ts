@@ -182,3 +182,13 @@ test('trial lookup and grant resolve a manager email before calling payment', ()
     assert.match(section, /busyRef\.current = scope;\s*setBusy\(scope\);/);
     assert.match(section, /busyRef\.current = null;\s*setBusy\(null\);/);
 });
+
+test('admin subscription dates are en-GB and plan prices use currency symbols (A65, A66)', () => {
+    for (const file of ['pages/admin/subscriptions/page.tsx', 'pages/admin/subscriptions/AdminPromotionsSection.tsx']) {
+        assert.match(source(file), /new Intl\.DateTimeFormat\('en-GB', \{ dateStyle: 'medium', timeStyle: 'short' \}\)/);
+        assert.doesNotMatch(source(file), /Intl\.DateTimeFormat\(undefined/);
+    }
+    const page = source('pages/admin/subscriptions/page.tsx');
+    assert.match(page, /formatLaunchCurrency\(plan\.amount_minor \/ 100, \{ currencyCode: plan\.currency \}\)/);
+    assert.doesNotMatch(page, /\{plan\.currency\} \{\(plan\.amount_minor/);
+});

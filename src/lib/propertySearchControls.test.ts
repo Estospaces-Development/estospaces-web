@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import {
   buildBroaderPropertySearchAttempts,
   getCountryAwarePropertyGroups,
+  getPropertySearchSortLabel,
   getPropertySearchSortOptions,
   getSearchFilterValidationMessage,
   getPriceBoundAdjustmentMessage,
@@ -104,6 +105,15 @@ test('property search sort helpers expose stable visible options', () => {
   ]);
   assert.equal(normalizePropertySearchSort('price_desc'), 'price_desc');
   assert.equal(normalizePropertySearchSort('unknown'), 'relevance');
+});
+
+test('sort status text uses the visible label, never the raw sort key', () => {
+  assert.equal(getPropertySearchSortLabel('price_asc'), 'Price: low to high');
+  assert.equal(getPropertySearchSortLabel('price_desc'), 'Price: high to low');
+  assert.equal(getPropertySearchSortLabel('relevance'), 'Relevance');
+  assert.equal(getPropertySearchSortLabel('bogus'), 'Relevance');
+  const source = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
+  assert.doesNotMatch(source, /sorted by \$\{sortBy\}/);
 });
 
 test('price bound normalization rejects negative and invalid values', () => {

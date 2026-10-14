@@ -344,7 +344,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     if (variant === 'hero') {
         return (
             <form onSubmit={handleSearch} className={`min-w-0 max-w-full ${className}`}>
-                <div className="grid min-w-0 max-w-full grid-cols-3 rounded-xl border border-slate-200 bg-slate-100/95 p-1 shadow-sm backdrop-blur-sm sm:inline-flex sm:w-auto sm:rounded-2xl sm:p-1.5">
+                <div role="group" aria-label="Listing purpose" className="grid min-w-0 max-w-full grid-cols-3 rounded-xl border border-slate-200 bg-slate-100/95 p-1 shadow-sm backdrop-blur-sm sm:inline-flex sm:w-auto sm:rounded-2xl sm:p-1.5">
                     {[
                         { label: 'All', value: 'all' },
                         { label: 'Buy', value: 'sale' },
@@ -353,6 +353,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <button
                             key={option.value}
                             type="button"
+                            aria-pressed={filters.listingType === option.value}
                             className={`flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2 text-[13px] font-semibold tracking-wide transition-all duration-300 sm:min-w-[84px] sm:rounded-xl sm:px-5 sm:py-3 sm:text-sm ${filters.listingType === option.value
                                 ? 'bg-primary text-white shadow-lg shadow-primary/25'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-white'

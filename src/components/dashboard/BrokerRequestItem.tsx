@@ -5,6 +5,7 @@ import { Clock, CheckCircle, AlertCircle, MapPin, ArrowRight } from 'lucide-reac
 import { useNavigate } from 'react-router-dom';
 import ClientProfileModal from './ClientProfileModal';
 import Avatar from '@/components/ui/Avatar';
+import { formatRequestedAtLabel } from '@/lib/brokerRequestTimeline';
 
 export type RequestStatus = 'pending' | 'responded' | 'expired';
 
@@ -195,7 +196,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
 
                 <div className="mb-3">
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-1">{request.propertyName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Requested {request.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatRequestedAtLabel(request.timestamp)}</p>
                     {request.requestSummary ? (
                         <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-600 dark:text-gray-300">
                             Requirements: {request.requestSummary}

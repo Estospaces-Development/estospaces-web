@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  PROPERTY_TITLE_MAX_LENGTH,
   getManagerPropertyFirstErrorStep,
   getManagerPropertyRoomPayload,
   getManagerPropertyTypeCategory,
@@ -433,4 +434,20 @@ test("getManagerPropertyRoomPayload keeps a ground floor of 0 and sends null for
     getManagerPropertyRoomPayload("land", { ...rooms, floorNumber: undefined }).floorNumber,
     undefined,
   );
+});
+
+test("property title is capped at the UI limit", () => {
+  const exact = { ...baseValues, title: "a".repeat(PROPERTY_TITLE_MAX_LENGTH) };
+  const tooLong = { ...baseValues, title: "a".repeat(PROPERTY_TITLE_MAX_LENGTH + 1) };
+  assert.equal(validateManagerPropertyField("title", exact), null);
+  assert.match(validateManagerPropertyField("title", tooLong) ?? "", /120 characters or fewer/);
+});
+
+test("a saved title over the new 120-character limit does not block a draft save until it is edited", () => {
+  const longTitle = "A".repeat(150);
+  const saved = { ...baseValues, title: longTitle };
+  const options = { baseline: saved, requiresCompleteListing: true };
+  assert.equal(validateManagerPropertySave(saved, options).title, undefined);
+  assert.match(validateManagerPropertySave({ ...saved, title: `${longTitle}!` }, options).title || "", /120 characters/);
+  assert.match(validateManagerPropertySave({ ...baseValues, title: longTitle }, { baseline: null, requiresCompleteListing: true }).title || "", /120 characters/);
 });

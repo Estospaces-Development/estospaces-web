@@ -22,6 +22,9 @@ test('manager dashboard primary metrics are not blocked by bookings load', () =>
   assert.match(primaryLoadBlock, /fastTrackTask/);
   assert.match(primaryLoadBlock, /livePropertiesTask/);
   assert.doesNotMatch(primaryLoadBlock, /bookingsTask/);
+  // The lead count loads beside the primary group so a slow lead read never delays the tiles.
+  assert.doesNotMatch(primaryLoadBlock, /getBrokerLeads|leadsTask/);
+  assert.match(dashboardSource, /void Promise\.all\(\[\s*getBrokerLeads/);
 });
 
 test('manager dashboard operational widgets are gated by approved verification', () => {

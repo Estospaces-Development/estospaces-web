@@ -65,7 +65,7 @@ export const promotionQueryKeys = {
 };
 
 const asDateTime = (value?: string | null) => value
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
     : null;
 
 const formatWindow = (promotion: AdminPromotion) =>
@@ -413,7 +413,7 @@ export default function AdminPromotionsSection() {
                 <label className="text-sm font-semibold">Plan
                     <select value={form.plan_code} onChange={(event) => update('plan_code', event.target.value as PromotionFormValues['plan_code'])} className={inputClass}>
                         <option value="pro">{getManagerPlanDisplayName('pro')} (pro) — ₹999 / £49</option>
-                        <option value="growth">{getManagerPlanDisplayName('growth')} (growth) — ₹2,499</option>
+                        <option value="growth">{getManagerPlanDisplayName('growth')} (growth) — ₹2,499 / £99</option>
                     </select>
                 </label>
                 {isDiscount ? <>

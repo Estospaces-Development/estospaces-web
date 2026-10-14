@@ -7,6 +7,10 @@ import {
     getManagerWorkspaceAction,
     getManagerWorkspaceStateLabel,
     getMatchedExperienceSteps,
+    formatRequestAcceptedMessage,
+    formatTrackerLocationLabel,
+    formatWaitingUsersHint,
+    isNoAgentAvailable,
     resolveDispatchWorkspaceHeaderCopy,
     selectManagerTrackerItems,
     sortManagerTrackerItems,
@@ -385,4 +389,32 @@ test('workspace summary does not count shared homes that are no longer listed (Q
             helper: 'Your property agent can share new home choices.',
         },
     );
+});
+
+test('an unavailable request says no agent covers the area and ignores core "No eligible live managers" copy (QA B12)', () => {
+    const request = {
+        status: 'submitted',
+        dispatch_status: 'unavailable',
+        status_reason: 'No eligible live managers are currently available for this request area.',
+        next_action: 'Wait for eligible managers',
+    } as any;
+    assert.equal(isNoAgentAvailable(request), true);
+    assert.equal(isNoAgentAvailable({ ...request, status: 'cancelled' }), false);
+    assert.equal(isNoAgentAvailable({ ...request, dispatch_status: 'matching_wave_1' }), false);
+    const copy = resolveDispatchWorkspaceHeaderCopy(getDispatchWorkspaceSummary(request), request);
+    assert.equal(copy.title, 'No property agent covers this area yet');
+    for (const text of Object.values(copy)) assert.doesNotMatch(text, /eligible|manager|broadcast|checking/i);
+    assert.match(copy.helper, /^Next step:/);
+});
+
+test('manager tracker copy: grammar, accept toast and market-aware location (QA B13, B15)', () => {
+    assert.equal(formatWaitingUsersHint(1), '1 waiting user is shown below with their own countdown.');
+    assert.equal(formatWaitingUsersHint(3), '3 waiting users are shown below with their own countdown.');
+    assert.equal(formatRequestAcceptedMessage('Asha Rao'), 'Request accepted. Share homes with Asha Rao.');
+    assert.equal(formatRequestAcceptedMessage('  '), 'Request accepted. Share homes with your client.');
+    assert.equal(formatTrackerLocationLabel({ city: 'London', postcode: 'SW1A 1AA' }), 'London, SW1A 1AA');
+    assert.equal(formatTrackerLocationLabel({ countryCode: 'GB' }), 'United Kingdom');
+    assert.equal(formatTrackerLocationLabel({ postcode: 'SW1A 1AA' }), 'SW1A 1AA');
+    assert.equal(formatTrackerLocationLabel({ country: 'India' }), 'India');
+    assert.equal(formatTrackerLocationLabel({}), 'Location not available');
 });

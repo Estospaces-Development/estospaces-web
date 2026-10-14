@@ -104,7 +104,7 @@ function getLeadTitle(lead: Lead) {
 }
 
 function getLeadAddress(lead: Lead) {
-    return formatManagerLeadAddress(lead.property) || 'Address not available';
+    return formatManagerLeadAddress(lead.property) || lead.propertyInterested || lead.property_name || 'Address not available';
 }
 
 function getLeadClientName(lead: Lead) {
@@ -1055,7 +1055,7 @@ export default function ManagerLeadsPage() {
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Dispatch</p>
                                                     <p className="mt-1 font-medium text-gray-900 dark:text-white">
-                                                        {(lead.dispatch_status || 'matching').replace(/[_-]+/g, ' ')}
+                                                        {lead.source === 'manual' ? 'Manual entry' : (lead.dispatch_status || 'matching').replace(/[_-]+/g, ' ')}
                                                     </p>
                                                 </div>
                                                 <div>

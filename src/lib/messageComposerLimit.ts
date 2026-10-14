@@ -2,6 +2,13 @@
 export const MESSAGE_MAX_BYTES = 4000;
 const COUNTER_THRESHOLD_BYTES = 3600;
 
+/** Inserts text at the caret (or over the selection); with no caret it appends. */
+export const insertTextAtCursor = (value: string, insert: string, start?: number | null, end?: number | null) => {
+    const from = Math.min(Math.max(start ?? value.length, 0), value.length);
+    const to = Math.min(Math.max(end ?? from, from), value.length);
+    return { value: `${value.slice(0, from)}${insert}${value.slice(to)}`, caret: from + insert.length };
+};
+
 export const getMessageByteLength = (text: string) => new TextEncoder().encode(text.trim()).length;
 
 export const getMessageLengthState = (text: string) => {

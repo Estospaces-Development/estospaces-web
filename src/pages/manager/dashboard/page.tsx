@@ -7,6 +7,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
+import { getBrokerLeads, getBrokerRequestOffers } from '@/services/leadsService';
+import { mergeBrokerRequestOffersIntoManagerLeads, summarizeManagerLeads } from '@/lib/managerLeadList';
 import { bookingsService, type Booking } from '@/services/bookingsService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
@@ -140,6 +142,8 @@ function DashboardContent() {
   const [properties, setProperties] = useState<any[]>([]);
   const [livePropertyTotal, setLivePropertyTotal] = useState<number | null>(null);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
+  // Same lead set and summary as the Leads page, so the dashboard and /manager/leads agree.
+  const [activeLeadCount, setActiveLeadCount] = useState<number | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const bookingRequestGeneration = useRef(0);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
@@ -195,6 +199,7 @@ function DashboardContent() {
     setProperties([]);
     setLivePropertyTotal(0);
     setFastTrackCases([]);
+    setActiveLeadCount(null);
     setBookings([]);
     setPropertyTotal(0);
     setPropertyTotalPages(1);
@@ -236,6 +241,17 @@ function DashboardContent() {
         status: [...MANAGER_LIVE_LISTINGS_STATUS_FILTERS],
       });
       const bookingsTask = bookingsService.getBookings({ suppressErrorToast: true });
+      // Off the critical path: a slow lead read must not hold the rest of the dashboard.
+      void Promise.all([
+        getBrokerLeads(undefined, { suppressErrorToast: true }),
+        getBrokerRequestOffers({ limit: 100, sort: 'created_at_desc', suppressErrorToast: true }),
+      ]).then(([leadsRes, offersRes]) => {
+        if (leadsRes.error || !isCurrentBookingRequest(bookingGeneration, bookingRequestGeneration.current)) return;
+        setActiveLeadCount(summarizeManagerLeads(
+          mergeBrokerRequestOffersIntoManagerLeads(leadsRes.data || [], offersRes.data || []),
+          Date.now(),
+        ).active);
+      }).catch(() => undefined);
 
       const [analyticsRes, fastTrackRes, livePropertiesRes] = await Promise.allSettled([
         analyticsTask,
@@ -540,6 +556,7 @@ function DashboardContent() {
         analytics={analytics}
         loading={!analytics && isLoading}
         liveListingCount={livePropertyTotal}
+        activeLeadCount={activeLeadCount}
         actionLabel={canLoadOperationalDashboard ? undefined : 'Complete verification'}
         actionPath={canLoadOperationalDashboard ? undefined : '/manager/verification'}
       />

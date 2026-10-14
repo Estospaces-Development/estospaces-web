@@ -5,7 +5,7 @@ import ActionSpinner from '@/components/ui/ActionSpinner';
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    UserPlus, Users, ChevronDown,
+    Users, ChevronDown,
     Filter, Search, Eye, Download, Shield, TrendingUp, UserCheck, Power, RefreshCw
 } from 'lucide-react';
 
@@ -24,7 +24,6 @@ import { formatRelativeTime } from '@/lib/utils/date';
 import PaginationBar from '@/components/ui/PaginationBar';
 import Avatar from '@/components/ui/Avatar';
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
-import { getAuthPath } from '@/lib/authUtils';
 import { ADMIN_FEATURE_LABELS } from '@/lib/adminFeatureLabels';
 import { buildAdminBrokerDisplayLabels, deduplicateAdminBrokers } from '@/lib/adminBrokerOptions';
 
@@ -83,10 +82,6 @@ export function getAdminUsersPageTitle(): string {
 
 export function getAdminUsersPageSubtitle(): string {
     return 'Global Registry';
-}
-
-export function getAdminAddUserPath(): string {
-    return `${getAuthPath('/register')}?switch=true`;
 }
 
 export function normalizeAdminUserSearch(value: string): string {
@@ -198,8 +193,19 @@ export function buildAdminLeadReassignLabel(lead: Lead, brokerName: string, busy
     return `${action} ${getAdminLeadDisplayNumber(lead)} to ${brokerName}`;
 }
 
-export function getAdminLeadReassignmentToggleLabel(open: boolean, count?: number): string {
-    return `${open ? 'Hide' : 'Show'} lead reassignment${count === undefined ? '' : ` (${count})`}`;
+// The count follows the lead filter, so under the default "Open leads" filter say "open": a closed lead
+// (core creates manual leads at stage "completed") is not in it, and "(0)" read as "no leads" (A129).
+export function getAdminLeadReassignmentToggleLabel(open: boolean, count?: number, filter?: AdminLeadStatusFilter): string {
+    return `${open ? 'Hide' : 'Show'} lead reassignment${count === undefined ? '' : ` (${count}${filter === 'open' ? ' open' : ''})`}`;
+}
+
+// One state per lead. The reassignment queue and core's "open" filter treat stage "completed" as closed, so
+// a manual lead (status "New Lead", stage "completed") shows "Closed" instead of contradicting its own note (A128).
+export function getAdminLeadStatusLabel(lead: Pick<Lead, 'status' | 'stage' | 'outcome' | 'closed_at' | 'source'>): string {
+    // A manager's own manual lead is open to that manager but never in the reassignment queue.
+    if (lead.source === 'manual' && !['closed_won', 'closed_lost', 'cancelled'].includes(String(lead.status))) return 'Manual lead';
+    if (isLeadClosedForReassignment(lead)) return 'Closed';
+    return String(lead.status || 'pending').replace(/_/g, ' ').trim();
 }
 
 // Only fields the admin leads API returns (core internal/leads/models.go Lead). `name`/`email` are the
@@ -634,12 +640,6 @@ function UserManagementContent() {
                             className="h-12 w-full rounded-xl border bg-white py-3 pl-11 pr-3 text-sm font-bold text-gray-900 shadow-sm outline-none transition-all placeholder:text-gray-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:w-64 sm:rounded-2xl sm:pl-12 sm:pr-6"
                         />
                     </div>
-                    <button
-                        onClick={() => navigate(getAdminAddUserPath())}
-                        className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-xs font-black text-white shadow-sm transition-all hover:scale-[1.02] active:scale-95 dark:bg-white dark:text-gray-900 sm:w-auto sm:rounded-2xl sm:px-8 sm:uppercase sm:tracking-widest sm:shadow-xl"
-                    >
-                        <UserPlus size={18} /> Add User
-                    </button>
                 </div>
             </div>
 
@@ -754,26 +754,26 @@ function UserManagementContent() {
                 </div>
 
                 <div className="relative hidden max-w-full overflow-x-auto overflow-y-hidden [contain:paint] md:block" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
-                    <table className="w-full min-w-[980px] text-left">
+                    <table className="w-full min-w-[880px] 2xl:min-w-[980px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Profile</th>
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Enquiry Target</th>
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Engagement</th>
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-4 xl:px-5 2xl:px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Profile</th>
+                                <th className="px-4 xl:px-5 2xl:px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Enquiry Target</th>
+                                <th className="px-4 xl:px-5 2xl:px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                <th className="px-4 xl:px-5 2xl:px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Engagement</th>
+                                <th className="px-4 xl:px-5 2xl:px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y dark:divide-gray-700">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-10 py-14 text-center text-sm font-bold text-gray-500">
+                                    <td colSpan={5} className="px-4 xl:px-5 2xl:px-10 py-14 text-center text-sm font-bold text-gray-500">
                                         <BrandLoadingScreen variant="panel" label="Loading user registry..." />
                                     </td>
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-10 py-16 text-center">
+                                    <td colSpan={5} className="px-4 xl:px-5 2xl:px-10 py-16 text-center">
                                         <h3 className="text-lg font-black text-gray-900 dark:text-white">{getAdminUserEmptyStateTitle()}</h3>
                                         <p className="mx-auto mt-2 max-w-xl text-sm font-semibold text-gray-500 dark:text-gray-400">
                                             {getAdminUserEmptyStateBody()}
@@ -788,7 +788,7 @@ function UserManagementContent() {
 
                                     return (
                                         <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
-                                            <td className="px-10 py-6">
+                                            <td className="px-4 xl:px-5 2xl:px-10 py-6">
                                                 <div className="flex items-center gap-4">
                                                     <Avatar
                                                         userId={user.id}
@@ -806,11 +806,11 @@ function UserManagementContent() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-10 py-6">
+                                            <td className="px-4 xl:px-5 2xl:px-10 py-6">
                                                 <p className="text-sm font-black text-gray-900 dark:text-white capitalize">{user.role}</p>
                                                 <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ref: #U-{user.id.substring(0, 6)}</p>
                                             </td>
-                                            <td className="px-10 py-6">
+                                            <td className="px-4 xl:px-5 2xl:px-10 py-6">
                                                 <span
                                                     id={statusId}
                                                     aria-label={`${displayName} is ${user.is_active ? 'active' : 'deactivated'}`}
@@ -819,12 +819,12 @@ function UserManagementContent() {
                                                     {user.is_active ? 'Active' : 'Deactivated'}
                                                 </span>
                                             </td>
-                                            <td className="px-10 py-6 text-center">
+                                            <td className="px-4 xl:px-5 2xl:px-10 py-6 text-center">
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined: {new Date(user.created_at).toLocaleDateString('en-GB')}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-10 py-6 text-right">
+                                            <td className="px-4 xl:px-5 2xl:px-10 py-6 text-right">
                                                 <div className="flex items-center justify-end gap-2 flex-wrap">
                                                     <button
                                                         type="button"
@@ -901,7 +901,7 @@ function UserManagementContent() {
                     onClick={() => setLeadReassignmentOpen((open) => !open)}
                     className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-left text-xs font-black uppercase tracking-widest text-gray-700 shadow-sm transition-all hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:text-white"
                 >
-                    {getAdminLeadReassignmentToggleLabel(leadReassignmentOpen, adminLeadLoading || adminLeadError ? undefined : leadTotalItems)}
+                    {getAdminLeadReassignmentToggleLabel(leadReassignmentOpen, adminLeadLoading || adminLeadError ? undefined : leadTotalItems, leadStatusFilter)}
                     <ChevronDown size={18} className={`shrink-0 transition-transform ${leadReassignmentOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {leadReassignmentOpen && (
@@ -1005,9 +1005,9 @@ function UserManagementContent() {
                                         <div className="flex min-w-0 items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
-                                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">{lead.status || 'pending'}</p>
+                                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">{getAdminLeadStatusLabel(lead)}</p>
                                                 <AdminLeadContext lead={lead} />
-                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
+                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">{lead.source === 'manual' ? "Manager's own manual lead. Reassignment unavailable." : 'Closed lead. Reassignment unavailable.'}</p>}
                                             </div>
                                             <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
                                         </div>
@@ -1086,10 +1086,10 @@ function UserManagementContent() {
                                                             {buildAdminLeadOptionLabel(lead)}
                                                         </p>
                                                         <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                                            {lead.status || 'pending'}
+                                                            {getAdminLeadStatusLabel(lead)}
                                                         </p>
                                                         <AdminLeadContext lead={lead} />
-                                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
+                                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">{lead.source === 'manual' ? "Manager's own manual lead. Reassignment unavailable." : 'Closed lead. Reassignment unavailable.'}</p>}
                                                     </td>
                                                     <td className="px-8 py-5 align-top">
                                                         <p className="max-w-xs break-words text-sm font-bold text-gray-600 dark:text-gray-300">
