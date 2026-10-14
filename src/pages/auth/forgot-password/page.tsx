@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
                     </button>
 
                     <div className="mt-6 text-center">
-                        <Link to={loginPath} className={`inline-flex min-h-11 items-center text-primary text-sm font-medium hover:underline ${authFocusClass}`}>
+                        <Link to={loginPath} className={`text-primary text-sm font-medium hover:underline ${authFocusClass}`}>
                             Back to Sign In
                         </Link>
                     </div>

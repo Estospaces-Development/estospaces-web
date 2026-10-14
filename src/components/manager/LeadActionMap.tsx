@@ -7,9 +7,9 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from '@/lib/leafletRea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
-import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates } from '@/lib/leadMap';
-import { formatLeadResponseTimer, getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation, type LeadMapActionId } from '@/lib/leadMapView';
+import { getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation, type LeadMapActionId } from '@/lib/leadMapView';
 import { canScheduleManagerLeadViewing, formatManagerLeadAddress, pickDefaultManagerLead } from '@/lib/managerLeadList';
 
 import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
@@ -63,6 +63,26 @@ const createLeadMarkerIcon = (selected: boolean, count = 1) => {
         iconAnchor: [size / 2, size],
         popupAnchor: [0, -(size + 6)],
     });
+};
+
+const formatCountdown = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    return `${minutes}:${remainder.toString().padStart(2, '0')}`;
+};
+
+const getLeadRemainingSeconds = (lead: Lead, now: number) => {
+    if (typeof lead.sla_remaining_seconds === 'number') {
+        return Math.max(0, lead.sla_remaining_seconds);
+    }
+
+    const deadline = getLeadDeadline(lead);
+    if (!deadline) {
+        return 0;
+    }
+
+    const remaining = Math.ceil((new Date(deadline).getTime() - now) / 1000);
+    return remaining > 0 ? remaining : 0;
 };
 
 function LeadMapAutoFit({ leads, locationKey }: { leads: Lead[]; locationKey: string }) {
@@ -275,7 +295,7 @@ export default function LeadActionMap({
                                                     {activeLead.name || activeLead.email || 'Client enquiry'}
                                                 </p>
                                                 <p className="mt-1 text-xs text-slate-600">
-                                                    Response timer: {formatLeadResponseTimer(activeLead, now)}
+                                                    Response timer: {formatCountdown(getLeadRemainingSeconds(activeLead, now))}
                                                 </p>
                                                 <div className="mt-2 grid gap-2">
                                                     {renderLeadActions(activeLead, 'popup')}
@@ -330,7 +350,7 @@ export default function LeadActionMap({
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Response timer</p>
                                 <div className="mt-2 flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
                                     <Clock3 className="h-4 w-4 text-orange-500" />
-                                    <span>{formatLeadResponseTimer(selectedLead, now)}</span>
+                                    <span>{formatCountdown(getLeadRemainingSeconds(selectedLead, now))}</span>
                                 </div>
                             </div>
                             <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900/60">

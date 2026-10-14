@@ -270,10 +270,6 @@ export async function runAppointmentMutationWithCompanionSync(
 }
 
 export function describeCompanionSyncFailure(successMessage: string, error: string) {
-    // A closed case needs no update, so that is not reported as a failure.
-    if (/already closed/i.test(error)) {
-        return `${successMessage} Its Fast Track case is already closed, so nothing changed there.`;
-    }
     return `${successMessage} The linked Fast Track case was not updated: ${error}`;
 }
 

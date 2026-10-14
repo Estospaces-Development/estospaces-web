@@ -142,7 +142,6 @@ const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page
 import SubdomainRouter from './components/routing/SubdomainRouter';
 import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
-import NotFound from './pages/not-found';
 import { useAuth } from './contexts/AuthContext';
 import ManagerVerificationGate from './components/routing/ManagerVerificationGate';
 import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
@@ -324,7 +323,6 @@ const App: React.FC = () => {
             {/* Backward-compatible top-level routes redirect to nested dashboard counterparts */}
             <Route path="applications" element={<PreservingRedirect to="/user/dashboard/applications" />} />
             <Route path="bookings" element={<PreservingRedirect to="/user/dashboard/bookings" />} />
-            <Route path="dashboard/appointments" element={<PreservingRedirect to="/user/dashboard/viewings" />} />
             <Route path="docs" element={<PreservingRedirect to="/user/dashboard/docs" />} />
             <Route path="favorites" element={<PreservingRedirect to="/user/dashboard/saved" />} />
             <Route path="profile" element={<PreservingRedirect to="/user/dashboard/profile" />} />
@@ -336,7 +334,7 @@ const App: React.FC = () => {
           </Route>
 
           {/* Fallback */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<StartupRedirect />} />
             </Routes>
           </RouteAccessBoundary>
         </PageErrorBoundary>

@@ -1,5 +1,4 @@
 import type { Lead } from '@/services/leadsService';
-import { getLeadDeadline } from '@/lib/fastTrackWorkflow';
 import { getLeadMapCoordinates, type LeadMapCoordinates } from '@/lib/leadMap';
 
 export interface LeadMapGroup {
@@ -54,20 +53,4 @@ export const getLeadMapSwitcherLabels = (leads: Lead[]): string[] => {
         const property = lead.property?.title || lead.property_name;
         return (counts.get(client) ?? 0) > 1 && property ? `${client} · ${property}` : client;
     });
-};
-
-const formatCountdown = (seconds: number) =>
-    `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
-
-/** Response timer text. A manager's own manual lead has no 10-minute response window, so it is never timed. */
-export const formatLeadResponseTimer = (lead: Lead, now: number): string => {
-    if (lead.source === 'manual') {
-        return 'Not timed (manual lead)';
-    }
-    if (typeof lead.sla_remaining_seconds === 'number') {
-        return formatCountdown(Math.max(0, lead.sla_remaining_seconds));
-    }
-    const deadline = getLeadDeadline(lead);
-    const remaining = deadline ? Math.ceil((new Date(deadline).getTime() - now) / 1000) : 0;
-    return formatCountdown(remaining > 0 ? remaining : 0);
 };

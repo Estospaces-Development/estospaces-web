@@ -284,7 +284,7 @@ export default function ResetPasswordPage() {
 
             <p className="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center">
                 Remember your password?{' '}
-                <Link to={loginPath} className="inline-flex min-h-11 items-center text-primary font-medium hover:underline">
+                <Link to={loginPath} className="text-primary font-medium hover:underline">
                     Back to Sign In
                 </Link>
             </p>

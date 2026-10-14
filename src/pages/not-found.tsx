@@ -16,15 +16,15 @@ export default function NotFound() {
             </h2>
 
             <p className="text-gray-500 dark:text-gray-400 max-w-md mb-8 leading-relaxed">
-                This page doesn't exist. Check the address, or go back to your home page.
+                The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
             </p>
 
             <Link
                 to="/"
-                className="inline-flex items-center gap-2 px-6 py-3 min-h-11 bg-primary hover:bg-primary-dark text-white rounded-xl font-medium transition-colors focus:outline-none focus:ring-4 focus:ring-orange-200"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-500/20"
             >
                 <Home className="w-4 h-4" />
-                Go to home page
+                Return Home
             </Link>
         </div>
     );

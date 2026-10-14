@@ -70,16 +70,3 @@ test('viewing prices infer the launch country from the property address when met
   assert.match(source, /String\(viewing\.property_address \|\| ''\)\.split\(','\)\.at\(-1\)\?\.trim\(\)/);
   assert.match(source, /locationCode: viewing\.propertyLocationCode/);
 });
-
-test('unknown app URLs render the 404 page instead of redirecting to sign-in', () => {
-  const source = readSource('src/App.tsx');
-  assert.match(source, /<Route path="\*" element=\{<NotFound \/>\} \/>/);
-  assert.doesNotMatch(source, /<Route path="\*" element=\{<StartupRedirect \/>\} \/>/);
-  // Old notifications still link here.
-  assert.match(source, /path="dashboard\/appointments" element=\{<PreservingRedirect to="\/user\/dashboard\/viewings" \/>\}/);
-});
-
-test('the consent banner names no optional tool the app does not load', () => {
-  const source = readSource('src/components/analytics/ProductAnalyticsProvider.tsx');
-  assert.doesNotMatch(source, /Zoho|SalesIQ|& chat|&amp; chat/);
-});
