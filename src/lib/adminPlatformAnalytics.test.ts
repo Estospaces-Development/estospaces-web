@@ -12,6 +12,7 @@ import {
     createAdminAnalyticsExportDeduper,
     formatAdminCurrency,
     getAdminActiveListings,
+    matchesAdminAnalyticsStatusFilter,
 } from './adminPlatformAnalytics';
 
 test('admin active listings prefer the authoritative aggregate over top-five rows', () => {
@@ -135,4 +136,18 @@ test('admin dashboard distinguishes paid revenue from active booking work', () =
     const source = readFileSync(resolve(process.cwd(), 'src/pages/admin/dashboard/page.tsx'), 'utf8');
 
     assert.match(source, /Paid revenue excludes active Fast Track cases and unpaid bookings\./);
+});
+
+test('admin analytics Active/Published filters match every live status core uses, and Pending matches pending_approval (A130/A131)', () => {
+    const rows = {
+        propertyPerformance: ['published', 'available', 'ACTIVE ', 'pending_approval', 'draft'].map((status) => ({
+            property: status, status, views: 1, applications: 0, conversionRate: 0,
+        })),
+    } as AnalyticsData;
+    const names = (status: string) => buildAdminAnalyticsExportRows(rows, { status, sortBy: 'property', direction: 'asc' }).map((row) => row.property);
+    assert.deepEqual(names('active'), ['ACTIVE ', 'available', 'published']);
+    assert.deepEqual(names('published'), names('active'));
+    assert.deepEqual(names('pending'), ['pending_approval']);
+    assert.equal(getAdminActiveListings({ propertyPerformance: rows.propertyPerformance } as AnalyticsData), 3);
+    assert.equal(matchesAdminAnalyticsStatusFilter('draft', 'draft'), true);
 });
