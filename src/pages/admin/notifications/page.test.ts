@@ -44,3 +44,14 @@ test('admin notification filters still combine with normalized search', () => {
         [],
     );
 });
+
+test('admin notifications are not hidden because the title or message contains qa/test wording (QA-E2E-20261014 B5)', () => {
+    const real = [
+        { id: 'qa-word', title: 'Aqua Tower QA approval needed', message: 'Please check the test message wording.', type: 'system', is_read: false },
+        { id: 'flagged', title: 'Fixture', message: 'x', type: 'system', is_read: false, data: { is_test: true } },
+    ] as any;
+    assert.deepEqual(
+        filterAdminNotifications(real, 'all' as AdminNotificationFilterType, '').map((notification: any) => notification.id),
+        ['qa-word'],
+    );
+});
