@@ -10,11 +10,9 @@ import {
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
     filterAdminPropertyRegistry,
-    filterVisibleAdminPropertyRegistry,
     buildAdminPropertyRegistryServiceFilters,
     getAdminPropertySortControlLabel,
     getAdminPropertyWorkflowFallbackLabel,
-    isInternalAutomationProperty,
     isAdminPropertyAwaitingManagerSubmission,
     sortAdminPropertyRegistry,
 } from './adminPropertyRegistry';
@@ -254,7 +252,7 @@ test('admin property workflow treats populated service-shaped drafts as submitte
     assert.equal(getAdminPropertyWorkflowFallbackLabel(populatedServiceDraft), 'Draft');
 });
 
-test('admin property registry keeps all persisted rows manageable while identifying automation fixtures', () => {
+test('admin property registry keeps all persisted rows manageable, including ones with test-like names', () => {
     const mixedProperties = [
         ...properties,
         {
@@ -300,14 +298,6 @@ test('admin property registry keeps all persisted rows manageable while identify
         },
     ];
 
-    assert.equal(isInternalAutomationProperty(mixedProperties[5]), true);
-    assert.equal(isInternalAutomationProperty(mixedProperties[6]), true);
-    assert.equal(isInternalAutomationProperty(mixedProperties[7]), false);
-    assert.equal(isInternalAutomationProperty(mixedProperties[8]), false);
-    assert.deepEqual(
-        filterVisibleAdminPropertyRegistry(mixedProperties).map((property) => property.id),
-        [...properties.map((property) => property.id), 'real-preston-home', 'real-valley-home'],
-    );
     assert.deepEqual(
         filterAdminPropertyRegistry(mixedProperties, {
             typeFilter: 'all',
@@ -321,30 +311,4 @@ test('admin property registry keeps all persisted rows manageable while identify
         statusFilter: 'all',
         searchQuery: '',
     }).length, mixedProperties.length);
-});
-
-test('admin property registry preserves distinct listings that share a title', () => {
-    const sameTitleListings = [
-        {
-            id: 'listing-one',
-            title: '2 BHK Apartment',
-            city: 'Chennai',
-            address_line_1: '1 Marina Road',
-            agent_name: 'Marina Estates',
-            price: 45000,
-        },
-        {
-            id: 'listing-two',
-            title: '2 BHK Apartment',
-            city: 'Mumbai',
-            address_line_1: '2 Harbour Road',
-            agent_name: 'Harbour Estates',
-            price: 55000,
-        },
-    ];
-
-    assert.deepEqual(
-        filterVisibleAdminPropertyRegistry(sameTitleListings).map((property) => property.id),
-        ['listing-one', 'listing-two'],
-    );
 });

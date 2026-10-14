@@ -363,7 +363,7 @@ const AddLeadModal = ({
                                 aria-describedby={errors.budget ? 'manual-lead-budget-error' : undefined}
                                 className={`w-full px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:text-white dark:placeholder-gray-500 ${errors.budget ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                                     }`}
-                                placeholder="e.g., $2,500/mo"
+                                placeholder="e.g., £1,250/month or ₹25,000/month"
                             />
                             {errors.budget && (
                                 <p id="manual-lead-budget-error" role="alert" className="text-red-600 dark:text-red-300 text-xs mt-1">{errors.budget}</p>
