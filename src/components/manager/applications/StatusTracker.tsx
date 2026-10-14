@@ -24,6 +24,8 @@ interface StatusTrackerProps {
     linkedViewingStatus?: string | null;
     // Booking's journey_status_reason: who closed a withdrawn application (booking#111).
     statusReason?: string;
+    // A completed application, or one whose linked Fast Track case is completed: every stage is done.
+    completedViaFastTrack?: boolean;
 }
 
 interface Stage {
@@ -34,7 +36,7 @@ interface Stage {
     statuses: string[];
 }
 
-const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source, linkedViewingStatus, statusReason }) => {
+const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source, linkedViewingStatus, statusReason, completedViaFastTrack }) => {
     const isSaleJourney = listingType !== 'rent';
     const saleDisplayStage = isSaleJourney
         ? resolveSaleJourneyDisplayStage({ source, status, liveStage })
@@ -150,8 +152,11 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
 
     const stages = getStages();
 
+    const isCompletedApplication = status === APPLICATION_STATUS.COMPLETED || Boolean(completedViaFastTrack);
+
     const getCurrentStageIndex = () => {
         if (status === APPLICATION_STATUS.WITHDRAWN) return -1;
+        if (isCompletedApplication) return stages.length;
         if (status === APPLICATION_STATUS.REJECTED) {
             return Math.max(stages.findIndex((stage) => stage.id === (isSaleJourney ? 'offer' : 'review')), 1);
         }
@@ -191,6 +196,9 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
     const currentStageIndex = getCurrentStageIndex();
 
     const getStatusColor = () => {
+        if (isCompletedApplication) {
+            return 'text-green-600 bg-green-100 border-green-200';
+        }
         if (isSaleJourney && saleDisplayStage === 'buyer_qualification') {
             return 'text-orange-600 bg-orange-100 border-orange-200';
         }
@@ -224,6 +232,9 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
     };
 
     const getStatusLabel = () => {
+        if (isCompletedApplication) {
+            return 'Completed';
+        }
         if (isSaleJourney && saleDisplayStage) {
             return getSaleJourneyStageLabel(saleDisplayStage);
         }
@@ -296,6 +307,13 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                     </div>
                 </div>
             </div>
+
+            {isCompletedApplication && (
+                <div role="status" className="mx-6 mt-6 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300">
+                    <CheckCircle size={16} />
+                    {completedViaFastTrack ? 'Completed through Fast Track. Every step is done.' : 'Completed. Every step is done.'}
+                </div>
+            )}
 
             <div className="p-6">
                 <div className="relative">
@@ -373,7 +391,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                 </div>
             </div>
 
-            {status !== APPLICATION_STATUS.APPROVED && status !== APPLICATION_STATUS.REJECTED && (
+            {!isCompletedApplication && status !== APPLICATION_STATUS.APPROVED && status !== APPLICATION_STATUS.REJECTED && (
                 <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 font-outfit">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                         <Clock size={16} />

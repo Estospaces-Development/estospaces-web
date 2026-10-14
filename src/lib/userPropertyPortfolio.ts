@@ -1,4 +1,5 @@
 import type { Application } from "@/services/applicationsService";
+import type { FastTrackCase } from "@/services/fastTrackService";
 import type { SaleProgression } from "@/services/salesService";
 import type { Contract } from "@/types/booking";
 import { normalizeContractStatus } from "@/lib/contractStatus";
@@ -55,6 +56,8 @@ interface BuildUserPropertyPortfolioInput {
   contracts: Contract[];
   applications: Application[];
   saleProgressions: SaleProgression[];
+  /** The user's Fast Track cases: a completed rental has no Contract record, so it is listed from here. */
+  fastTrackCases?: FastTrackCase[];
 }
 
 const sameId = (left?: string | null, right?: string | null) =>
@@ -169,6 +172,7 @@ export const buildUserPropertyPortfolio = ({
   contracts,
   applications,
   saleProgressions,
+  fastTrackCases = [],
 }: BuildUserPropertyPortfolioInput): UserPropertyPortfolioItem[] => {
   const items: UserPropertyPortfolioItem[] = [];
   const completedSaleKeys = new Set<string>();
@@ -358,6 +362,66 @@ export const buildUserPropertyPortfolio = ({
         contract.created_at,
         contract.start_date,
       ),
+    });
+  }
+
+  for (const fastTrackCase of fastTrackCases) {
+    if (
+      fastTrackCase.workspaceFinalStatus !== "completed" ||
+      fastTrackCase.journeyMode !== "rent"
+    ) {
+      continue;
+    }
+    const application =
+      applications.find(
+        (candidate) =>
+          sameId(candidate.id, fastTrackCase.applicationId) ||
+          sameId(candidate.fast_track_case_id, fastTrackCase.caseId),
+      ) || null;
+    const applicationId = fastTrackCase.applicationId || application?.id;
+    // Any contract for the same property already lists this home (however it is linked).
+    const hasContractItem = items.some(
+      (item) => item.contractId && sameId(item.propertyId, fastTrackCase.propertyId),
+    );
+    if (hasContractItem) {
+      continue;
+    }
+
+    const completedAt = firstString(
+      fastTrackCase.handover?.completedAt,
+      application?.updated_at,
+      application?.created_at,
+    );
+    items.push({
+      id: `ft-rent:${fastTrackCase.caseId}`,
+      propertyId: fastTrackCase.propertyId,
+      applicationId,
+      fastTrackCaseId: fastTrackCase.caseId,
+      leadId: fastTrackCase.leadId,
+      listingType: "rent",
+      ownershipLabel: "Rented",
+      portfolioStatus: "Completed",
+      propertyTitle: firstString(
+        fastTrackCase.propertyTitle,
+        application?.property_title,
+        "Rental home",
+      ),
+      propertyAddress: firstString(
+        application?.property_address,
+        "Address not recorded",
+      ),
+      propertyImage: toPropertyImage(application?.property_image),
+      priceLabel: formatMoney(application?.property_price, "/mo", application),
+      statusLabel: "Rented through Fast Track",
+      statusSummary: "",
+      timelineLabel: "Completed",
+      timelineDate: completedAt,
+      targetPath: buildWorkspacePath("/user/dashboard/fast-track", {
+        caseId: fastTrackCase.caseId,
+        propertyId: fastTrackCase.propertyId,
+      }),
+      actionLabel: "Open Fast Track case",
+      sortDate: completedAt,
     });
   }
 

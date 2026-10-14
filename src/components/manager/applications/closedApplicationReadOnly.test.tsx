@@ -27,9 +27,9 @@ test('the withdrawn banner shows the server reason, with a role-correct fallback
 });
 
 // Booking refuses any change to a withdrawn or rejected application; its workflow controls must not look live.
-test('a withdrawn or rejected application shows its rent and purchase workflow read-only', () => {
+test('a withdrawn, rejected or completed application shows its rent and purchase workflow read-only', () => {
     const source = read('./ApplicationDetail.tsx');
-    assert.match(source, /const applicationClosed =\s*application\?\.status === APPLICATION_STATUS\.WITHDRAWN \|\|\s*application\?\.status === APPLICATION_STATUS\.REJECTED;/);
+    assert.match(source, /const applicationClosed = isManagerApplicationClosed\(closureRecord\);/);
     for (const ref of ['purchaseWorkspaceSectionRef', 'rentWorkspaceSectionRef']) {
         const at = source.indexOf(`ref={${ref}}`);
         const before = source.slice(source.lastIndexOf('<fieldset', at), at);
@@ -47,4 +47,16 @@ test('the Fast Track companion shows no stage actions on a closed case outside h
     const body = source.slice(start, source.indexOf('switch (fastTrackCase.stage)', start));
     assert.match(body, /if \(fastTrackCase\.workspaceFinalStatus !== "active" && fastTrackCase\.stage !== "handover"\) \{/);
     assert.ok(body.includes('This Fast Track case is closed, so its actions are read-only.'));
+});
+
+test('a completed application shows every step done and a Completed through Fast Track state', () => {
+    const html = renderToStaticMarkup(
+        <ManagerStatusTracker status="viewing_scheduled" listingType="rent" linkedViewingStatus="confirmed" completedViaFastTrack />,
+    );
+    assert.ok(html.includes('Completed through Fast Track'));
+    assert.ok(!html.includes('>Current<'));
+    assert.ok(!html.includes('Estimated processing time'));
+    const completedStatus = renderToStaticMarkup(<ManagerStatusTracker status="completed" listingType="rent" linkedViewingStatus="confirmed" />);
+    assert.ok(!completedStatus.includes('>Current<'));
+    assert.ok(completedStatus.includes('Completed. Every step is done.'));
 });

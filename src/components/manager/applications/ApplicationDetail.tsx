@@ -113,6 +113,8 @@ import {
   resolveManagerApplicationOverviewFocus,
   resolveManagerApplicationTab,
   shouldShowManagerDecisionControls,
+  isManagerApplicationClosed,
+  isManagerApplicationCompleted,
   shouldShowManagerManagedPurchaseWorkspace,
   type ManagerApplicationTab,
 } from "@/lib/managerApplicationWorkspace";
@@ -320,17 +322,23 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const purchaseDisplayStage = resolveSaleJourneyDisplayStage(application);
   const isPurchaseApplication = application?.listingType !== "rent";
   const isRentApplication = application?.listingType === "rent";
-  // Booking refuses any change to a withdrawn or rejected application, so its workflow is read-only.
-  const applicationClosed =
-    application?.status === APPLICATION_STATUS.WITHDRAWN ||
-    application?.status === APPLICATION_STATUS.REJECTED;
+  // Booking refuses any change to a withdrawn, rejected or completed application, so its workflow is read-only.
+  const closureRecord = {
+    status: application?.status,
+    fastTrackCase: application?.fastTrackCase || resolvedFastTrackCase,
+  };
+  const applicationClosed = isManagerApplicationClosed(closureRecord);
+  const applicationCompleted = isManagerApplicationCompleted(closureRecord);
+  const completedViaFastTrack = applicationCompleted && Boolean(application?.fastTrackCaseId || closureRecord.fastTrackCase);
   const closedWorkflowNote = applicationClosed ? (
     <p
       role="status"
       data-application-closed-note="true"
       className="mb-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300"
     >
-      This application is closed, so its workflow is read-only.
+      {applicationCompleted
+        ? `${completedViaFastTrack ? "Completed through Fast Track. " : "This application is completed. "}Every step is done, so its workflow is read-only.`
+        : "This application is closed, so its workflow is read-only."}
     </p>
   ) : null;
   const supportsManagedPurchaseWorkflow = Boolean(
@@ -884,7 +892,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const displayApplication = linkedApplication || application;
 
   const showManagerDecisionControls =
-    shouldShowManagerDecisionControls(application) && !managerViewOnly;
+    shouldShowManagerDecisionControls(application) && !applicationCompleted && !managerViewOnly;
   const saleNextActions = getNextSaleJourneyActions(application.status);
   const purchaseStageLabel = purchaseDisplayStage
     ? getSaleJourneyStageLabel(purchaseDisplayStage)
@@ -991,6 +999,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     rentCaseFile?.property_compliance_readiness || rentWithoutCase.readiness || null;
   const rentContractId = rentCaseFile?.contract_id || rentWithoutCase.contractId || undefined;
   const rentApplicationApproved =
+    applicationCompleted ||
     application?.status === APPLICATION_STATUS.APPROVED ||
     application?.status === APPLICATION_STATUS.READY_FOR_CONTRACT;
   const rentPropertyReadinessBlockers = dedupeJourneyBlockers(
@@ -1035,7 +1044,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   });
 
   const renderGuidedProgressRail = (
-    steps: Array<{
+    guidedSteps: Array<{
       key: string;
       label: string;
       description: string;
@@ -1043,7 +1052,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       active: boolean;
       onClick?: () => void;
     }>,
-  ) => (
+  ) => {
+    // A completed application has finished every step, whatever the live checks still report.
+    const steps = applicationCompleted
+      ? guidedSteps.map((step) => ({ ...step, complete: true, active: false }))
+      : guidedSteps;
+    return (
     <div
       className={`mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4 ${
         steps.length > 4 ? "2xl:grid-cols-5" : ""
@@ -1123,7 +1137,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         );
       })}
     </div>
-  );
+    );
+  };
 
   const purchaseGuidedSteps = [
     {
@@ -2174,6 +2189,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             liveStage={application.liveStage}
             source={application.source}
             linkedViewingStatus={displayApplication.fastTrackCase?.viewing?.status}
+            completedViaFastTrack={completedViaFastTrack}
             statusReason={application.journeyStatusReason}
           />
         </div>

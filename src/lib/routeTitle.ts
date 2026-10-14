@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 export const BASE_PAGE_TITLE = 'Estospaces';
 
 const ROLE_SEGMENTS = new Set(['user', 'manager', 'admin', 'dashboard']);
@@ -19,5 +21,21 @@ export const getRouteTitle = (pathname: string): string => {
     const last = meaningful[meaningful.length - 1] ?? (named.includes('dashboard') ? 'dashboard' : '');
     if (!last) return BASE_PAGE_TITLE;
     const label = last.replace(/[-_]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+    // "/properties/add" is "Add property" and "/properties/<id>" is a single "Property", not the list.
+    const parent = meaningful[meaningful.length - 2]?.toLowerCase();
+    if (parent === 'properties' && ['add', 'edit'].includes(last.toLowerCase())) {
+        return `${label} property | ${BASE_PAGE_TITLE}`;
+    }
+    if (['properties', 'property'].includes(last.toLowerCase()) && looksLikeId(segments[segments.length - 1])) {
+        return `Property | ${BASE_PAGE_TITLE}`;
+    }
     return `${label} | ${BASE_PAGE_TITLE}`;
+};
+
+/** Names the page after its record (e.g. the property title) once it has loaded; the route title applies until then. */
+export const useRecordPageTitle = (name?: string | null) => {
+    useEffect(() => {
+        const trimmed = name?.trim();
+        if (trimmed) document.title = `${trimmed} | ${BASE_PAGE_TITLE}`;
+    }, [name]);
 };

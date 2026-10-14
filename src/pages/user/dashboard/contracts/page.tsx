@@ -394,8 +394,9 @@ export default function ContractsPage() {
         contracts,
         applications,
         saleProgressions,
+        fastTrackCases,
       }),
-    [applications, contracts, saleProgressions],
+    [applications, contracts, fastTrackCases, saleProgressions],
   );
 
   const filteredPortfolio = React.useMemo(() => {
@@ -717,7 +718,7 @@ export default function ContractsPage() {
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     {searchQuery
                       ? `No homes matched "${searchQuery}".`
-                      : "Bought homes appear here after completion, and rented homes appear here as the tenancy moves into contract or activation."}
+                      : "Bought homes appear here after completion, and rented homes appear here as the tenancy moves into contract or activation, or once a Fast Track rental completes."}
                   </p>
                 </div>
               )}

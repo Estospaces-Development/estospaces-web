@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getFastTrackCaseById, getFastTrackCases, requestFastTrack } from './fastTrackService';
+import { getFastTrackCaseById, getFastTrackCases, presentFastTrackActionError, requestFastTrack } from './fastTrackService';
 
 const buildResponse = (payload: unknown) => ({
   ok: true,
@@ -334,4 +334,12 @@ test('Fast Track document rows show only the reviewer reason on replacement requ
   const source = readFileSync(`${process.cwd()}/src/components/fast-track/FastTrackWorkspace.tsx`, 'utf8');
   assert.ok(source.includes("const supportingNote = item.status === 'reupload_needed'\n                            ? (item.reviewNote || '')") || source.includes("const supportingNote = item.status === 'reupload_needed'\r\n                            ? (item.reviewNote || '')"));
   assert.match(source, /const helperNote = activeDocument\.status === 'reupload_needed'\s*\? \(activeDocument\.reviewNote \|\| ''\)/);
+});
+
+test('presentFastTrackActionError capitalises the lowercase booking refusals', () => {
+  assert.equal(
+    presentFastTrackActionError('this viewing has not happened yet; mark it completed after the scheduled time'),
+    'This viewing has not happened yet; mark it completed after the scheduled time',
+  );
+  assert.equal(presentFastTrackActionError('Already a sentence.'), 'Already a sentence.');
 });
