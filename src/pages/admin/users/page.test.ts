@@ -281,6 +281,8 @@ test('admin properties page no longer offers an Add Property action admins canno
 
 test('admin lead badge shows one consistent state: closed manual leads read Closed, not NEW LEAD (A128)', () => {
   assert.equal(getAdminLeadStatusLabel({ status: 'New Lead', stage: 'completed' }), 'Closed');
+  assert.equal(getAdminLeadStatusLabel({ status: 'New Lead', stage: 'completed', source: 'manual' }), 'Manual lead');
+  assert.equal(getAdminLeadStatusLabel({ status: 'closed_won', stage: 'completed', source: 'manual' }), 'Closed');
   assert.equal(getAdminLeadStatusLabel({ status: 'closed_won' }), 'Closed');
   assert.equal(getAdminLeadStatusLabel({ status: 'pending_broker_response', stage: 'matching' }), 'pending broker response');
   assert.equal(getAdminLeadStatusLabel({ status: '' }), 'pending');

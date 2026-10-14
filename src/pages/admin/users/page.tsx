@@ -201,7 +201,9 @@ export function getAdminLeadReassignmentToggleLabel(open: boolean, count?: numbe
 
 // One state per lead. The reassignment queue and core's "open" filter treat stage "completed" as closed, so
 // a manual lead (status "New Lead", stage "completed") shows "Closed" instead of contradicting its own note (A128).
-export function getAdminLeadStatusLabel(lead: Pick<Lead, 'status' | 'stage' | 'outcome' | 'closed_at'>): string {
+export function getAdminLeadStatusLabel(lead: Pick<Lead, 'status' | 'stage' | 'outcome' | 'closed_at' | 'source'>): string {
+    // A manager's own manual lead is open to that manager but never in the reassignment queue.
+    if (lead.source === 'manual' && !['closed_won', 'closed_lost', 'cancelled'].includes(String(lead.status))) return 'Manual lead';
     if (isLeadClosedForReassignment(lead)) return 'Closed';
     return String(lead.status || 'pending').replace(/_/g, ' ').trim();
 }
@@ -1005,7 +1007,7 @@ function UserManagementContent() {
                                                 <p className="break-words text-sm font-black text-gray-900 dark:text-white">{buildAdminLeadOptionLabel(lead)}</p>
                                                 <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">{getAdminLeadStatusLabel(lead)}</p>
                                                 <AdminLeadContext lead={lead} />
-                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
+                                                {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">{lead.source === 'manual' ? "Manager's own manual lead. Reassignment unavailable." : 'Closed lead. Reassignment unavailable.'}</p>}
                                             </div>
                                             <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">Lead</span>
                                         </div>
@@ -1087,7 +1089,7 @@ function UserManagementContent() {
                                                             {getAdminLeadStatusLabel(lead)}
                                                         </p>
                                                         <AdminLeadContext lead={lead} />
-                                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">Closed lead. Reassignment unavailable.</p>}
+                                                        {isClosed && <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">{lead.source === 'manual' ? "Manager's own manual lead. Reassignment unavailable." : 'Closed lead. Reassignment unavailable.'}</p>}
                                                     </td>
                                                     <td className="px-8 py-5 align-top">
                                                         <p className="max-w-xs break-words text-sm font-bold text-gray-600 dark:text-gray-300">
