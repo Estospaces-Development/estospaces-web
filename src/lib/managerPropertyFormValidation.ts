@@ -505,7 +505,13 @@ export function validateManagerPropertySave(
   options: ManagerPropertySaveValidationOptions,
 ): Record<string, string> {
   if (options.requiresCompleteListing || !options.baseline) {
-    return validateManagerPropertyForm(values);
+    const errors = validateManagerPropertyForm(values);
+    // The 120-character title limit is new: a saved longer title stays valid until the manager edits it.
+    if (options.baseline && errors.title && values.title.trim()
+      && normalizeComparable(options.baseline.title) === normalizeComparable(values.title)) {
+      delete errors.title;
+    }
+    return errors;
   }
   return validateFields(getManagerPropertyChangedFields(options.baseline, values), values);
 }

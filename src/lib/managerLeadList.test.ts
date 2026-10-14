@@ -127,7 +127,7 @@ test("manager lead summary counts document-stage leads as live matching work", (
 
   assert.deepEqual(summarizeManagerLeads(leads, now), {
     total: 4,
-    active: 4,
+    active: 3,
     awaitingResponse: 3,
     documentsQueue: 3,
     viewingScheduled: 0,

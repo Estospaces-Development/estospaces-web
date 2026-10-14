@@ -241,23 +241,23 @@ function DashboardContent() {
         status: [...MANAGER_LIVE_LISTINGS_STATUS_FILTERS],
       });
       const bookingsTask = bookingsService.getBookings({ suppressErrorToast: true });
-      const leadsTask = Promise.all([
+      // Off the critical path: a slow lead read must not hold the rest of the dashboard.
+      void Promise.all([
         getBrokerLeads(undefined, { suppressErrorToast: true }),
         getBrokerRequestOffers({ limit: 100, sort: 'created_at_desc', suppressErrorToast: true }),
-      ]);
+      ]).then(([leadsRes, offersRes]) => {
+        if (leadsRes.error || !isCurrentBookingRequest(bookingGeneration, bookingRequestGeneration.current)) return;
+        setActiveLeadCount(summarizeManagerLeads(
+          mergeBrokerRequestOffersIntoManagerLeads(leadsRes.data || [], offersRes.data || []),
+          Date.now(),
+        ).active);
+      }).catch(() => undefined);
 
-      const [analyticsRes, fastTrackRes, livePropertiesRes, leadsRes] = await Promise.allSettled([
+      const [analyticsRes, fastTrackRes, livePropertiesRes] = await Promise.allSettled([
         analyticsTask,
         fastTrackTask,
         livePropertiesTask,
-        leadsTask,
       ]);
-      if (leadsRes.status === 'fulfilled' && !leadsRes.value[0].error) {
-        setActiveLeadCount(summarizeManagerLeads(
-          mergeBrokerRequestOffersIntoManagerLeads(leadsRes.value[0].data || [], leadsRes.value[1].data || []),
-          Date.now(),
-        ).active);
-      }
 
       if (analyticsRes.status === 'fulfilled' && analyticsRes.value.data) {
         setAnalytics(analyticsRes.value.data);

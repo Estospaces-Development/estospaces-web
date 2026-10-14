@@ -242,7 +242,9 @@ test('admin manager verification modal pauses queue refresh while reviewing', ()
 });
 
 test('manager broker request cards distinguish separate same-minute submissions', () => {
-    assert.match(brokerRequestItem, /second:\s*'2-digit'/);
+    // Seconds keep same-minute requests apart; the label now comes from the shared en-GB helper.
+    assert.match(brokerRequestItem, /formatRequestedAtLabel\(request\.timestamp\)/);
+    assert.match(readFileSync(resolve(process.cwd(), 'src/lib/brokerRequestTimeline.ts'), 'utf8'), /HH:mm:ss/);
     assert.match(brokerRequestItem, /request\.requestSummary/);
     assert.match(managerTracker, /requestSummary:\s*offer\.details\?\.trim\(\)\s*\|\|\s*undefined/);
     assert.match(managerTracker, /request\.details\?\.trim\(\)/);

@@ -349,9 +349,12 @@ export const isManagerLeadLiveProcessing = (lead: ManagerLeadSummaryItem) => {
 const isManagerLeadExplicitlyClosed = (lead: ManagerLeadSummaryItem) => {
   const status = normalizeStage(lead.status);
   const rawStage = normalizeStage(lead.stage);
+  // Core gives every manual lead the placeholder stage "completed"; resolveLeadStage reads its status instead.
+  const manualPlaceholder = normalizeStage(lead.source) === "manual" && rawStage === "completed"
+    && !CLOSED_MANAGER_LEAD_STAGES.has(normalizeStage(resolveLeadStage(lead)));
 
   return CLOSED_MANAGER_LEAD_STATUSES.has(status)
-    || CLOSED_MANAGER_LEAD_STAGES.has(rawStage);
+    || (CLOSED_MANAGER_LEAD_STAGES.has(rawStage) && !manualPlaceholder);
 };
 
 export const getManagerLeadOperationalState = (

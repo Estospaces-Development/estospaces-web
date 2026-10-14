@@ -35,7 +35,8 @@ test('emoji insertion goes at the caret or over the selection, and appends with 
 test('every emoji picker button is type=button so it never submits the message form', async () => {
     const { readFileSync } = await import('node:fs');
     const source = readFileSync('src/components/ui/EmojiPicker.tsx', 'utf8');
-    const buttons = source.match(/<button[^>]*>/g) || [];
-    assert.ok(buttons.length >= 3);
-    for (const tag of buttons) assert.match(tag, /type="button"/);
+    // Each <button opening (multi-line, may hold arrow functions) must declare type="button" before its children.
+    const openings = source.split('<button').slice(1).map((rest) => rest.slice(0, rest.indexOf('</button>') === -1 ? rest.length : rest.indexOf('</button>')));
+    assert.ok(openings.length >= 3);
+    for (const opening of openings) assert.match(opening, /type="button"/);
 });
