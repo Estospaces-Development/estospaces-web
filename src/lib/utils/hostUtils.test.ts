@@ -31,7 +31,7 @@ test('landing host redirects admin routes to the admin domain', () => {
 test('app host still blocks admin routes locally', () => {
     assert.deepEqual(
         resolveHostedWorkspaceRedirect('app', '/admin/verifications'),
-        { path: '/', role: 'user' },
+        { path: '/user/dashboard', role: 'user' },
     );
 });
 
