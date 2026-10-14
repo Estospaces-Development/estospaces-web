@@ -46,14 +46,14 @@ export function getSubscriptionAccessPresentation(
         : entitlement.source === 'trial'
             ? `${trialPlanName} plan trial`
             : entitlement.source === 'pilot'
-                ? 'Pilot access'
+                ? 'Early access'
                 : 'Current paid access';
     const detail = entitlement.source === 'free'
         ? 'No payment is required. Upgrade only when you need higher limits.'
         : entitlement.source === 'trial'
             ? `Your ${trialPlanName} limits are free until the trial ends. No card is needed and nothing is charged automatically.`
             : entitlement.source === 'pilot'
-                ? 'Your pilot benefits are active until their recorded end date.'
+                ? 'Your early-access benefits are active until their recorded end date.'
                 : 'Your account limits are active for the current paid period.';
 
     return {

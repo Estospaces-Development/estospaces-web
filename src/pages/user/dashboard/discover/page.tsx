@@ -29,6 +29,7 @@ import { toDiscoverNearbyMapProperties } from '@/lib/discoverMap';
 import {
     getPriceBoundAdjustmentMessage,
     getSearchFilterValidationMessage,
+    getPropertySearchSortLabel,
     getPropertySearchSortOptions,
     normalizePriceBoundInput,
     normalizePropertySearchSort,
@@ -554,13 +555,14 @@ function DiscoverContent() {
     const discoverReturnPath = discoverReturnSearch
         ? `${DISCOVER_PATH}?${discoverReturnSearch}`
         : DISCOVER_PATH;
+    const sortLabel = getPropertySearchSortLabel(sortBy);
     const resultStatusMessage = loading
         ? 'Loading discovery properties.'
         : error
             ? error
             : viewMode === 'map'
-                ? `${plottedMapCount} matching discovery properties shown on the map sorted by ${sortBy}.`
-                : `${paginatedProperties.length} of ${total} discovery properties shown in card view sorted by ${sortBy} from property sections.`;
+                ? `${plottedMapCount} matching discovery properties shown on the map sorted by ${sortLabel}.`
+                : `${paginatedProperties.length} of ${total} discovery properties shown in card view sorted by ${sortLabel} from property sections.`;
 
     useEffect(() => {
         const nextPath = buildDiscoverPath(DISCOVER_PATH, discoverReturnSearch);

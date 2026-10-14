@@ -39,7 +39,7 @@ test('paid and pilot access preserve server limits and do not invent missing lim
         support_level: 'dedicated',
     });
 
-    assert.equal(pilot?.title, 'Pilot access');
+    assert.equal(pilot?.title, 'Early access');
     assert.equal(pilot?.publishedProperties, 'Unlimited');
     assert.equal(pilot?.activeFastTrackCases, 'Unlimited');
     assert.equal(malformed?.title, 'Current paid access');

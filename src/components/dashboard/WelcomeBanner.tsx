@@ -11,6 +11,8 @@ interface WelcomeBannerProps {
     analytics?: analyticsService.AnalyticsData | null;
     loading?: boolean;
     liveListingCount?: number | null;
+    /** Active leads counted with the Leads page's summary; replaces the analytics figure when known. */
+    activeLeadCount?: number | null;
     actionLabel?: string;
     actionPath?: string;
 }
@@ -19,6 +21,7 @@ const WelcomeBanner = ({
     analytics,
     loading: externalLoading = false,
     liveListingCount = null,
+    activeLeadCount = null,
     actionLabel = 'Add Property',
     actionPath = '/manager/dashboard/properties/add',
 }: WelcomeBannerProps) => {
@@ -40,7 +43,7 @@ const WelcomeBanner = ({
         if (analytics !== undefined) {
             setStats({
                 activeProperties: getManagerLiveListingCount(analytics, undefined, liveListingCount),
-                activeLeads: analytics?.active_leads || 0,
+                activeLeads: activeLeadCount ?? (analytics?.active_leads || 0),
                 totalApplications: getManagerApplicationCount(analytics),
             });
             setLoading(externalLoading);
@@ -71,7 +74,7 @@ const WelcomeBanner = ({
         };
 
         fetchStats();
-    }, [analytics, externalLoading, liveListingCount, user]);
+    }, [activeLeadCount, analytics, externalLoading, liveListingCount, user]);
 
     const summaryItems = [
         {

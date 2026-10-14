@@ -14,6 +14,7 @@ import {
 } from "@/lib/apiUtils";
 import { createAsyncRequestCache } from "@/lib/asyncRequestCache";
 import { getAuthToken, getAuthTokenVersion } from "@/lib/authToken";
+import { ADMIN_PUBLISHED_LIMIT_MESSAGE, getPlanLimitResource } from "@/lib/planLimit";
 import { LAUNCH_COUNTRY_CODE } from "@/lib/launchLocale";
 import { normalizeSavedPropertyId } from "@/lib/savedPropertyState";
 import type {
@@ -529,6 +530,10 @@ export const adminUpdatePropertyStatus = async (
     invalidatePropertyDetailCache(id);
     return { data, error: null };
   } catch (error: any) {
+    // Core answers 409 "published property limit reached"; say what it means and what to do.
+    if (getPlanLimitResource(error) === "published_properties") {
+      return { data: null, error: ADMIN_PUBLISHED_LIMIT_MESSAGE };
+    }
     return { data: null, error: getErrorMessage(error) };
   }
 };

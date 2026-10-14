@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FileText, IndianRupee, AlertCircle } from 'lucide-react';
+import { X, FileText, IndianRupee, PoundSterling, AlertCircle } from 'lucide-react';
 
 import ActionSpinner from '@/components/ui/ActionSpinner';
 import { useToast } from '@/contexts/ToastContext';
@@ -8,15 +8,21 @@ import { createContract, CreateContractRequest } from '@/services/contractsServi
 import type { Contract } from '@/types/booking';
 import DateField from '@/components/ui/DateField';
 import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { getDefaultContractTerms, resolveContractMarket } from '@/lib/contractDefaults';
 
 interface CreateContractModalProps {
     applicationId: string;
     propertyPrice: number;
+    propertyCountry?: string | null;
+    propertyCurrency?: string | null;
     onClose: () => void;
     onSuccess: (contract: Contract) => Promise<void> | void;
 }
 
-export default function CreateContractModal({ applicationId, propertyPrice, onClose, onSuccess }: CreateContractModalProps) {
+export default function CreateContractModal({ applicationId, propertyPrice, propertyCountry, propertyCurrency, onClose, onSuccess }: CreateContractModalProps) {
+    const market = resolveContractMarket(propertyCountry, propertyCurrency);
+    const currencyCode = market === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;
+    const CurrencyIcon = market === 'GB' ? PoundSterling : IndianRupee;
     const { success: toastSuccess } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [submitError, setSubmitError] = useState('');
@@ -28,7 +34,7 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
         end_date: '',
         monthly_rent: propertyPrice || 0,
         deposit_amount: (propertyPrice || 0) * 1.2, // Default 5 weeks deposit approx
-        terms_and_conditions: 'Standard Assured Shorthold Tenancy Agreement terms apply.'
+        terms_and_conditions: getDefaultContractTerms(market),
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -103,9 +109,9 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Rent & Deposit */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent ({LAUNCH_CURRENCY_CODE})</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent ({currencyCode})</label>
                                 <div className="relative">
-                                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <CurrencyIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input
                                         type="number"
                                         required
@@ -121,9 +127,9 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit ({LAUNCH_CURRENCY_CODE})</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit ({currencyCode})</label>
                                 <div className="relative">
-                                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <CurrencyIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input
                                         type="number"
                                         required

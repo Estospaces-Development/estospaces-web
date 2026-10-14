@@ -48,6 +48,8 @@ import {
     formatRequestTypeLabel,
     getDispatchWorkspaceSummary,
     getMatchedExperienceSteps,
+    isNoAgentAvailable,
+    NO_AGENT_NEXT_ACTION,
     resolveDispatchWorkspaceHeaderCopy,
 } from '@/lib/brokerDispatchPresentation';
 import { getBrokerRequestCopy } from '@/lib/userJourneyCopy';
@@ -65,7 +67,7 @@ import {
     hasActiveBrokerRequestAction,
     isBrokerRequestActionCurrent,
 } from '@/lib/brokerRequestAction';
-import { formatBrokerRequestBudgetSummary, getBrokerRequestBudgetError, getBrokerRequestRequirementsError, toBrokerRequestType, type BrokerRequestType } from '@/lib/brokerRequestBudget';
+import { formatBrokerRequestBudgetSummary, getBrokerRequestBudgetError, getBrokerRequestBudgetPlaceholder, getBrokerRequestRequirementsError, toBrokerRequestType, type BrokerRequestType } from '@/lib/brokerRequestBudget';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolvePropertyImageUrl } from '@/lib/propertyImages';
 import { useAuth } from '@/contexts/AuthContext';
@@ -380,7 +382,6 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         ? searchParams.get('request')?.trim() || null
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
-    const brokerCopy = getBrokerRequestCopy(requestType);
     const geoMarket = useUserGeoMarket(user, {
         locationCode: activeRequest?.location_postcode || locationPostcode || user?.postcode,
     });
@@ -389,6 +390,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
         locationCode: locationPostcode,
         fallback: geoMarket,
     });
+    const brokerCopy = getBrokerRequestCopy(requestType, locationMarket);
     const locationCodeLabel = getLaunchLocationCodeLabel(locationMarket, undefined, locationPostcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(locationMarket, undefined, locationPostcode);
     const geoMarketCurrencyCode = getMarketCurrencyCode(locationMarket);
@@ -1187,6 +1189,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
     const requestIsClosed = requestClosure !== null;
     const requestReplacementLocked = Boolean(requestIsMatched && !requestIsClosed);
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsClosed);
+    const requestHasNoAgent = requestIsActive && isNoAgentAvailable(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
     const sharedProperties = useMemo(
         () => activeRequest?.property_shares || [],
@@ -1325,6 +1328,14 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
             eyebrow: 'Accepted',
             progress: 'bg-emerald-500',
         }
+        : requestHasNoAgent
+            ? {
+                pill: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+                dot: 'bg-amber-500',
+                caption: 'No agent in this area yet',
+                eyebrow: 'Waiting',
+                progress: 'bg-amber-500',
+            }
         : requestClosure
             ? {
                 pill: 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-300',
@@ -1433,7 +1444,14 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                         </div>
                     </div>
 
-                    {requestIsActive && (
+                    {requestHasNoAgent && (
+                        <div data-testid="broker-request-no-agent" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                            <p className="font-semibold">No property agent covers this area yet.</p>
+                            <p className="mt-1 text-xs">{NO_AGENT_NEXT_ACTION}</p>
+                        </div>
+                    )}
+
+                    {requestIsActive && !requestHasNoAgent && (
                         <div className="mt-4 rounded-2xl border border-white/70 bg-white/80 p-3 dark:border-zinc-900/60 dark:bg-zinc-950/50">
                             <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500 dark:text-orange-300">
                                 <span>Response progress</span>
@@ -1970,10 +1988,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                         {cancellingRequest ? 'Cancelling...' : 'Cancel request'}
                                     </button>
                                 )}
-                                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
-                                    <UserCheck size={14} />
-                                    {dispatchWorkspaceHeader.helper}
-                                </div>
+                                {!requestHasNoAgent && (
+                                    <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                        <UserCheck size={14} />
+                                        {dispatchWorkspaceHeader.helper}
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}
@@ -1996,11 +2016,12 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                     onSubmit={handleSubmit}
                     className={`space-y-4 ${activeRequest ? 'hidden sm:block' : 'block'}`}
                 >
-                <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700/50">
+                <div role="group" aria-label="Request type" className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-700/50">
                     {(['buy', 'rent', 'sell'] as BrokerRequestType[]).map((type) => (
                         <button
                             key={type}
                             type="button"
+                            aria-pressed={requestType === type}
                             onClick={() => {
                                 setRequestType(type);
                                 setBudgetError(budget.trim()
@@ -2115,7 +2136,7 @@ const BrokerRequestWidget = ({ onLocationContextChange, preferredRequestId, acti
                                         setBudgetError(null);
                                     }
                                 }}
-                                placeholder="e.g. 500k - 600k"
+                                placeholder={getBrokerRequestBudgetPlaceholder(requestType, geoMarketCurrencyCode)}
                                 maxLength={255}
                                 aria-invalid={Boolean(budgetError)}
                                 aria-describedby={budgetError ? 'broker-request-budget-error' : undefined}

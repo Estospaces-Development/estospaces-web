@@ -127,6 +127,7 @@ test("manager lead summary counts document-stage leads as live matching work", (
 
   assert.deepEqual(summarizeManagerLeads(leads, now), {
     total: 4,
+    active: 3,
     awaitingResponse: 3,
     documentsQueue: 3,
     viewingScheduled: 0,
@@ -147,6 +148,7 @@ test("manager lead summary keeps breached pending leads visible in the breach ca
 
   assert.deepEqual(summarizeManagerLeads(leads, now), {
     total: 1,
+    active: 1,
     awaitingResponse: 1,
     documentsQueue: 0,
     viewingScheduled: 0,
@@ -544,4 +546,17 @@ test('#686 the dashboard opens the shortlist named in ?shortlist=', () => {
   const widget = readFileSync(new URL('../components/dashboard/BrokerResponseWidget.tsx', import.meta.url), 'utf8');
   assert.ok(widget.includes("searchParams.get('shortlist')"));
   assert.ok(widget.includes('setFocusedWorkspaceRequestId(shortlistRequestId)'));
+});
+
+test('summary counts an open manual lead as active and keeps closed leads out of it', () => {
+  const now = Date.parse('2026-10-14T10:00:00Z');
+  const leads = [
+    { id: 'manual-open', source: 'manual', status: 'New Lead', stage: 'completed', created_at: '2026-10-14T09:00:00Z' },
+    { id: 'manual-won', source: 'manual', status: 'closed_won', stage: 'completed', created_at: '2026-10-14T09:00:00Z' },
+    { id: 'lost', status: 'closed_lost', stage: 'matching', created_at: '2026-10-14T09:00:00Z' },
+    { id: 'live', status: 'pending_broker_response', stage: 'matching', created_at: '2026-10-14T09:00:00Z' },
+  ];
+  const summary = summarizeManagerLeads(leads as any, now);
+  assert.equal(summary.total, 4);
+  assert.equal(summary.active, 2);
 });

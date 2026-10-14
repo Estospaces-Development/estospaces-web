@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   dedupeBrokerRequestsForTimeline,
   getBrokerRequestBudgetDisplayLabel,
+  formatRequestedAtLabel,
   getBrokerRequestRequestedLabel,
   getBrokerRequestDisplayTitle,
   isUserVisibleBrokerRequest,
@@ -94,4 +95,11 @@ test('a bare-number budget is shown in the currency its postcode or PIN code ide
   assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'rent', budget: '2650', location: 'London', location_postcode: 'SW1A 1AA' })), 'Budget £2,650');
   // A city name alone doesn't identify the currency, so the number is left as written.
   assert.equal(getBrokerRequestBudgetDisplayLabel(request({ request_type: 'rent', budget: '2650', location: 'London' })), 'Budget 2650');
+});
+
+test('tracker request time is en-GB 24-hour, never a locale-dependent AM/PM string (QA B15)', () => {
+  const label = formatRequestedAtLabel(new Date(2026, 9, 14, 23, 45, 2));
+  assert.equal(label, 'Requested 14 Oct, 23:45:02');
+  assert.doesNotMatch(label, /AM|PM/i);
+  assert.equal(formatRequestedAtLabel(new Date('invalid')), 'Requested date unavailable');
 });

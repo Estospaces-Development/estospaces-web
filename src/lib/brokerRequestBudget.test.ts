@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   formatBrokerRequestBudgetSummary,
   getBrokerRequestBudgetError,
+  getBrokerRequestBudgetPlaceholder,
   getBrokerRequestRequirementsError,
   toBrokerRequestType,
 } from './brokerRequestBudget';
@@ -72,4 +73,14 @@ test('agent request submit shows every field error at once and checks the PIN on
   assert.doesNotMatch(submit, /setBudgetError\(nextBudgetError\);\s*return;/);
   assert.match(widget, /onBlur=\{\(\) => \{\s*const trimmedValue = normalizePostcode\(locationPostcode\);[\s\S]{0,200}setPostcodeError\(getLaunchLocationCodeErrorMessage/);
   assert.match(widget, /id="broker-request-details-error" role="alert"/);
+});
+
+test('the budget hint is a monthly rent example for rent and a purchase example otherwise (QA B13)', () => {
+  assert.match(getBrokerRequestBudgetPlaceholder('rent', 'GBP'), /pcm/);
+  assert.match(getBrokerRequestBudgetPlaceholder('rent', 'INR'), /per month/);
+  assert.equal(getBrokerRequestBudgetPlaceholder('buy', 'GBP'), 'e.g. 500k - 600k');
+  for (const currency of ['GBP', 'INR'] as const) {
+    const example = getBrokerRequestBudgetPlaceholder('rent', currency).replace(/^e\.g\.\s*/, '');
+    assert.equal(getBrokerRequestBudgetError(example, 'rent'), null, example);
+  }
 });

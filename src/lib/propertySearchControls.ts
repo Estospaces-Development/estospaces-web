@@ -75,6 +75,10 @@ export function getPropertySearchSortOptions(): PropertySearchSortOption[] {
   return SORT_OPTIONS;
 }
 
+export function getPropertySearchSortLabel(value: string | null | undefined): string {
+  return SORT_OPTIONS.find((option) => option.value === value)?.label ?? SORT_OPTIONS[0].label;
+}
+
 export function normalizePropertySearchSort(value: string | null | undefined): PropertySearchSortValue {
   return SORT_OPTIONS.some((option) => option.value === value)
     ? (value as PropertySearchSortValue)

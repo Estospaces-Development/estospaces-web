@@ -192,6 +192,8 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
         setHasAppliedRouteFocus(true);
     }, [focusedApplicationFromRoute, hasAppliedRouteFocus]);
 
+    // A first load has no data yet; show a placeholder instead of misleading zeros.
+    const statsLoading = contextLoading && allApplications.length === 0;
     // Stats use allApplications (unfiltered) so counts are always accurate
     const stats = useMemo(() => {
         const total = allApplications.length;
@@ -321,7 +323,9 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                             </div>
                         </div>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{stat.label}</p>
-                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</h3>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white" aria-busy={statsLoading || undefined}>
+                            {statsLoading ? <><span aria-hidden="true">–</span><span className="sr-only">Loading</span></> : stat.value}
+                        </h3>
                     </div>
                 ))}
             </div>

@@ -18,14 +18,19 @@ export const getBrokerRequestDisplayTitle = (request: BrokerRequestRecord) => (
   )
 );
 
-export const getBrokerRequestRequestedLabel = (request: BrokerRequestRecord) => {
-  const requestedAt = new Date(request.created_at || '');
+// en-GB, 24-hour clock (never the browser locale, which can render "11:45:02 AM").
+export const formatRequestedAtLabel = (value: Date | string | null | undefined) => {
+  const requestedAt = value instanceof Date ? value : new Date(value || '');
   if (!Number.isFinite(requestedAt.getTime())) {
     return 'Requested date unavailable';
   }
 
   return `Requested ${format(requestedAt, 'd MMM, HH:mm:ss')}`;
 };
+
+export const getBrokerRequestRequestedLabel = (request: BrokerRequestRecord) => (
+  formatRequestedAtLabel(request.created_at)
+);
 
 export const getBrokerRequestBudgetDisplayLabel = (request: BrokerRequestRecord) => {
   const budget = String(request.budget || '').trim();

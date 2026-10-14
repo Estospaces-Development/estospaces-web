@@ -52,6 +52,8 @@ export interface ManagerLeadWorkspaceCase {
 
 export interface ManagerLeadSummary {
   total: number;
+  /** Leads that are not closed, cancelled, expired, rejected or withdrawn. */
+  active: number;
   awaitingResponse: number;
   documentsQueue: number;
   viewingScheduled: number;
@@ -347,9 +349,12 @@ export const isManagerLeadLiveProcessing = (lead: ManagerLeadSummaryItem) => {
 const isManagerLeadExplicitlyClosed = (lead: ManagerLeadSummaryItem) => {
   const status = normalizeStage(lead.status);
   const rawStage = normalizeStage(lead.stage);
+  // Core gives every manual lead the placeholder stage "completed"; resolveLeadStage reads its status instead.
+  const manualPlaceholder = normalizeStage(lead.source) === "manual" && rawStage === "completed"
+    && !CLOSED_MANAGER_LEAD_STAGES.has(normalizeStage(resolveLeadStage(lead)));
 
   return CLOSED_MANAGER_LEAD_STATUSES.has(status)
-    || CLOSED_MANAGER_LEAD_STAGES.has(rawStage);
+    || (CLOSED_MANAGER_LEAD_STAGES.has(rawStage) && !manualPlaceholder);
 };
 
 export const getManagerLeadOperationalState = (
@@ -374,6 +379,11 @@ export const getManagerLeadOperationalState = (
   };
 };
 
+const isManagerLeadClosed = (lead: ManagerLeadSummaryItem) => (
+  isManagerLeadExplicitlyClosed(lead)
+  || CLOSED_MANAGER_LEAD_STAGES.has(normalizeStage(resolveLeadStage(lead)))
+);
+
 export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
   leads: readonly T[],
   now: number,
@@ -390,6 +400,7 @@ export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
 
   return {
     total: leads.length,
+    active: leads.filter((lead) => !isManagerLeadClosed(lead)).length,
     awaitingResponse: leads.filter(isManagerLeadLiveProcessing).length,
     documentsQueue,
     viewingScheduled,

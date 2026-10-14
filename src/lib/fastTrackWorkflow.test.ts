@@ -1081,3 +1081,17 @@ test('India cases are not mapped to the England Right to Rent journey', () => {
     assert.equal(normalizeComplianceJurisdiction('wales'), 'wales');
     assert.equal(normalizeComplianceJurisdiction('Northern Ireland'), 'northern_ireland');
 });
+
+test('manual leads keep their own status instead of the placeholder "completed" stage', () => {
+    const manual = { source: 'manual', stage: 'completed', status: 'New Lead' };
+    assert.equal(resolveLeadStage(manual), 'new_lead');
+    assert.equal(resolveLeadStage({ ...manual, status: 'In Progress' }), 'in_progress');
+    assert.equal(resolveLeadStage({ ...manual, status: 'Approved' }), 'approved');
+    assert.equal(resolveLeadStage({ ...manual, status: '' }), 'new_lead');
+    // Real closures stay closed.
+    assert.equal(resolveLeadStage({ ...manual, status: 'closed_won' }), 'completed');
+    assert.equal(resolveLeadStage({ ...manual, status: 'closed_lost' }), 'expired');
+    assert.equal(resolveLeadStage({ ...manual, outcome: 'completed' }), 'completed');
+    // Non-manual leads are untouched.
+    assert.equal(resolveLeadStage({ stage: 'completed', status: 'broker_responded' }), 'completed');
+});

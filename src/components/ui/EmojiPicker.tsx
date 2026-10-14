@@ -42,7 +42,7 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
         >
             <div className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Emoji</h3>
-                <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
+                <button type="button" aria-label="Close emoji picker" onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
                     <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                 </button>
             </div>
@@ -51,6 +51,7 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
                 {Object.keys(emojiCategories).map((category) => (
                     <button
                         key={category}
+                        type="button"
                         onClick={() => setActiveCategory(category)}
                         className={`px-2 py-1 text-xs rounded transition-colors whitespace-nowrap ${activeCategory === category
                                 ? 'bg-primary text-white'
@@ -67,6 +68,7 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
                     {(emojiCategories[activeCategory] || []).map((emoji, index) => (
                         <button
                             key={index}
+                            type="button"
                             onClick={() => { onEmojiSelect(emoji); onClose(); }}
                             className="w-8 h-8 flex items-center justify-center text-lg hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                         >

@@ -88,6 +88,7 @@ import { useUnsavedChangesLinkGuard } from "@/lib/unsavedChangesLinkGuard";
 import {
   getManagerPropertyFirstErrorStep,
   PROPERTY_DESCRIPTION_MAX_LENGTH,
+  PROPERTY_TITLE_MAX_LENGTH,
   PROPERTY_NUMERIC_LIMITS,
   validateManagerPropertyField,
   getManagerPropertyRoomPayload,
@@ -2755,6 +2756,7 @@ export default function AddPropertyPage() {
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
+                  maxLength={PROPERTY_TITLE_MAX_LENGTH}
                   className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white placeholder-gray-500 ${
                     errors.title
                       ? "border-red-500"
@@ -2762,7 +2764,12 @@ export default function AddPropertyPage() {
                   }`}
                   placeholder="e.g., Luxurious 3BR Apartment with Ocean View"
                 />
-                {renderFieldError("title")}
+                <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  {renderFieldError("title")}
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:ml-auto">
+                    {formData.title.length}/{PROPERTY_TITLE_MAX_LENGTH} characters
+                  </p>
+                </div>
               </div>
 
               {/* Property Type */}

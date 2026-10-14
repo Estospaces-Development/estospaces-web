@@ -8,7 +8,7 @@ import { useMessages } from '@/contexts/MessagesContext';
 import EmojiPicker from '@/components/ui/EmojiPicker';
 import { uploadMediaFile } from '@/services/mediaService';
 import type { MessageAttachment } from '@/services/messagesService';
-import { MESSAGE_MAX_BYTES, MESSAGE_TOO_LONG_TEXT, getMessageLengthState } from '@/lib/messageComposerLimit';
+import { MESSAGE_MAX_BYTES, MESSAGE_TOO_LONG_TEXT, getMessageLengthState, insertTextAtCursor } from '@/lib/messageComposerLimit';
 
 interface MessageInputProps {
     conversationId: string;
@@ -26,6 +26,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
     const [composerError, setComposerError] = useState<string | null>(null);
     const { sendMessage } = useMessages();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const messageInputRef = useRef<HTMLInputElement | null>(null);
     const messageLength = getMessageLengthState(message);
 
     const handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +50,17 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
             });
 
             return merged;
+        });
+    };
+
+    // Insert at the caret (the input keeps its selection while the picker has focus) and restore it after.
+    const handleEmojiSelect = (emoji: string) => {
+        const input = messageInputRef.current;
+        const next = insertTextAtCursor(message, emoji, input?.selectionStart, input?.selectionEnd);
+        setMessage(next.value);
+        window.requestAnimationFrame(() => {
+            input?.focus();
+            input?.setSelectionRange(next.caret, next.caret);
         });
     };
 
@@ -151,6 +163,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
 
                 <div className="relative min-w-0">
                     <input
+                        ref={messageInputRef}
                         type="text"
                         placeholder="Message..."
                         value={message}
@@ -171,7 +184,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                     <EmojiPicker
                         isOpen={isEmojiPickerOpen}
                         onClose={() => setIsEmojiPickerOpen(false)}
-                        onEmojiSelect={(emoji) => setMessage((current) => `${current}${emoji}`)}
+                        onEmojiSelect={handleEmojiSelect}
                     />
                 </div>
 

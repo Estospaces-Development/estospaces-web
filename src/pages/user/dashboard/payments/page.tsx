@@ -306,7 +306,7 @@ export default function PaymentsPage() {
                                 </h2>
                                 <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
                                     {focusedPayment
-                                        ? `${focusedPayment.payment_type?.replace(/_/g, ' ') || 'Payment'} for ${formatAmount(focusedPayment.amount, focusedPayment.currency)} is pinned first so you can review the live record. Estospaces is tracking invoice and payment status for this pilot instead of collecting live client money here.`
+                                        ? `${focusedPayment.payment_type?.replace(/_/g, ' ') || 'Payment'} for ${formatAmount(focusedPayment.amount, focusedPayment.currency)} is pinned first so you can review the live record. Estospaces is tracking invoice and payment status here instead of collecting live client money here.`
                                         : focusedInvoice
                                             ? `Invoice ${focusedInvoice.invoice_number || focusedInvoice.id.slice(0, 8).toUpperCase()} is pinned first for the linked journey.`
                                             : 'This route is carrying the correct journey ids, but no payment or invoice record has been created for them yet.'}

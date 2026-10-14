@@ -34,7 +34,7 @@ export const describeManagerPaidPeriod = (period: ManagerPaidPeriod) => {
 };
 
 const accessLabels: Record<string, string> = {
-    free_active: 'Free', paid_active: 'Paid', trial_active: 'Trial', pilot_active: 'Pilot', expired: 'Expired',
+    free_active: 'Free', paid_active: 'Paid', trial_active: 'Trial', pilot_active: 'Early access', expired: 'Expired',
 };
 const marketLabels: Record<string, string> = { IN: 'India (INR)', GB: 'United Kingdom (GBP)' };
 
@@ -53,7 +53,7 @@ export const describeAdminManagerBilling = ({ account, terms, invoices }: AdminM
     const currency = terms?.currency || invoices[0]?.currency || (market === 'GB' ? 'GBP' : 'INR');
     const planLabel = source === 'paid' ? getManagerPlanDisplayName(terms?.code)
         : source === 'trial' && trial ? `${trial.plan_name || getManagerPlanDisplayName(trial.plan_code)} trial`
-            : source === 'pilot' ? 'Pilot' : 'Free';
+            : source === 'pilot' ? 'Early access' : 'Free';
     const statusParts = [subscription?.status ?? checkout?.status, cancellation ? `cancellation ${cancellation.status.replaceAll('_', ' ')}` : '']
         .filter(Boolean);
     return {
