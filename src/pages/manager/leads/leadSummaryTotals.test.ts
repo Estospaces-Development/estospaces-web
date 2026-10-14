@@ -7,6 +7,6 @@ const source = readFileSync(resolve(process.cwd(), 'src/pages/manager/leads/page
 
 test('lead summary cards count every lead, not only the selected status (#694)', () => {
     assert.match(source, /getBrokerLeads\(\),/);
-    assert.match(source, /summarizeManagerLeads\(allVisibleLeads, now\)/);
-    assert.match(source, /statusFilter === 'all' \? allVisibleLeads : allVisibleLeads\.filter\(\(lead\) => lead\.status === statusFilter\)/);
+    assert.match(source, /summarizeManagerLeads\(leads, now\)/);
+    assert.match(source, /statusFilter === 'all' \? leads : leads\.filter\(\(lead\) => lead\.status === statusFilter\)/);
 });

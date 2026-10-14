@@ -29,7 +29,6 @@ import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import {
     canRequestManagerLeadDocuments,
     canScheduleManagerLeadViewing,
-    filterVisibleManagerLeads,
     formatManagerLeadAddress,
     getManagerLeadMatchedBroker,
     getManagerLeadOperationalState,
@@ -365,12 +364,9 @@ export default function ManagerLeadsPage() {
         },
     });
 
-    const allVisibleLeads = useMemo(() => (
-        filterVisibleManagerLeads(leads)
-    ), [leads]);
     const visibleSourceLeads = useMemo(() => (
-        statusFilter === 'all' ? allVisibleLeads : allVisibleLeads.filter((lead) => lead.status === statusFilter)
-    ), [allVisibleLeads, statusFilter]);
+        statusFilter === 'all' ? leads : leads.filter((lead) => lead.status === statusFilter)
+    ), [leads, statusFilter]);
 
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -411,7 +407,7 @@ export default function ManagerLeadsPage() {
         setSearchQuery(searchParamQuery);
     }, [searchParamQuery]);
 
-    const summary = useMemo(() => summarizeManagerLeads(allVisibleLeads, now), [allVisibleLeads, now]);
+    const summary = useMemo(() => summarizeManagerLeads(leads, now), [leads, now]);
     const fastTrackCaseByLeadId = useMemo(() => {
         const mapping = new Map<string, FastTrackCase>();
 

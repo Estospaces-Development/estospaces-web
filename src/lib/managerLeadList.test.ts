@@ -1,19 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { resolveLeadStage } from "./fastTrackWorkflow";
 
 import {
   canRequestManagerLeadDocuments,
   canScheduleManagerLeadViewing,
-  filterVisibleManagerLeads,
   formatManagerLeadAddress,
   getManagerLeadMatchedBroker,
   getManagerLeadOperationalState,
   hasManagerLeadRecord,
   isManagerLeadBreached,
   isActiveManagerLeadWorkspaceCase,
-  isInternalAutomationManagerLead,
   isManagerLeadLiveProcessing,
   mapBrokerRequestOfferToManagerLead,
   mergeBrokerRequestOffersIntoManagerLeads,
@@ -191,43 +190,13 @@ test("closed breached manager leads do not keep an escalation action", () => {
   assert.equal(state.statusLabel, "Lost");
 });
 
-test("manager lead list hides internal QA titles and raw automation identifiers", () => {
-  const leads = [
-    {
-      id: "real-lead",
-      status: "broker_responded",
-      created_at: "2026-07-02T09:00:00Z",
-      property: {
-        title: "Two-bedroom apartment in Chennai",
-      },
-    },
-    {
-      id: "qa-lead",
-      status: "broker_responded",
-      created_at: "2026-07-02T09:01:00Z",
-      property: {
-        title: "QA Manual FT E2E 2026-06-25T18-30-15-991Z",
-      },
-    },
-    {
-      id: "mobile-live-lead",
-      status: "broker_responded",
-      created_at: "2026-07-02T09:02:00Z",
-      propertyInterested: "Mobile Live Approval mobile-live-1781788492687917",
-    },
-    {
-      id: "raw-timestamp-lead",
-      status: "pending_broker_response",
-      created_at: "2026-07-02T09:03:00Z",
-      property_name: "QA Admin Notice Dashboard Search 20260702001933",
-    },
-  ];
+test("manager lead list no longer hides leads by keyword, so real leads with test-like words stay visible (QA-E2E-20261014 B3)", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/lib/managerLeadList.ts"), "utf8");
+  assert.doesNotMatch(source, /filterVisibleManagerLeads|isInternalAutomationManagerLead|INTERNAL_AUTOMATION/);
 
-  assert.equal(isInternalAutomationManagerLead(leads[0]), false);
-  assert.equal(isInternalAutomationManagerLead(leads[1]), true);
-  assert.equal(isInternalAutomationManagerLead(leads[2]), true);
-  assert.equal(isInternalAutomationManagerLead(leads[3]), true);
-  assert.deepEqual(filterVisibleManagerLeads(leads).map((lead) => lead.id), ["real-lead"]);
+  const page = readFileSync(resolve(process.cwd(), "src/pages/manager/leads/page.tsx"), "utf8");
+  assert.doesNotMatch(page, /filterVisibleManagerLeads/);
+  assert.match(page, /statusFilter === 'all' \? leads : /);
 });
 
 test("manager lead list maps broker request offers into searchable client rows", () => {
