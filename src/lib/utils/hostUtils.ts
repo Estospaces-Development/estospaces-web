@@ -46,10 +46,10 @@ export const resolveHostedWorkspaceRedirect = (
         return { path: '/admin', role: 'admin' };
     }
 
-    if (currentApp === 'app' && pathname === '/') {
-        return { path: '/user/dashboard', role: 'user' };
-    }
-
+    // The app root is role-routed by the startup redirect (managers to their
+    // dashboard, signed-out visitors to sign-in), so it is not redirected here.
+    // /admin stays a fixed redirect: sending it to / would loop for an admin
+    // session (/ -> /admin/dashboard -> /).
     if (currentApp === 'app' && pathname.startsWith('/admin')) {
         return { path: '/user/dashboard', role: 'user' };
     }
