@@ -168,8 +168,8 @@ export const getManagerApplicationCounts = (
   const completed = applications.filter(isManagerApplicationCompleted).length;
   return {
     active: applications.length - completed,
-    pending: applications.filter((a) => PENDING_REVIEW_STATUSES.has(normalizeStatus(a))).length,
-    actionRequired: applications.filter((a) => a.requiresAction).length,
+    pending: applications.filter((a) => !isManagerApplicationCompleted(a) && PENDING_REVIEW_STATUSES.has(normalizeStatus(a))).length,
+    actionRequired: applications.filter((a) => !isManagerApplicationCompleted(a) && a.requiresAction).length,
     completed: applications.filter((a) => isManagerApplicationCompleted(a) || normalizeStatus(a) === "approved").length,
   };
 };

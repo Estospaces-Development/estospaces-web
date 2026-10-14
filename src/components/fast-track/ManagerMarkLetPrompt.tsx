@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import ManagerListingStatusModal from '@/components/manager/ManagerListingStatusModal';
+import { useOptionalProperties } from '@/contexts/PropertyContext';
 import { useToast } from '@/contexts/ToastContext';
 import { shouldPromptMarkLet, type ManagerListingSubject } from '@/lib/managerListingActions';
 import { getPropertyById, updateManagerPropertyStatus } from '@/services/propertyService';
@@ -12,6 +13,9 @@ import type { FastTrackCase } from '@/services/fastTrackService';
  */
 export default function ManagerMarkLetPrompt({ fastTrackCase }: { fastTrackCase: Pick<FastTrackCase, 'propertyId' | 'workspaceFinalStatus' | 'journeyMode' | 'listingType'> }) {
     const toast = useToast();
+    // The context action also updates the manager's inventory list and publishes a workspace sync.
+    const properties = useOptionalProperties();
+    const changeStatus = properties?.changeListingStatus ?? updateManagerPropertyStatus;
     const [listing, setListing] = useState<(ManagerListingSubject & { id: string }) | null>(null);
     const [open, setOpen] = useState(false);
     const { propertyId, workspaceFinalStatus, journeyMode } = fastTrackCase;
@@ -52,7 +56,7 @@ export default function ManagerMarkLetPrompt({ fastTrackCase }: { fastTrackCase:
                     listing={listing}
                     action="mark_sold"
                     onClose={() => setOpen(false)}
-                    onConfirm={updateManagerPropertyStatus}
+                    onConfirm={changeStatus}
                     onChanged={(message) => {
                         setOpen(false);
                         setListing({ ...listing, status: 'let' });

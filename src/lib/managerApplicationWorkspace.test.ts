@@ -118,3 +118,13 @@ test("a completed application, or one with a completed Fast Track case, is close
     { active: 2, pending: 1, actionRequired: 1, completed: 2 },
   );
 });
+
+test("a completed Fast Track application is not counted as pending or action required", () => {
+  assert.deepEqual(
+    getManagerApplicationCounts([
+      { status: "offer_accepted", fastTrackCase: { workspaceFinalStatus: "completed" }, requiresAction: true } as never,
+      { status: "submitted", requiresAction: true },
+    ]),
+    { active: 1, pending: 1, actionRequired: 1, completed: 1 },
+  );
+});

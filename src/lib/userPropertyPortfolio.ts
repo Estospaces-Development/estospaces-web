@@ -379,13 +379,9 @@ export const buildUserPropertyPortfolio = ({
           sameId(candidate.fast_track_case_id, fastTrackCase.caseId),
       ) || null;
     const applicationId = fastTrackCase.applicationId || application?.id;
-    // A contract for the same property and application already lists this home.
+    // Any contract for the same property already lists this home (however it is linked).
     const hasContractItem = items.some(
-      (item) =>
-        item.contractId &&
-        sameId(item.propertyId, fastTrackCase.propertyId) &&
-        (sameId(item.applicationId, applicationId) ||
-          sameId(item.fastTrackCaseId, fastTrackCase.caseId)),
+      (item) => item.contractId && sameId(item.propertyId, fastTrackCase.propertyId),
     );
     if (hasContractItem) {
       continue;
