@@ -31,8 +31,13 @@ test('landing host redirects admin routes to the admin domain', () => {
 test('app host still blocks admin routes locally', () => {
     assert.deepEqual(
         resolveHostedWorkspaceRedirect('app', '/admin/verifications'),
-        { path: '/user/dashboard', role: 'user' },
+        { path: '/', role: 'user' },
     );
+});
+
+test('app host root is left to the role-aware startup redirect', () => {
+    // A manager opening app.estospaces.com/ was sent to the User dashboard.
+    assert.equal(resolveHostedWorkspaceRedirect('app', '/'), null);
 });
 
 test('admin host preserves login routes instead of redirecting back to the protected admin shell', () => {
