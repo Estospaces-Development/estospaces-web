@@ -64,12 +64,12 @@ const Footer: React.FC = () => {
                     {Object.entries(footerLinks).map(([title, links]) => (
                         <div key={title}>
                             <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-white/90">{title}</h3>
-                            <ul className="space-y-2.5">
+                            <ul className="space-y-0.5">
                                 {links.map((link) => (
                                     <li key={link.label}>
                                         <Link
                                             to={link.href}
-                                            className="text-sm text-gray-200 transition-colors hover:text-white"
+                                            className="inline-flex min-h-11 items-center text-sm text-gray-200 transition-colors hover:text-white"
                                         >
                                             {link.label}
                                         </Link>
@@ -85,9 +85,9 @@ const Footer: React.FC = () => {
                         Copyright {currentYear} Estospaces. All rights reserved.
                     </p>
                     <div className="flex items-center gap-6 text-xs text-gray-300">
-                        <Link to="/privacy" className="transition-colors hover:text-white">Privacy</Link>
-                        <Link to="/terms" className="transition-colors hover:text-white">Terms</Link>
-                        <Link to="/contact" className="transition-colors hover:text-white">Contact</Link>
+                        <Link to="/privacy" className="inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:text-white">Privacy</Link>
+                        <Link to="/terms" className="inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:text-white">Terms</Link>
+                        <Link to="/contact" className="inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:text-white">Contact</Link>
                     </div>
                 </div>
             </div>

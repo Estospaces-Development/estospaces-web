@@ -119,6 +119,10 @@ test("appointment confirm that saves but fails Fast Track sync is reported as sa
     describeCompanionSyncFailure("Appointment confirmed successfully.", outcome.status === "saved_sync_failed" ? outcome.error : ""),
     "Appointment confirmed successfully. The linked Fast Track case was not updated: approve all required documents before scheduling a viewing",
   );
+  assert.equal(
+    describeCompanionSyncFailure("Appointment cancelled.", "This Fast Track is already closed"),
+    "Appointment cancelled. Its Fast Track case is already closed, so nothing changed there.",
+  );
 });
 
 test("appointment mutation failure skips the Fast Track sync and reports failure", async () => {
