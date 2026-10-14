@@ -52,7 +52,10 @@ test('admin support queue exposes ticket ownership workflow for unassigned ticke
         'utf8',
     );
 
-    assert.match(source, /support tickets need an owner/);
+    assert.match(source, /support ticket\{unassignedTicketCount === 1 \? '' : 's'\} \{unassignedTicketCount === 1 \? 'needs' : 'need'\} an owner/);
+    // B11: a claim must update the banner's source list at once and discard an older in-flight poll.
+    assert.match(source, /const applyUpdatedTicket = [\s\S]*?fetchingRef\.current = null;[\s\S]*?setAllTickets\(/);
+    assert.match(source, /applyUpdatedTicket\(updated\);\s*await fetchTickets\(true\);/);
     assert.match(source, /Claim selected ticket/);
     assert.match(source, /Claim next unassigned/);
     assert.match(source, /assignee_id: currentAdminId/);

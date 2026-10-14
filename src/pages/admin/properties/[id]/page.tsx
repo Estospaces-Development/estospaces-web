@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import ForceDeletePropertyModal from '@/components/admin/ForceDeletePropertyModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import { getAdminPropertyStatusConfirmCopy, type AdminPropertyConfirmStatus } from '@/lib/adminPropertyStatusConfirm';
 import {
     adminUpdatePropertyStatus,
     deleteProperty as deletePropertyRequest,
@@ -130,6 +132,7 @@ export default function AdminPropertyDetailPage() {
     const [rejectReason, setRejectReason] = useState('');
     const [rejectReasonError, setRejectReasonError] = useState('');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [pendingStatus, setPendingStatus] = useState<AdminPropertyConfirmStatus | null>(null);
     const [forceDeleteRefusal, setForceDeleteRefusal] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
@@ -230,6 +233,12 @@ export default function AdminPropertyDetailPage() {
         }
     };
 
+    const handleStatusConfirm = async () => {
+        if (!pendingStatus) return;
+        await handleStatusChange(pendingStatus);
+        setPendingStatus(null);
+    };
+
     const handleRejectSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const trimmedReason = rejectReason.trim();
@@ -312,7 +321,7 @@ export default function AdminPropertyDetailPage() {
                     <button
                         type="button"
                         disabled={actionLoading}
-                        onClick={() => handleStatusChange('published')}
+                        onClick={() => setPendingStatus('published')}
                         className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {actionLoading ? 'Working...' : 'Approve'}
@@ -334,7 +343,7 @@ export default function AdminPropertyDetailPage() {
                 <button
                     type="button"
                     disabled={actionLoading}
-                    onClick={() => handleStatusChange('suspended')}
+                    onClick={() => setPendingStatus('suspended')}
                     className="w-full rounded-2xl bg-amber-700 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {actionLoading ? 'Working...' : 'Suspend Listing'}
@@ -347,7 +356,7 @@ export default function AdminPropertyDetailPage() {
                 <button
                     type="button"
                     disabled={actionLoading}
-                    onClick={() => handleStatusChange('published')}
+                    onClick={() => setPendingStatus('published')}
                     className="w-full rounded-2xl bg-blue-700 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {actionLoading ? 'Working...' : 'Publish Listing'}
@@ -454,6 +463,13 @@ export default function AdminPropertyDetailPage() {
                     </form>
                 </div>
             ) : null}
+            <ConfirmModal
+                isOpen={pendingStatus !== null}
+                onClose={() => setPendingStatus(null)}
+                onConfirm={() => void handleStatusConfirm()}
+                loading={actionLoading}
+                {...(pendingStatus ? getAdminPropertyStatusConfirmCopy(pendingStatus, property?.title) : {})}
+            />
             <ForceDeletePropertyModal
                 refusal={forceDeleteRefusal}
                 loading={actionLoading}

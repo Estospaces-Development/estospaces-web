@@ -11,11 +11,11 @@ import {
   formatAdminLeadReassignmentLoadError,
   getAdminLeadContext,
   getAdminLeadReassignmentToggleLabel,
+  getAdminLeadStatusLabel,
   getAdminUsersGlobalSearchLabel,
   getAdminUsersGlobalSearchPlaceholder,
   getAdminUsersPageSubtitle,
   getAdminUsersPageTitle,
-  getAdminAddUserPath,
   buildAdminUserActionLabel,
   getAdminUserEmptyStateBody,
   getAdminUserEmptyStateTitle,
@@ -145,7 +145,7 @@ test('admin users registry uses mobile cards while keeping contained desktop tab
   assert.match(source, /aria-label="Scrollable lead reassignment table"/);
   assert.match(source, /data-mobile-table="cards"/);
   assert.match(source, /className="relative hidden max-w-full overflow-x-auto overflow-y-hidden \[contain:paint\] md:block"/);
-  assert.match(source, /className="w-full min-w-\[980px\] text-left"/);
+  assert.match(source, /className="w-full min-w-\[880px\] 2xl:min-w-\[980px\] text-left"/);
   assert.match(source, /className="min-w-0 bg-white dark:bg-gray-800 rounded-\[2rem\]/);
 });
 
@@ -178,8 +178,9 @@ test('admin user search and lead reassignment search stay independent', async ()
   assert.doesNotMatch(leadSearchHandler, /setSearchQuery|setCurrentPage/);
 });
 
-test('admin add user path opens the registration form while signed in', () => {
-  assert.equal(getAdminAddUserPath(), '/register?switch=true');
+test('admin users page has no Add User button: core has no admin create-user API (A27)', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /Add User|switch=true/);
 });
 
 test('admin lead reassignment helpers expose safe labels and closed-state guards', () => {
@@ -238,6 +239,8 @@ test('admin users page leads with the registry and keeps lead reassignment colla
   assert.match(source, /\{leadReassignmentOpen && \(\s*<section id="admin-lead-reassignment"/);
   assert.equal(getAdminLeadReassignmentToggleLabel(false, 10), 'Show lead reassignment (10)');
   assert.equal(getAdminLeadReassignmentToggleLabel(true), 'Hide lead reassignment');
+  assert.equal(getAdminLeadReassignmentToggleLabel(false, 0, 'open'), 'Show lead reassignment (0 open)');
+  assert.equal(getAdminLeadReassignmentToggleLabel(false, 1, 'all'), 'Show lead reassignment (1)');
 });
 
 test('admin lead context uses only returned fields and derives the 10-minute response window', () => {
@@ -274,4 +277,19 @@ test('admin properties page no longer offers an Add Property action admins canno
 
   assert.doesNotMatch(source, /Add Property/);
   assert.match(source, /New listings are created from manager accounts/);
+});
+
+test('admin lead badge shows one consistent state: closed manual leads read Closed, not NEW LEAD (A128)', () => {
+  assert.equal(getAdminLeadStatusLabel({ status: 'New Lead', stage: 'completed' }), 'Closed');
+  assert.equal(getAdminLeadStatusLabel({ status: 'New Lead', stage: 'completed', source: 'manual' }), 'Manual lead');
+  assert.equal(getAdminLeadStatusLabel({ status: 'closed_won', stage: 'completed', source: 'manual' }), 'Closed');
+  assert.equal(getAdminLeadStatusLabel({ status: 'closed_won' }), 'Closed');
+  assert.equal(getAdminLeadStatusLabel({ status: 'pending_broker_response', stage: 'matching' }), 'pending broker response');
+  assert.equal(getAdminLeadStatusLabel({ status: '' }), 'pending');
+});
+
+test('admin users table fits a 1280px viewport without clipping the Actions column (A35)', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+  assert.match(source, /<table className="w-full min-w-\[880px\] 2xl:min-w-\[980px\] text-left">/);
+  assert.doesNotMatch(source, /<(th|td) className="px-10 py-[0-9]/);
 });

@@ -661,6 +661,10 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
   assert.doesNotMatch(source, /bg-gray-950\/25|bg-gray-950\/55|bg-black\/30/);
 });
+test("fast-track customization drawer closes on Escape (A74)", () => {
+  const source = workspaceLayoutSource();
+  assert.match(source, /React\.useEffect\(\(\) => \{\s*if \(!open\) return undefined;[\s\S]*?event\.key === 'Escape'\) onClose\(\)[\s\S]*?document\.addEventListener\('keydown', closeOnEscape\)[\s\S]*?document\.removeEventListener\('keydown', closeOnEscape\)/);
+});
 test("fast-track viewing response actions are mutually exclusive", () => {
   const source = workspaceSource();
 

@@ -16,7 +16,6 @@ import {
     getLaunchLocationCodeLabel,
     getLaunchLocationCodePlaceholder,
 } from '@/lib/launchLocale';
-import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export default function AdminProfilePage() {
     const { user, refreshUser } = useAuth();
@@ -51,9 +50,9 @@ export default function AdminProfilePage() {
         postcode: '',
         bio: '',
     });
-    const geoMarket = useUserGeoMarket(user, { locationCode: formData.postcode || user?.postcode });
-    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
-    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
+    // Admins work across both markets, so the field is market-neutral: "PIN code / postcode", example for each.
+    const locationCodeLabel = getLaunchLocationCodeLabel();
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder();
 
     const loadAdminProfile = useCallback(async () => {
         if (!user) return;
