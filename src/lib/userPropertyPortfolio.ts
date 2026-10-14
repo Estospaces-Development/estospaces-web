@@ -58,16 +58,6 @@ interface BuildUserPropertyPortfolioInput {
   saleProgressions: SaleProgression[];
   /** The user's Fast Track cases: a completed rental has no Contract record, so it is listed from here. */
   fastTrackCases?: FastTrackCase[];
-  /** Listing details by property id: Fast Track applications carry no address or price of their own. */
-  propertyContexts?: Map<string, PortfolioPropertyContext>;
-}
-
-export interface PortfolioPropertyContext {
-  address?: string;
-  image?: string;
-  price?: number;
-  country?: string;
-  currency?: string;
 }
 
 const sameId = (left?: string | null, right?: string | null) =>
@@ -183,7 +173,6 @@ export const buildUserPropertyPortfolio = ({
   applications,
   saleProgressions,
   fastTrackCases = [],
-  propertyContexts,
 }: BuildUserPropertyPortfolioInput): UserPropertyPortfolioItem[] => {
   const items: UserPropertyPortfolioItem[] = [];
   const completedSaleKeys = new Set<string>();
@@ -398,13 +387,6 @@ export const buildUserPropertyPortfolio = ({
       continue;
     }
 
-    const property = propertyContexts?.get(fastTrackCase.propertyId);
-    const agreedRent =
-      fastTrackCase.decision?.status === "approved" &&
-      typeof fastTrackCase.decision.amount === "number" &&
-      fastTrackCase.decision.amount > 0
-        ? fastTrackCase.decision.amount
-        : undefined;
     const completedAt = firstString(
       fastTrackCase.handover?.completedAt,
       application?.updated_at,
@@ -426,24 +408,10 @@ export const buildUserPropertyPortfolio = ({
       ),
       propertyAddress: firstString(
         application?.property_address,
-        property?.address,
         "Address not recorded",
       ),
-      propertyImage: toPropertyImage(
-        firstString(application?.property_image, property?.image),
-      ),
-      // The agreed rent from the case decision, else the listing price.
-      priceLabel:
-        typeof agreedRent === "number"
-          ? formatMoney(agreedRent, "/mo", {
-              country: fastTrackCase.propertyCountry || property?.country,
-              currency: fastTrackCase.decision?.currency,
-            })
-          : formatMoney(
-              application?.property_price ?? property?.price,
-              "/mo",
-              application?.property_price != null ? application : property,
-            ),
+      propertyImage: toPropertyImage(application?.property_image),
+      priceLabel: formatMoney(application?.property_price, "/mo", application),
       statusLabel: "Rented through Fast Track",
       statusSummary: "",
       timelineLabel: "Completed",

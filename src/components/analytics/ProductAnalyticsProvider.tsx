@@ -79,9 +79,9 @@ export default function ProductAnalyticsProvider({ children }: { children: React
                     aria-label="Cookie preferences"
                     className="fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-950 sm:p-6"
                 >
-                    <h2 className="text-lg font-bold text-gray-950 dark:text-white">Choose optional analytics</h2>
+                    <h2 className="text-lg font-bold text-gray-950 dark:text-white">Choose optional analytics and live support</h2>
                     <p className="mt-2 leading-6 text-gray-600 dark:text-gray-300">
-                        With your permission, we note which page areas you use and which product actions you complete, so we can improve the property journey. We never record passwords, search text, messages, documents, payment details, or form contents.
+                        With your permission, Zoho SalesIQ records page areas and completed product actions so our team can improve the property journey and support you. We never send passwords, search text, messages, documents, payment details, or form contents.
                     </p>
                     <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <button
@@ -96,7 +96,7 @@ export default function ProductAnalyticsProvider({ children }: { children: React
                             onClick={() => choose('accepted')}
                             type="button"
                         >
-                            Allow analytics
+                            Allow analytics &amp; chat
                         </button>
                     </div>
                 </section>

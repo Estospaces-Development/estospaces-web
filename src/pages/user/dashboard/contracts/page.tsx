@@ -70,10 +70,6 @@ import {
 } from "@/lib/userPropertyPortfolio";
 import { paginateItems } from "@/lib/pagination";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
-import {
-  hydratePropertyContextsByIds,
-  type PropertyContext,
-} from "@/contexts/ApplicationsContext";
 import { filterContractsWorkspace } from "@/lib/contractsWorkspaceSearch";
 import {
   CONTRACT_DOWNLOAD_UNAVAILABLE_MESSAGE,
@@ -392,30 +388,6 @@ export default function ContractsPage() {
     void openContractDetail(focusedContract);
   }, [focusedContract, hasAppliedRouteFocus, openContractDetail]);
 
-  // Completed Fast Track rentals have no contract, so My homes reads their address and price from the listing.
-  const completedRentalPropertyIdsKey = fastTrackCases
-    .filter((caseItem) => caseItem.workspaceFinalStatus === "completed" && caseItem.journeyMode === "rent")
-    .map((caseItem) => caseItem.propertyId)
-    .filter(Boolean)
-    .sort()
-    .join(",");
-  const [propertyContexts, setPropertyContexts] = useState<Map<string, PropertyContext>>(() => new Map());
-  useEffect(() => {
-    if (!completedRentalPropertyIdsKey) {
-      return;
-    }
-    let cancelled = false;
-    const nextContexts = new Map<string, PropertyContext>();
-    void hydratePropertyContextsByIds(completedRentalPropertyIdsKey.split(","), nextContexts).then(() => {
-      if (!cancelled) {
-        setPropertyContexts(nextContexts);
-      }
-    }).catch(() => undefined); // Missing listing details only leave the fallback text.
-    return () => {
-      cancelled = true;
-    };
-  }, [completedRentalPropertyIdsKey]);
-
   const portfolioItems = React.useMemo(
     () =>
       buildUserPropertyPortfolio({
@@ -423,9 +395,8 @@ export default function ContractsPage() {
         applications,
         saleProgressions,
         fastTrackCases,
-        propertyContexts,
       }),
-    [applications, contracts, fastTrackCases, propertyContexts, saleProgressions],
+    [applications, contracts, fastTrackCases, saleProgressions],
   );
 
   const filteredPortfolio = React.useMemo(() => {
