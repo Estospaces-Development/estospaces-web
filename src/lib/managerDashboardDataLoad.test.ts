@@ -10,10 +10,10 @@ const dashboardSource = readFileSync(
 
 test('manager dashboard primary metrics are not blocked by bookings load', () => {
   assert.match(dashboardSource, /const bookingsTask = bookingsService\.getBookings/);
-  assert.match(dashboardSource, /const \[analyticsRes, fastTrackRes, livePropertiesRes\] = await Promise\.allSettled\(\[/);
+  assert.match(dashboardSource, /const \[analyticsRes, fastTrackRes, livePropertiesRes, leadsRes\] = await Promise\.allSettled\(\[/);
 
   const primaryLoadMatch = dashboardSource.match(
-    /const \[analyticsRes, fastTrackRes, livePropertiesRes\] = await Promise\.allSettled\(\[([\s\S]*?)\]\);/,
+    /const \[analyticsRes, fastTrackRes, livePropertiesRes, leadsRes\] = await Promise\.allSettled\(\[([\s\S]*?)\]\);/,
   );
   assert.ok(primaryLoadMatch, 'primary dashboard load group should be explicit');
 
@@ -21,6 +21,7 @@ test('manager dashboard primary metrics are not blocked by bookings load', () =>
   assert.match(primaryLoadBlock, /analyticsTask/);
   assert.match(primaryLoadBlock, /fastTrackTask/);
   assert.match(primaryLoadBlock, /livePropertiesTask/);
+  assert.match(primaryLoadBlock, /leadsTask/);
   assert.doesNotMatch(primaryLoadBlock, /bookingsTask/);
 });
 

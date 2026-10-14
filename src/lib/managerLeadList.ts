@@ -52,6 +52,8 @@ export interface ManagerLeadWorkspaceCase {
 
 export interface ManagerLeadSummary {
   total: number;
+  /** Leads that are not closed, cancelled, expired, rejected or withdrawn. */
+  active: number;
   awaitingResponse: number;
   documentsQueue: number;
   viewingScheduled: number;
@@ -374,6 +376,11 @@ export const getManagerLeadOperationalState = (
   };
 };
 
+const isManagerLeadClosed = (lead: ManagerLeadSummaryItem) => (
+  isManagerLeadExplicitlyClosed(lead)
+  || CLOSED_MANAGER_LEAD_STAGES.has(normalizeStage(resolveLeadStage(lead)))
+);
+
 export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
   leads: readonly T[],
   now: number,
@@ -390,6 +397,7 @@ export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
 
   return {
     total: leads.length,
+    active: leads.filter((lead) => !isManagerLeadClosed(lead)).length,
     awaitingResponse: leads.filter(isManagerLeadLiveProcessing).length,
     documentsQueue,
     viewingScheduled,

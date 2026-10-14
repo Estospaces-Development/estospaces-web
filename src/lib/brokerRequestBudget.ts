@@ -47,6 +47,17 @@ const parseBudgetAmount = (value: string) => {
   };
 };
 
+/** Example budget for the request form: a monthly rent range for rent, a purchase range otherwise. */
+export const getBrokerRequestBudgetPlaceholder = (
+  requestType: BrokerRequestType,
+  currencyCode: 'INR' | 'GBP',
+) => {
+  if (requestType === 'rent') {
+    return currencyCode === 'GBP' ? 'e.g. 1,800 - 2,200 pcm' : 'e.g. 25,000 - 30,000 per month';
+  }
+  return 'e.g. 500k - 600k';
+};
+
 export const getBrokerRequestBudgetError = (
   value: string,
   requestType: BrokerRequestType,

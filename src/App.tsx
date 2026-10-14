@@ -145,6 +145,7 @@ import StartupRedirect from './components/routing/StartupRedirect';
 import { useAuth } from './contexts/AuthContext';
 import ManagerVerificationGate from './components/routing/ManagerVerificationGate';
 import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
+import { getRouteTitle } from './lib/routeTitle';
 
 function RouteScrollReset() {
   const location = useLocation();
@@ -156,6 +157,17 @@ function RouteScrollReset() {
 
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [location.pathname, location.search, location.hash]);
+
+  return null;
+}
+
+// One title per route (WCAG 2.4.2); the static index.html title only covers the first paint.
+function RouteTitle() {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    document.title = getRouteTitle(pathname);
+  }, [pathname]);
 
   return null;
 }
@@ -202,6 +214,7 @@ const App: React.FC = () => {
     <Suspense fallback={<BrandLoadingScreen />}>
       <SubdomainRouter>
         <RouteScrollReset />
+        <RouteTitle />
         <PageErrorBoundary>
           <RouteAccessBoundary>
             <Routes>

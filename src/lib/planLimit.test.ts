@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ApiRequestError } from './apiUtils';
 import {
+    ADMIN_PUBLISHED_LIMIT_MESSAGE,
     PLAN_UPGRADE_PATH,
     buildPlanLimitNotice,
     getEntitlementLimit,
@@ -117,4 +118,13 @@ test('the plan-limit entitlement read uses a short timeout so spinners are not h
     const source = readFileSync(`${process.cwd()}/src/lib/planLimit.ts`, 'utf8');
     assert.ok(source.includes('getManagerSubscriptionSummary({ timeoutMs: PLAN_LIMIT_ENTITLEMENT_TIMEOUT_MS, suppressErrorToast: true })'));
     assert.match(source, /PLAN_LIMIT_ENTITLEMENT_TIMEOUT_MS = 4_000/);
+});
+
+test('the admin approve refusal is friendly copy that names the Subscription page, not the raw core sentence', async () => {
+    const { readFileSync } = await import('node:fs');
+    assert.doesNotMatch(ADMIN_PUBLISHED_LIMIT_MESSAGE, /^published property limit reached$/);
+    assert.match(ADMIN_PUBLISHED_LIMIT_MESSAGE, /Subscription page/);
+    assert.equal(getPlanLimitResource(conflict(CORE_LIMIT_MESSAGE)), 'published_properties');
+    const source = readFileSync('src/services/propertyService.ts', 'utf8');
+    assert.match(source, /adminUpdatePropertyStatus[\s\S]*getPlanLimitResource\(error\) === "published_properties"[\s\S]*ADMIN_PUBLISHED_LIMIT_MESSAGE/);
 });

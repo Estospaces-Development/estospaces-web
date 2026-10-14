@@ -70,6 +70,9 @@ export function getPlanLimitResource(error: unknown): PlanLimitResource | null {
     return null;
 }
 
+/** Shown to an admin whose approval was refused because the property's manager is at their publish limit. */
+export const ADMIN_PUBLISHED_LIMIT_MESSAGE = "This manager has reached their plan's published property limit. Ask them to unpublish a listing or upgrade on the Subscription page, then approve again.";
+
 export function isPlanLimitError(error: unknown): boolean {
     return getPlanLimitResource(error) !== null;
 }

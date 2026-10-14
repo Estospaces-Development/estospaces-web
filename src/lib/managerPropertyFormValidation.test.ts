@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  PROPERTY_TITLE_MAX_LENGTH,
   getManagerPropertyFirstErrorStep,
   getManagerPropertyRoomPayload,
   getManagerPropertyTypeCategory,
@@ -433,4 +434,11 @@ test("getManagerPropertyRoomPayload keeps a ground floor of 0 and sends null for
     getManagerPropertyRoomPayload("land", { ...rooms, floorNumber: undefined }).floorNumber,
     undefined,
   );
+});
+
+test("property title is capped at the UI limit", () => {
+  const exact = { ...baseValues, title: "a".repeat(PROPERTY_TITLE_MAX_LENGTH) };
+  const tooLong = { ...baseValues, title: "a".repeat(PROPERTY_TITLE_MAX_LENGTH + 1) };
+  assert.equal(validateManagerPropertyField("title", exact), null);
+  assert.match(validateManagerPropertyField("title", tooLong) ?? "", /120 characters or fewer/);
 });

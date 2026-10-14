@@ -9,6 +9,7 @@ import {
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
     resolveSupportComposerCategory,
+    mergeSupportTicketSummary,
     shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
@@ -302,4 +303,17 @@ test('support composer prefill ignores unsupported priority query values', () =>
     });
 
     assert.equal(composer.priority, 'high');
+});
+
+test('an open ticket picks up a newer status from the polled list (QA B9)', () => {
+    const detail = { ...tickets[0], status: 'in_progress' as const, conversation: {} } as any;
+    const resolved = { ...tickets[0], status: 'resolved' as const, updated_at: '2026-04-01T00:00:00Z', resolved_at: '2026-04-01T00:00:00Z' };
+    const merged = mergeSupportTicketSummary(detail, resolved);
+    assert.equal(merged.status, 'resolved');
+    assert.equal(merged.resolved_at, '2026-04-01T00:00:00Z');
+    assert.equal(merged.conversation, detail.conversation);
+    // An older or equal list row, or another ticket, never overwrites the detail.
+    assert.equal(mergeSupportTicketSummary(detail, { ...resolved, updated_at: detail.updated_at }), detail);
+    assert.equal(mergeSupportTicketSummary(detail, { ...resolved, id: 'other' }), detail);
+    assert.equal(mergeSupportTicketSummary(detail, undefined), detail);
 });

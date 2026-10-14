@@ -526,7 +526,7 @@ export default function SettingsPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Account Flags</h2>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Pilot account controls, privacy requests, and support handoffs.</p>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Account controls, privacy requests, and support handoffs.</p>
                                     </div>
                                 </div>
 
@@ -549,7 +549,7 @@ export default function SettingsPage() {
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
                                         'Data export request',
-                                        'Please prepare a pilot export of my account data, including verification documents, messages, case records, and audit-linked records.',
+                                        'Please prepare an export of my account data, including verification documents, messages, case records, and audit-linked records.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >
@@ -561,24 +561,24 @@ export default function SettingsPage() {
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
                                         'Data deletion request',
-                                        'Please review a deletion or retention request for my pilot account and advise what evidence must be retained for compliance and audit purposes.',
+                                        'Please review a deletion or retention request for my account and advise what evidence must be retained for compliance and audit purposes.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >
                                     <h3 className="text-base font-bold text-gray-900 dark:text-white">Request Data Deletion</h3>
-                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Start a privacy and retention review with the pilot operations team.</p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Start a privacy and retention review with our support team.</p>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
-                                        'Pilot support request',
-                                        'I need help with a live pilot workflow, case status, compliance review, or account operation.',
+                                        'Support request',
+                                        'I need help with a live workflow, case status, compliance review, or account operation.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >
-                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Contact Pilot Support</h3>
-                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Open the support centre with a prefilled pilot operations ticket.</p>
+                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Contact Estospaces Support</h3>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Open the support centre with a prefilled support ticket.</p>
                                 </button>
                             </div>
                         </div>

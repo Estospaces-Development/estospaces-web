@@ -1,6 +1,30 @@
 import type { SupportTicketSummary } from '@/services/messagesService';
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
+/**
+ * Carries the polled list's newer lifecycle fields onto the open ticket, so the detail header and
+ * reply availability never disagree with the list while the silent detail refresh catches up (QA B9).
+ * Returns the same object when nothing newer applies.
+ */
+export const mergeSupportTicketSummary = <T extends SupportTicketSummary>(
+    detail: T,
+    summary: SupportTicketSummary | undefined,
+): T => {
+    if (!summary || summary.id !== detail.id) return detail;
+    const summaryTime = Date.parse(summary.updated_at);
+    const detailTime = Date.parse(detail.updated_at);
+    if (!(summaryTime > detailTime)) return detail;
+    return {
+        ...detail,
+        status: summary.status,
+        priority: summary.priority,
+        assignee_id: summary.assignee_id,
+        updated_at: summary.updated_at,
+        resolved_at: summary.resolved_at,
+        closed_at: summary.closed_at,
+    };
+};
+
 export const hasPrefilledSupportComposerContext = (searchParams: URLSearchParams): boolean => (
     ['category', 'subject', 'message', 'priority'].some((key) => Boolean(searchParams.get(key)?.trim()))
 );

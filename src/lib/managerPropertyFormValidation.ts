@@ -20,6 +20,9 @@ export const PROPERTY_NUMERIC_LIMITS = {
   yearBuiltMin: 1800,
 } as const;
 export const PROPERTY_DESCRIPTION_MAX_LENGTH = 1000;
+// Core stores the title as unbounded text and has no limit, so this is a UI limit that keeps
+// card titles and URL slugs readable.
+export const PROPERTY_TITLE_MAX_LENGTH = 120;
 
 const STEP_FIELDS: Record<number, string[]> = {
   1: ["title", "priceAmount"],
@@ -241,7 +244,10 @@ export function validateManagerPropertyField(
   }
   switch (field) {
     case "title":
-      return values.title.trim() ? null : "Property title is required";
+      if (!values.title.trim()) return "Property title is required";
+      return values.title.length <= PROPERTY_TITLE_MAX_LENGTH
+        ? null
+        : `Property title must be ${PROPERTY_TITLE_MAX_LENGTH} characters or fewer`;
     case "priceAmount":
       return validateScaledPositiveDecimal(
         values.priceAmount,

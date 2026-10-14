@@ -27,6 +27,8 @@ export interface UserVerificationInfoLike {
 export interface LeadLike {
     status?: string;
     stage?: string;
+    source?: string;
+    outcome?: string;
     dispatch_status?: string;
     matched_at?: string;
     first_response_at?: string;
@@ -618,6 +620,13 @@ export const resolveLeadStage = (
         : lead?.status === 'closed_lost' || lead?.status === 'cancelled' ? 'expired' : '';
     if (closedStage) {
         return closedStage;
+    }
+
+    // Core stores stage "completed" on every manual lead as a placeholder; the lead's own status
+    // (New Lead / In Progress / Approved / Rejected) is what the manager chose, so it is not closed.
+    if (lead?.source === 'manual' && normalizedStage === 'completed'
+        && !['completed', 'rejected', 'withdrawn', 'expired'].includes(String(lead.outcome || ''))) {
+        return String(lead.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_') || 'new_lead';
     }
 
     if (normalizedStage) {

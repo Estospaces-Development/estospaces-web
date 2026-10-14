@@ -3691,6 +3691,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         <CreateContractModal
           applicationId={application.id}
           propertyPrice={application.propertyPrice || 0}
+          propertyCountry={application.propertyCountry}
+          propertyCurrency={application.propertyCurrency}
           onClose={() => setShowContractModal(false)}
           onSuccess={async () => {
             await refreshRentWorkflow();

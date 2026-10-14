@@ -24,6 +24,7 @@ import {
     getSupportTicketCaseLink,
     hasActiveSupportFilters,
     hasPrefilledSupportComposerContext,
+    mergeSupportTicketSummary,
     normalizeSupportTicketCategory,
     shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
@@ -249,6 +250,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
         }
     }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setBackgroundSearchParams, user?.id]);
 
+    // The 5s list poll can see an admin's status change before the detail refresh lands.
+    useEffect(() => {
+        setSelectedTicket((current) => (
+            current ? mergeSupportTicketSummary(current, allTickets.find((ticket) => ticket.id === current.id)) : current
+        ));
+    }, [allTickets]);
+
     const fetchTickets = useCallback(async (silent = false) => {
         // Background polls yield to an in-flight request; a manual refresh
         // supersedes it (the older response is discarded below). web-app#458
@@ -331,10 +339,16 @@ export function SupportCenter({ role }: SupportCenterProps) {
             const detail = await supportService.getTicket(ticketId);
             if (!supportCenterMountedRef.current || requestVersion !== detailRequestVersionRef.current) return;
 
-            const transcript = await supportService.getTranscript(detail.conversation_id);
+            // A failed background transcript read must not keep the header status stale.
+            let transcript: Message[] | null = null;
+            try {
+                transcript = await supportService.getTranscript(detail.conversation_id);
+            } catch (transcriptError) {
+                if (!silent) throw transcriptError;
+            }
             if (supportCenterMountedRef.current && requestVersion === detailRequestVersionRef.current) {
                 setSelectedTicket(detail);
-                setMessages(transcript);
+                if (transcript) setMessages(transcript);
             }
         } catch (error: any) {
             if (!silent && supportCenterMountedRef.current) {
