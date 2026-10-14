@@ -125,6 +125,7 @@ import {
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
 import FastTrackCompletionRefresh from '@/components/fast-track/FastTrackCompletionRefresh';
+import ManagerMarkLetPrompt from '@/components/fast-track/ManagerMarkLetPrompt';
 import { canRefreshFastTrackCompletion } from '@/lib/fastTrackWorkspace';
 import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
 import {
@@ -815,6 +816,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         stage: FastTrackStage;
     } | null>(null);
     const [signAgreementConfirmOpen, setSignAgreementConfirmOpen] = useState(false);
+    const [skipViewingConfirmOpen, setSkipViewingConfirmOpen] = useState(false);
     const [stageConfirmDialog, setStageConfirmDialog] = useState<{ open: boolean; stage: FastTrackStage } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -3555,11 +3557,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void runAction(
-                                'skip_viewing',
-                                { note: viewingNote },
-                                'Viewing skipped.',
-                            )}
+                            onClick={() => setSkipViewingConfirmOpen(true)}
                             busy={activeAction === 'skip_viewing'}
                         >
                             Skip viewing
@@ -3948,6 +3946,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             </div>
                         </div>
                         {renderCompletionRefresh()}
+                        {role === 'manager' && !managerViewOnly ? <ManagerMarkLetPrompt fastTrackCase={selectedCase} /> : null}
                     </div>
                 </SectionShell>
             );
@@ -4833,6 +4832,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 </div>
             )) : null}
+
+            <ConfirmModal
+                isOpen={skipViewingConfirmOpen}
+                onClose={() => setSkipViewingConfirmOpen(false)}
+                onConfirm={() => {
+                    setSkipViewingConfirmOpen(false);
+                    void runAction('skip_viewing', { note: viewingNote }, 'Viewing skipped.');
+                }}
+                title="Skip the viewing?"
+                message="The case moves on to the next step without a viewing."
+                confirmText="Skip viewing"
+                cancelText="Cancel"
+                variant="warning"
+            />
 
             <ConfirmModal
                 isOpen={signAgreementConfirmOpen && Boolean(selectedCase)}

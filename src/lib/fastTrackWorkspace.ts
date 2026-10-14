@@ -857,7 +857,9 @@ export const describeFastTrackWorkspaceFocus = (
     switch (fastTrackCase.stage) {
         case 'documents':
             if (role === 'user') {
-                return 'Upload the core files';
+                return fastTrackCase.documents?.allUploaded && fastTrackCase.documentPhase === 'uploaded_under_review'
+                    ? 'Waiting for your manager to review your files'
+                    : 'Upload the core files';
             }
             return fastTrackCase.documents.items.some((item) => item.status === 'uploaded')
                 ? 'Review the uploaded files'
@@ -883,7 +885,9 @@ export const describeFastTrackWorkspaceFocus = (
             }
             return PAYMENTS_ENABLED && (fastTrackCase.agreement.paymentStatus === 'requested' || fastTrackCase.agreement.paymentStatus === 'paid')
                 ? 'Confirm payment and move to handover'
-                : 'Publish the agreement';
+                : fastTrackCase.agreement.status === 'sent'
+                    ? 'Waiting for the user to sign the agreement'
+                    : 'Publish the agreement';
         case 'handover':
             return role === 'user'
                 ? fastTrackCase.journeyMode === 'sale'

@@ -452,6 +452,17 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     const documentsCase = buildCase({ stage: 'documents' });
     assert.equal(describeFastTrackWorkspaceFocus(documentsCase, 'user'), 'Upload the core files');
     assert.match(describeFastTrackWorkspaceStatus(documentsCase, 'manager'), /same page|same case/i);
+    const reviewCase = buildCase({
+        stage: 'documents',
+        documentPhase: 'uploaded_under_review',
+        documents: { ...documentsCase.documents, allUploaded: true },
+    });
+    assert.equal(describeFastTrackWorkspaceFocus(reviewCase, 'user'), 'Waiting for your manager to review your files');
+    assert.equal(
+        describeFastTrackWorkspaceFocus(buildCase({ stage: 'agreement', agreement: { status: 'sent', paymentStatus: 'not_requested' } }), 'manager'),
+        'Waiting for the user to sign the agreement',
+    );
+    assert.equal(describeFastTrackWorkspaceFocus(buildCase({ stage: 'agreement' }), 'manager'), 'Publish the agreement');
 
     const agreementCase = buildCase({
         stage: 'agreement',
@@ -459,7 +470,7 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     });
     assert.equal(
         describeFastTrackWorkspaceFocus(agreementCase, 'manager'),
-        PAYMENTS_ENABLED ? 'Confirm payment and move to handover' : 'Publish the agreement',
+        PAYMENTS_ENABLED ? 'Confirm payment and move to handover' : 'Waiting for the user to sign the agreement',
     );
 
     const completedCase = buildCase({ workspaceFinalStatus: 'completed' });

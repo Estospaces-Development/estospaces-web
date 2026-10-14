@@ -8,6 +8,7 @@ import {
 } from "@/lib/userPropertyPortfolio";
 import type { Application } from "@/services/applicationsService";
 import type { SaleProgression } from "@/services/salesService";
+import type { FastTrackCase } from "@/services/fastTrackService";
 import type { Contract } from "@/types/booking";
 
 const applications: Application[] = [
@@ -140,4 +141,37 @@ test("active rented card says each status once: no repeated RENTED footer and no
   assert.equal(getPortfolioFooterStatusLabel(rented), "");
   assert.equal(getPortfolioFooterStatusLabel({ ownershipLabel: "Rented", statusLabel: "Rent in progress" }), "Rent in progress");
   assert.equal(getPortfolioFooterStatusLabel({ ownershipLabel: "Bought", statusLabel: "Purchase completed" }), "Purchase completed");
+});
+
+test("a completed Fast Track rental is listed once, unless a contract already covers it", () => {
+  const ftCase = (overrides: Record<string, unknown>) => ({
+    caseId: "case-rent-2",
+    propertyId: "property-rent-2",
+    propertyTitle: "Garden Flat",
+    applicationId: "rent-app-2",
+    journeyMode: "rent",
+    workspaceFinalStatus: "completed",
+    handover: { completedAt: "2026-04-10T10:00:00Z" },
+    ...overrides,
+  }) as unknown as FastTrackCase;
+
+  const listed = buildUserPropertyPortfolio({ contracts: [], applications: [], saleProgressions: [], fastTrackCases: [ftCase({})] });
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].statusLabel, "Rented through Fast Track");
+  assert.equal(listed[0].ownershipLabel, "Rented");
+  assert.equal(listed[0].targetPath, "/user/dashboard/fast-track?case=case-rent-2&property=property-rent-2");
+
+  // The existing contract for property-rent-1 / rent-app-1 already lists that home.
+  const covered = buildUserPropertyPortfolio({
+    contracts,
+    applications: applications.slice(0, 1),
+    saleProgressions: [],
+    fastTrackCases: [ftCase({ caseId: "case-rent-1", propertyId: "property-rent-1", applicationId: "rent-app-1" })],
+  });
+  assert.equal(covered.length, 1);
+  assert.equal(covered[0].id, "rent:contract-1");
+
+  for (const skipped of [{ workspaceFinalStatus: "active" }, { journeyMode: "sale" }]) {
+    assert.equal(buildUserPropertyPortfolio({ contracts: [], applications: [], saleProgressions: [], fastTrackCases: [ftCase(skipped)] }).length, 0);
+  }
 });

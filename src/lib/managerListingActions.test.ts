@@ -6,6 +6,7 @@ import {
     getManagerListingActionLabel,
     getManagerListingActions,
     presentManagerListingActionError,
+    shouldPromptMarkLet,
     summarizeActiveWork,
 } from './managerListingActions';
 
@@ -166,4 +167,14 @@ test('state conflicts, the plan limit, ownership and readiness each get their ow
     assert.doesNotMatch(skew.message, /no longer exists/);
     assert.match(presentManagerListingActionError('unpublish', { error: 'Internal server error', status: 500 }).message, /Something went wrong on our side/);
     assert.equal(presentManagerListingActionError('unpublish', { error: 'action must be one of unpublish, republish or mark_sold', status: 400 }).message, 'action must be one of unpublish, republish or mark_sold');
+});
+
+test('the Mark let prompt shows only for a completed rental whose listing is still live', () => {
+    const rentCase = { workspaceFinalStatus: 'completed', journeyMode: 'rent', listingType: 'rent' };
+    const live = { status: 'published', listingType: 'rent' };
+    assert.equal(shouldPromptMarkLet(rentCase, live), true);
+    assert.equal(shouldPromptMarkLet(rentCase, { status: 'let', listingType: 'rent' }), false);
+    assert.equal(shouldPromptMarkLet(rentCase, null), false);
+    assert.equal(shouldPromptMarkLet({ ...rentCase, workspaceFinalStatus: 'active' }, live), false);
+    assert.equal(shouldPromptMarkLet({ workspaceFinalStatus: 'completed', journeyMode: 'sale', listingType: 'sale' }, { status: 'published', listingType: 'sale' }), false);
 });

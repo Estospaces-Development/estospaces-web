@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 import { resolveWorkspaceSection } from "./liveCaseWorkspace";
 import {
   formatApplicationStatusError,
+  getManagerApplicationCounts,
+  isManagerApplicationClosed,
+  isManagerApplicationCompleted,
   getHeaderApproveBlockedReason,
   shouldShowManagerDecisionControls,
   shouldShowManagerManagedPurchaseWorkspace,
@@ -95,4 +98,23 @@ test("the header Approve waits for the rent checks, like the rent workflow Appro
   assert.equal(getHeaderApproveBlockedReason({ isRentApplication: true, rentApprovalReady: true }), null);
   // Sale applications have no client-side equivalent: the server decides.
   assert.equal(getHeaderApproveBlockedReason({ isRentApplication: false, rentApprovalReady: false }), null);
+});
+
+test("a completed application, or one with a completed Fast Track case, is closed and counts as completed", () => {
+  assert.equal(isManagerApplicationCompleted({ status: "completed" }), true);
+  assert.equal(isManagerApplicationCompleted({ status: "viewing_scheduled", fastTrackCase: { workspaceFinalStatus: "completed" } }), true);
+  assert.equal(isManagerApplicationCompleted({ status: "viewing_scheduled", fastTrackCase: { workspaceFinalStatus: "active" } }), false);
+  assert.equal(isManagerApplicationClosed({ status: "withdrawn" }), true);
+  assert.equal(isManagerApplicationClosed({ status: "completed" }), true);
+  assert.equal(isManagerApplicationClosed({ status: "under_review" }), false);
+  assert.equal(shouldShowManagerDecisionControls({ status: "under_review", listingType: "rent", fastTrackCase: { workspaceFinalStatus: "completed" } }), false);
+
+  assert.deepEqual(
+    getManagerApplicationCounts([
+      { status: "completed" },
+      { status: "submitted", requiresAction: true },
+      { status: "approved" },
+    ]),
+    { active: 2, pending: 1, actionRequired: 1, completed: 2 },
+  );
 });
