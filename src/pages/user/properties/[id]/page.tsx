@@ -114,6 +114,7 @@ export {
     buildPropertyFastTrackStartRequest,
     mapFastTrackPropertyType,
 } from '@/lib/propertyFastTrackRequest';
+import { useRecordPageTitle } from '@/lib/routeTitle';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -911,6 +912,7 @@ const UserPropertyDetail = () => {
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const [property, setProperty] = useState<Property | null>(null);
+    useRecordPageTitle(property?.title);
     const [propertyReviews, setPropertyReviews] = useState<Review[]>([]);
     const [propertyReviewAverage, setPropertyReviewAverage] = useState(0);
     const [propertyReviewTotal, setPropertyReviewTotal] = useState(0);

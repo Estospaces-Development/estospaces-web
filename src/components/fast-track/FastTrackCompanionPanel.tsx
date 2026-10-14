@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Clock3, FileText, Handshake, Home, MessageSquareText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import DateField from "@/components/ui/DateField";
 import TimeField from "@/components/ui/TimeField";
 import FastTrackCompletionRefresh from "@/components/fast-track/FastTrackCompletionRefresh";
@@ -115,6 +116,7 @@ export default function FastTrackCompanionPanel({
   const managerViewOnly = role === "manager" && managerVerificationViewOnly;
   const publishWorkspaceSync = usePublishWorkspaceSync();
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [skipViewingConfirmOpen, setSkipViewingConfirmOpen] = useState(false);
   const [openingConversation, setOpeningConversation] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
   const [viewingTime, setViewingTime] = useState("10:00");
@@ -394,9 +396,7 @@ export default function FastTrackCompanionPanel({
           </button>
           <button
             type="button"
-            onClick={() =>
-              void runAction("skip_viewing", { note: viewingNote }, "Viewing skipped.")
-            }
+            onClick={() => setSkipViewingConfirmOpen(true)}
             disabled={activeAction === "skip_viewing"}
             className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
           >
@@ -917,6 +917,19 @@ export default function FastTrackCompanionPanel({
       >
         {renderStageActions()}
       </fieldset>
+      <ConfirmModal
+          isOpen={skipViewingConfirmOpen}
+          onClose={() => setSkipViewingConfirmOpen(false)}
+          onConfirm={() => {
+              setSkipViewingConfirmOpen(false);
+              void runAction("skip_viewing", { note: viewingNote }, "Viewing skipped.");
+          }}
+          title="Skip the viewing?"
+          message="The case moves on to the next step without a viewing."
+          confirmText="Skip viewing"
+          cancelText="Cancel"
+          variant="warning"
+      />
     </div>
   );
 }

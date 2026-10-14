@@ -632,6 +632,9 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
   undefined,
 );
 
+/** For components that may render outside the provider (e.g. shared workspaces in tests). */
+export const useOptionalProperties = () => useContext(PropertyContext);
+
 export const useProperties = () => {
   const context = useContext(PropertyContext);
   if (!context) {

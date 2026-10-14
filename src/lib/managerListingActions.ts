@@ -41,6 +41,22 @@ export const getManagerListingActions = (subject: ManagerListingSubject): Manage
     return [];
 };
 
+/**
+ * A completed Fast Track rental leaves its listing published (booking only marks sales sold),
+ * so the manager is prompted to Mark let. Never for sales, nor for a listing that is already let.
+ */
+export const shouldPromptMarkLet = (
+    fastTrackCase: { workspaceFinalStatus?: string | null; journeyMode?: string | null; listingType?: string | null },
+    property?: ManagerListingSubject | null,
+) => Boolean(
+    property &&
+    fastTrackCase.workspaceFinalStatus === 'completed' &&
+    fastTrackCase.journeyMode === 'rent' &&
+    !isSaleListing(fastTrackCase.listingType) &&
+    !isSaleListing(property.listingType) &&
+    getManagerListingActions(property).includes('mark_sold'),
+);
+
 export const getManagerListingActionLabel = (action: ManagerListingAction, listingType?: string | null) => {
     switch (action) {
         case 'unpublish':

@@ -13,6 +13,7 @@ type ManagerApplicationRecordLike = {
   status?: string | null;
   listingType?: string | null;
   listing_type?: string | null;
+  fastTrackCase?: { workspaceFinalStatus?: string | null } | null;
 };
 
 const terminalApplicationStatuses = new Set([
@@ -28,8 +29,19 @@ const normalizeStatus = (application?: ManagerApplicationRecordLike | null) =>
 const normalizeListingType = (application?: ManagerApplicationRecordLike | null) =>
   String(application?.listingType || application?.listing_type || "").trim().toLowerCase();
 
+/** A completed application, or one whose linked Fast Track case is completed (handover done). */
+export const isManagerApplicationCompleted = (application?: ManagerApplicationRecordLike | null) =>
+  normalizeStatus(application) === "completed" ||
+  application?.fastTrackCase?.workspaceFinalStatus === "completed";
+
+/** Closed applications are read-only: booking refuses changes to withdrawn, rejected and completed ones. */
+export const isManagerApplicationClosed = (application?: ManagerApplicationRecordLike | null) =>
+  ["withdrawn", "rejected"].includes(normalizeStatus(application)) ||
+  isManagerApplicationCompleted(application);
+
 const isTerminalApplication = (application?: ManagerApplicationRecordLike | null) =>
-  terminalApplicationStatuses.has(normalizeStatus(application));
+  terminalApplicationStatuses.has(normalizeStatus(application)) ||
+  isManagerApplicationCompleted(application);
 
 const isPurchaseApplication = (application?: ManagerApplicationRecordLike | null) =>
   ["sale", "buy", "purchase"].includes(normalizeListingType(application));
@@ -133,4 +145,31 @@ export const formatApplicationStatusError = (message?: string | null): string =>
   }
   const sentence = text.charAt(0).toUpperCase() + text.slice(1);
   return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+};
+
+const PENDING_REVIEW_STATUSES = new Set([
+  "pending",
+  "submitted",
+  "buyer_qualification",
+  "offer_ready",
+  "offer_submitted",
+  "offer_under_review",
+  "offer_accepted",
+  "sale_agreed",
+  "memorandum_issued",
+  "conveyancing",
+  "exchange",
+]);
+
+/** List counters: a completed application counts as completed, never as active. */
+export const getManagerApplicationCounts = (
+  applications: Array<ManagerApplicationRecordLike & { requiresAction?: boolean }>,
+) => {
+  const completed = applications.filter(isManagerApplicationCompleted).length;
+  return {
+    active: applications.length - completed,
+    pending: applications.filter((a) => !isManagerApplicationCompleted(a) && PENDING_REVIEW_STATUSES.has(normalizeStatus(a))).length,
+    actionRequired: applications.filter((a) => !isManagerApplicationCompleted(a) && a.requiresAction).length,
+    completed: applications.filter((a) => isManagerApplicationCompleted(a) || normalizeStatus(a) === "approved").length,
+  };
 };

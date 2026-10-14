@@ -33,6 +33,7 @@ import {
     type ManagerPropertyDetailResult,
 } from '@/lib/managerPropertyDetail';
 import type { Property } from '@/contexts/PropertyContext';
+import { useRecordPageTitle } from '@/lib/routeTitle';
 
 // Helper for currency formatting
 const formatPrice = (price: any, property?: any) => {
@@ -90,6 +91,7 @@ export default function PropertyDetailPage() {
     });
     const detail = id ? detailQuery.data : { kind: 'not_found' as const };
     const property = detail?.kind === 'found' ? detail.property : undefined;
+    useRecordPageTitle(property?.title);
     const canSharePublicly = isPropertyPubliclyShareable(property?.status);
     const shareBlockedReason = getShareBlockedReason(property?.status);
     const deleteWarning = getListingDeleteWarning(property?.status);

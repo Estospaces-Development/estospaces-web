@@ -43,6 +43,7 @@ import { getAdminPropertyWorkflowFallbackLabel } from '@/lib/adminPropertyRegist
 import { formatManagerPropertyPrice } from '@/lib/managerPropertyPrice';
 import { formatAmenityLabel } from '@/lib/amenityLabels';
 import { resolveAdminListingOwner } from '@/lib/adminListingOwner';
+import { useRecordPageTitle } from '@/lib/routeTitle';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -126,6 +127,7 @@ export default function AdminPropertyDetailPage() {
     const propertyId = id && id !== 'undefined' && id !== 'null' ? id.trim() : '';
 
     const [property, setProperty] = useState<Property | null>(null);
+    useRecordPageTitle(property?.title);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);

@@ -8,7 +8,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
-import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
+import { useApplications, type Application } from '@/contexts/ApplicationsContext';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
@@ -18,7 +18,7 @@ import BrandLoadingScreen from '@/components/ui/BrandLoadingScreen';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildCsvContent } from '@/lib/csvExport';
 import { resolveFocusedApplication } from '@/lib/workspaceLinks';
-import { formatApplicationStatusError } from '@/lib/managerApplicationWorkspace';
+import { formatApplicationStatusError, getManagerApplicationCounts } from '@/lib/managerApplicationWorkspace';
 import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
@@ -196,28 +196,13 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const statsLoading = contextLoading && allApplications.length === 0;
     // Stats use allApplications (unfiltered) so counts are always accurate
     const stats = useMemo(() => {
-        const total = allApplications.length;
-        const pending = allApplications.filter((a: any) => [
-            APPLICATION_STATUS.PENDING,
-            APPLICATION_STATUS.SUBMITTED,
-            APPLICATION_STATUS.BUYER_QUALIFICATION,
-            APPLICATION_STATUS.OFFER_READY,
-            APPLICATION_STATUS.OFFER_SUBMITTED,
-            APPLICATION_STATUS.OFFER_UNDER_REVIEW,
-            APPLICATION_STATUS.OFFER_ACCEPTED,
-            APPLICATION_STATUS.SALE_AGREED,
-            APPLICATION_STATUS.MEMORANDUM_ISSUED,
-            APPLICATION_STATUS.CONVEYANCING,
-            APPLICATION_STATUS.EXCHANGE,
-        ].includes(a.status)).length;
-        const actionRequired = allApplications.filter((a: any) => a.requiresAction).length;
-        const approved = allApplications.filter((a: any) => a.status === APPLICATION_STATUS.APPROVED).length;
+        const counts = getManagerApplicationCounts(allApplications);
 
         return [
-            { label: 'Total Active', value: total.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Pending Review', value: pending.toString(), icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-            { label: 'Action Required', value: actionRequired.toString(), icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
-            { label: 'Completed', value: approved.toString(), icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
+            { label: 'Total Active', value: counts.active.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+            { label: 'Pending Review', value: counts.pending.toString(), icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+            { label: 'Action Required', value: counts.actionRequired.toString(), icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
+            { label: 'Completed', value: counts.completed.toString(), icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
         ];
     }, [allApplications]);
 

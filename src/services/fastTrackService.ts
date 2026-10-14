@@ -822,6 +822,11 @@ export const requestFastTrack = async (
   }
 };
 
+/** Booking refuses actions with lowercase text ("this viewing has not happened yet; ..."); show it as a sentence. */
+export const presentFastTrackActionError = (message: string): string => (
+  message.charAt(0).toUpperCase() + message.slice(1)
+);
+
 export const performFastTrackAction = async (
   id: string,
   req: FastTrackActionRequest,
@@ -838,7 +843,7 @@ export const performFastTrackAction = async (
     );
     return { data: result ? mapBackendToFrontend(result) : null, error: null };
   } catch (error: any) {
-    return { data: null, error: getErrorMessage(error) };
+    return { data: null, error: presentFastTrackActionError(getErrorMessage(error)) };
   }
 };
 
