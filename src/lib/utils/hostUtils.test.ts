@@ -35,6 +35,11 @@ test('app host still blocks admin routes locally', () => {
     );
 });
 
+test('app host serves the public account-deletion page (Google Play link)', () => {
+    assert.equal(resolveHostedWorkspaceRedirect('app', '/account-deletion'), null);
+    assert.equal(resolveHostedWorkspaceRedirect('landing', '/account-deletion'), null);
+});
+
 test('app host root is left to the role-aware startup redirect', () => {
     // A manager opening app.estospaces.com/ was sent to the User dashboard.
     assert.equal(resolveHostedWorkspaceRedirect('app', '/'), null);
