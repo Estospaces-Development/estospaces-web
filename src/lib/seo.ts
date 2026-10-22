@@ -86,6 +86,7 @@ export const pageMetadata = {
     contact: generateMetadata({ title: 'Contact Us', path: '/contact', description: 'Get in touch with the EstoSpaces team.' }),
     faq: generateMetadata({ title: 'FAQ', path: '/faq', description: 'Frequently asked questions about EstoSpaces.' }),
     privacy: generateMetadata({ title: 'Privacy Policy', path: '/privacy' }),
+    accountDeletion: generateMetadata({ title: 'Delete your account', path: '/account-deletion' }),
     userDashboard: generateMetadata({ title: 'Dashboard', path: '/user/dashboard', noIndex: true }),
     userSearch: generateMetadata({ title: 'Property Search', path: '/user/search', description: 'Search verified property listings across supported locations.' }),
     userBookings: generateMetadata({ title: 'My Bookings', path: '/user/bookings', noIndex: true }),

@@ -246,7 +246,7 @@ function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps) {
                         <h4 className="font-bold text-gray-900 dark:text-white">Data Sharing</h4>
                         <p>We share your information with property managers and agents only when you make a property inquiry or use our Fast Track service. We never sell your personal data to third parties.</p>
                         <h4 className="font-bold text-gray-900 dark:text-white">Your Rights</h4>
-                        <p>You can view and update your details in your profile. To delete your account or exercise any other privacy right, contact us at privacy@estospaces.com. The full Privacy Policy is at /privacy.</p>
+                        <p>You can view and update your details in your profile. To delete your account or exercise any other privacy right, contact us at contact@estospaces.com. The full Privacy Policy is at /privacy.</p>
                     </div>
                 </div>
                 <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
