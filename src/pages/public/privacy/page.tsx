@@ -100,7 +100,7 @@ export default function PrivacyPolicyPage() {
                     <section>
                         <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Your Rights</h2>
                         <p className="text-gray-600 leading-relaxed">
-                            You can ask to access, correct or delete your data, to restrict or object to its use, and to receive a copy of it. To delete your account, email privacy@estospaces.com. In India you can also nominate someone to exercise your rights, and raise a grievance with us at privacy@estospaces.com. In the UK you can complain to the Information Commissioner’s Office (ico.org.uk). Estospaces is not intended for anyone under 18.
+                            You can ask to access, correct or delete your data, to restrict or object to its use, and to receive a copy of it. To delete your account, email contact@estospaces.com. In India you can also nominate someone to exercise your rights, and raise a grievance with us at contact@estospaces.com. In the UK you can complain to the Information Commissioner’s Office (ico.org.uk). Estospaces is not intended for anyone under 18.
                         </p>
                     </section>
 
@@ -111,8 +111,8 @@ export default function PrivacyPolicyPage() {
                         </p>
                         <div className="flex items-center gap-2 text-orange-500">
                             <Mail size={18} />
-                            <a href="mailto:privacy@estospaces.com" className="hover:underline">
-                                privacy@estospaces.com
+                            <a href="mailto:contact@estospaces.com" className="hover:underline">
+                                contact@estospaces.com
                             </a>
                         </div>
                     </section>

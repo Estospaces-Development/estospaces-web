@@ -60,8 +60,8 @@ export default function AccountDeletionPage() {
                         </p>
                         <div className="flex items-center gap-2 text-orange-500">
                             <Mail size={18} />
-                            <a href="mailto:privacy@estospaces.com?subject=Account%20deletion%20request" className="hover:underline">
-                                privacy@estospaces.com
+                            <a href="mailto:contact@estospaces.com?subject=Account%20deletion%20request" className="hover:underline">
+                                contact@estospaces.com
                             </a>
                         </div>
                         <p className="text-gray-600 leading-relaxed mt-4">
