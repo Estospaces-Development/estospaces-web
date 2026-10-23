@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { Lead } from '@/services/leadsService';
-import { getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation } from './leadMapView';
+import { formatLeadResponseTimer, getLeadMapActions, getLeadMapSwitcherLabels, groupLeadsByLocation } from './leadMapView';
 
 const lead = (id: string, latitude?: number, longitude?: number): Lead => ({
     id,
@@ -62,4 +62,12 @@ test('switcher labels add the property when two leads share a client', () => {
         { id: 'c', name: 'Ravi', property: { title: 'Lake Road' } },
     ] as unknown as Lead[];
     assert.deepEqual(getLeadMapSwitcherLabels(leads), ['Maya Demo · Garden Court', 'Maya Demo · Harbour View', 'Ravi']);
+});
+
+test('a manual lead has no response timer; a routed lead counts down', () => {
+    const manual = { id: 'm1', source: 'manual', sla_remaining_seconds: 76607 } as unknown as Lead;
+    assert.equal(formatLeadResponseTimer(manual, Date.now()), 'Not timed (manual lead)');
+    const routed = { id: 'r1', source: 'broker_request', sla_remaining_seconds: 425 } as unknown as Lead;
+    assert.equal(formatLeadResponseTimer(routed, Date.now()), '7:05');
+    assert.equal(formatLeadResponseTimer({ id: 'r2', sla_remaining_seconds: -5 } as unknown as Lead, Date.now()), '0:00');
 });
