@@ -258,7 +258,7 @@ export default function LoginPage() {
 
                 {/* Forgot Password Link */}
                 <div className="mb-4 text-right sm:mb-6">
-                <Link to={forgotPasswordPath} className={`text-primary text-sm font-semibold hover:underline ${authFocusClass}`}>
+                <Link to={forgotPasswordPath} className={`inline-flex min-h-11 items-center text-primary text-sm font-semibold hover:underline ${authFocusClass}`}>
                     Forgot Password?
                 </Link>
                 </div>
