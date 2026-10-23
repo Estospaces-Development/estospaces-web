@@ -160,6 +160,19 @@ test("a completed Fast Track rental is listed once, unless a contract already co
   assert.equal(listed[0].statusLabel, "Rented through Fast Track");
   assert.equal(listed[0].ownershipLabel, "Rented");
   assert.equal(listed[0].targetPath, "/user/dashboard/fast-track?case=case-rent-2&property=property-rent-2");
+  assert.equal(listed[0].propertyAddress, "Address not recorded");
+  assert.equal(listed[0].priceLabel, "Price unavailable");
+
+  // Fast Track applications carry no address or price: use the listing, and the agreed rent first.
+  const propertyContexts = new Map([["property-rent-2", { address: "2 Garden Row, Leeds", price: 1200, country: "GB", currency: "GBP" }]]);
+  const filled = buildUserPropertyPortfolio({ contracts: [], applications: [], saleProgressions: [], fastTrackCases: [ftCase({})], propertyContexts });
+  assert.equal(filled[0].propertyAddress, "2 Garden Row, Leeds");
+  assert.equal(filled[0].priceLabel, "£1,200/mo");
+  const agreed = buildUserPropertyPortfolio({
+    contracts: [], applications: [], saleProgressions: [], propertyContexts,
+    fastTrackCases: [ftCase({ propertyCountry: "GB", decision: { mode: "rent", status: "approved", amount: 1150, currency: "GBP" } })],
+  });
+  assert.equal(agreed[0].priceLabel, "£1,150/mo");
 
   // The existing contract for property-rent-1 / rent-app-1 already lists that home.
   const covered = buildUserPropertyPortfolio({

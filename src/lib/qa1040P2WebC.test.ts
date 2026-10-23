@@ -32,3 +32,10 @@ test('Fast Track times carry a zone label and date-only values keep their day (M
 test('a failed image preview explains itself and offers Retry (MB-0434)', () => {
     assert.match(read('components/fast-track/FastTrackWorkspace.tsx'), /The image preview failed to load\./);
 });
+
+test('a separately booked viewing is not tied to the same lead\'s Fast Track case', () => {
+    const closedCase = { caseId: 'case-1', leadId: 'lead-1', propertyId: 'property-1', viewingId: 'viewing-ft', workspaceFinalStatus: 'completed' } as unknown as FastTrackCase;
+    assert.equal(findLinkedFastTrackCase([closedCase], { viewingId: 'viewing-separate', leadId: 'lead-1', propertyId: 'property-1' }), null);
+    assert.equal(findLinkedFastTrackCase([closedCase], { viewingId: 'viewing-ft', leadId: 'lead-1' })?.caseId, 'case-1');
+    assert.equal(findLinkedFastTrackCase([closedCase], { leadId: 'lead-1' })?.caseId, 'case-1');
+});

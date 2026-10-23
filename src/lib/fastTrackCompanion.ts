@@ -89,18 +89,18 @@ export const findLinkedFastTrackCase = (
     }
   }
 
+  // A named application, viewing or contract that matched no case means this record has no case;
+  // falling back to the lead or "any case on the property" posted actions to a closed or another client's case (MB-0464).
+  if (applicationId || viewingId || contractId) {
+    return null;
+  }
+
   const leadId = normalizeId(context.leadId);
   if (leadId) {
     const leadMatch = cases.find((caseItem) => sameId(caseItem.leadId, leadId));
     if (leadMatch) {
       return leadMatch;
     }
-  }
-
-  // A named application, viewing or contract that matched no case means this record has no case;
-  // falling back to "any case on the property" posted actions to another client's case (MB-0464).
-  if (applicationId || viewingId || contractId) {
-    return null;
   }
 
   const propertyId = normalizeId(context.propertyId);
