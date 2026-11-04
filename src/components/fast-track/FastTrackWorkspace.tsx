@@ -114,7 +114,7 @@ import {
 } from '@/services/managerReviewsService';
 import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
-import { getLocalTodayInputValue, toLocalScheduledAt } from '@/lib/localScheduledAt';
+import { getLocalTodayInputValue, getViewingMaxInputValue, toLocalScheduledAt } from '@/lib/localScheduledAt';
 import { getFastTrackConnectedRecordPath, type FastTrackConnectedRecordKind } from '@/lib/fastTrackConnectedRecords';
 import { formatJourneyStartedLabel } from '@/lib/existingFastTrackJourney';
 import {
@@ -3516,6 +3516,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             onChange={setViewingDate}
                             ariaLabel="Viewing date"
                             min={getLocalTodayInputValue()}
+                            max={getViewingMaxInputValue()}
                         />
                         <TimeField
                             value={viewingTime}

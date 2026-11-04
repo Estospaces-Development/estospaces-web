@@ -80,6 +80,7 @@ import {
 } from '@/lib/immersiveGallery';
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { getViewingMaxInputValue } from '@/lib/localScheduledAt';
 import { getPropertyImages, getPropertyVideos } from '@/lib/propertyImages';
 import { getPropertyGalleryDisplayState } from '@/lib/propertyGalleryState';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
@@ -1189,6 +1190,7 @@ const UserPropertyDetail = () => {
     const propertyMapAddress = propertyMapState.displayAddress || propertyAddress || locationLabel;
     const preferredMapsLabel = propertyMapState.provider === 'apple' ? 'Apple Maps' : 'Google Maps';
     const minimumViewingDate = useMemo(() => toDateValue(new Date()), []);
+    const maximumViewingDate = useMemo(() => getViewingMaxInputValue(), []);
     const minimumRentalApplicationMoveInDate = useMemo(() => {
         const todayValue = toDateValue(new Date());
         if (!property?.available_from) {
@@ -1414,9 +1416,9 @@ const UserPropertyDetail = () => {
     const calendarDays = useMemo(
         () => buildCalendarDays(calendarMonth, minimumViewingDate).map((day) => ({
             ...day,
-            isDisabled: day.isDisabled || VIEWING_TIME_SLOTS.every((slot) => isViewingTimeSlotUnavailable(day.value, slot.value, bookedViewingSlotsByDate)),
+            isDisabled: day.isDisabled || day.value > maximumViewingDate || VIEWING_TIME_SLOTS.every((slot) => isViewingTimeSlotUnavailable(day.value, slot.value, bookedViewingSlotsByDate)),
         })),
-        [bookedViewingSlotsByDate, calendarMonth, minimumViewingDate],
+        [bookedViewingSlotsByDate, calendarMonth, maximumViewingDate, minimumViewingDate],
     );
     const canGoToPreviousMonth = calendarMonth.getTime() > currentMonthStart.getTime();
     const changeViewingCalendarMonth = (offset: number) => {
