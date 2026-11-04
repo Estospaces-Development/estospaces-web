@@ -36,7 +36,7 @@ import {
 } from "@/lib/fastTrackWorkspace";
 import { getFastTrackDisplayTitle } from "@/lib/fastTrackDisplayTitle";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
-import { getLocalTodayInputValue, toLocalScheduledAt } from "@/lib/localScheduledAt";
+import { getLocalTodayInputValue, getViewingMaxInputValue, toLocalScheduledAt } from "@/lib/localScheduledAt";
 import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import { MANAGER_VIEW_ONLY_REASON } from "@/lib/managerViewOnly";
 import type { FastTrackCase } from "@/services/fastTrackService";
@@ -334,6 +334,7 @@ export default function FastTrackCompanionPanel({
               buttonClassName="bg-white dark:bg-gray-950"
               ariaLabel="Companion viewing date"
               min={getLocalTodayInputValue()}
+              max={getViewingMaxInputValue()}
             />
           </label>
           <label className="space-y-2 text-sm">

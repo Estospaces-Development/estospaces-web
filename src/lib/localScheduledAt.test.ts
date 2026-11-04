@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { getLocalTodayInputValue, toLocalScheduledAt } from './localScheduledAt';
+import { MAX_VIEWING_DAYS_AHEAD, getLocalTodayInputValue, getViewingMaxInputValue, toLocalScheduledAt } from './localScheduledAt';
 
 test('a local time inside a daylight-saving gap is refused, not shifted an hour (MB-0452)', () => {
     const originalTimeZone = process.env.TZ;
@@ -45,5 +45,14 @@ test('manager reschedule and Fast Track viewing date pickers disable past days',
         '../components/fast-track/FastTrackCompanionPanel.tsx',
     ]) {
         assert.match(read(path), /min=\{getLocalTodayInputValue\(\)\}/, path);
+        assert.match(read(path), /max=\{getViewingMaxInputValue\(\)\}/, path);
     }
+});
+
+test('viewing pickers stop 90 days ahead, matching booking-service', () => {
+    assert.equal(MAX_VIEWING_DAYS_AHEAD, 90);
+    assert.equal(getViewingMaxInputValue(new Date(2026, 10, 4, 23, 30)), '2027-02-02');
+    assert.equal(getViewingMaxInputValue(new Date(2026, 11, 31, 0, 5)), '2027-03-31');
+    const home = readFileSync(new URL('../pages/user/properties/[id]/page.tsx', import.meta.url), 'utf8');
+    assert.match(home, /day\.value > maximumViewingDate/);
 });

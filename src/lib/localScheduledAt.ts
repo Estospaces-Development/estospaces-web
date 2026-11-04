@@ -27,6 +27,13 @@ export const toLocalScheduledAt = (
     return { scheduledAt: value.toISOString() };
 };
 
+// Owner decision (4 Nov 2026): viewings are booked at most 90 days ahead; booking-service refuses later times.
+export const MAX_VIEWING_DAYS_AHEAD = 90;
+
+// Last local calendar day a viewing can be booked, used as the `max` of viewing date pickers.
+export const getViewingMaxInputValue = (now: Date = new Date()): string =>
+    getLocalTodayInputValue(new Date(now.getFullYear(), now.getMonth(), now.getDate() + MAX_VIEWING_DAYS_AHEAD));
+
 // Local calendar day as YYYY-MM-DD, used as the `min` of date pickers so past days are disabled.
 export const getLocalTodayInputValue = (now: Date = new Date()): string => {
     const pad = (value: number) => String(value).padStart(2, '0');
